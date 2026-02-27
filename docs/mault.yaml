@@ -1,0 +1,224 @@
+version: 1
+
+# =============================================================================
+# UC02: LEGACY PATH PREVENTION
+# =============================================================================
+deprecatedPatterns:
+  # ----- Deprecated Libraries -----
+  - id: dep-moment
+    import: moment
+    message: "Deprecated library 'moment'. Use 'date-fns' or 'dayjs' instead."
+    languages: [typescript, javascript]
+
+  - id: dep-request
+    import: request
+    message: "Deprecated library 'request'. Use 'axios' or 'node-fetch' instead."
+    languages: [typescript, javascript]
+
+  - id: dep-request-promise
+    import: request-promise
+    message: "Deprecated 'request-promise'. Use 'axios' or 'node-fetch' instead."
+    languages: [typescript, javascript]
+
+  - id: dep-underscore
+    import: underscore
+    message: "Use lodash or native array methods instead of underscore."
+    languages: [typescript, javascript]
+
+  - id: dep-colors
+    import: colors
+    message: "colors package was compromised. Use 'chalk' or 'picocolors' instead."
+    languages: [typescript, javascript]
+
+  - id: dep-faker
+    import: faker
+    message: "faker.js is abandoned. Use '@faker-js/faker' instead."
+    languages: [typescript, javascript]
+
+  - id: dep-left-pad
+    import: left-pad
+    message: "left-pad is obsolete. Use String.padStart() instead."
+    languages: [typescript, javascript]
+
+  - id: dep-node-uuid
+    import: node-uuid
+    message: "node-uuid is deprecated. Use 'uuid' package instead."
+    languages: [typescript, javascript]
+
+  # ----- Deprecated Node.js APIs -----
+  - id: dep-sync-exec
+    functionCall: execSync
+    message: "Avoid synchronous exec. Use async exec, spawn, or execa instead."
+    languages: [typescript, javascript]
+
+  # ----- React/Legacy Patterns -----
+  - id: dep-class-components
+    functionCall: React.Component
+    message: "Class components are legacy. Use functional components with Hooks."
+    languages: [typescript, javascript]
+
+  - id: dep-componentWillMount
+    functionCall: componentWillMount
+    message: "componentWillMount is deprecated. Use componentDidMount or useEffect."
+    languages: [typescript, javascript]
+
+# =============================================================================
+# DETECTORS CONFIGURATION (UC01-UC12)
+# =============================================================================
+
+Detectors:
+  # UC01: Directory Reinforcement
+  directoryReinforcement:
+    enabled: true
+    rules:
+      - pattern: "**/*Agent.ts"
+        expectedDir: "src/agents"
+        reason: "Agent files should be in src/agents/"
+      - pattern: "**/*agent.ts"
+        expectedDir: "src/agents"
+        reason: "Agent files should be in src/agents/"
+      - pattern: "**/*Service.ts"
+        expectedDir: "src/services"
+        reason: "Service files should be in src/services/"
+      - pattern: "**/*service.ts"
+        expectedDir: "src/services"
+        reason: "Service files should be in src/services/"
+      - pattern: "**/*Controller.ts"
+        expectedDir: "src/controllers"
+        reason: "Controller files should be in src/controllers/"
+      - pattern: "**/*Handler.ts"
+        expectedDir: "src/handlers"
+        reason: "Handler files should be in src/handlers/"
+      - pattern: "**/*handler.ts"
+        expectedDir: "src/handlers"
+        reason: "Handler files should be in src/handlers/"
+      - pattern: "**/*Util*.ts"
+        expectedDir: "src/utils"
+        reason: "Utility files should be in src/utils/"
+      - pattern: "**/*util*.ts"
+        expectedDir: "src/utils"
+        reason: "Utility files should be in src/utils/"
+      - pattern: "**/*Helper*.ts"
+        expectedDir: "src/utils"
+        reason: "Helper files should be in src/utils/"
+      - pattern: "**/*helper*.ts"
+        expectedDir: "src/utils"
+        reason: "Helper files should be in src/utils/"
+      - pattern: "**/*Types.ts"
+        expectedDir: "src/types"
+        reason: "Type definition files should be in src/types/"
+      - pattern: "**/*.test.ts"
+        expectedDir: "tests"
+        reason: "Test files should be in tests/"
+      - pattern: "**/*.spec.ts"
+        expectedDir: "tests"
+        reason: "Spec files should be in tests/"
+
+  # UC03: Naming Convention
+  namingConvention:
+    enabled: true
+    fileNaming: "kebab-case"
+    excludePatterns:
+      - "**/[A-Z]*.ts"
+      - "**/[A-Z]*.tsx"
+      - "**/*.test.ts"
+      - "**/*.spec.ts"
+      - "**/*.d.ts"
+      - "**/*.config.*"
+      - "**/index.ts"
+    variableNaming: "camelCase"
+    functionNaming: "camelCase"
+    classNaming: "PascalCase"
+    constantNaming: "SCREAMING_SNAKE_CASE"
+
+  # UC04: Environment Reinforcement
+  environmentReinforcement:
+    enabled: true
+    checkPaths: true
+    checkCommands: true
+
+  # UC06: Temporary Files
+  tempFiles:
+    enabled: true
+    patterns:
+      - "**/*.tmp"
+      - "**/temp_*"
+      - "**/temp-*"
+      - "**/temp.*"
+      - "**/scratch_*"
+      - "**/scratch-*"
+      - "**/scratch.*"
+      - "**/scratchpad.*"
+      - "**/*.bak"
+      - "**/*_backup.*"
+      - "**/*-backup.*"
+      - "**/*_old.*"
+      - "**/*-old.*"
+      - "**/*.backup"
+      - "**/debug_*"
+      - "**/debug-*"
+      - "**/debug.*"
+      - "**/test_output.*"
+      - "**/test-output.*"
+
+  # UC07: Flat Architecture
+  flatArchitecture:
+    enabled: true
+    targets:
+      - path: "src"
+        maxRootFiles: 10
+        minSubdirs: 3
+        excludePatterns: ["dist/**", "node_modules/**", "build/**"]
+      - path: "."
+        maxRootFiles: 15
+        excludePatterns: ["node_modules/**", ".git/**", "dist/**", "build/**"]
+
+  # UC08: Configuration Chaos
+  configChaos:
+    enabled: true
+    requiredConfigs:
+      - ".gitignore"
+      - "package.json"
+      - "tsconfig.json"
+    optionalConfigs:
+      - ".env.example"
+      - ".prettierrc"
+      - ".eslintrc.js"
+      - ".eslintrc.json"
+      - "jest.config.js"
+      - "jest.config.ts"
+
+  # UC09: File Proliferation
+  fileProliferation:
+    enabled: true
+    threshold: 3
+
+  # UC11: Overcrowded Folders
+  overcrowdedFolders:
+    enabled: true
+    targets:
+      - path: "src"
+        maxFiles: 20
+      - path: "src/agents"
+        maxFiles: 20
+      - path: "src/utils"
+        maxFiles: 15
+      - path: "src/services"
+        maxFiles: 20
+
+  # UC12: Misplaced Utilities
+  misplacedUtilities:
+    enabled: true
+    centralLocation: "src/utils"
+
+  # Project Scaffolding (informational)
+  projectScaffolding:
+    enabled: true
+    rootMaxFiles: 15
+
+  # Dead End Directories (informational)
+  deadEnds:
+    enabled: true
+    ignoreGlobs: ["**/node_modules/**", "**/.git/**", "**/dist/**", "**/build/**"]
+    maxFiles: 500
+    timeBudgetMs: 5000

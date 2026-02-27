@@ -1,0 +1,14 @@
+{
+  "timestamp": "2026-02-27T21:30:00Z",
+  "scope": "core",
+  "detections": [
+    { "uc": "UC01", "file": "mault-canary/uc01-misplaced-service.ts", "detected": true, "panel": "Directory Placement (5 issues)" },
+    { "uc": "UC02", "file": "mault-canary/uc02-deprecated-import.ts", "detected": true, "panel": "Drift Detection (11 issues)" },
+    { "uc": "UC03", "file": "mault-canary/uc03-BadNaming.ts", "detected": true, "panel": "Drift Detection (11 issues)" },
+    { "uc": "UC06", "file": "mault-canary/temp_scratch.ts", "detected": true, "panel": "Drift Detection (11 issues)" },
+    { "uc": "UC09", "file": "mault-canary/uc09-utils_v1.ts", "detected": true, "panel": "File Proliferation (1 issue)" },
+    { "uc": "UC12", "file": "mault-canary/uc12-scattered-helper.ts", "detected": true, "panel": "Drift Detection (11 issues)" }
+  ],
+  "totalDetected": 6,
+  "totalExpected": 6
+}
