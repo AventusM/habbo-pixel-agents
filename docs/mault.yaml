@@ -160,6 +160,8 @@ Detectors:
       - "**/debug.*"
       - "**/test_output.*"
       - "**/test-output.*"
+    excludePatterns:
+      - "docs/specs/**"
 
   # UC07: Flat Architecture
   flatArchitecture:
@@ -192,6 +194,8 @@ Detectors:
   fileProliferation:
     enabled: true
     threshold: 3
+    excludePatterns:
+      - "docs/specs/**"
 
   # UC11: Overcrowded Folders
   overcrowdedFolders:
@@ -219,6 +223,6 @@ Detectors:
   # Dead End Directories (informational)
   deadEnds:
     enabled: true
-    ignoreGlobs: ["**/node_modules/**", "**/.git/**", "**/dist/**", "**/build/**"]
+    ignoreGlobs: ["**/node_modules/**", "**/.git/**", "**/dist/**", "**/build/**", "**/docs/specs/**"]
     maxFiles: 500
     timeBudgetMs: 5000
