@@ -31,7 +31,7 @@ export function activate(context: vscode.ExtensionContext) {
       vscode.Uri.joinPath(context.extensionUri, 'dist', 'webview.js')
     );
 
-    // Generate webview URIs for chair atlas (proof-of-concept)
+    // Generate webview URIs for chair atlas (proof-of-concept from Phase 3)
     const chairPngUri = panel.webview.asWebviewUri(
       vscode.Uri.joinPath(context.extensionUri, 'dist', 'webview-assets', 'chair_atlas.png')
     );
@@ -39,8 +39,18 @@ export function activate(context: vscode.ExtensionContext) {
       vscode.Uri.joinPath(context.extensionUri, 'dist', 'webview-assets', 'chair_atlas.json')
     );
 
+    // Generate webview URIs for furniture atlas (Phase 4)
+    const furniturePngUri = panel.webview.asWebviewUri(
+      vscode.Uri.joinPath(context.extensionUri, 'dist', 'webview-assets', 'furniture_atlas.png')
+    );
+    const furnitureJsonUri = panel.webview.asWebviewUri(
+      vscode.Uri.joinPath(context.extensionUri, 'dist', 'webview-assets', 'furniture_atlas.json')
+    );
+
     console.log('Chair PNG URI:', chairPngUri.toString());
     console.log('Chair JSON URI:', chairJsonUri.toString());
+    console.log('Furniture PNG URI:', furniturePngUri.toString());
+    console.log('Furniture JSON URI:', furnitureJsonUri.toString());
 
     // Set HTML content
     panel.webview.html = `<!DOCTYPE html>
@@ -54,7 +64,9 @@ export function activate(context: vscode.ExtensionContext) {
     <script>
       window.ASSET_URIS = {
         chairPng: '${chairPngUri}',
-        chairJson: '${chairJsonUri}'
+        chairJson: '${chairJsonUri}',
+        furniturePng: '${furniturePngUri}',
+        furnitureJson: '${furnitureJsonUri}'
       };
     </script>
   </head>

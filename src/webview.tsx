@@ -26,28 +26,40 @@ const spriteCache = new SpriteCache();
 
 (async () => {
   try {
-    const { chairPng, chairJson } = (window as any).ASSET_URIS;
+    const { chairPng, chairJson, furniturePng, furnitureJson } = (window as any).ASSET_URIS;
 
     console.log('Loading chair atlas from:', chairPng, chairJson);
-
     await spriteCache.loadAtlas('chair', chairPng, chairJson);
-
     console.log('✓ Chair atlas loaded successfully');
 
+    console.log('Loading furniture atlas from:', furniturePng, furnitureJson);
+    await spriteCache.loadAtlas('furniture', furniturePng, furnitureJson);
+    console.log('✓ Furniture atlas loaded successfully');
+
     // Test frame lookup
-    const frame = spriteCache.getFrame('chair', 'chair_64_a_0_0');
-    if (frame) {
-      console.log('✓ Frame lookup succeeded:', {
-        x: frame.x,
-        y: frame.y,
-        w: frame.w,
-        h: frame.h,
-        bitmapWidth: frame.bitmap.width,
-        bitmapHeight: frame.bitmap.height,
+    const chairFrame = spriteCache.getFrame('chair', 'chair_64_a_0_0');
+    if (chairFrame) {
+      console.log('✓ Chair frame lookup succeeded:', {
+        x: chairFrame.x,
+        y: chairFrame.y,
+        w: chairFrame.w,
+        h: chairFrame.h,
       });
-    } else {
-      console.warn('Frame lookup returned null — check frame name in manifest');
     }
+
+    const deskFrame = spriteCache.getFrame('furniture', 'desk_64_a_0_0');
+    if (deskFrame) {
+      console.log('✓ Furniture frame lookup succeeded:', {
+        name: 'desk_64_a_0_0',
+        x: deskFrame.x,
+        y: deskFrame.y,
+        w: deskFrame.w,
+        h: deskFrame.h,
+      });
+    }
+
+    // Make sprite cache globally available for RoomCanvas
+    (window as any).spriteCache = spriteCache;
   } catch (error) {
     console.error('Asset loading failed:', error);
   }
