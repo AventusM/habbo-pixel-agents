@@ -32,6 +32,13 @@ Plans:
 **Goal:** Produce a visible, correct isometric room from any Habbo heightmap string using only Canvas 2D path fills — no sprites, no external assets — giving a demo-able room before the asset pipeline is built.
 **Requirements:** ROOM-01, ROOM-02, ROOM-03, ROOM-04, ROOM-05, ROOM-06, ROOM-07, ROOM-08, ROOM-09, ROOM-10, ROOM-11
 
+**Plans:** 3 plans
+
+Plans:
+- [ ] 02-01-PLAN.md — TDD: pure TypeScript types, heightmap parser, HSB colour utilities, and depth sort (isoTypes.ts)
+- [ ] 02-02-PLAN.md — Canvas drawing module: rhombus tiles, wall strips, OffscreenCanvas pre-render, HiDPI init (isoTileRenderer.ts)
+- [ ] 02-03-PLAN.md — React component + VS Code extension entry: rAF loop, OffscreenCanvas blit, esbuild build scripts (RoomCanvas.tsx + extension.ts)
+
 **Deliverables:**
 - [ ] `src/isoTileRenderer.ts` draws floor rhombuses (Canvas 2D `beginPath`/`lineTo`/`fill`) in the correct isometric positions, with three-tone shading and per-tile HSB colour support, including stair-step height offsets for tiles at height 1-9.
 - [ ] Left and right wall strips are drawn along the correct room edges with the left wall lighter than the right wall (~20% brightness difference). Void tiles (`x`) produce no floor or wall draw.
@@ -162,7 +169,7 @@ Plans:
 | Phase | Requirements | Status | Completed |
 |-------|-------------|--------|-----------|
 | 1. Coordinate Foundation | COORD-01 – COORD-04 | Complete    | 2026-02-28 |
-| 2. Static Room Rendering | ROOM-01 – ROOM-11 | Not started | — |
+| 2. Static Room Rendering | ROOM-01 – ROOM-11 | Planned | — |
 | 3. Asset Pipeline | ASSET-01 – ASSET-07, BUILD-01 – BUILD-03 | Not started | — |
 | 4. Furniture Rendering | FURN-01 – FURN-05 | Not started | — |
 | 5. Avatar System | AVAT-01 – AVAT-08, AGENT-03, AGENT-05 | Not started | — |
@@ -173,4 +180,4 @@ Plans:
 ---
 
 *Created: 2026-02-28*
-*Last updated: 2026-02-28 after Phase 1 planning*
+*Last updated: 2026-02-28 after Phase 2 planning*
