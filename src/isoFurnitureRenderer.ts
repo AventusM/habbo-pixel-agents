@@ -23,6 +23,26 @@ export interface FurnitureSpec {
 }
 
 /**
+ * Specification for multi-tile furniture (desks, bookshelves, etc.)
+ */
+export interface MultiTileFurnitureSpec {
+  /** Furniture type name (e.g., "desk", "bookshelf") */
+  name: string;
+  /** Origin tile X coordinate (bottom-left of footprint) */
+  tileX: number;
+  /** Origin tile Y coordinate (bottom-left of footprint) */
+  tileY: number;
+  /** Tile Z coordinate (height level 0-9) */
+  tileZ: number;
+  /** Footprint width in tiles (e.g., 2 for 2×1 desk) */
+  widthTiles: number;
+  /** Footprint height in tiles (e.g., 1 for 2×1 desk) */
+  heightTiles: number;
+  /** Habbo direction (0, 2, 4, 6) */
+  direction: 0 | 2 | 4 | 6;
+}
+
+/**
  * Get base direction for sprite lookup.
  * Habbo sprites only store directions 0 and 2.
  * Directions 4 and 6 are horizontal mirrors.
@@ -83,6 +103,85 @@ export function createFurnitureRenderable(
       }
 
       // Convert tile position to screen coordinates
+      const screen = tileToScreen(spec.tileX, spec.tileY, spec.tileZ);
+
+      // Center sprite horizontally, align bottom to tile position
+      // CRITICAL: Round coordinates with Math.floor() to avoid sub-pixel rendering cost
+      const dx = Math.floor(screen.x - frame.w / 2);
+      const dy = Math.floor(screen.y - frame.h);
+
+      // Apply horizontal mirror for directions 4 and 6
+      if (shouldMirrorSprite(spec.direction)) {
+        ctx.save();
+        ctx.scale(-1, 1); // Horizontal flip
+        ctx.drawImage(
+          frame.bitmap,
+          frame.x, frame.y,  // Source atlas position
+          frame.w, frame.h,  // Source size
+          -dx - frame.w, dy, // Destination position (flipped X coordinate)
+          frame.w, frame.h   // Destination size (no scaling)
+        );
+        ctx.restore();
+      } else {
+        ctx.drawImage(
+          frame.bitmap,
+          frame.x, frame.y,  // Source atlas position
+          frame.w, frame.h,  // Source size
+          dx, dy,            // Destination position
+          frame.w, frame.h   // Destination size (no scaling)
+        );
+      }
+    },
+  };
+}
+
+/**
+ * Create a renderable object for multi-tile furniture.
+ *
+ * This implements the max-coordinate sort key pattern to fix depth sorting bugs
+ * where avatars standing behind furniture edges incorrectly appear in front.
+ *
+ * Key differences from single-tile:
+ * 1. Sort key uses max(tileX + widthTiles - 1, tileY + heightTiles - 1)
+ * 2. Rendering position uses origin tile (spec.tileX, spec.tileY), NOT sort tile
+ * 3. Ensures furniture's farthest edge determines depth ordering
+ *
+ * Example: 2×1 desk at origin (3,3) uses sort key (4,3) but renders at (3,3)
+ *
+ * @param spec - Multi-tile furniture specification
+ * @param spriteCache - Sprite cache instance
+ * @param atlasName - Atlas name in sprite cache
+ * @returns Renderable object with draw function
+ */
+export function createMultiTileFurnitureRenderable(
+  spec: MultiTileFurnitureSpec,
+  spriteCache: SpriteCache,
+  atlasName: string,
+): Renderable {
+  // Calculate max coordinate across full footprint for depth sorting
+  // This ensures the furniture's farthest edge determines rendering order
+  const sortTileX = spec.tileX + spec.widthTiles - 1;
+  const sortTileY = spec.tileY + spec.heightTiles - 1;
+
+  return {
+    // Use max coordinate for depth sort key
+    tileX: sortTileX,
+    tileY: sortTileY,
+    tileZ: spec.tileZ,
+    draw: (ctx) => {
+      // Frame key format: {name}_{size}_{layer}_{direction}_{frame}
+      const baseDirection = getBaseDirection(spec.direction);
+      const frameKey = `${spec.name}_64_a_${baseDirection}_0`;
+
+      // Look up sprite frame from cache
+      const frame = spriteCache.getFrame(atlasName, frameKey);
+      if (!frame) {
+        console.warn(`Missing furniture sprite: ${frameKey} in atlas ${atlasName}`);
+        return; // Graceful fallback
+      }
+
+      // CRITICAL: Render at ORIGIN tile position, not sort tile position
+      // This ensures the sprite appears at the correct screen location
       const screen = tileToScreen(spec.tileX, spec.tileY, spec.tileZ);
 
       // Center sprite horizontally, align bottom to tile position
