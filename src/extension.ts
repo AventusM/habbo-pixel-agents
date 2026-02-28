@@ -31,15 +31,32 @@ export function activate(context: vscode.ExtensionContext) {
       vscode.Uri.joinPath(context.extensionUri, 'dist', 'webview.js')
     );
 
+    // Generate webview URIs for chair atlas (proof-of-concept)
+    const chairPngUri = panel.webview.asWebviewUri(
+      vscode.Uri.joinPath(context.extensionUri, 'dist', 'webview-assets', 'chair_atlas.png')
+    );
+    const chairJsonUri = panel.webview.asWebviewUri(
+      vscode.Uri.joinPath(context.extensionUri, 'dist', 'webview-assets', 'chair_atlas.json')
+    );
+
+    console.log('Chair PNG URI:', chairPngUri.toString());
+    console.log('Chair JSON URI:', chairJsonUri.toString());
+
     // Set HTML content
     panel.webview.html = `<!DOCTYPE html>
 <html>
   <head>
     <meta charset="UTF-8" />
-    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src ${panel.webview.cspSource}; style-src 'unsafe-inline';" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src ${panel.webview.cspSource}; img-src ${panel.webview.cspSource}; style-src 'unsafe-inline';" />
     <style>
       html, body, #root { margin: 0; padding: 0; width: 100%; height: 100vh; background: #1a1a2e; }
     </style>
+    <script>
+      window.ASSET_URIS = {
+        chairPng: '${chairPngUri}',
+        chairJson: '${chairJsonUri}'
+      };
+    </script>
   </head>
   <body>
     <div id="root"></div>
