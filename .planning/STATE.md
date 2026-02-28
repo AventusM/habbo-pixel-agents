@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_plan: Not started
-status: completed
-stopped_at: Completed 01-coordinate-foundation/01-01-PLAN.md
-last_updated: "2026-02-28T12:51:45.788Z"
+current_plan: 02-02
+status: in-progress
+stopped_at: Completed 02-static-room-rendering/02-01-PLAN.md
+last_updated: "2026-02-28T17:44:38Z"
 progress:
-  total_phases: 1
+  total_phases: 2
   completed_phases: 1
-  total_plans: 1
-  completed_plans: 1
+  total_plans: 4
+  completed_plans: 2
 ---
 
 # STATE.md
@@ -20,21 +20,21 @@ progress:
 See: .planning/PROJECT.md (updated 2026-02-28)
 
 **Core value:** Claude Code agents should feel like they're working together in a recognisable Habbo Hotel room — the isometric 2.5D aesthetic must be faithful to the classic v14 era.
-**Current focus:** Phase 1 complete — ready for Phase 2 (tile renderer)
+**Current focus:** Phase 2 in progress — isometric types and pure logic complete (02-01), tile renderer next (02-02)
 
 ## Current Status
 
-Phase 1 (Coordinate Foundation) complete. All tasks executed, tests passing (24/24), typecheck clean.
+Phase 2 (Static Room Rendering) in progress. Plan 02-01 complete — isometric types and pure logic implemented with TDD workflow (25 tests passing).
 
-**Last session:** 2026-02-28T12:49:12.850Z
-**Stopped at:** Completed 01-coordinate-foundation/01-01-PLAN.md
-**Next action:** Phase 2 — Tile Renderer
+**Last session:** 2026-02-28T17:44:38Z
+**Stopped at:** Completed 02-static-room-rendering/02-01-PLAN.md
+**Next action:** Plan 02-02 — Tile Renderer (canvas drawing logic)
 
 ## Current Phase
 
-**Phase:** 01-coordinate-foundation
-**Current Plan:** Not started
-**Status:** Milestone complete
+**Phase:** 02-static-room-rendering
+**Current Plan:** 02-02 (next)
+**Status:** In progress (1 of 3 plans complete)
 
 ## Decisions Log
 
@@ -54,6 +54,10 @@ Phase 1 (Coordinate Foundation) complete. All tasks executed, tests passing (24/
 | 2026-02-28 | moduleResolution=bundler in tsconfig | esbuild is Phase 3+ bundler target; bundler resolution avoids future compat issues |
 | 2026-02-28 | environment: node in vitest.config.ts | Enforces zero DOM imports in math modules (COORD-04) |
 | 2026-02-28 | tileToScreen formula: screenX=(tileX-tileY)*32, screenY=(tileX+tileY)*16-tileZ*16 | Matches Habbo v14 diamond convention, verified against scuti/shroom/bobba |
+| 2026-02-28 | Use 0.001 Z-weight in depth sort formula | Prevents stair tiles (high Z) from rendering in front of lower-position tiles — X+Y position must dominate |
+| 2026-02-28 | Clamp left/right face lightness at 0% instead of allowing negative values | HSL lightness below 0% is invalid — clamping ensures valid CSS color strings |
+| 2026-02-28 | Treat unknown heightmap chars as void (null) | Graceful degradation for malformed input — matches Habbo client behavior |
+| 2026-02-28 | Use stable sort for identical depth keys | Preserves original ordering for tiles at same position — predictable rendering |
 
 ## Blockers
 
@@ -65,9 +69,11 @@ None.
 |-------|------|----------|-------|-------|
 | 01-coordinate-foundation | 01 | 5min | 2 | 6 |
 | Phase 01-coordinate-foundation P01 | 5 | 2 tasks | 6 files |
+| Phase 02-static-room-rendering P01 | 2 | 2 tasks | 2 files |
 
 ## Phase History
 
 | Phase | Plan | Summary |
 |-------|------|---------|
 | 01-coordinate-foundation | 01-01 | Node/TypeScript/Vitest bootstrapped; 24 isometric math assertions passing |
+| 02-static-room-rendering | 02-01 | Isometric types and pure logic implemented with TDD (25 tests passing) — parseHeightmap, hsbToHsl, tileColors, depthSort |

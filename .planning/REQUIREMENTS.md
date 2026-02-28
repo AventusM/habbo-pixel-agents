@@ -17,12 +17,12 @@
 ### Room Rendering
 
 - [ ] **ROOM-01**: Each walkable tile is rendered as a filled 64×32 px rhombus (diamond) using Canvas 2D path fills — not a rectangle and not a sprite.
-- [ ] **ROOM-02**: Tiles at height levels 1-9 are rendered with the correct vertical offset (`tileZ * 16 px` upward shift), producing visible stair-step geometry.
-- [ ] **ROOM-03**: Floor tiles use three-tone shading: top face lightest, left face medium, right face darkest — matching classic Habbo flat shading with no dynamic lighting.
-- [ ] **ROOM-04**: Per-tile HSB colour from the existing layout editor data model is preserved and applied as the tile fill colour.
+- [x] **ROOM-02**: Tiles at height levels 1-9 are rendered with the correct vertical offset (`tileZ * 16 px` upward shift), producing visible stair-step geometry.
+- [x] **ROOM-03**: Floor tiles use three-tone shading: top face lightest, left face medium, right face darkest — matching classic Habbo flat shading with no dynamic lighting.
+- [x] **ROOM-04**: Per-tile HSB colour from the existing layout editor data model is preserved and applied as the tile fill colour.
 - [ ] **ROOM-05**: Left wall strips are rendered along the top-left room edge; right wall strips along the top-right edge; both are Canvas 2D fills with the left wall lighter than the right wall (approximately 20% brightness difference).
-- [ ] **ROOM-06**: Void (non-walkable) tiles marked `x` in the heightmap are not drawn; the panel background shows through.
-- [ ] **ROOM-07**: All renderables (tiles, walls, furniture, avatars) are depth-sorted using sort key `tileX + tileY + tileZ * 0.001` (painter's algorithm, back-to-front), producing correct visual overlap with no Z-fighting artifacts for a standard office room layout.
+- [x] **ROOM-06**: Void (non-walkable) tiles marked `x` in the heightmap are not drawn; the panel background shows through.
+- [x] **ROOM-07**: All renderables (tiles, walls, furniture, avatars) are depth-sorted using sort key `tileX + tileY + tileZ * 0.001` (painter's algorithm, back-to-front), producing correct visual overlap with no Z-fighting artifacts for a standard office room layout.
 - [ ] **ROOM-08**: The static room geometry (floor tiles and walls) is pre-rendered to an `OffscreenCanvas` once at layout load; it is composited to the main canvas each frame via a single `drawImage`, not re-drawn per frame.
 - [ ] **ROOM-09**: Canvas is initialised with `canvas.width = offsetWidth * devicePixelRatio` and `ctx.scale(dpr, dpr)`, and `ctx.imageSmoothingEnabled = false` is set before any sprite draws, so isometric tiles remain pixel-crisp at HiDPI display resolutions.
 - [ ] **ROOM-10**: The `requestAnimationFrame` loop uses a `running` boolean guard so it self-terminates on cleanup even under React StrictMode double-mount.
@@ -141,12 +141,12 @@ The following requirements are explicitly deferred beyond v1. They are noted her
 | COORD-03 | Phase 1: Coordinate Foundation | Complete |
 | COORD-04 | Phase 1: Coordinate Foundation | Complete |
 | ROOM-01 | Phase 2: Static Room Rendering | Pending |
-| ROOM-02 | Phase 2: Static Room Rendering | Pending |
-| ROOM-03 | Phase 2: Static Room Rendering | Pending |
-| ROOM-04 | Phase 2: Static Room Rendering | Pending |
+| ROOM-02 | Phase 2: Static Room Rendering | Complete |
+| ROOM-03 | Phase 2: Static Room Rendering | Complete |
+| ROOM-04 | Phase 2: Static Room Rendering | Complete |
 | ROOM-05 | Phase 2: Static Room Rendering | Pending |
-| ROOM-06 | Phase 2: Static Room Rendering | Pending |
-| ROOM-07 | Phase 2: Static Room Rendering | Pending |
+| ROOM-06 | Phase 2: Static Room Rendering | Complete |
+| ROOM-07 | Phase 2: Static Room Rendering | Complete |
 | ROOM-08 | Phase 2: Static Room Rendering | Pending |
 | ROOM-09 | Phase 2: Static Room Rendering | Pending |
 | ROOM-10 | Phase 2: Static Room Rendering | Pending |
