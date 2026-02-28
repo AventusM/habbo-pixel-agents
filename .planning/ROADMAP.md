@@ -57,6 +57,14 @@ Plans:
 **Goal:** Build the build-time `.nitro` extraction script and runtime sprite cache so that furniture and avatar phases have correctly decoded, GPU-ready `ImageBitmap` objects to draw from.
 **Requirements:** ASSET-01, ASSET-02, ASSET-03, ASSET-04, ASSET-05, ASSET-06, ASSET-07, BUILD-01, BUILD-02, BUILD-03
 
+**Plans:** 4 plans
+
+Plans:
+- [ ] 03-01-PLAN.md — Sprite cache with ImageBitmap loading and frame lookup API
+- [ ] 03-02-PLAN.md — Dual esbuild configs, prebuild hook scaffold, .gitignore for extracted assets
+- [ ] 03-03-PLAN.md — Asset copy plugin, webview URI generation, CSP img-src, chair atlas validation
+- [ ] 03-04-PLAN.md — .nitro binary extraction script (optional — use pre-extracted assets from sphynxkitten/nitro-assets)
+
 **Deliverables:**
 - [ ] `src/scripts/extractNitro.ts` Node.js script correctly parses the BigEndian `.nitro` binary format (UI16 file count, per-file UI16 name length + UI32 compressed length + zlib inflate) and writes PNG atlas files and JSON manifests to `dist/webview-assets/`.
 - [ ] Build process is split into two separate esbuild configs: one for the extension host (Node.js target, externalises `vscode`) and one for the webview UI (browser target). The pre-build extraction script runs before both esbuild steps.
@@ -168,8 +176,8 @@ Plans:
 
 | Phase | Requirements | Status | Completed |
 |-------|-------------|--------|-----------|
-| 1. Coordinate Foundation | COORD-01 – COORD-04 | Complete    | 2026-02-28 |
-| 2. Static Room Rendering | ROOM-01 – ROOM-11 | Planned | — |
+| 1. Coordinate Foundation | COORD-01 – COORD-04 | Complete | 2026-02-28 |
+| 2. Static Room Rendering | ROOM-01 – ROOM-11 | Complete | 2026-02-28 |
 | 3. Asset Pipeline | ASSET-01 – ASSET-07, BUILD-01 – BUILD-03 | Not started | — |
 | 4. Furniture Rendering | FURN-01 – FURN-05 | Not started | — |
 | 5. Avatar System | AVAT-01 – AVAT-08, AGENT-03, AGENT-05 | Not started | — |
