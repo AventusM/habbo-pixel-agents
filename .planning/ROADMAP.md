@@ -54,26 +54,27 @@ Plans:
 
 ## Phase 3: Asset Pipeline
 
-**Goal:** Build the build-time `.nitro` extraction script and runtime sprite cache so that furniture and avatar phases have correctly decoded, GPU-ready `ImageBitmap` objects to draw from.
-**Requirements:** ASSET-01, ASSET-02, ASSET-03, ASSET-04, ASSET-05, ASSET-06, ASSET-07, BUILD-01, BUILD-02, BUILD-03
+**Goal:** Build the runtime sprite cache and asset loading pipeline so that furniture and avatar phases have correctly decoded, GPU-ready `ImageBitmap` objects to draw from using pre-extracted assets.
+**Requirements:** ASSET-02, ASSET-03, ASSET-04, ASSET-05, ASSET-06, BUILD-01, BUILD-02, BUILD-03
 
-**Plans:** 4 plans
+**Plans:** 3 plans (+ 1 deferred to post-v1)
 
 Plans:
 - [ ] 03-01-PLAN.md — Sprite cache with ImageBitmap loading and frame lookup API
 - [ ] 03-02-PLAN.md — Dual esbuild configs, prebuild hook scaffold, .gitignore for extracted assets
 - [ ] 03-03-PLAN.md — Asset copy plugin, webview URI generation, CSP img-src, chair atlas validation
-- [ ] 03-04-PLAN.md — .nitro binary extraction script (optional — use pre-extracted assets from sphynxkitten/nitro-assets)
+
+Deferred to post-v1:
+- [ ] 03-04-PLAN.md — .nitro binary extraction script (DEFERRED — using pre-extracted assets from sphynxkitten/nitro-assets for v1)
 
 **Deliverables:**
-- [ ] `src/scripts/extractNitro.ts` Node.js script correctly parses the BigEndian `.nitro` binary format (UI16 file count, per-file UI16 name length + UI32 compressed length + zlib inflate) and writes PNG atlas files and JSON manifests to `dist/webview-assets/`.
-- [ ] Build process is split into two separate esbuild configs: one for the extension host (Node.js target, externalises `vscode`) and one for the webview UI (browser target). The pre-build extraction script runs before both esbuild steps.
+- [ ] Build process is split into two separate esbuild configs: one for the extension host (Node.js target, externalises `vscode`) and one for the webview UI (browser target).
+- [ ] Pre-extracted assets from `sphynxkitten/nitro-assets` are copied to `dist/webview-assets/` during build.
 - [ ] `webview.asWebviewUri()` + `localResourceRoots` configuration is validated: opening the webview panel and checking the browser network tab (or VS Code developer tools) shows no 401/Access Denied errors for any asset in `dist/webview-assets/`.
 - [ ] `isoSpriteCache.ts` loads atlas PNGs as `HTMLImageElement`, immediately calls `createImageBitmap()` on load, stores `ImageBitmap` objects keyed by atlas name, and resolves frame keys in `{name}_{size}_{layer}_{direction}_{frame}` format from the JSON manifest.
-- [ ] Extraction is validated against at least one known `.nitro` bundle (e.g., a chair from `sphynxkitten/nitro-assets`) by comparing the output PNG + JSON against Retrosprite's view of the same bundle.
 - [ ] `.gitignore` excludes extracted Sulake assets from the repository.
 
-**Research flags:** This is the highest-risk infrastructure phase. The `.nitro` binary format, esbuild asset path pattern, and `localResourceRoots` config are all documented failure points. Validate the extraction script and asset URI pipeline completely before writing any furniture rendering code. Also: visually inspect each of the 8 required furniture types in `sphynxkitten/nitro-assets` here — document which items need the Kepler-path fallback before Phase 4 begins.
+**Research flags:** esbuild asset path pattern and `localResourceRoots` config are documented failure points. Validate the asset URI pipeline completely before writing any furniture rendering code. Visually inspect each of the 8 required furniture types in `sphynxkitten/nitro-assets` and document which items are available before Phase 4 begins. `.nitro` binary extraction (ASSET-01, ASSET-07) deferred to post-v1 per research recommendation.
 **Depends on:** Phase 1 (for constants); Phase 2 must be passing (provides the canvas + webview shell to test asset loading against)
 
 ---
