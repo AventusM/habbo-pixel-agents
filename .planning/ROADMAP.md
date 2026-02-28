@@ -108,6 +108,13 @@ Plans:
 **Goal:** Render animated Habbo-style characters in 8 directions with walk cycles and idle blinks so agents feel inhabited rather than static.
 **Requirements:** AVAT-01, AVAT-02, AVAT-03, AVAT-04, AVAT-05, AVAT-06, AVAT-07, AVAT-08, AGENT-03, AGENT-05
 
+**Plans:** 3 plans
+
+Plans:
+- [ ] 05-01-PLAN.md — Avatar renderer with 8-direction support, multi-layer composition, and 6 palette variants using placeholder sprites
+- [ ] 05-02-PLAN.md — Walk cycle animation (4 frames), idle blinks (3-frame overlay), and Matrix spawn/despawn effects
+- [ ] 05-03-PLAN.md — Pathfinding integration (BFS path to screen positions), direction updates, parent/child relationship lines
+
 **Deliverables:**
 - [ ] `src/isoAvatarRenderer.ts` renders an avatar at a tile position using a 3-4 layer sprite composition (body/skin, clothing, head, hair) in the correct Habbo direction based on `getDirection()` applied to BFS path step deltas.
 - [ ] The 4-frame walk cycle advances at 250 ms per frame when the avatar is moving; the idle state shows a single static frame with a 3-frame blink overlay triggering randomly every 5-8 seconds.
@@ -186,8 +193,8 @@ Plans:
 |-------|-------------|--------|-----------|
 | 1. Coordinate Foundation | COORD-01 – COORD-04 | Complete | 2026-02-28 |
 | 2. Static Room Rendering | ROOM-01 – ROOM-11 | Complete | 2026-02-28 |
-| 3. Asset Pipeline | ASSET-01 – ASSET-07, BUILD-01 – BUILD-03 | Not started | — |
-| 4. Furniture Rendering | FURN-01 – FURN-05 | Not started | — |
+| 3. Asset Pipeline | ASSET-01 – ASSET-07, BUILD-01 – BUILD-03 | Complete | 2026-02-28 |
+| 4. Furniture Rendering | FURN-01 – FURN-05 | Complete | 2026-03-01 |
 | 5. Avatar System | AVAT-01 – AVAT-08, AGENT-03, AGENT-05 | Not started | — |
 | 6. UI Overlays | UI-01 – UI-08, AGENT-01 | Not started | — |
 | 7. Layout Editor Integration | EDIT-01 – EDIT-04 | Not started | — |
@@ -196,4 +203,4 @@ Plans:
 ---
 
 *Created: 2026-02-28*
-*Last updated: 2026-02-28 after Phase 2 planning*
+*Last updated: 2026-03-01 after Phase 5 planning*
