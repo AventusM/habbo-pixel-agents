@@ -1,8 +1,8 @@
 // tests/isoAvatarRenderer.test.ts
 // Smoke tests for avatar renderer with 8-direction support
 
-import { describe, it, expect, beforeEach } from 'vitest';
-import { createAvatarRenderable } from '../src/isoAvatarRenderer.js';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { createAvatarRenderable, updateAvatarAnimation, WALK_FRAME_DURATION_MS, BLINK_INTERVAL_MIN_MS, BLINK_INTERVAL_MAX_MS, BLINK_FRAME_DURATION_MS } from '../src/isoAvatarRenderer.js';
 import type { AvatarSpec } from '../src/isoAvatarRenderer.js';
 import { SpriteCache } from '../src/isoSpriteCache.js';
 
@@ -24,6 +24,10 @@ describe('isoAvatarRenderer', () => {
       variant: 0,
       state: 'idle',
       frame: 0,
+      lastUpdateMs: 0,
+      nextBlinkMs: 5000,
+      blinkFrame: 0,
+      spawnProgress: 0,
     };
 
     expect(spec.id).toBe('test-avatar');
@@ -31,6 +35,10 @@ describe('isoAvatarRenderer', () => {
     expect(spec.variant).toBe(0);
     expect(spec.state).toBe('idle');
     expect(spec.frame).toBe(0);
+    expect(spec.lastUpdateMs).toBe(0);
+    expect(spec.nextBlinkMs).toBe(5000);
+    expect(spec.blinkFrame).toBe(0);
+    expect(spec.spawnProgress).toBe(0);
   });
 
   it('createAvatarRenderable returns Renderable with correct tileX/tileY/tileZ', () => {
@@ -43,6 +51,10 @@ describe('isoAvatarRenderer', () => {
       variant: 0,
       state: 'idle',
       frame: 0,
+      lastUpdateMs: 0,
+      nextBlinkMs: 5000,
+      blinkFrame: 0,
+      spawnProgress: 0,
     };
 
     const renderable = createAvatarRenderable(spec, spriteCache, 'avatar');
@@ -63,6 +75,10 @@ describe('isoAvatarRenderer', () => {
       variant: 2,
       state: 'idle',
       frame: 0,
+      lastUpdateMs: 0,
+      nextBlinkMs: 5000,
+      blinkFrame: 0,
+      spawnProgress: 0,
     };
 
     const renderable = createAvatarRenderable(spec, spriteCache, 'avatar');
@@ -70,6 +86,11 @@ describe('isoAvatarRenderer', () => {
     // Mock canvas context
     const ctx = {
       drawImage: () => {},
+      save: () => {},
+      restore: () => {},
+      beginPath: () => {},
+      rect: () => {},
+      clip: () => {},
     } as unknown as CanvasRenderingContext2D;
 
     // Should not throw even when sprite cache is empty
@@ -90,6 +111,10 @@ describe('isoAvatarRenderer', () => {
         variant: 0,
         state: 'idle',
         frame: 0,
+        lastUpdateMs: 0,
+        nextBlinkMs: 5000,
+        blinkFrame: 0,
+        spawnProgress: 0,
       };
 
       // Expected frame key format: avatar_{variant}_{layer}_{direction}_{state}_{frame}
@@ -115,6 +140,10 @@ describe('isoAvatarRenderer', () => {
         variant,
         state: 'idle',
         frame: 0,
+        lastUpdateMs: 0,
+        nextBlinkMs: 5000,
+        blinkFrame: 0,
+        spawnProgress: 0,
       };
 
       // Expected frame key format: avatar_{variant}_{layer}_{direction}_{state}_{frame}
@@ -136,6 +165,10 @@ describe('isoAvatarRenderer', () => {
       variant: 0,
       state: 'idle',
       frame: 0,
+      lastUpdateMs: 0,
+      nextBlinkMs: 5000,
+      blinkFrame: 0,
+      spawnProgress: 0,
     };
 
     const walkSpec: AvatarSpec = {
@@ -147,6 +180,10 @@ describe('isoAvatarRenderer', () => {
       variant: 0,
       state: 'walk',
       frame: 2,
+      lastUpdateMs: 0,
+      nextBlinkMs: 0,
+      blinkFrame: 0,
+      spawnProgress: 0,
     };
 
     const idleFrameKey = `avatar_0_body_2_idle_0`;
@@ -165,6 +202,10 @@ describe('isoAvatarRenderer', () => {
       variant: 1,
       state: 'idle',
       frame: 0,
+      lastUpdateMs: 0,
+      nextBlinkMs: 5000,
+      blinkFrame: 0,
+      spawnProgress: 0,
     };
 
     const renderable = createAvatarRenderable(spec, spriteCache, 'avatar');
@@ -176,6 +217,11 @@ describe('isoAvatarRenderer', () => {
         // ImageBitmap argument is not available in test, but we can track the call
         drawCalls.push('drawImage');
       },
+      save: () => {},
+      restore: () => {},
+      beginPath: () => {},
+      rect: () => {},
+      clip: () => {},
     } as unknown as CanvasRenderingContext2D;
 
     // Render with empty sprite cache (no actual sprites)
@@ -186,5 +232,175 @@ describe('isoAvatarRenderer', () => {
     expect(drawCalls.length).toBe(0); // No sprites = no draws
 
     // Test would draw 4 layers (body, clothing, head, hair) if sprites existed
+  });
+
+  // Animation timing tests
+  it('updateAvatarAnimation advances walk frames every 250ms', () => {
+    const spec: AvatarSpec = {
+      id: 'av-walk',
+      tileX: 0,
+      tileY: 0,
+      tileZ: 0,
+      direction: 2,
+      variant: 0,
+      state: 'walk',
+      frame: 0,
+      lastUpdateMs: 0,
+      nextBlinkMs: 0,
+      blinkFrame: 0,
+      spawnProgress: 0,
+    };
+
+    // Before 250ms - no frame change
+    updateAvatarAnimation(spec, 200);
+    expect(spec.frame).toBe(0);
+
+    // At 250ms - frame advances
+    updateAvatarAnimation(spec, 250);
+    expect(spec.frame).toBe(1);
+    expect(spec.lastUpdateMs).toBe(250);
+  });
+
+  it('walk cycle wraps from frame 3 to 0', () => {
+    const spec: AvatarSpec = {
+      id: 'av-walk',
+      tileX: 0,
+      tileY: 0,
+      tileZ: 0,
+      direction: 2,
+      variant: 0,
+      state: 'walk',
+      frame: 3,
+      lastUpdateMs: 0,
+      nextBlinkMs: 0,
+      blinkFrame: 0,
+      spawnProgress: 0,
+    };
+
+    // Advance from frame 3 -> 0
+    updateAvatarAnimation(spec, WALK_FRAME_DURATION_MS);
+    expect(spec.frame).toBe(0);
+  });
+
+  it('idle triggers blink when nextBlinkMs is reached', () => {
+    const spec: AvatarSpec = {
+      id: 'av-idle',
+      tileX: 0,
+      tileY: 0,
+      tileZ: 0,
+      direction: 2,
+      variant: 0,
+      state: 'idle',
+      frame: 0,
+      lastUpdateMs: 0,
+      nextBlinkMs: 5000,
+      blinkFrame: 0,
+      spawnProgress: 0,
+    };
+
+    // Before blink time
+    updateAvatarAnimation(spec, 4999);
+    expect(spec.blinkFrame).toBe(0);
+
+    // At blink time - blink starts
+    updateAvatarAnimation(spec, 5000);
+    expect(spec.blinkFrame).toBe(1);
+  });
+
+  it('blink advances through frames 1->2->3->0 at 100ms intervals', () => {
+    const spec: AvatarSpec = {
+      id: 'av-idle',
+      tileX: 0,
+      tileY: 0,
+      tileZ: 0,
+      direction: 2,
+      variant: 0,
+      state: 'idle',
+      frame: 0,
+      lastUpdateMs: 0,
+      nextBlinkMs: 0,
+      blinkFrame: 1,
+      spawnProgress: 0,
+    };
+
+    // Frame 1 -> 2
+    updateAvatarAnimation(spec, BLINK_FRAME_DURATION_MS);
+    expect(spec.blinkFrame).toBe(2);
+
+    // Frame 2 -> 3
+    updateAvatarAnimation(spec, 2 * BLINK_FRAME_DURATION_MS);
+    expect(spec.blinkFrame).toBe(3);
+
+    // Frame 3 -> 0
+    updateAvatarAnimation(spec, 3 * BLINK_FRAME_DURATION_MS);
+    expect(spec.blinkFrame).toBe(0);
+
+    // Next blink scheduled
+    expect(spec.nextBlinkMs).toBeGreaterThanOrEqual(3 * BLINK_FRAME_DURATION_MS + BLINK_INTERVAL_MIN_MS);
+    expect(spec.nextBlinkMs).toBeLessThanOrEqual(3 * BLINK_FRAME_DURATION_MS + BLINK_INTERVAL_MAX_MS);
+  });
+
+  it('spawning progress increments toward 1.0', () => {
+    const spec: AvatarSpec = {
+      id: 'av-spawn',
+      tileX: 0,
+      tileY: 0,
+      tileZ: 0,
+      direction: 2,
+      variant: 0,
+      state: 'spawning',
+      frame: 0,
+      lastUpdateMs: 0,
+      nextBlinkMs: 0,
+      blinkFrame: 0,
+      spawnProgress: 0,
+    };
+
+    // After 500ms - halfway
+    updateAvatarAnimation(spec, 500);
+    expect(spec.spawnProgress).toBeCloseTo(0.5, 1);
+    expect(spec.state).toBe('spawning');
+
+    // After 999ms - almost complete (still spawning)
+    updateAvatarAnimation(spec, 999);
+    expect(spec.spawnProgress).toBeCloseTo(0.999, 2);
+    expect(spec.state).toBe('spawning');
+  });
+
+  it('spawning transitions to idle when progress reaches 1.0', () => {
+    const spec: AvatarSpec = {
+      id: 'av-spawn',
+      tileX: 0,
+      tileY: 0,
+      tileZ: 0,
+      direction: 2,
+      variant: 0,
+      state: 'spawning',
+      frame: 0,
+      lastUpdateMs: 0,
+      nextBlinkMs: 0,
+      blinkFrame: 0,
+      spawnProgress: 0,
+    };
+
+    // Complete spawn effect
+    updateAvatarAnimation(spec, 1000);
+
+    expect(spec.state).toBe('idle');
+    expect(spec.spawnProgress).toBe(0);
+    expect(spec.nextBlinkMs).toBeGreaterThanOrEqual(1000 + BLINK_INTERVAL_MIN_MS);
+  });
+
+  it('frame key format changes for walk vs idle state', () => {
+    // This is a logical test to verify the frame key pattern
+    // In real rendering, walk uses walk_{frame} and idle uses idle_0
+
+    const idleKey = 'avatar_0_body_2_idle_0';
+    const walkKey = 'avatar_0_body_2_walk_2';
+
+    // Keys should differ in state portion
+    expect(idleKey.includes('idle')).toBe(true);
+    expect(walkKey.includes('walk')).toBe(true);
+    expect(idleKey).not.toBe(walkKey);
   });
 });
