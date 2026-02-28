@@ -9,10 +9,10 @@
 
 ### Coordinate System
 
-- [ ] **COORD-01**: `tileToScreen(x, y, z)` returns correct screen pixel coordinates matching the 2:1 isometric formula (`screenX = (x - y) * 32`, `screenY = (x + y) * 16 - z * 16`) for all integer tile positions and height levels 0-9.
-- [ ] **COORD-02**: `screenToTile(sx, sy)` returns correct floating-point grid coordinates matching the inverse isometric formula for all pixel positions within the canvas.
-- [ ] **COORD-03**: `getDirection(fromX, fromY, toX, toY)` returns the correct Habbo 0-7 direction value for all 8 possible BFS step deltas (cardinal and diagonal).
-- [ ] **COORD-04**: All coordinate functions are pure (no side effects, no render dependencies) and pass unit tests against known tile-to-screen values before any rendering code is written.
+- [x] **COORD-01**: `tileToScreen(x, y, z)` returns correct screen pixel coordinates matching the 2:1 isometric formula (`screenX = (x - y) * 32`, `screenY = (x + y) * 16 - z * 16`) for all integer tile positions and height levels 0-9.
+- [x] **COORD-02**: `screenToTile(sx, sy)` returns correct floating-point grid coordinates matching the inverse isometric formula for all pixel positions within the canvas.
+- [x] **COORD-03**: `getDirection(fromX, fromY, toX, toY)` returns the correct Habbo 0-7 direction value for all 8 possible BFS step deltas (cardinal and diagonal).
+- [x] **COORD-04**: All coordinate functions are pure (no side effects, no render dependencies) and pass unit tests against known tile-to-screen values before any rendering code is written.
 
 ### Room Rendering
 
@@ -136,10 +136,10 @@ The following requirements are explicitly deferred beyond v1. They are noted her
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| COORD-01 | Phase 1: Coordinate Foundation | Pending |
-| COORD-02 | Phase 1: Coordinate Foundation | Pending |
-| COORD-03 | Phase 1: Coordinate Foundation | Pending |
-| COORD-04 | Phase 1: Coordinate Foundation | Pending |
+| COORD-01 | Phase 1: Coordinate Foundation | Complete |
+| COORD-02 | Phase 1: Coordinate Foundation | Complete |
+| COORD-03 | Phase 1: Coordinate Foundation | Complete |
+| COORD-04 | Phase 1: Coordinate Foundation | Complete |
 | ROOM-01 | Phase 2: Static Room Rendering | Pending |
 | ROOM-02 | Phase 2: Static Room Rendering | Pending |
 | ROOM-03 | Phase 2: Static Room Rendering | Pending |
