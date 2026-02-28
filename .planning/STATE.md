@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_plan: 02-03
-status: in-progress
-stopped_at: Completed 02-static-room-rendering/02-02-PLAN.md
-last_updated: "2026-02-28T17:51:06Z"
+current_plan: Not started
+status: completed
+stopped_at: Completed 02-static-room-rendering/02-03-PLAN.md (visual verification approved)
+last_updated: "2026-02-28T21:27:15.941Z"
 progress:
-  total_phases: 2
-  completed_phases: 1
-  total_plans: 4
-  completed_plans: 3
+  total_phases: 3
+  completed_phases: 2
+  total_plans: 8
+  completed_plans: 7
 ---
 
 # STATE.md
@@ -20,21 +20,21 @@ progress:
 See: .planning/PROJECT.md (updated 2026-02-28)
 
 **Core value:** Claude Code agents should feel like they're working together in a recognisable Habbo Hotel room — the isometric 2.5D aesthetic must be faithful to the classic v14 era.
-**Current focus:** Phase 2 in progress — types, pure logic, and canvas renderer complete (02-01, 02-02), React component next (02-03)
+**Current focus:** Phase 2 COMPLETE — isometric room rendering in VS Code webview (02-01, 02-02, 02-03 all done)
 
 ## Current Status
 
-Phase 2 (Static Room Rendering) in progress. Plans 02-01 and 02-02 complete — isometric types, pure logic, and canvas tile renderer implemented with 58 passing tests.
+Phase 2 (Static Room Rendering) **COMPLETE**. All 3 plans done — isometric types, pure logic, canvas tile renderer, React component, and VS Code extension implemented with visual verification passed.
 
-**Last session:** 2026-02-28T17:51:06Z
-**Stopped at:** Completed 02-static-room-rendering/02-02-PLAN.md
-**Next action:** Plan 02-03 — React Component + rAF Loop
+**Last session:** 2026-02-28T21:16:00Z
+**Stopped at:** Completed 02-static-room-rendering/02-03-PLAN.md (visual verification approved)
+**Next action:** Phase 3 — Asset Pipeline (.nitro extraction, sprite cache, ImageBitmap loading)
 
 ## Current Phase
 
 **Phase:** 02-static-room-rendering
-**Current Plan:** 02-03 (next)
-**Status:** In progress (2 of 3 plans complete)
+**Current Plan:** Not started
+**Status:** Milestone complete
 
 ## Decisions Log
 
@@ -61,6 +61,10 @@ Phase 2 (Static Room Rendering) in progress. Plans 02-01 and 02-02 complete — 
 | 2026-02-28 | Use happy-dom instead of jsdom for canvas mocking | jsdom has ESM/CommonJS compatibility issues; happy-dom is lighter and better maintained |
 | 2026-02-28 | Create OffscreenCanvas mock in setup.ts | Minimal mock sufficient for smoke tests — no pixel output verification needed |
 | 2026-02-28 | Set imageSmoothingEnabled=false on both canvas contexts | Ensures pixel-crisp rendering at all DPR levels for isometric tile fidelity |
+| 2026-02-28 | Use .cjs extension for extension.js output | package.json has type=module, so .js files are ESM; CommonJS extension code must use .cjs |
+| 2026-02-28 | runningRef.current = false BEFORE cancelAnimationFrame | Ensures frame() guard sees false before cancellation, prevents StrictMode race conditions |
+| 2026-02-28 | Store all mutable render state in single renderState useRef | Keeps frame-loop values in one ref, prevents useState stale closures |
+| 2026-02-28 | Add preLaunchTask to launch.json for auto-build | Ensures latest code bundled before F5, prevents testing stale builds |
 
 ## Blockers
 
@@ -70,10 +74,10 @@ None.
 
 | Phase | Plan | Duration | Tasks | Files |
 |-------|------|----------|-------|-------|
-| 01-coordinate-foundation | 01 | 5min | 2 | 6 |
-| Phase 01-coordinate-foundation P01 | 5 | 2 tasks | 6 files |
-| Phase 02-static-room-rendering P01 | 2 | 2 tasks | 2 files |
-| Phase 02-static-room-rendering P02-02 | 3 | 2 tasks | 3 files |
+| 01-coordinate-foundation | 01-01 | 5min | 2 | 6 |
+| 02-static-room-rendering | 02-01 | 2min | 2 | 2 |
+| 02-static-room-rendering | 02-02 | 3min | 2 | 3 |
+| 02-static-room-rendering | 02-03 | 25min | 3 | 5 |
 
 ## Phase History
 
@@ -82,3 +86,4 @@ None.
 | 01-coordinate-foundation | 01-01 | Node/TypeScript/Vitest bootstrapped; 24 isometric math assertions passing |
 | 02-static-room-rendering | 02-01 | Isometric types and pure logic implemented with TDD (25 tests passing) — parseHeightmap, hsbToHsl, tileColors, depthSort |
 | 02-static-room-rendering | 02-02 | Canvas drawing module with HiDPI support, depth-sorted rendering, and wall strip edge detection (58 tests passing) |
+| 02-static-room-rendering | 02-03 | React component with StrictMode-safe rAF loop, VS Code extension host + webview, esbuild bundling — visual verification approved |
