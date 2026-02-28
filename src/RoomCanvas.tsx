@@ -5,7 +5,7 @@ import type { TileGrid, Renderable } from './isoTypes.js';
 import type { FurnitureSpec, MultiTileFurnitureSpec } from './isoFurnitureRenderer.js';
 import { createFurnitureRenderable, createMultiTileFurnitureRenderable } from './isoFurnitureRenderer.js';
 import type { AvatarSpec } from './isoAvatarRenderer.js';
-import { createAvatarRenderable } from './isoAvatarRenderer.js';
+import { createAvatarRenderable, updateAvatarAnimation } from './isoAvatarRenderer.js';
 import type { SpriteCache } from './isoSpriteCache.js';
 
 interface RoomCanvasProps {
@@ -20,12 +20,14 @@ export function RoomCanvas({ heightmap }: RoomCanvasProps) {
     offscreenCanvas: OffscreenCanvas | null;
     cameraOrigin: { x: number; y: number };
     mainCtx: CanvasRenderingContext2D | null;
-    avatarRenderables: Renderable[];
+    avatars: AvatarSpec[];
+    lastFrameTimeMs: number;
   }>({
     offscreenCanvas: null,
     cameraOrigin: { x: 0, y: 0 },
     mainCtx: null,
-    avatarRenderables: [],
+    avatars: [],
+    lastFrameTimeMs: Date.now(),
   });
 
   useEffect(() => {
@@ -71,21 +73,86 @@ export function RoomCanvas({ heightmap }: RoomCanvasProps) {
     // Get sprite cache from window (loaded in webview.tsx)
     const spriteCache: SpriteCache | undefined = (window as any).spriteCache;
 
-    // Step 4.6: Create test avatars demonstrating all 6 variants and 8 directions
+    // Step 4.6: Create test avatars demonstrating spawn, walk, and idle states
+    const now = Date.now();
     const avatars: AvatarSpec[] = [
-      { id: 'av0', tileX: 2, tileY: 2, tileZ: 0, direction: 0, variant: 0, state: 'idle', frame: 0 }, // Variant 0, NE
-      { id: 'av1', tileX: 4, tileY: 2, tileZ: 0, direction: 1, variant: 1, state: 'idle', frame: 0 }, // Variant 1, E
-      { id: 'av2', tileX: 6, tileY: 2, tileZ: 0, direction: 2, variant: 2, state: 'idle', frame: 0 }, // Variant 2, SE
-      { id: 'av3', tileX: 2, tileY: 4, tileZ: 0, direction: 3, variant: 3, state: 'idle', frame: 0 }, // Variant 3, S
-      { id: 'av4', tileX: 4, tileY: 4, tileZ: 0, direction: 4, variant: 4, state: 'idle', frame: 0 }, // Variant 4, SW
-      { id: 'av5', tileX: 6, tileY: 4, tileZ: 0, direction: 5, variant: 5, state: 'idle', frame: 0 }, // Variant 5, W
-      { id: 'av6', tileX: 2, tileY: 6, tileZ: 0, direction: 6, variant: 0, state: 'idle', frame: 0 }, // Variant 0, NW
-      { id: 'av7', tileX: 4, tileY: 6, tileZ: 0, direction: 7, variant: 1, state: 'idle', frame: 0 }, // Variant 1, N
+      {
+        id: 'av0-spawn',
+        tileX: 2, tileY: 2, tileZ: 0,
+        direction: 2,
+        variant: 0,
+        state: 'spawning',  // Spawn effect demo
+        frame: 0,
+        lastUpdateMs: now,
+        nextBlinkMs: now + 5000,
+        blinkFrame: 0,
+        spawnProgress: 0.0,
+      },
+      {
+        id: 'av1-walk',
+        tileX: 4, tileY: 2, tileZ: 0,
+        direction: 2,
+        variant: 0,
+        state: 'walk',  // Walking avatar
+        frame: 0,
+        lastUpdateMs: now,
+        nextBlinkMs: now,
+        blinkFrame: 0,
+        spawnProgress: 0,
+      },
+      {
+        id: 'av2-idle',
+        tileX: 6, tileY: 2, tileZ: 0,
+        direction: 0,
+        variant: 0,
+        state: 'idle',  // Idle with blinks
+        frame: 0,
+        lastUpdateMs: now,
+        nextBlinkMs: now + 6000,
+        blinkFrame: 0,
+        spawnProgress: 0,
+      },
+      {
+        id: 'av3-idle',
+        tileX: 2, tileY: 4, tileZ: 0,
+        direction: 3,
+        variant: 0,
+        state: 'idle',
+        frame: 0,
+        lastUpdateMs: now,
+        nextBlinkMs: now + 7000,
+        blinkFrame: 0,
+        spawnProgress: 0,
+      },
+      {
+        id: 'av4-walk',
+        tileX: 4, tileY: 4, tileZ: 0,
+        direction: 4,
+        variant: 0,
+        state: 'walk',
+        frame: 0,
+        lastUpdateMs: now,
+        nextBlinkMs: now,
+        blinkFrame: 0,
+        spawnProgress: 0,
+      },
+      {
+        id: 'av5-idle',
+        tileX: 6, tileY: 4, tileZ: 0,
+        direction: 5,
+        variant: 0,
+        state: 'idle',
+        frame: 0,
+        lastUpdateMs: now,
+        nextBlinkMs: now + 5500,
+        blinkFrame: 0,
+        spawnProgress: 0,
+      },
     ];
 
-    console.log(`Placing ${avatars.length} avatars with ${new Set(avatars.map(a => a.variant)).size} variants`);
+    console.log(`Placing ${avatars.length} avatars (spawn, walk, idle states)`);
 
-    // Step 5: Pre-render room with furniture
+    // Step 5: Pre-render room with furniture (NOT avatars - they animate)
     renderState.current.offscreenCanvas = preRenderRoom(
       grid,
       renderState.current.cameraOrigin,
@@ -97,27 +164,11 @@ export function RoomCanvas({ heightmap }: RoomCanvasProps) {
       multiTileFurniture,
       spriteCache,
       'furniture'
+      // NO avatars - they render dynamically in frame()
     );
 
-    // Step 5.5: Create avatar renderables (NOT pre-rendered - will animate in Plan 02)
-    if (spriteCache) {
-      const avatarRenderables = avatars.map(spec => {
-        const renderable = createAvatarRenderable(spec, spriteCache, 'avatar');
-
-        // Wrap draw function to apply camera origin offset
-        const originalDraw = renderable.draw;
-        renderable.draw = (ctx) => {
-          ctx.save();
-          ctx.translate(renderState.current.cameraOrigin.x, renderState.current.cameraOrigin.y);
-          originalDraw(ctx);
-          ctx.restore();
-        };
-
-        return renderable;
-      });
-
-      renderState.current.avatarRenderables = avatarRenderables;
-    }
+    // Step 5.5: Store avatars in renderState for animation loop
+    renderState.current.avatars = avatars;
 
     // Step 6: Set runningRef.current = true
     runningRef.current = true;
@@ -133,17 +184,38 @@ export function RoomCanvas({ heightmap }: RoomCanvasProps) {
 
       if (!ctx || !offscreen || !canvas) return;
 
+      // Update animation state for all avatars
+      const currentTimeMs = Date.now();
+      for (const avatar of renderState.current.avatars) {
+        updateAvatarAnimation(avatar, currentTimeMs);
+      }
+      renderState.current.lastFrameTimeMs = currentTimeMs;
+
       // Clear canvas: ctx.clearRect(0, 0, canvas.offsetWidth, canvas.offsetHeight)
       ctx.clearRect(0, 0, canvas.offsetWidth, canvas.offsetHeight);
 
       // Blit: ctx.drawImage(offscreen, 0, 0) — single drawImage per frame (ROOM-08)
       ctx.drawImage(offscreen, 0, 0);
 
-      // Render avatars (depth-sorted, drawn after static room geometry)
-      const avatars = renderState.current.avatarRenderables;
-      if (avatars.length > 0) {
+      // Render avatars dynamically (NOT pre-rendered - animation state changes each frame)
+      if (spriteCache && renderState.current.avatars.length > 0) {
+        const avatarRenderables = renderState.current.avatars.map(spec => {
+          const renderable = createAvatarRenderable(spec, spriteCache, 'avatar');
+
+          // Wrap draw function to apply camera origin offset
+          const originalDraw = renderable.draw;
+          renderable.draw = (ctx) => {
+            ctx.save();
+            ctx.translate(renderState.current.cameraOrigin.x, renderState.current.cameraOrigin.y);
+            originalDraw(ctx);
+            ctx.restore();
+          };
+
+          return renderable;
+        });
+
         // Depth sort avatars for correct overlap
-        const sorted = depthSort(avatars);
+        const sorted = depthSort(avatarRenderables);
         for (const avatar of sorted) {
           avatar.draw(ctx);
         }
