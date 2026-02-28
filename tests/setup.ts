@@ -37,4 +37,13 @@ beforeAll(() => {
       writable: true,
     });
   }
+
+  // Mock createImageBitmap for sprite cache tests
+  if (typeof globalThis.createImageBitmap === 'undefined') {
+    (globalThis as any).createImageBitmap = async (img: HTMLImageElement) => ({
+      width: img.width,
+      height: img.height,
+      close: () => {},
+    });
+  }
 });
