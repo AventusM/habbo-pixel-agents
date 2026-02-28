@@ -2,6 +2,8 @@
 // Dual esbuild configuration for extension host and webview
 
 import * as esbuild from 'esbuild';
+import * as fs from 'fs';
+import * as path from 'path';
 
 const extensionConfig = {
   entryPoints: ['src/extension.ts'],
@@ -21,9 +23,36 @@ const webviewConfig = {
   format: 'iife',
   jsx: 'automatic',
   sourcemap: true,
-  // Asset copy plugin will be added here in Plan 03-03
   plugins: [],
 };
+
+// Copy assets from source to dist
+function copyAssets() {
+  const srcDir = 'assets/spritesheets';
+  const destDir = 'dist/webview-assets';
+
+  // Create dest directory
+  fs.mkdirSync(destDir, { recursive: true });
+
+  // Check if source directory exists
+  if (!fs.existsSync(srcDir)) {
+    console.log('⚠ No assets/spritesheets directory - skipping asset copy');
+    return;
+  }
+
+  // Read source directory
+  const files = fs.readdirSync(srcDir);
+
+  // Copy .png and .json files
+  for (const file of files) {
+    if (file.endsWith('.png') || file.endsWith('.json')) {
+      const srcPath = path.join(srcDir, file);
+      const destPath = path.join(destDir, file);
+      fs.copyFileSync(srcPath, destPath);
+      console.log(`  ✓ Copied ${file}`);
+    }
+  }
+}
 
 async function build() {
   const target = process.argv[2]; // 'extension' | 'webview' | undefined (both)
@@ -34,6 +63,9 @@ async function build() {
   }
 
   if (!target || target === 'webview') {
+    // Copy assets before building webview
+    copyAssets();
+
     await esbuild.build(webviewConfig);
     console.log('✓ Webview built: dist/webview.js');
   }
