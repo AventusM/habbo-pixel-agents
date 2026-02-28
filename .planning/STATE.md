@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_plan: 05-02 (next)
+current_plan: 05-03 (completed)
 status: executing
-stopped_at: Completed 05-avatar-system/05-02-PLAN.md
-last_updated: "2026-02-28T23:30:27.012Z"
+stopped_at: Completed 05-avatar-system/05-03-PLAN.md
+last_updated: "2026-03-01T01:35:01.000Z"
 progress:
   total_phases: 5
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 14
-  completed_plans: 12
+  completed_plans: 13
 ---
 
 # STATE.md
@@ -20,21 +20,21 @@ progress:
 See: .planning/PROJECT.md (updated 2026-02-28)
 
 **Core value:** Claude Code agents should feel like they're working together in a recognisable Habbo Hotel room — the isometric 2.5D aesthetic must be faithful to the classic v14 era.
-**Current focus:** Phase 5 IN PROGRESS — Avatar System (05-01 complete, 05-02 and 05-03 pending)
+**Current focus:** Phase 5 COMPLETE — Avatar System (all 3 plans complete)
 
 ## Current Status
 
-Phase 5 (Avatar System) **IN PROGRESS**. Plan 05-01 complete — avatar renderer with 8-direction support, multi-layer composition, 6 palette variants, and placeholder sprites integrated into webview.
+Phase 5 (Avatar System) **COMPLETE**. All 3 plans complete — avatar renderer with 8-direction support, walk/idle animations, Matrix spawn effects, and BFS pathfinding integration ready for real agent logic.
 
-**Last session:** 2026-02-28T23:30:27.006Z
-**Stopped at:** Completed 05-avatar-system/05-02-PLAN.md
-**Next action:** Phase 5 Plan 02 — Walk cycle animation, idle blinks, and Matrix spawn/despawn effects
+**Last session:** 2026-03-01T01:35:01.000Z
+**Stopped at:** Completed 05-avatar-system/05-03-PLAN.md
+**Next action:** Phase 6 — UI Overlays (agent labels, status indicators, control panels)
 
 ## Current Phase
 
 **Phase:** 05-avatar-system
-**Current Plan:** 05-02 (next)
-**Status:** In progress (1/3 plans complete)
+**Current Plan:** 05-03 (completed)
+**Status:** Complete (3/3 plans complete)
 
 ## Decisions Log
 
@@ -65,6 +65,9 @@ Phase 5 (Avatar System) **IN PROGRESS**. Plan 05-01 complete — avatar renderer
 | 2026-02-28 | runningRef.current = false BEFORE cancelAnimationFrame | Ensures frame() guard sees false before cancellation, prevents StrictMode race conditions |
 | 2026-02-28 | Store all mutable render state in single renderState useRef | Keeps frame-loop values in one ref, prevents useState stale closures |
 | 2026-02-28 | Add preLaunchTask to launch.json for auto-build | Ensures latest code bundled before F5, prevents testing stale builds |
+| 2026-03-01 | Use pathToIsometricPositions() as integration layer | BFS algorithm itself never needs modification — only position conversion changed |
+| 2026-03-01 | Last path step uses previous direction | Maintains avatar facing after reaching goal — prevents jarring direction resets |
+| 2026-03-01 | Cyan line with 60% opacity for parent-child relationships | Distinct from other UI elements, non-intrusive transparency |
 
 ## Blockers
 
@@ -79,7 +82,8 @@ None.
 | 02-static-room-rendering | 02-02 | 3min | 2 | 3 |
 | 02-static-room-rendering | 02-03 | 25min | 3 | 5 |
 | 05-avatar-system | 05-01 | 5min | 3 | 9 |
-| Phase 05-avatar-system P05-02 | 6 | 3 tasks | 7 files |
+| 05-avatar-system | 05-02 | 6min | 3 | 7 |
+| 05-avatar-system | 05-03 | 3min | 2 | 3 |
 
 ## Phase History
 
@@ -90,3 +94,5 @@ None.
 | 02-static-room-rendering | 02-02 | Canvas drawing module with HiDPI support, depth-sorted rendering, and wall strip edge detection (58 tests passing) |
 | 02-static-room-rendering | 02-03 | React component with StrictMode-safe rAF loop, VS Code extension host + webview, esbuild bundling — visual verification approved |
 | 05-avatar-system | 05-01 | Implemented 8-direction avatar renderer with 4-layer composition and 6 palette variants using ImageMagick-generated placeholder sprites (192 total frames) |
+| 05-avatar-system | 05-02 | Walk cycle animation (4 FPS), idle blinks (5-8s intervals), and Matrix spawn effects with 184 placeholder sprites (idle, walk, blink overlays) |
+| 05-avatar-system | 05-03 | BFS pathfinding integration with isometric avatar movement - tile paths to screen positions with facing directions and parent/child relationship lines |

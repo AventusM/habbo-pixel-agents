@@ -52,18 +52,18 @@
 - [x] **AVAT-02**: The walk animation plays a 4-frame cycle at 250 ms per frame when an avatar is moving along a BFS path.
 - [x] **AVAT-03**: The idle state displays a single static frame; a 3-frame blink overlay triggers randomly every 5-8 seconds.
 - [x] **AVAT-04**: Avatar sprites are composed from 3-4 simplified layers (body/skin, clothing, head, hair) using the existing 6-variant palette system — not a full 13-layer Habbo figure compositor.
-- [ ] **AVAT-05**: The avatar's screen position at each BFS path step is computed by calling `tileToScreen(tileX, tileY, tileHeight)` — the BFS algorithm itself is unchanged.
+- [x] **AVAT-05**: The avatar's screen position at each BFS path step is computed by calling `tileToScreen(tileX, tileY, tileHeight)` — the BFS algorithm itself is unchanged.
 - [x] **AVAT-06**: Each of the 6 character palette variants produces a visually distinct avatar (different skin tone or clothing colour group) that is recognisably different from the others.
 - [x] **AVAT-07**: Matrix spawn and despawn effects are preserved: cascade from the top of the avatar sprite downward on spawn, and upward collapse on despawn.
-- [ ] **AVAT-08**: Sub-agent parent/child relationships are visualised by a line drawn in isometric screen space from the parent avatar's foot position to the child avatar's foot position.
+- [x] **AVAT-08**: Sub-agent parent/child relationships are visualised by a line drawn in isometric screen space from the parent avatar's foot position to the child avatar's foot position.
 
 ### Agent Behaviour
 
 - [ ] **AGENT-01**: All existing agent behaviours — walk, idle, type/wave, read/surprised, waiting/"..." bubble — are preserved and map to the corresponding isometric avatar action/gesture codes.
 - [ ] **AGENT-02**: JSONL transcript file watching is unchanged: no modifications to the watcher, state machine, or Claude Code integration.
-- [ ] **AGENT-03**: BFS pathfinding operates on the unchanged logical tile grid; only the single screen-position conversion call changes from flat-multiply to `tileToScreen()`.
+- [x] **AGENT-03**: BFS pathfinding operates on the unchanged logical tile grid; only the single screen-position conversion call changes from flat-multiply to `tileToScreen()`.
 - [ ] **AGENT-04**: Agents spawn at the room door tile and walk to their first idle position using the existing BFS pathfinder.
-- [ ] **AGENT-05**: Agent state transitions (idle → walking → typing → waiting → idle) continue to be driven by JSONL events with the same timing and trigger logic as the original pixel-agents extension.
+- [x] **AGENT-05**: Agent state transitions (idle → walking → typing → waiting → idle) continue to be driven by JSONL events with the same timing and trigger logic as the original pixel-agents extension.
 
 ### UI Overlays
 
@@ -170,14 +170,14 @@ The following requirements are explicitly deferred beyond v1. They are noted her
 | AVAT-02 | Phase 5: Avatar System | Complete |
 | AVAT-03 | Phase 5: Avatar System | Complete |
 | AVAT-04 | Phase 5: Avatar System | Complete |
-| AVAT-05 | Phase 5: Avatar System | Pending |
+| AVAT-05 | Phase 5: Avatar System | Complete |
 | AVAT-06 | Phase 5: Avatar System | Complete |
 | AVAT-07 | Phase 5: Avatar System | Complete |
-| AVAT-08 | Phase 5: Avatar System | Pending |
+| AVAT-08 | Phase 5: Avatar System | Complete |
 | AGENT-02 | Phase 5: Avatar System | Pending |
-| AGENT-03 | Phase 5: Avatar System | Pending |
+| AGENT-03 | Phase 5: Avatar System | Complete |
 | AGENT-04 | Phase 5: Avatar System | Pending |
-| AGENT-05 | Phase 5: Avatar System | Pending |
+| AGENT-05 | Phase 5: Avatar System | Complete |
 | AGENT-01 | Phase 6: UI Overlays | Pending |
 | UI-01 | Phase 6: UI Overlays | Pending |
 | UI-02 | Phase 6: UI Overlays | Pending |
