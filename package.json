@@ -2,15 +2,38 @@
   "name": "habbo-pixel-agents",
   "version": "0.1.0",
   "type": "module",
+  "main": "./dist/extension.js",
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "contributes": {
+    "commands": [
+      {
+        "command": "habbo-pixel-agents.openRoom",
+        "title": "Open Habbo Room"
+      }
+    ]
+  },
   "scripts": {
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "build:ext": "esbuild src/extension.ts --bundle --outfile=dist/extension.js --platform=node --external:vscode --format=cjs",
+    "build:webview": "esbuild src/webview.tsx --bundle --outfile=dist/webview.js --platform=browser --format=iife --jsx=automatic",
+    "build": "npm run build:ext && npm run build:webview"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@types/vscode": "^1.109.0",
+    "esbuild": "^0.27.3",
     "happy-dom": "^20.7.0",
     "typescript": "^5.7.0",
     "vitest": "^3.0.0"
+  },
+  "dependencies": {
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4"
   }
 }
