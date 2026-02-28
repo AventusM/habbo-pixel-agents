@@ -2,7 +2,7 @@
   "name": "habbo-pixel-agents",
   "version": "0.1.0",
   "type": "module",
-  "main": "./dist/extension.js",
+  "main": "./dist/extension.cjs",
   "engines": {
     "vscode": "^1.80.0"
   },
@@ -15,12 +15,13 @@
     ]
   },
   "scripts": {
-    "test": "vitest run",
-    "test:watch": "vitest",
+    "prebuild": "echo 'Asset extraction deferred to Plan 03-03'",
+    "build:ext": "node esbuild.config.mjs extension",
+    "build:webview": "node esbuild.config.mjs webview",
+    "build": "node esbuild.config.mjs",
     "typecheck": "tsc --noEmit",
-    "build:ext": "esbuild src/extension.ts --bundle --outfile=dist/extension.js --platform=node --external:vscode --format=cjs",
-    "build:webview": "esbuild src/webview.tsx --bundle --outfile=dist/webview.js --platform=browser --format=iife --jsx=automatic",
-    "build": "npm run build:ext && npm run build:webview"
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
