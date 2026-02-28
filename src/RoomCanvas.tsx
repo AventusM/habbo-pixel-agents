@@ -7,6 +7,8 @@ import { createFurnitureRenderable, createMultiTileFurnitureRenderable } from '.
 import type { AvatarSpec } from './isoAvatarRenderer.js';
 import { createAvatarRenderable, updateAvatarAnimation } from './isoAvatarRenderer.js';
 import type { SpriteCache } from './isoSpriteCache.js';
+import { pathToIsometricPositions, updateAvatarAlongPath, drawParentChildLine } from './isoAgentBehavior.js';
+import type { TilePath, IsometricPosition } from './isoAgentBehavior.js';
 
 interface RoomCanvasProps {
   heightmap: string;
@@ -22,12 +24,16 @@ export function RoomCanvas({ heightmap }: RoomCanvasProps) {
     mainCtx: CanvasRenderingContext2D | null;
     avatars: AvatarSpec[];
     lastFrameTimeMs: number;
+    avatarPaths: Map<string, { path: IsometricPosition[]; startTimeMs: number; durationMs: number }>;
+    parentChildPairs: Array<{ parent: AvatarSpec; child: AvatarSpec }>;
   }>({
     offscreenCanvas: null,
     cameraOrigin: { x: 0, y: 0 },
     mainCtx: null,
     avatars: [],
     lastFrameTimeMs: Date.now(),
+    avatarPaths: new Map(),
+    parentChildPairs: [],
   });
 
   useEffect(() => {
@@ -73,39 +79,62 @@ export function RoomCanvas({ heightmap }: RoomCanvasProps) {
     // Get sprite cache from window (loaded in webview.tsx)
     const spriteCache: SpriteCache | undefined = (window as any).spriteCache;
 
-    // Step 4.6: Create test avatars demonstrating spawn, walk, and idle states
+    // Step 4.6: Create test avatars with pathfinding demonstration
     const now = Date.now();
+
+    // Define demo BFS-style tile paths
+    const demoPaths: Record<string, TilePath> = {
+      path1: [
+        { tileX: 2, tileY: 2, tileZ: 0 },
+        { tileX: 3, tileY: 2, tileZ: 0 },
+        { tileX: 4, tileY: 2, tileZ: 0 },
+        { tileX: 5, tileY: 3, tileZ: 0 },
+        { tileX: 6, tileY: 4, tileZ: 0 },
+      ],
+      path2: [
+        { tileX: 8, tileY: 2, tileZ: 0 },
+        { tileX: 7, tileY: 3, tileZ: 0 },
+        { tileX: 6, tileY: 4, tileZ: 0 },
+        { tileX: 5, tileY: 5, tileZ: 0 },
+        { tileX: 4, tileY: 5, tileZ: 0 },
+      ],
+      path3: [
+        { tileX: 2, tileY: 6, tileZ: 0 },
+        { tileX: 3, tileY: 6, tileZ: 0 },
+        { tileX: 4, tileY: 6, tileZ: 0 },
+        { tileX: 5, tileY: 6, tileZ: 0 },
+      ],
+    };
+
+    // Convert tile paths to isometric positions with directions
+    const isoPaths: Record<string, IsometricPosition[]> = {
+      path1: pathToIsometricPositions(demoPaths.path1),
+      path2: pathToIsometricPositions(demoPaths.path2),
+      path3: pathToIsometricPositions(demoPaths.path3),
+    };
+
+    console.log('Path1 converted:', isoPaths.path1.length, 'positions');
+    console.log('First position:', isoPaths.path1[0]);
+
     const avatars: AvatarSpec[] = [
       {
-        id: 'av0-spawn',
+        id: 'walker1',
         tileX: 2, tileY: 2, tileZ: 0,
         direction: 2,
         variant: 0,
-        state: 'spawning',  // Spawn effect demo
+        state: 'walk',
         frame: 0,
         lastUpdateMs: now,
         nextBlinkMs: now + 5000,
         blinkFrame: 0,
-        spawnProgress: 0.0,
-      },
-      {
-        id: 'av1-walk',
-        tileX: 4, tileY: 2, tileZ: 0,
-        direction: 2,
-        variant: 0,
-        state: 'walk',  // Walking avatar
-        frame: 0,
-        lastUpdateMs: now,
-        nextBlinkMs: now,
-        blinkFrame: 0,
         spawnProgress: 0,
       },
       {
-        id: 'av2-idle',
-        tileX: 6, tileY: 2, tileZ: 0,
-        direction: 0,
+        id: 'walker2',
+        tileX: 8, tileY: 2, tileZ: 0,
+        direction: 6,
         variant: 0,
-        state: 'idle',  // Idle with blinks
+        state: 'walk',
         frame: 0,
         lastUpdateMs: now,
         nextBlinkMs: now + 6000,
@@ -113,11 +142,11 @@ export function RoomCanvas({ heightmap }: RoomCanvasProps) {
         spawnProgress: 0,
       },
       {
-        id: 'av3-idle',
-        tileX: 2, tileY: 4, tileZ: 0,
-        direction: 3,
+        id: 'walker3',
+        tileX: 2, tileY: 6, tileZ: 0,
+        direction: 2,
         variant: 0,
-        state: 'idle',
+        state: 'walk',
         frame: 0,
         lastUpdateMs: now,
         nextBlinkMs: now + 7000,
@@ -125,21 +154,9 @@ export function RoomCanvas({ heightmap }: RoomCanvasProps) {
         spawnProgress: 0,
       },
       {
-        id: 'av4-walk',
-        tileX: 4, tileY: 4, tileZ: 0,
-        direction: 4,
-        variant: 0,
-        state: 'walk',
-        frame: 0,
-        lastUpdateMs: now,
-        nextBlinkMs: now,
-        blinkFrame: 0,
-        spawnProgress: 0,
-      },
-      {
-        id: 'av5-idle',
-        tileX: 6, tileY: 4, tileZ: 0,
-        direction: 5,
+        id: 'idle1',
+        tileX: 5, tileY: 7, tileZ: 0,
+        direction: 0,
         variant: 0,
         state: 'idle',
         frame: 0,
@@ -150,7 +167,7 @@ export function RoomCanvas({ heightmap }: RoomCanvasProps) {
       },
     ];
 
-    console.log(`Placing ${avatars.length} avatars (spawn, walk, idle states)`);
+    console.log(`Placing ${avatars.length} avatars (3 walkers on paths, 1 idle)`);
 
     // Step 5: Pre-render room with furniture (NOT avatars - they animate)
     renderState.current.offscreenCanvas = preRenderRoom(
@@ -170,6 +187,30 @@ export function RoomCanvas({ heightmap }: RoomCanvasProps) {
     // Step 5.5: Store avatars in renderState for animation loop
     renderState.current.avatars = avatars;
 
+    // Step 5.6: Assign paths to walking avatars
+    renderState.current.avatarPaths.set('walker1', {
+      path: isoPaths.path1,
+      startTimeMs: now,
+      durationMs: 3000, // 3 seconds to traverse path
+    });
+    renderState.current.avatarPaths.set('walker2', {
+      path: isoPaths.path2,
+      startTimeMs: now,
+      durationMs: 3500, // 3.5 seconds
+    });
+    renderState.current.avatarPaths.set('walker3', {
+      path: isoPaths.path3,
+      startTimeMs: now,
+      durationMs: 2500, // 2.5 seconds
+    });
+
+    // Step 5.7: Set up parent-child relationship for demo
+    const parent = avatars.find(a => a.id === 'walker1');
+    const child = avatars.find(a => a.id === 'idle1');
+    if (parent && child) {
+      renderState.current.parentChildPairs = [{ parent, child }];
+    }
+
     // Step 6: Set runningRef.current = true
     runningRef.current = true;
 
@@ -188,8 +229,36 @@ export function RoomCanvas({ heightmap }: RoomCanvasProps) {
       const currentTimeMs = Date.now();
       for (const avatar of renderState.current.avatars) {
         updateAvatarAnimation(avatar, currentTimeMs);
+
+        // Update position along path if assigned
+        const pathData = renderState.current.avatarPaths.get(avatar.id);
+        if (pathData) {
+          updateAvatarAlongPath(
+            avatar,
+            pathData.path,
+            currentTimeMs,
+            pathData.startTimeMs,
+            pathData.durationMs
+          );
+
+          // Loop path (restart when complete)
+          const elapsed = currentTimeMs - pathData.startTimeMs;
+          if (elapsed >= pathData.durationMs) {
+            pathData.startTimeMs = currentTimeMs; // Restart
+          }
+        }
       }
       renderState.current.lastFrameTimeMs = currentTimeMs;
+
+      // Console logging for validation (first time only)
+      if (!(window as any)._loggedMovement && currentTimeMs - now > 500) {
+        console.log('✓ Avatars moving along paths');
+        const walker1 = renderState.current.avatars.find(a => a.id === 'walker1');
+        if (walker1) {
+          console.log('walker1 direction:', walker1.direction, 'state:', walker1.state);
+        }
+        (window as any)._loggedMovement = true;
+      }
 
       // Clear canvas: ctx.clearRect(0, 0, canvas.offsetWidth, canvas.offsetHeight)
       ctx.clearRect(0, 0, canvas.offsetWidth, canvas.offsetHeight);
@@ -218,6 +287,16 @@ export function RoomCanvas({ heightmap }: RoomCanvasProps) {
         const sorted = depthSort(avatarRenderables);
         for (const avatar of sorted) {
           avatar.draw(ctx);
+        }
+
+        // Draw parent-child relationship lines
+        if (renderState.current.parentChildPairs.length > 0) {
+          ctx.save();
+          ctx.translate(renderState.current.cameraOrigin.x, renderState.current.cameraOrigin.y);
+          for (const pair of renderState.current.parentChildPairs) {
+            drawParentChildLine(ctx, pair.parent, pair.child);
+          }
+          ctx.restore();
         }
       }
 
