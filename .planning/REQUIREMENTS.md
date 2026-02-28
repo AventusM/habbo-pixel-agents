@@ -151,13 +151,13 @@ The following requirements are explicitly deferred beyond v1. They are noted her
 | ROOM-09 | Phase 2: Static Room Rendering | Complete |
 | ROOM-10 | Phase 2: Static Room Rendering | Pending |
 | ROOM-11 | Phase 2: Static Room Rendering | Pending |
-| ASSET-01 | Phase 3: Asset Pipeline | Pending |
+| ASSET-01 | Deferred / Post-v1 | Pending |
 | ASSET-02 | Phase 3: Asset Pipeline | Pending |
 | ASSET-03 | Phase 3: Asset Pipeline | Pending |
 | ASSET-04 | Phase 3: Asset Pipeline | Pending |
 | ASSET-05 | Phase 3: Asset Pipeline | Pending |
 | ASSET-06 | Phase 3: Asset Pipeline | Pending |
-| ASSET-07 | Phase 3: Asset Pipeline | Pending |
+| ASSET-07 | Deferred / Post-v1 | Pending |
 | BUILD-01 | Phase 3: Asset Pipeline | Pending |
 | BUILD-02 | Phase 3: Asset Pipeline | Pending |
 | BUILD-03 | Phase 3: Asset Pipeline | Pending |
