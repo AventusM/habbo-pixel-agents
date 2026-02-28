@@ -11,6 +11,11 @@
 **Goal:** Build the pure isometric math module that every subsequent rendering phase depends on, and validate all formulas before any render code is written.
 **Requirements:** COORD-01, COORD-02, COORD-03, COORD-04, BUILD-06 (implicit: confirms Node environment is set up)
 
+**Plans:** 1 plan
+
+Plans:
+- [ ] 01-01-PLAN.md — Bootstrap Node/TypeScript/Vitest infrastructure and implement isometricMath.ts with passing TDD test suite
+
 **Deliverables:**
 - [ ] `src/isometricMath.ts` implemented with `tileToScreen(x, y, z)`, `screenToTile(sx, sy)`, `getDirection(fromX, fromY, toX, toY)`, and exported constants `TILE_W=64`, `TILE_H=32`, `TILE_W_HALF=32`, `TILE_H_HALF=16`.
 - [ ] Unit test suite (Jest or Vitest) with at least 10 assertion pairs covering known tile→screen values, all 8 direction deltas for `getDirection`, and round-trip accuracy for `screenToTile(tileToScreen(x, y, 0))`.
@@ -156,7 +161,7 @@
 
 | Phase | Requirements | Status | Completed |
 |-------|-------------|--------|-----------|
-| 1. Coordinate Foundation | COORD-01 – COORD-04 | Not started | — |
+| 1. Coordinate Foundation | COORD-01 – COORD-04 | Planned | — |
 | 2. Static Room Rendering | ROOM-01 – ROOM-11 | Not started | — |
 | 3. Asset Pipeline | ASSET-01 – ASSET-07, BUILD-01 – BUILD-03 | Not started | — |
 | 4. Furniture Rendering | FURN-01 – FURN-05 | Not started | — |
@@ -168,4 +173,4 @@
 ---
 
 *Created: 2026-02-28*
-*Last updated: 2026-02-28 after initial research*
+*Last updated: 2026-02-28 after Phase 1 planning*
