@@ -4,13 +4,13 @@ milestone: v1.0
 milestone_name: milestone
 current_plan: Not started
 status: completed
-stopped_at: Completed 02-static-room-rendering/02-03-PLAN.md (visual verification approved)
-last_updated: "2026-02-28T21:27:15.941Z"
+stopped_at: Completed 05-avatar-system/05-01-PLAN.md
+last_updated: "2026-02-28T23:18:53.017Z"
 progress:
-  total_phases: 3
-  completed_phases: 2
-  total_plans: 8
-  completed_plans: 7
+  total_phases: 5
+  completed_phases: 3
+  total_plans: 14
+  completed_plans: 11
 ---
 
 # STATE.md
@@ -20,21 +20,21 @@ progress:
 See: .planning/PROJECT.md (updated 2026-02-28)
 
 **Core value:** Claude Code agents should feel like they're working together in a recognisable Habbo Hotel room — the isometric 2.5D aesthetic must be faithful to the classic v14 era.
-**Current focus:** Phase 2 COMPLETE — isometric room rendering in VS Code webview (02-01, 02-02, 02-03 all done)
+**Current focus:** Phase 5 IN PROGRESS — Avatar System (05-01 complete, 05-02 and 05-03 pending)
 
 ## Current Status
 
-Phase 2 (Static Room Rendering) **COMPLETE**. All 3 plans done — isometric types, pure logic, canvas tile renderer, React component, and VS Code extension implemented with visual verification passed.
+Phase 5 (Avatar System) **IN PROGRESS**. Plan 05-01 complete — avatar renderer with 8-direction support, multi-layer composition, 6 palette variants, and placeholder sprites integrated into webview.
 
-**Last session:** 2026-02-28T21:16:00Z
-**Stopped at:** Completed 02-static-room-rendering/02-03-PLAN.md (visual verification approved)
-**Next action:** Phase 3 — Asset Pipeline (.nitro extraction, sprite cache, ImageBitmap loading)
+**Last session:** 2026-02-28T23:18:53.015Z
+**Stopped at:** Completed 05-avatar-system/05-01-PLAN.md
+**Next action:** Phase 5 Plan 02 — Walk cycle animation, idle blinks, and Matrix spawn/despawn effects
 
 ## Current Phase
 
-**Phase:** 02-static-room-rendering
-**Current Plan:** Not started
-**Status:** Milestone complete
+**Phase:** 05-avatar-system
+**Current Plan:** 05-02 (next)
+**Status:** In progress (1/3 plans complete)
 
 ## Decisions Log
 
@@ -78,6 +78,7 @@ None.
 | 02-static-room-rendering | 02-01 | 2min | 2 | 2 |
 | 02-static-room-rendering | 02-02 | 3min | 2 | 3 |
 | 02-static-room-rendering | 02-03 | 25min | 3 | 5 |
+| 05-avatar-system | 05-01 | 5min | 3 | 9 |
 
 ## Phase History
 
@@ -87,3 +88,4 @@ None.
 | 02-static-room-rendering | 02-01 | Isometric types and pure logic implemented with TDD (25 tests passing) — parseHeightmap, hsbToHsl, tileColors, depthSort |
 | 02-static-room-rendering | 02-02 | Canvas drawing module with HiDPI support, depth-sorted rendering, and wall strip edge detection (58 tests passing) |
 | 02-static-room-rendering | 02-03 | React component with StrictMode-safe rAF loop, VS Code extension host + webview, esbuild bundling — visual verification approved |
+| 05-avatar-system | 05-01 | Implemented 8-direction avatar renderer with 4-layer composition and 6 palette variants using ImageMagick-generated placeholder sprites (192 total frames) |

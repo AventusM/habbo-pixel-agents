@@ -48,12 +48,12 @@
 
 ### Avatar System
 
-- [ ] **AVAT-01**: Avatars render in 8 facing directions (0-7) with the correct sprite selected for each direction based on `getDirection()` output from BFS path step deltas.
+- [x] **AVAT-01**: Avatars render in 8 facing directions (0-7) with the correct sprite selected for each direction based on `getDirection()` output from BFS path step deltas.
 - [ ] **AVAT-02**: The walk animation plays a 4-frame cycle at 250 ms per frame when an avatar is moving along a BFS path.
 - [ ] **AVAT-03**: The idle state displays a single static frame; a 3-frame blink overlay triggers randomly every 5-8 seconds.
-- [ ] **AVAT-04**: Avatar sprites are composed from 3-4 simplified layers (body/skin, clothing, head, hair) using the existing 6-variant palette system — not a full 13-layer Habbo figure compositor.
+- [x] **AVAT-04**: Avatar sprites are composed from 3-4 simplified layers (body/skin, clothing, head, hair) using the existing 6-variant palette system — not a full 13-layer Habbo figure compositor.
 - [ ] **AVAT-05**: The avatar's screen position at each BFS path step is computed by calling `tileToScreen(tileX, tileY, tileHeight)` — the BFS algorithm itself is unchanged.
-- [ ] **AVAT-06**: Each of the 6 character palette variants produces a visually distinct avatar (different skin tone or clothing colour group) that is recognisably different from the others.
+- [x] **AVAT-06**: Each of the 6 character palette variants produces a visually distinct avatar (different skin tone or clothing colour group) that is recognisably different from the others.
 - [ ] **AVAT-07**: Matrix spawn and despawn effects are preserved: cascade from the top of the avatar sprite downward on spawn, and upward collapse on despawn.
 - [ ] **AVAT-08**: Sub-agent parent/child relationships are visualised by a line drawn in isometric screen space from the parent avatar's foot position to the child avatar's foot position.
 
@@ -166,12 +166,12 @@ The following requirements are explicitly deferred beyond v1. They are noted her
 | FURN-03 | Phase 4: Furniture Rendering | Pending |
 | FURN-04 | Phase 4: Furniture Rendering | Pending |
 | FURN-05 | Phase 4: Furniture Rendering | Pending |
-| AVAT-01 | Phase 5: Avatar System | Pending |
+| AVAT-01 | Phase 5: Avatar System | Complete |
 | AVAT-02 | Phase 5: Avatar System | Pending |
 | AVAT-03 | Phase 5: Avatar System | Pending |
-| AVAT-04 | Phase 5: Avatar System | Pending |
+| AVAT-04 | Phase 5: Avatar System | Complete |
 | AVAT-05 | Phase 5: Avatar System | Pending |
-| AVAT-06 | Phase 5: Avatar System | Pending |
+| AVAT-06 | Phase 5: Avatar System | Complete |
 | AVAT-07 | Phase 5: Avatar System | Pending |
 | AVAT-08 | Phase 5: Avatar System | Pending |
 | AGENT-02 | Phase 5: Avatar System | Pending |
