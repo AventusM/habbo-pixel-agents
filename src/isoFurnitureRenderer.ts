@@ -1,0 +1,116 @@
+// src/isoFurnitureRenderer.ts
+// Furniture sprite rendering for isometric rooms
+// Implements single-tile and multi-tile furniture with depth sorting
+
+import { tileToScreen } from './isometricMath.js';
+import type { SpriteCache } from './isoSpriteCache.js';
+import type { Renderable } from './isoTypes.js';
+
+/**
+ * Specification for single-tile furniture (chair, lamp, etc.)
+ */
+export interface FurnitureSpec {
+  /** Furniture type name (e.g., "chair", "desk") */
+  name: string;
+  /** Tile X coordinate */
+  tileX: number;
+  /** Tile Y coordinate */
+  tileY: number;
+  /** Tile Z coordinate (height level 0-9) */
+  tileZ: number;
+  /** Habbo direction (0, 2, 4, 6) */
+  direction: 0 | 2 | 4 | 6;
+}
+
+/**
+ * Get base direction for sprite lookup.
+ * Habbo sprites only store directions 0 and 2.
+ * Directions 4 and 6 are horizontal mirrors.
+ *
+ * @param direction - Habbo direction (0, 2, 4, 6)
+ * @returns Base direction (0 or 2)
+ */
+export function getBaseDirection(direction: 0 | 2 | 4 | 6): 0 | 2 {
+  // Direction 4 (back-facing) mirrors direction 2 (right-facing)
+  // Direction 6 (left-facing) mirrors direction 0 (front-facing)
+  return direction === 4 ? 2 : direction === 6 ? 0 : direction;
+}
+
+/**
+ * Check if sprite should be horizontally mirrored.
+ * Directions 4 and 6 are mirrors of 2 and 0.
+ *
+ * @param direction - Habbo direction (0, 2, 4, 6)
+ * @returns true if sprite should be flipped
+ */
+export function shouldMirrorSprite(direction: 0 | 2 | 4 | 6): boolean {
+  return direction === 4 || direction === 6;
+}
+
+/**
+ * Create a renderable object for single-tile furniture.
+ *
+ * This implements the furniture rendering pipeline:
+ * 1. Look up sprite frame from cache using frame key format
+ * 2. Convert tile coordinates to screen coordinates
+ * 3. Apply coordinate rounding (Math.floor) for pixel-perfect rendering
+ * 4. Draw sprite with horizontal flip for directions 4 and 6
+ *
+ * @param spec - Furniture specification
+ * @param spriteCache - Sprite cache instance
+ * @param atlasName - Atlas name in sprite cache
+ * @returns Renderable object with draw function
+ */
+export function createFurnitureRenderable(
+  spec: FurnitureSpec,
+  spriteCache: SpriteCache,
+  atlasName: string,
+): Renderable {
+  return {
+    tileX: spec.tileX,
+    tileY: spec.tileY,
+    tileZ: spec.tileZ,
+    draw: (ctx) => {
+      // Frame key format: {name}_{size}_{layer}_{direction}_{frame}
+      const baseDirection = getBaseDirection(spec.direction);
+      const frameKey = `${spec.name}_64_a_${baseDirection}_0`;
+
+      // Look up sprite frame from cache
+      const frame = spriteCache.getFrame(atlasName, frameKey);
+      if (!frame) {
+        console.warn(`Missing furniture sprite: ${frameKey} in atlas ${atlasName}`);
+        return; // Graceful fallback - don't crash render loop
+      }
+
+      // Convert tile position to screen coordinates
+      const screen = tileToScreen(spec.tileX, spec.tileY, spec.tileZ);
+
+      // Center sprite horizontally, align bottom to tile position
+      // CRITICAL: Round coordinates with Math.floor() to avoid sub-pixel rendering cost
+      const dx = Math.floor(screen.x - frame.w / 2);
+      const dy = Math.floor(screen.y - frame.h);
+
+      // Apply horizontal mirror for directions 4 and 6
+      if (shouldMirrorSprite(spec.direction)) {
+        ctx.save();
+        ctx.scale(-1, 1); // Horizontal flip
+        ctx.drawImage(
+          frame.bitmap,
+          frame.x, frame.y,  // Source atlas position
+          frame.w, frame.h,  // Source size
+          -dx - frame.w, dy, // Destination position (flipped X coordinate)
+          frame.w, frame.h   // Destination size (no scaling)
+        );
+        ctx.restore();
+      } else {
+        ctx.drawImage(
+          frame.bitmap,
+          frame.x, frame.y,  // Source atlas position
+          frame.w, frame.h,  // Source size
+          dx, dy,            // Destination position
+          frame.w, frame.h   // Destination size (no scaling)
+        );
+      }
+    },
+  };
+}
