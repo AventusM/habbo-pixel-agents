@@ -84,6 +84,13 @@ Deferred to post-v1:
 **Goal:** Render all 8 office furniture types in correct isometric positions with proper depth ordering so the room looks like a real Habbo office layout.
 **Requirements:** FURN-01, FURN-02, FURN-03, FURN-04, FURN-05
 
+**Plans:** 3 plans
+
+Plans:
+- [ ] 04-01-PLAN.md — Validate furniture assets and implement single-tile furniture renderer (chair)
+- [ ] 04-02-PLAN.md — Implement multi-tile furniture with max-coordinate sort key (desk)
+- [ ] 04-03-PLAN.md — Integrate all 8 furniture types into webview render loop with visual validation
+
 **Deliverables:**
 - [ ] `src/isoFurnitureRenderer.ts` renders a 1×1 chair at a specified tile position and direction by looking up the correct frame key in the sprite cache and calling `drawImage` with the JSON manifest anchor offsets applied.
 - [ ] A 2×1 or 2×2 desk renders correctly using the farthest-tile sort key (`max(tileX + tileY)` across the full footprint), so avatars standing on tiles adjacent to the desk appear correctly in front of or behind it.
