@@ -65,7 +65,6 @@ export function activate(context: vscode.ExtensionContext) {
       vscode.Uri.joinPath(context.extensionUri, 'dist', 'webview-assets', 'sounds', 'notification.ogg')
     );
 
-    console.log('CSP Source:', panel.webview.cspSource);
     console.log('Chair PNG URI:', chairPngUri.toString());
     console.log('Chair JSON URI:', chairJsonUri.toString());
     console.log('Furniture PNG URI:', furniturePngUri.toString());
