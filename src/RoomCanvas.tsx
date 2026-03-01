@@ -12,15 +12,25 @@ import type { TilePath, IsometricPosition } from './isoAgentBehavior.js';
 import { drawSpeechBubble } from './isoBubbleRenderer.js';
 import { drawNameTag } from './isoNameTagRenderer.js';
 import { tileToScreen } from './isometricMath.js';
+import {
+  getHoveredTile,
+  drawHoverHighlight,
+  toggleTileWalkability,
+  setTileColor,
+  type EditorMode,
+  type EditorState,
+} from './isoLayoutEditor.js';
+import type { HsbColor } from './isoTypes.js';
 
 interface RoomCanvasProps {
   heightmap: string;
+  editorMode?: EditorMode; // Optional, defaults to 'view'
 }
 
 // Avatar sprite dimensions (from placeholder sprite generation)
 const AVATAR_HEIGHT = 128;
 
-export function RoomCanvas({ heightmap }: RoomCanvasProps) {
+export function RoomCanvas({ heightmap, editorMode = 'view' }: RoomCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const runningRef = useRef(false);
   const rafIdRef = useRef(0);
@@ -32,6 +42,9 @@ export function RoomCanvas({ heightmap }: RoomCanvasProps) {
     lastFrameTimeMs: number;
     avatarPaths: Map<string, { path: IsometricPosition[]; startTimeMs: number; durationMs: number }>;
     parentChildPairs: Array<{ parent: AvatarSpec; child: AvatarSpec }>;
+    editorState: EditorState;
+    grid: TileGrid | null;
+    tileColorMap: Map<string, HsbColor>;
   }>({
     offscreenCanvas: null,
     cameraOrigin: { x: 0, y: 0 },
@@ -40,6 +53,13 @@ export function RoomCanvas({ heightmap }: RoomCanvasProps) {
     lastFrameTimeMs: Date.now(),
     avatarPaths: new Map(),
     parentChildPairs: [],
+    editorState: {
+      mode: 'view',
+      hoveredTile: null,
+      selectedColor: { h: 200, s: 50, b: 50 },
+    },
+    grid: null,
+    tileColorMap: new Map(),
   });
 
   useEffect(() => {
@@ -53,6 +73,12 @@ export function RoomCanvas({ heightmap }: RoomCanvasProps) {
 
     // Step 3: Parse the heightmap
     const grid: TileGrid = parseHeightmap(heightmap);
+
+    // Store grid in renderState for editor mutations
+    renderState.current.grid = grid;
+
+    // Update editor state mode from prop
+    renderState.current.editorState.mode = editorMode;
 
     // Step 4: Compute camera origin
     renderState.current.cameraOrigin = computeCameraOrigin(
@@ -186,8 +212,8 @@ export function RoomCanvas({ heightmap }: RoomCanvasProps) {
       furniture,
       multiTileFurniture,
       spriteCache,
-      'furniture'
-      // NO avatars - they render dynamically in frame()
+      'furniture',
+      renderState.current.tileColorMap // Pass tileColorMap for per-tile colors
     );
 
     // Step 5.5: Store avatars in renderState for animation loop
@@ -271,6 +297,12 @@ export function RoomCanvas({ heightmap }: RoomCanvasProps) {
 
       // Blit: ctx.drawImage(offscreen, 0, 0) — single drawImage per frame (ROOM-08)
       ctx.drawImage(offscreen, 0, 0);
+
+      // Draw hover highlight if tile is hovered (editor mode)
+      if (renderState.current.editorState.hoveredTile) {
+        const { x, y, z } = renderState.current.editorState.hoveredTile;
+        drawHoverHighlight(ctx, x, y, z, renderState.current.cameraOrigin);
+      }
 
       // Render avatars dynamically (NOT pre-rendered - animation state changes each frame)
       if (spriteCache && renderState.current.avatars.length > 0) {
@@ -364,10 +396,95 @@ export function RoomCanvas({ heightmap }: RoomCanvasProps) {
     };
   }, [heightmap]);
 
+  // Mouse event handlers for editor mode
+  const handleMouseMove = (event: React.MouseEvent<HTMLCanvasElement>) => {
+    if (!renderState.current.grid) return;
+
+    const hoveredCoords = getHoveredTile(event, renderState.current.cameraOrigin);
+
+    if (hoveredCoords) {
+      const { tileX, tileY } = hoveredCoords;
+      // Check if tile exists in grid
+      if (
+        tileY >= 0 && tileY < renderState.current.grid.height &&
+        tileX >= 0 && tileX < renderState.current.grid.width
+      ) {
+        const tile = renderState.current.grid.tiles[tileY][tileX];
+        const tileZ = tile ? tile.height : 0;
+        renderState.current.editorState.hoveredTile = { x: tileX, y: tileY, z: tileZ };
+      } else {
+        renderState.current.editorState.hoveredTile = null;
+      }
+    } else {
+      renderState.current.editorState.hoveredTile = null;
+    }
+  };
+
+  const handleClick = (event: React.MouseEvent<HTMLCanvasElement>) => {
+    if (!renderState.current.grid || !canvasRef.current) return;
+
+    const clickedCoords = getHoveredTile(event, renderState.current.cameraOrigin);
+    if (!clickedCoords) return;
+
+    const { tileX, tileY } = clickedCoords;
+
+    // Paint mode: toggle tile walkability
+    if (renderState.current.editorState.mode === 'paint') {
+      toggleTileWalkability(renderState.current.grid, tileX, tileY);
+
+      // Re-render offscreen canvas with updated grid
+      renderState.current.offscreenCanvas = preRenderRoom(
+        renderState.current.grid,
+        renderState.current.cameraOrigin,
+        canvasRef.current.width,
+        canvasRef.current.height,
+        window.devicePixelRatio || 1,
+        undefined,
+        [], // furniture - using empty arrays for now
+        [],
+        (window as any).spriteCache,
+        undefined,
+        renderState.current.tileColorMap
+      );
+    }
+
+    // Color mode: set tile color
+    if (renderState.current.editorState.mode === 'color') {
+      setTileColor(
+        renderState.current.tileColorMap,
+        tileX,
+        tileY,
+        renderState.current.editorState.selectedColor
+      );
+
+      // Re-render offscreen canvas with updated colors
+      renderState.current.offscreenCanvas = preRenderRoom(
+        renderState.current.grid,
+        renderState.current.cameraOrigin,
+        canvasRef.current.width,
+        canvasRef.current.height,
+        window.devicePixelRatio || 1,
+        undefined,
+        [],
+        [],
+        (window as any).spriteCache,
+        undefined,
+        renderState.current.tileColorMap
+      );
+    }
+  };
+
+  const handleMouseLeave = () => {
+    renderState.current.editorState.hoveredTile = null;
+  };
+
   return (
     <canvas
       ref={canvasRef}
       style={{ width: '100%', height: '100%', display: 'block' }}
+      onMouseMove={handleMouseMove}
+      onClick={handleClick}
+      onMouseLeave={handleMouseLeave}
     />
   );
 }
