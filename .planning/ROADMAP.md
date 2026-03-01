@@ -179,6 +179,13 @@ Plans:
 
 **Goal:** Replace the existing flat notification chimes with authentic Habbo Hotel classic sound effects, with a silent fallback if the codec is unavailable in the target VS Code version.
 **Requirements:** AUDIO-01, AUDIO-02, AUDIO-03, AUDIO-04, AUDIO-05
+**Plans:** 3 plans
+
+Plans:
+- [ ] 08-01-PLAN.md — AudioManager module with graceful codec failure handling
+- [ ] 08-02-PLAN.md — FFmpeg build-time audio conversion to OGG Vorbis
+- [ ] 08-03-PLAN.md — Extension integration with CSP media-src and user gesture initialization
+
 
 **Deliverables:**
 - [ ] All Habbo sound effects are converted to OGG Vorbis (preferred) or uncompressed WAV at build time using a build step script; no MP3 or AAC files remain in the audio assets.
@@ -218,3 +225,10 @@ Plans:
 
 *Created: 2026-02-28*
 *Last updated: 2026-03-01 after Phase 7 planning*
+**Plans:** 3 plans
+
+Plans:
+- [ ] 08-01-PLAN.md — AudioManager module with graceful codec failure handling
+- [ ] 08-02-PLAN.md — FFmpeg build-time audio conversion to OGG Vorbis
+- [ ] 08-03-PLAN.md — Extension integration with CSP media-src and user gesture initialization
+
