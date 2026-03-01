@@ -65,6 +65,7 @@ export function activate(context: vscode.ExtensionContext) {
       vscode.Uri.joinPath(context.extensionUri, 'dist', 'webview-assets', 'sounds', 'notification.ogg')
     );
 
+    console.log('CSP Source:', panel.webview.cspSource);
     console.log('Chair PNG URI:', chairPngUri.toString());
     console.log('Chair JSON URI:', chairJsonUri.toString());
     console.log('Furniture PNG URI:', furniturePngUri.toString());
@@ -79,7 +80,7 @@ export function activate(context: vscode.ExtensionContext) {
 <html>
   <head>
     <meta charset="UTF-8" />
-    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' ${panel.webview.cspSource}; img-src ${panel.webview.cspSource}; connect-src ${panel.webview.cspSource}; style-src 'unsafe-inline'; font-src ${panel.webview.cspSource}; media-src ${panel.webview.cspSource} 'self';" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' ${panel.webview.cspSource}; img-src ${panel.webview.cspSource}; connect-src ${panel.webview.cspSource}; style-src 'unsafe-inline'; font-src ${panel.webview.cspSource}; media-src ${panel.webview.cspSource};" />
     <link rel="preload" href="${fontUri}" as="font" type="font/ttf" crossorigin />
     <style>
       @font-face {
