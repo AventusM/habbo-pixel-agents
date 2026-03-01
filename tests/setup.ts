@@ -18,12 +18,18 @@ beforeAll(() => {
       getContext() {
         return {
           scale: () => {},
+          save: () => {},
+          restore: () => {},
+          translate: () => {},
           beginPath: () => {},
           moveTo: () => {},
           lineTo: () => {},
           closePath: () => {},
           fill: () => {},
+          stroke: () => {},
           fillStyle: '',
+          strokeStyle: '',
+          lineWidth: 1,
           imageSmoothingEnabled: true,
         };
       }
