@@ -31,15 +31,56 @@ export function activate(context: vscode.ExtensionContext) {
       vscode.Uri.joinPath(context.extensionUri, 'dist', 'webview.js')
     );
 
+    // Generate webview URIs for chair atlas (proof-of-concept from Phase 3)
+    const chairPngUri = panel.webview.asWebviewUri(
+      vscode.Uri.joinPath(context.extensionUri, 'dist', 'webview-assets', 'chair_atlas.png')
+    );
+    const chairJsonUri = panel.webview.asWebviewUri(
+      vscode.Uri.joinPath(context.extensionUri, 'dist', 'webview-assets', 'chair_atlas.json')
+    );
+
+    // Generate webview URIs for furniture atlas (Phase 4)
+    const furniturePngUri = panel.webview.asWebviewUri(
+      vscode.Uri.joinPath(context.extensionUri, 'dist', 'webview-assets', 'furniture_atlas.png')
+    );
+    const furnitureJsonUri = panel.webview.asWebviewUri(
+      vscode.Uri.joinPath(context.extensionUri, 'dist', 'webview-assets', 'furniture_atlas.json')
+    );
+
+    // Generate webview URIs for avatar atlas (Phase 5)
+    const avatarPngUri = panel.webview.asWebviewUri(
+      vscode.Uri.joinPath(context.extensionUri, 'dist', 'webview-assets', 'avatar_atlas.png')
+    );
+    const avatarJsonUri = panel.webview.asWebviewUri(
+      vscode.Uri.joinPath(context.extensionUri, 'dist', 'webview-assets', 'avatar_atlas.json')
+    );
+
+    console.log('Chair PNG URI:', chairPngUri.toString());
+    console.log('Chair JSON URI:', chairJsonUri.toString());
+    console.log('Furniture PNG URI:', furniturePngUri.toString());
+    console.log('Furniture JSON URI:', furnitureJsonUri.toString());
+    console.log('Avatar PNG URI:', avatarPngUri.toString());
+    console.log('Avatar JSON URI:', avatarJsonUri.toString());
+
     // Set HTML content
     panel.webview.html = `<!DOCTYPE html>
 <html>
   <head>
     <meta charset="UTF-8" />
-    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src ${panel.webview.cspSource}; style-src 'unsafe-inline';" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' ${panel.webview.cspSource}; img-src ${panel.webview.cspSource}; connect-src ${panel.webview.cspSource}; style-src 'unsafe-inline';" />
     <style>
       html, body, #root { margin: 0; padding: 0; width: 100%; height: 100vh; background: #1a1a2e; }
     </style>
+    <script>
+      window.ASSET_URIS = {
+        chairPng: '${chairPngUri}',
+        chairJson: '${chairJsonUri}',
+        furniturePng: '${furniturePngUri}',
+        furnitureJson: '${furnitureJsonUri}',
+        avatarPng: '${avatarPngUri}',
+        avatarJson: '${avatarJsonUri}'
+      };
+    </script>
   </head>
   <body>
     <div id="root"></div>

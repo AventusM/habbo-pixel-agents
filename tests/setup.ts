@@ -30,11 +30,26 @@ beforeAll(() => {
     };
   }
 
-  // Mock window.devicePixelRatio if not available
-  if (typeof window !== 'undefined' && !window.devicePixelRatio) {
+  // Mock window object for Node environment
+  if (typeof window === 'undefined') {
+    (global as any).window = {
+      devicePixelRatio: 1,
+      _debuggedFurniture: undefined,
+      _debuggedAvatars: undefined,
+    };
+  } else if (!window.devicePixelRatio) {
     Object.defineProperty(window, 'devicePixelRatio', {
       value: 1,
       writable: true,
+    });
+  }
+
+  // Mock createImageBitmap for sprite cache tests
+  if (typeof globalThis.createImageBitmap === 'undefined') {
+    (globalThis as any).createImageBitmap = async (img: HTMLImageElement) => ({
+      width: img.width,
+      height: img.height,
+      close: () => {},
     });
   }
 });

@@ -11,6 +11,13 @@ import {
 } from './isometricMath.js';
 import type { TileGrid, HsbColor, Renderable } from './isoTypes.js';
 import { tileColors, depthSort } from './isoTypes.js';
+import {
+  createFurnitureRenderable,
+  createMultiTileFurnitureRenderable,
+  type FurnitureSpec,
+  type MultiTileFurnitureSpec,
+} from './isoFurnitureRenderer.js';
+import type { SpriteCache } from './isoSpriteCache.js';
 
 /**
  * Wall height in pixels — 4 tile heights (128px).
@@ -111,7 +118,7 @@ export function computeCameraOrigin(
 
 /**
  * Pre-render complete room geometry to an OffscreenCanvas.
- * Draws floor rhombuses and wall strips in depth-sorted order.
+ * Draws floor rhombuses, wall strips, and furniture in depth-sorted order.
  *
  * @param grid - TileGrid to render
  * @param cameraOrigin - Camera offset to apply to all coordinates
@@ -119,6 +126,10 @@ export function computeCameraOrigin(
  * @param physicalH - OffscreenCanvas height in physical pixels
  * @param dpr - Device pixel ratio for context scaling
  * @param defaultHsb - Optional default HSB color for tiles (overrides DEFAULT_HSB)
+ * @param furniture - Optional array of single-tile furniture to render
+ * @param multiTileFurniture - Optional array of multi-tile furniture to render
+ * @param spriteCache - Sprite cache instance (required if furniture provided)
+ * @param atlasName - Atlas name in sprite cache (default: 'furniture')
  * @returns OffscreenCanvas with rendered room
  */
 export function preRenderRoom(
@@ -128,6 +139,10 @@ export function preRenderRoom(
   physicalH: number,
   dpr: number,
   defaultHsb?: HsbColor,
+  furniture?: FurnitureSpec[],
+  multiTileFurniture?: MultiTileFurnitureSpec[],
+  spriteCache?: SpriteCache,
+  atlasName: string = 'furniture',
 ): OffscreenCanvas {
   const offscreen = new OffscreenCanvas(physicalW, physicalH);
   const ctx = offscreen.getContext('2d')!;
@@ -174,6 +189,42 @@ export function preRenderRoom(
           }
         },
       });
+    }
+  }
+
+  // Add furniture renderables to unified depth-sort array
+  if (furniture && spriteCache) {
+    for (const furni of furniture) {
+      const furnitureRenderable = createFurnitureRenderable(furni, spriteCache, atlasName);
+
+      // Wrap the draw function to apply camera origin offset
+      const originalDraw = furnitureRenderable.draw;
+      furnitureRenderable.draw = (ctx) => {
+        ctx.save();
+        ctx.translate(cameraOrigin.x, cameraOrigin.y);
+        originalDraw(ctx);
+        ctx.restore();
+      };
+
+      renderables.push(furnitureRenderable);
+    }
+  }
+
+  // Add multi-tile furniture renderables
+  if (multiTileFurniture && spriteCache) {
+    for (const furni of multiTileFurniture) {
+      const furnitureRenderable = createMultiTileFurnitureRenderable(furni, spriteCache, atlasName);
+
+      // Wrap the draw function to apply camera origin offset
+      const originalDraw = furnitureRenderable.draw;
+      furnitureRenderable.draw = (ctx) => {
+        ctx.save();
+        ctx.translate(cameraOrigin.x, cameraOrigin.y);
+        originalDraw(ctx);
+        ctx.restore();
+      };
+
+      renderables.push(furnitureRenderable);
     }
   }
 

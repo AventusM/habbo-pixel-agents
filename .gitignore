@@ -1,0 +1,28 @@
+# Build output
+dist/
+
+# Extracted Sulake assets (NEVER commit to public repo)
+# Per BUILD-03 requirement and decision from 2026-02-28
+dist/webview-assets/
+*.nitro
+assets/extracted/
+
+# VS Code extension artifacts
+*.vsix
+
+# Node modules and dependency artifacts
+node_modules/
+package-lock.json
+
+# Test artifacts
+coverage/
+
+# macOS system files
+.DS_Store
+
+# Mault Memory Layer (auto)
+.memory-layer/
+.memory-layer/cache/
+.memory-layer/logs/
+.memory-layer/reports/
+.memory-layer/archive/

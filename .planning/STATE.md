@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_plan: 02-03
-status: in-progress
-stopped_at: Completed 02-static-room-rendering/02-02-PLAN.md
-last_updated: "2026-02-28T17:51:06Z"
+current_plan: 05-03 (completed)
+status: executing
+stopped_at: Completed 05-avatar-system/05-03-PLAN.md
+last_updated: "2026-03-01T01:35:01.000Z"
 progress:
-  total_phases: 2
-  completed_phases: 1
-  total_plans: 4
-  completed_plans: 3
+  total_phases: 5
+  completed_phases: 4
+  total_plans: 14
+  completed_plans: 13
 ---
 
 # STATE.md
@@ -20,21 +20,21 @@ progress:
 See: .planning/PROJECT.md (updated 2026-02-28)
 
 **Core value:** Claude Code agents should feel like they're working together in a recognisable Habbo Hotel room — the isometric 2.5D aesthetic must be faithful to the classic v14 era.
-**Current focus:** Phase 2 in progress — types, pure logic, and canvas renderer complete (02-01, 02-02), React component next (02-03)
+**Current focus:** Phase 5 COMPLETE — Avatar System (all 3 plans complete)
 
 ## Current Status
 
-Phase 2 (Static Room Rendering) in progress. Plans 02-01 and 02-02 complete — isometric types, pure logic, and canvas tile renderer implemented with 58 passing tests.
+Phase 5 (Avatar System) **COMPLETE**. All 3 plans complete — avatar renderer with 8-direction support, walk/idle animations, Matrix spawn effects, and BFS pathfinding integration ready for real agent logic.
 
-**Last session:** 2026-02-28T17:51:06Z
-**Stopped at:** Completed 02-static-room-rendering/02-02-PLAN.md
-**Next action:** Plan 02-03 — React Component + rAF Loop
+**Last session:** 2026-03-01T01:35:01.000Z
+**Stopped at:** Completed 05-avatar-system/05-03-PLAN.md
+**Next action:** Phase 6 — UI Overlays (agent labels, status indicators, control panels)
 
 ## Current Phase
 
-**Phase:** 02-static-room-rendering
-**Current Plan:** 02-03 (next)
-**Status:** In progress (2 of 3 plans complete)
+**Phase:** 05-avatar-system
+**Current Plan:** 05-03 (completed)
+**Status:** Complete (3/3 plans complete)
 
 ## Decisions Log
 
@@ -61,6 +61,13 @@ Phase 2 (Static Room Rendering) in progress. Plans 02-01 and 02-02 complete — 
 | 2026-02-28 | Use happy-dom instead of jsdom for canvas mocking | jsdom has ESM/CommonJS compatibility issues; happy-dom is lighter and better maintained |
 | 2026-02-28 | Create OffscreenCanvas mock in setup.ts | Minimal mock sufficient for smoke tests — no pixel output verification needed |
 | 2026-02-28 | Set imageSmoothingEnabled=false on both canvas contexts | Ensures pixel-crisp rendering at all DPR levels for isometric tile fidelity |
+| 2026-02-28 | Use .cjs extension for extension.js output | package.json has type=module, so .js files are ESM; CommonJS extension code must use .cjs |
+| 2026-02-28 | runningRef.current = false BEFORE cancelAnimationFrame | Ensures frame() guard sees false before cancellation, prevents StrictMode race conditions |
+| 2026-02-28 | Store all mutable render state in single renderState useRef | Keeps frame-loop values in one ref, prevents useState stale closures |
+| 2026-02-28 | Add preLaunchTask to launch.json for auto-build | Ensures latest code bundled before F5, prevents testing stale builds |
+| 2026-03-01 | Use pathToIsometricPositions() as integration layer | BFS algorithm itself never needs modification — only position conversion changed |
+| 2026-03-01 | Last path step uses previous direction | Maintains avatar facing after reaching goal — prevents jarring direction resets |
+| 2026-03-01 | Cyan line with 60% opacity for parent-child relationships | Distinct from other UI elements, non-intrusive transparency |
 
 ## Blockers
 
@@ -70,10 +77,13 @@ None.
 
 | Phase | Plan | Duration | Tasks | Files |
 |-------|------|----------|-------|-------|
-| 01-coordinate-foundation | 01 | 5min | 2 | 6 |
-| Phase 01-coordinate-foundation P01 | 5 | 2 tasks | 6 files |
-| Phase 02-static-room-rendering P01 | 2 | 2 tasks | 2 files |
-| Phase 02-static-room-rendering P02-02 | 3 | 2 tasks | 3 files |
+| 01-coordinate-foundation | 01-01 | 5min | 2 | 6 |
+| 02-static-room-rendering | 02-01 | 2min | 2 | 2 |
+| 02-static-room-rendering | 02-02 | 3min | 2 | 3 |
+| 02-static-room-rendering | 02-03 | 25min | 3 | 5 |
+| 05-avatar-system | 05-01 | 5min | 3 | 9 |
+| 05-avatar-system | 05-02 | 6min | 3 | 7 |
+| 05-avatar-system | 05-03 | 3min | 2 | 3 |
 
 ## Phase History
 
@@ -82,3 +92,7 @@ None.
 | 01-coordinate-foundation | 01-01 | Node/TypeScript/Vitest bootstrapped; 24 isometric math assertions passing |
 | 02-static-room-rendering | 02-01 | Isometric types and pure logic implemented with TDD (25 tests passing) — parseHeightmap, hsbToHsl, tileColors, depthSort |
 | 02-static-room-rendering | 02-02 | Canvas drawing module with HiDPI support, depth-sorted rendering, and wall strip edge detection (58 tests passing) |
+| 02-static-room-rendering | 02-03 | React component with StrictMode-safe rAF loop, VS Code extension host + webview, esbuild bundling — visual verification approved |
+| 05-avatar-system | 05-01 | Implemented 8-direction avatar renderer with 4-layer composition and 6 palette variants using ImageMagick-generated placeholder sprites (192 total frames) |
+| 05-avatar-system | 05-02 | Walk cycle animation (4 FPS), idle blinks (5-8s intervals), and Matrix spawn effects with 184 placeholder sprites (idle, walk, blink overlays) |
+| 05-avatar-system | 05-03 | BFS pathfinding integration with isometric avatar movement - tile paths to screen positions with facing directions and parent/child relationship lines |

@@ -1,0 +1,74 @@
+// esbuild.config.mjs
+// Dual esbuild configuration for extension host and webview
+
+import * as esbuild from 'esbuild';
+import * as fs from 'fs';
+import * as path from 'path';
+
+const extensionConfig = {
+  entryPoints: ['src/extension.ts'],
+  bundle: true,
+  outfile: 'dist/extension.cjs',
+  platform: 'node',
+  format: 'cjs',
+  external: ['vscode'],
+  sourcemap: true,
+};
+
+const webviewConfig = {
+  entryPoints: ['src/webview.tsx'],
+  bundle: true,
+  outfile: 'dist/webview.js',
+  platform: 'browser',
+  format: 'iife',
+  jsx: 'automatic',
+  sourcemap: true,
+  plugins: [],
+};
+
+// Copy assets from source to dist
+function copyAssets() {
+  const srcDir = 'assets/spritesheets';
+  const destDir = 'dist/webview-assets';
+
+  // Create dest directory
+  fs.mkdirSync(destDir, { recursive: true });
+
+  // Check if source directory exists
+  if (!fs.existsSync(srcDir)) {
+    console.log('⚠ No assets/spritesheets directory - skipping asset copy');
+    return;
+  }
+
+  // Read source directory
+  const files = fs.readdirSync(srcDir);
+
+  // Copy .png and .json files
+  for (const file of files) {
+    if (file.endsWith('.png') || file.endsWith('.json')) {
+      const srcPath = path.join(srcDir, file);
+      const destPath = path.join(destDir, file);
+      fs.copyFileSync(srcPath, destPath);
+      console.log(`  ✓ Copied ${file}`);
+    }
+  }
+}
+
+async function build() {
+  const target = process.argv[2]; // 'extension' | 'webview' | undefined (both)
+
+  if (!target || target === 'extension') {
+    await esbuild.build(extensionConfig);
+    console.log('✓ Extension built: dist/extension.cjs');
+  }
+
+  if (!target || target === 'webview') {
+    // Copy assets before building webview
+    copyAssets();
+
+    await esbuild.build(webviewConfig);
+    console.log('✓ Webview built: dist/webview.js');
+  }
+}
+
+build().catch(() => process.exit(1));

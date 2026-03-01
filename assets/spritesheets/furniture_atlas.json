@@ -1,0 +1,107 @@
+{
+  "frames": {
+    "chair_64_a_0_0": {
+      "frame": { "x": 0, "y": 0, "w": 64, "h": 64 },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": { "x": 0, "y": 0, "w": 64, "h": 64 },
+      "sourceSize": { "w": 64, "h": 64 }
+    },
+    "chair_64_a_2_0": {
+      "frame": { "x": 0, "y": 0, "w": 64, "h": 64 },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": { "x": 0, "y": 0, "w": 64, "h": 64 },
+      "sourceSize": { "w": 64, "h": 64 }
+    },
+    "desk_64_a_0_0": {
+      "frame": { "x": 0, "y": 0, "w": 64, "h": 64 },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": { "x": 0, "y": 0, "w": 64, "h": 64 },
+      "sourceSize": { "w": 64, "h": 64 }
+    },
+    "desk_64_a_2_0": {
+      "frame": { "x": 0, "y": 0, "w": 64, "h": 64 },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": { "x": 0, "y": 0, "w": 64, "h": 64 },
+      "sourceSize": { "w": 64, "h": 64 }
+    },
+    "computer_64_a_0_0": {
+      "frame": { "x": 0, "y": 0, "w": 64, "h": 64 },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": { "x": 0, "y": 0, "w": 64, "h": 64 },
+      "sourceSize": { "w": 64, "h": 64 }
+    },
+    "computer_64_a_2_0": {
+      "frame": { "x": 0, "y": 0, "w": 64, "h": 64 },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": { "x": 0, "y": 0, "w": 64, "h": 64 },
+      "sourceSize": { "w": 64, "h": 64 }
+    },
+    "lamp_64_a_0_0": {
+      "frame": { "x": 0, "y": 0, "w": 64, "h": 64 },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": { "x": 0, "y": 0, "w": 64, "h": 64 },
+      "sourceSize": { "w": 64, "h": 64 }
+    },
+    "lamp_64_a_2_0": {
+      "frame": { "x": 0, "y": 0, "w": 64, "h": 64 },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": { "x": 0, "y": 0, "w": 64, "h": 64 },
+      "sourceSize": { "w": 64, "h": 64 }
+    },
+    "plant_64_a_0_0": {
+      "frame": { "x": 0, "y": 0, "w": 64, "h": 64 },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": { "x": 0, "y": 0, "w": 64, "h": 64 },
+      "sourceSize": { "w": 64, "h": 64 }
+    },
+    "bookshelf_64_a_0_0": {
+      "frame": { "x": 0, "y": 0, "w": 64, "h": 64 },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": { "x": 0, "y": 0, "w": 64, "h": 64 },
+      "sourceSize": { "w": 64, "h": 64 }
+    },
+    "bookshelf_64_a_2_0": {
+      "frame": { "x": 0, "y": 0, "w": 64, "h": 64 },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": { "x": 0, "y": 0, "w": 64, "h": 64 },
+      "sourceSize": { "w": 64, "h": 64 }
+    },
+    "rug_64_a_0_0": {
+      "frame": { "x": 0, "y": 0, "w": 64, "h": 64 },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": { "x": 0, "y": 0, "w": 64, "h": 64 },
+      "sourceSize": { "w": 64, "h": 64 }
+    },
+    "whiteboard_64_a_0_0": {
+      "frame": { "x": 0, "y": 0, "w": 64, "h": 64 },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": { "x": 0, "y": 0, "w": 64, "h": 64 },
+      "sourceSize": { "w": 64, "h": 64 }
+    },
+    "whiteboard_64_a_2_0": {
+      "frame": { "x": 0, "y": 0, "w": 64, "h": 64 },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": { "x": 0, "y": 0, "w": 64, "h": 64 },
+      "sourceSize": { "w": 64, "h": 64 }
+    }
+  },
+  "meta": {
+    "image": "furniture_atlas.png",
+    "format": "RGBA8888",
+    "size": { "w": 64, "h": 64 }
+  }
+}

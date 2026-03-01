@@ -1,0 +1,675 @@
+# =============================================================================
+# Mault Gold Template — Full-Stack (TypeScript/JavaScript + Python)
+# =============================================================================
+# Proven configuration for ALL detectors on full-stack projects that combine
+# a TypeScript/JavaScript frontend/extension with a Python backend.
+# The AI agent should customize paths, entry points, and deprecated patterns
+# to match the actual project structure.
+#
+# ONLY keys the extension reads are included here.
+# DO NOT add: conventions.directories, conventions.naming, environment
+# Those keys are decorative — the extension ignores them.
+#
+# UC Coverage:
+#   UC01 - Directory Reinforcement      (Detectors.directoryReinforcement)
+#   UC02 - Legacy Path Prevention       (deprecatedPatterns)
+#   UC03 - Naming Convention            (Detectors.namingConvention)
+#   UC04 - Environment Reinforcement    (Detectors.environmentReinforcement)
+#   UC06 - Temporary Files              (Detectors.tempFiles)
+#   UC07 - Flat Architecture            (Detectors.flatArchitecture)
+#   UC08 - Configuration Chaos          (Detectors.configChaos)
+#   UC09 - File Proliferation           (Detectors.fileProliferation)
+#   UC11 - Overcrowded Folders          (Detectors.overcrowdedFolders)
+#   UC12 - Scattered Utils              (Detectors.misplacedUtilities)
+#   UC13 - Application Flow Analysis    (applicationFlows, flows)
+#   UC14 - Monolith Detection           (monolithDetection)
+#   UC16 - Dependency Health (Pro)      (Detectors.dependencyHealth)
+#   UC17 - Architecture Diagrams (Pro)  (Detectors.productionReadiness)
+#   UC18 - Structural Governance (Pro)  (rules)
+# =============================================================================
+
+version: 1
+
+# =============================================================================
+# UC02: LEGACY PATH PREVENTION
+# =============================================================================
+# Detect deprecated imports and function calls across BOTH stacks.
+# Customize: add project-specific deprecated patterns.
+
+deprecatedPatterns:
+  # ===== TypeScript / JavaScript =====
+
+  - id: dep-moment
+    import: moment
+    message: "Deprecated library 'moment'. Use 'date-fns' or 'dayjs' instead."
+    languages: [typescript, javascript]
+
+  - id: dep-request
+    import: request
+    message: "Deprecated library 'request'. Use 'axios' or 'node-fetch' instead."
+    languages: [typescript, javascript]
+
+  - id: dep-request-promise
+    import: request-promise
+    message: "Deprecated 'request-promise'. Use 'axios' or 'node-fetch' instead."
+    languages: [typescript, javascript]
+
+  - id: dep-underscore
+    import: underscore
+    message: "Use lodash or native array methods instead of underscore."
+    languages: [typescript, javascript]
+
+  - id: dep-colors
+    import: colors
+    message: "colors package was compromised. Use 'chalk' or 'picocolors' instead."
+    languages: [typescript, javascript]
+
+  - id: dep-faker
+    import: faker
+    message: "faker.js is abandoned. Use '@faker-js/faker' instead."
+    languages: [typescript, javascript]
+
+  - id: dep-left-pad
+    import: left-pad
+    message: "left-pad is obsolete. Use String.padStart() instead."
+    languages: [typescript, javascript]
+
+  - id: dep-node-uuid
+    import: node-uuid
+    message: "node-uuid is deprecated. Use 'uuid' package instead."
+    languages: [typescript, javascript]
+
+  - id: dep-ts-sync-exec
+    functionCall: execSync
+    message: "Avoid synchronous exec. Use async exec, spawn, or execa instead."
+    languages: [typescript, javascript]
+
+  # React Deprecations
+  - id: dep-class-components
+    functionCall: React.Component
+    message: "Class components are legacy. Use functional components with Hooks."
+    languages: [typescript, javascript]
+
+  - id: dep-componentWillMount
+    functionCall: componentWillMount
+    message: "componentWillMount is deprecated. Use componentDidMount or useEffect."
+    languages: [typescript, javascript]
+
+  # ===== Python =====
+
+  - id: dep-optparse
+    import: optparse
+    message: "optparse is deprecated since Python 2.7. Use 'argparse' instead."
+    languages: [python]
+
+  - id: dep-urllib2
+    import: urllib2
+    message: "urllib2 is Python 2 only. Use 'urllib.request' instead."
+    languages: [python]
+
+  - id: dep-httplib
+    import: httplib
+    message: "httplib is Python 2 only. Use 'http.client' instead."
+    languages: [python]
+
+  - id: dep-imp
+    import: imp
+    message: "imp module is deprecated since Python 3.4. Use 'importlib' instead."
+    languages: [python]
+
+  - id: dep-cgi
+    import: cgi
+    message: "cgi module is deprecated since Python 3.11. Use modern web frameworks."
+    languages: [python]
+
+  - id: dep-distutils
+    import: distutils
+    message: "distutils is deprecated since Python 3.10. Use 'setuptools' instead."
+    languages: [python]
+
+  - id: dep-pkg-resources
+    import: pkg_resources
+    message: "pkg_resources is deprecated. Use 'importlib.metadata' instead."
+    languages: [python]
+
+  - id: dep-os-popen
+    functionCall: os.popen
+    message: "os.popen is deprecated. Use 'subprocess.run()' instead."
+    languages: [python]
+
+  - id: dep-os-system
+    functionCall: os.system
+    message: "os.system is deprecated. Use 'subprocess.run()' instead."
+    languages: [python]
+
+  - id: dep-md5
+    functionCall: hashlib.md5
+    message: "MD5 is cryptographically broken. Use 'hashlib.sha256' for security."
+    languages: [python]
+
+  - id: dep-nose
+    import: nose
+    message: "nose is deprecated. Migrate to 'pytest' instead."
+    languages: [python]
+
+  - id: dep-mock
+    import: mock
+    message: "mock library is deprecated. Use 'unittest.mock' instead."
+    languages: [python]
+
+# =============================================================================
+# UC13: APPLICATION FLOW ANALYSIS
+# =============================================================================
+# Customize: map the project's actual entry points and critical paths.
+
+applicationFlows:
+  - id: authentication
+    name: "Authentication Flow"
+    description: "User login, logout, session, and token management"
+
+  - id: data-access
+    name: "Data Access Layer"
+    description: "Database connections, ORM, and repository operations"
+
+  - id: api-core
+    name: "API Core"
+    description: "Main API endpoints, routing, and request handling"
+
+  - id: business-logic
+    name: "Business Logic"
+    description: "Core business rules and domain services"
+
+  - id: frontend-ui
+    name: "Frontend UI"
+    description: "User interface components and state management"
+
+flows:
+  authentication:
+    name: "Authentication Flow"
+    description: "User authentication, authorization, and session management"
+    critical: true
+    files:
+      # TypeScript
+      - "src/**/auth*.ts"
+      - "src/**/Auth*.ts"
+      - "src/**/login*.ts"
+      - "src/**/session*.ts"
+      - "src/**/token*.ts"
+      - "src/middleware/auth*.ts"
+      # Python
+      - "**/auth*.py"
+      - "**/login*.py"
+      - "**/session*.py"
+      - "**/token*.py"
+      - "**/middleware/auth*.py"
+
+  data-access:
+    name: "Data Access Layer"
+    description: "Database and ORM operations"
+    critical: true
+    files:
+      # TypeScript
+      - "src/**/db*.ts"
+      - "src/**/database*.ts"
+      - "src/**/repository*.ts"
+      - "src/models/**/*.ts"
+      # Python
+      - "**/db*.py"
+      - "**/database*.py"
+      - "**/repository*.py"
+      - "**/models/**/*.py"
+
+  api-core:
+    name: "API Core"
+    description: "Main API routing and handlers"
+    critical: true
+    files:
+      # TypeScript
+      - "src/**/api*.ts"
+      - "src/**/router*.ts"
+      - "src/**/routes*.ts"
+      - "src/controllers/**/*.ts"
+      - "src/handlers/**/*.ts"
+      # Python
+      - "**/api*.py"
+      - "**/routes*.py"
+      - "**/views*.py"
+      - "**/endpoints*.py"
+
+  business-logic:
+    name: "Business Logic"
+    description: "Core business rules and domain services"
+    critical: true
+    files:
+      # TypeScript
+      - "src/services/**/*.ts"
+      - "src/domain/**/*.ts"
+      # Python
+      - "**/services/**/*.py"
+      - "**/domain/**/*.py"
+
+  frontend-ui:
+    name: "Frontend UI"
+    description: "User interface components and state management"
+    critical: false
+    files:
+      - "src/components/**/*.tsx"
+      - "src/components/**/*.ts"
+      - "src/views/**/*.tsx"
+      - "src/pages/**/*.tsx"
+
+applicationFlowBlindness:
+  enabled: true
+  thresholds:
+    warnOnDirectDependents: 5
+    warnOnTransitiveDependents: 15
+  excludePatterns:
+    - "**/node_modules/**"
+    - "**/venv/**"
+    - "**/.venv/**"
+    - "**/__pycache__/**"
+    - "**/*.test.ts"
+    - "**/*.spec.ts"
+    - "**/test_*.py"
+    - "**/*_test.py"
+    - "**/dist/**"
+    - "**/build/**"
+    - "**/__tests__/**"
+    - "**/__mocks__/**"
+    - "**/.tox/**"
+    - "**/.pytest_cache/**"
+
+# =============================================================================
+# DETECTORS CONFIGURATION (UC01-UC17)
+# =============================================================================
+
+Detectors:
+  # UC01: Directory Reinforcement
+  # Customize: match the project's actual file naming patterns and directories.
+  directoryReinforcement:
+    enabled: true
+    rules:
+      # ===== TypeScript / JavaScript =====
+      - pattern: "**/*Service.ts"
+        expectedDir: "src/services"
+        reason: "Service files should be in src/services/"
+      - pattern: "**/*service.ts"
+        expectedDir: "src/services"
+        reason: "Service files should be in src/services/"
+      - pattern: "**/*Controller.ts"
+        expectedDir: "src/controllers"
+        reason: "Controller files should be in src/controllers/"
+      - pattern: "**/*Handler.ts"
+        expectedDir: "src/handlers"
+        reason: "Handler files should be in src/handlers/"
+      - pattern: "**/*Util*.ts"
+        expectedDir: "src/utils"
+        reason: "Utility files should be in src/utils/"
+      - pattern: "**/*util*.ts"
+        expectedDir: "src/utils"
+        reason: "Utility files should be in src/utils/"
+      - pattern: "**/*Helper*.ts"
+        expectedDir: "src/utils"
+        reason: "Helper files should be in src/utils/"
+      - pattern: "**/*Model.ts"
+        expectedDir: "src/models"
+        reason: "Model files should be in src/models/"
+      - pattern: "**/*Types.ts"
+        expectedDir: "src/types"
+        reason: "Type definition files should be in src/types/"
+      - pattern: "**/*.test.ts"
+        expectedDir: "tests"
+        reason: "Test files should be in tests/"
+      - pattern: "**/*.spec.ts"
+        expectedDir: "tests"
+        reason: "Spec files should be in tests/"
+      - pattern: "**/*Component.tsx"
+        expectedDir: "src/components"
+        reason: "Component files should be in src/components/"
+
+      # ===== Python =====
+      - pattern: "**/*_service.py"
+        expectedDir: "src/services"
+        reason: "Service files should be in src/services/"
+      - pattern: "**/*_repository.py"
+        expectedDir: "src/repositories"
+        reason: "Repository files should be in src/repositories/"
+      - pattern: "**/*_util*.py"
+        expectedDir: "src/utils"
+        reason: "Utility files should be in src/utils/"
+      - pattern: "**/*_helper*.py"
+        expectedDir: "src/utils"
+        reason: "Helper files should be in src/utils/"
+      - pattern: "**/*_model.py"
+        expectedDir: "src/models"
+        reason: "Model files should be in src/models/"
+      - pattern: "**/test_*.py"
+        expectedDir: "tests"
+        reason: "Test files should be in tests/"
+      - pattern: "**/*_test.py"
+        expectedDir: "tests"
+        reason: "Test files should be in tests/"
+
+  # UC03: Naming Convention
+  # Full-stack: Use kebab-case for TypeScript, snake_case for Python.
+  # Set to kebab-case (TypeScript primary) — Python files are typically
+  # already snake_case which doesn't trigger kebab-case violations.
+  namingConvention:
+    enabled: true
+    fileNaming: "kebab-case"
+    excludePatterns:
+      - "**/[A-Z]*.ts"
+      - "**/[A-Z]*.tsx"
+      - "**/*.test.ts"
+      - "**/*.spec.ts"
+      - "**/*.d.ts"
+      - "**/*.config.*"
+      - "**/index.ts"
+      - "**/conftest.py"
+      - "**/__init__.py"
+      - "**/Makefile"
+      - "**/Dockerfile"
+      - "**/Pipfile"
+      - "**/*.py"
+    variableNaming: "camelCase"
+    functionNaming: "camelCase"
+    classNaming: "PascalCase"
+    constantNaming: "SCREAMING_SNAKE_CASE"
+
+  # UC04: Environment Reinforcement
+  environmentReinforcement:
+    enabled: true
+    checkPaths: true
+    checkCommands: true
+
+  # UC06: Temporary Files
+  tempFiles:
+    enabled: true
+    patterns:
+      - "**/*.tmp"
+      - "**/temp_*"
+      - "**/temp-*"
+      - "**/temp.*"
+      - "**/scratch_*"
+      - "**/scratch-*"
+      - "**/scratch.*"
+      - "**/scratchpad.*"
+      - "**/*.bak"
+      - "**/*_backup.*"
+      - "**/*-backup.*"
+      - "**/*_old.*"
+      - "**/*-old.*"
+      - "**/*.backup"
+      - "**/debug_*"
+      - "**/debug-*"
+      - "**/debug.*"
+      - "**/test_output.*"
+      - "**/test-output.*"
+      - "**/.ipynb_checkpoints/**"
+      - "**/*.pyc"
+      - "**/*.pyo"
+
+  # UC07: Flat Architecture
+  flatArchitecture:
+    enabled: true
+    targets:
+      - path: "src"
+        maxRootFiles: 10
+        minSubdirs: 3
+        excludePatterns: ["dist/**", "node_modules/**", "build/**"]
+      - path: "app"
+        maxRootFiles: 10
+        minSubdirs: 3
+        excludePatterns: ["__pycache__/**"]
+      - path: "."
+        maxRootFiles: 15
+        excludePatterns: ["node_modules/**", "venv/**", ".venv/**", "__pycache__/**", ".git/**", "dist/**", "build/**"]
+
+  # UC08: Configuration Chaos
+  configChaos:
+    enabled: true
+    requiredConfigs:
+      - ".gitignore"
+      - "package.json"
+      - "tsconfig.json"
+    optionalConfigs:
+      - "requirements.txt"
+      - "pyproject.toml"
+      - ".env.example"
+      - ".prettierrc"
+      - ".eslintrc.js"
+      - ".eslintrc.json"
+      - "jest.config.js"
+      - "jest.config.ts"
+      - "pytest.ini"
+      - "Dockerfile"
+      - "docker-compose.yml"
+
+  # UC09: File Proliferation
+  fileProliferation:
+    enabled: true
+    threshold: 3
+
+  # UC11: Overcrowded Folders
+  overcrowdedFolders:
+    enabled: true
+    targets:
+      - path: "src"
+        maxFiles: 20
+      - path: "src/components"
+        maxFiles: 25
+      - path: "src/utils"
+        maxFiles: 15
+      - path: "src/services"
+        maxFiles: 20
+      - path: "app"
+        maxFiles: 20
+      - path: "app/services"
+        maxFiles: 20
+
+  # UC12: Misplaced Utilities
+  misplacedUtilities:
+    enabled: true
+    centralLocation: "src/utils"
+
+  # UC16: Dependency Health (Pro)
+  dependencyHealth:
+    enabled: true
+    severityThreshold: "moderate"
+
+  # UC17: Architecture Diagrams (Pro)
+  productionReadiness:
+    enabled: true
+
+  # Project Scaffolding
+  projectScaffolding:
+    enabled: true
+    rootMaxFiles: 15
+
+  # Dead End Directories
+  deadEnds:
+    enabled: true
+    ignoreGlobs: ["**/node_modules/**", "**/venv/**", "**/.venv/**", "**/__pycache__/**", "**/.git/**", "**/dist/**", "**/build/**"]
+    maxFiles: 500
+    timeBudgetMs: 5000
+
+# =============================================================================
+# UC14: Monolith Detection
+# =============================================================================
+monolithDetection:
+  enabled: true
+  thresholds:
+    sourceWarnLoc: 750
+    sourceFailLoc: 1500
+    testWarnLoc: 1500
+    testFailLoc: 3000
+    maxFunctionLoc: 100
+  excludePatterns: []
+
+# =============================================================================
+# UC18: STRUCTURAL GOVERNANCE (Pro)
+# =============================================================================
+# rules must be at top-level (not nested under Detectors).
+# Assertion types: export_exists, function_signature, import_exists,
+#                  ast_skeleton, forbidden_pattern, semantic_similarity
+
+rules:
+  # ===== TypeScript Rules =====
+
+  # Commands must use DI pattern
+  - id: CMD-001
+    name: "Command DI Pattern"
+    severity: error
+    files: "src/commands/**/*.ts"
+    description: "Command files must export registerXxxCommands function"
+    assertions:
+      - type: export_exists
+        pattern: "register*Commands"
+        message: "Command file must export a registerXxxCommands function"
+
+  # Commands must accept deps parameter
+  - id: CMD-002
+    name: "Command DI Parameter"
+    severity: error
+    files: "src/commands/**/*.ts"
+    description: "registerXxxCommands must accept deps parameter for DI"
+    assertions:
+      - type: function_signature
+        target: "register*Commands"
+        requiredParams: ["deps"]
+        message: "registerXxxCommands must accept deps parameter"
+
+  # Services should use hexagonal architecture
+  - id: SVC-TS-001
+    name: "Service Port Import"
+    severity: warning
+    files: "src/services/**/*.ts"
+    description: "Services should import from ports for testability"
+    assertions:
+      - type: import_exists
+        source: "../ports/*"
+        message: "Services should import from ports directory"
+
+  # No focused tests (TypeScript)
+  - id: TEST-TS-001
+    name: "No Focused Tests (TS)"
+    severity: error
+    files: "**/*.test.ts"
+    description: "Prevent committing focused tests (.only)"
+    assertions:
+      - type: forbidden_pattern
+        pattern: "describe\\.only|it\\.only|test\\.only"
+        message: "Remove .only() before committing"
+
+  # No console.log in TypeScript production
+  - id: LOG-TS-001
+    name: "No Console Logs (TS)"
+    severity: warning
+    files: "src/**/*.ts"
+    description: "Use Logger service instead of console.log"
+    assertions:
+      - type: forbidden_pattern
+        pattern: "console\\.(log|warn|error)"
+        message: "Use Logger service instead of console methods"
+
+  # No debugger statements (TypeScript)
+  - id: DEBUG-TS-001
+    name: "No Debugger Statements"
+    severity: error
+    files: "**/*.ts"
+    description: "Remove debugger statements before committing"
+    assertions:
+      - type: forbidden_pattern
+        pattern: "\\bdebugger\\b"
+        message: "Remove debugger statement before committing"
+
+  # ===== Python Rules =====
+
+  # Service classes must have Service suffix
+  - id: SVC-PY-001
+    name: "Service Class Naming"
+    severity: error
+    files: "**/services/**/*.py"
+    description: "Service files must export a class ending with Service"
+    assertions:
+      - type: export_exists
+        pattern: "*Service"
+        message: "Service file must export a class with Service suffix"
+
+  # No print() in Python production code
+  - id: LOG-PY-001
+    name: "No Print Statements"
+    severity: warning
+    files: "src/**/*.py"
+    description: "Use logging module instead of print()"
+    assertions:
+      - type: forbidden_pattern
+        pattern: "print\\s*\\("
+        message: "Use logging module instead of print()"
+
+  # No print() in app/ Python production code
+  - id: LOG-PY-002
+    name: "No Print Statements (App)"
+    severity: warning
+    files: "app/**/*.py"
+    description: "Use logging module instead of print()"
+    assertions:
+      - type: forbidden_pattern
+        pattern: "print\\s*\\("
+        message: "Use logging module instead of print()"
+
+  # No debug breakpoints (Python)
+  - id: DEBUG-PY-001
+    name: "No Breakpoints"
+    severity: error
+    files: "**/*.py"
+    description: "Remove breakpoint() and pdb before committing"
+    assertions:
+      - type: forbidden_pattern
+        pattern: "breakpoint\\s*\\(|import\\s+pdb|pdb\\.set_trace"
+        message: "Remove debug breakpoints before committing"
+
+  # No focused tests (Python)
+  - id: TEST-PY-001
+    name: "No Focused Tests (Python)"
+    severity: error
+    files: "tests/**/*.py"
+    description: "Prevent committing focused tests"
+    assertions:
+      - type: forbidden_pattern
+        pattern: "@pytest\\.mark\\.only|@only"
+        message: "Remove focused test markers before committing"
+
+  # No bare except (Python)
+  - id: ERR-PY-001
+    name: "No Bare Except"
+    severity: warning
+    files: "**/*.py"
+    description: "Avoid bare except clauses"
+    assertions:
+      - type: forbidden_pattern
+        pattern: "except\\s*:"
+        message: "Use specific exception types instead of bare except"
+
+  # No wildcard imports (Python)
+  - id: IMPORT-PY-001
+    name: "No Wildcard Imports"
+    severity: warning
+    files: "**/*.py"
+    description: "Avoid wildcard imports"
+    assertions:
+      - type: forbidden_pattern
+        pattern: "from\\s+\\w+\\s+import\\s+\\*"
+        message: "Use explicit imports instead of wildcard imports"
+
+# =============================================================================
+# Governance Gate: Language Stack Configuration
+# =============================================================================
+# Declares which language stacks exist for CI governance detection.
+stacks:
+  typescript:
+    root: "src/"
+    config: ".pre-commit-config-ts.yaml"
+  python:
+    root: "app/"
+    config: ".pre-commit-config.yaml"
