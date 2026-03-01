@@ -26,6 +26,7 @@ import {
 } from './isoLayoutEditor.js';
 import type { HsbColor } from './isoTypes.js';
 import { LayoutEditorPanel } from './LayoutEditorPanel.js';
+import { AudioManager } from './isoAudioManager.js';
 
 interface RoomCanvasProps {
   heightmap: string;
@@ -39,6 +40,11 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const runningRef = useRef(false);
   const rafIdRef = useRef(0);
+
+  // Audio manager (Phase 8)
+  const audioManagerRef = useRef<AudioManager | null>(null);
+  const [audioInitialized, setAudioInitialized] = useState(false);
+  const notificationSoundRef = useRef<AudioBuffer | null>(null);
 
   // Editor UI state
   const [editorMode, setEditorMode] = useState<EditorMode>(editorModeProp);
@@ -286,6 +292,12 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
       for (const avatar of renderState.current.avatars) {
         updateAvatarAnimation(avatar, currentTimeMs);
 
+        // Play notification sound on spawn start (demo hook - Phase 8)
+        if (avatar.state === 'spawning' && avatar.spawnProgress === 0 && audioManagerRef.current && !( window as any)._audioPlayed) {
+          audioManagerRef.current.play(notificationSoundRef.current);
+          (window as any)._audioPlayed = true; // Play once per session
+        }
+
         // Update position along path if assigned
         const pathData = renderState.current.avatarPaths.get(avatar.id);
         if (pathData) {
@@ -444,7 +456,22 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
     }
   };
 
-  const handleClick = (event: React.MouseEvent<HTMLCanvasElement>) => {
+  const handleClick = async (event: React.MouseEvent<HTMLCanvasElement>) => {
+    // Initialize audio on first click (autoplay policy compliance)
+    if (!audioInitialized && !audioManagerRef.current) {
+      audioManagerRef.current = new AudioManager();
+      await audioManagerRef.current.init();
+      setAudioInitialized(true);
+
+      // Load notification sound
+      const notificationUri = (window as any).ASSET_URIS?.notificationSound;
+      if (notificationUri) {
+        notificationSoundRef.current = await audioManagerRef.current.loadSound(notificationUri);
+      }
+
+      console.log('AudioManager initialized, notification sound loaded:', notificationSoundRef.current !== null);
+    }
+
     if (!renderState.current.grid || !canvasRef.current) return;
 
     const clickedCoords = getHoveredTile(event, renderState.current.cameraOrigin);
