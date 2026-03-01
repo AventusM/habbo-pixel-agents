@@ -10,6 +10,7 @@ import type { SpriteCache } from './isoSpriteCache.js';
 import { pathToIsometricPositions, updateAvatarAlongPath, drawParentChildLine } from './isoAgentBehavior.js';
 import type { TilePath, IsometricPosition } from './isoAgentBehavior.js';
 import { drawSpeechBubble } from './isoBubbleRenderer.js';
+import { drawNameTag } from './isoNameTagRenderer.js';
 import { tileToScreen } from './isometricMath.js';
 
 interface RoomCanvasProps {
@@ -304,8 +305,27 @@ export function RoomCanvas({ heightmap }: RoomCanvasProps) {
           ctx.restore();
         }
 
-        // Render speech bubbles (always on top of avatars)
-        ctx.font = '8px "Press Start 2P"'; // Set font for measureText in drawSpeechBubble
+        // Render name tags (above avatars, before speech bubbles)
+        ctx.font = '8px "Press Start 2P"'; // Set font for measureText
+        for (const avatar of renderState.current.avatars) {
+          const { x: screenX, y: screenY } = tileToScreen(avatar.tileX, avatar.tileY, avatar.tileZ);
+          const headY = screenY - AVATAR_HEIGHT; // Avatar head position (top of sprite)
+
+          // Map avatar state to name tag status
+          const status = avatar.state === 'idle' ? 'idle' : 'active'; // walk/spawning = active
+
+          ctx.save();
+          ctx.translate(renderState.current.cameraOrigin.x, renderState.current.cameraOrigin.y);
+          drawNameTag(ctx, {
+            name: avatar.id,
+            status,
+            anchorX: screenX,
+            anchorY: headY,
+          });
+          ctx.restore();
+        }
+
+        // Render speech bubbles (below name tags)
         for (const avatar of renderState.current.avatars) {
           const { x: screenX, y: screenY } = tileToScreen(avatar.tileX, avatar.tileY, avatar.tileZ);
           const headY = screenY - AVATAR_HEIGHT; // Avatar head position (top of sprite)
