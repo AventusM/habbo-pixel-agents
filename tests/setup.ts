@@ -41,7 +41,6 @@ beforeAll(() => {
     (global as any).window = {
       devicePixelRatio: 1,
       _debuggedFurniture: undefined,
-      _debuggedAvatars: undefined,
     };
   } else if (!window.devicePixelRatio) {
     Object.defineProperty(window, 'devicePixelRatio', {

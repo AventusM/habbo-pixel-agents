@@ -7,6 +7,10 @@ dist/webview-assets/
 *.nitro
 assets/extracted/
 
+# Downloaded/converted Habbo assets (re-generate with scripts)
+assets/habbo-raw/
+assets/habbo/
+
 # VS Code extension artifacts
 *.vsix
 

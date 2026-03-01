@@ -1,0 +1,112 @@
+#!/usr/bin/env node
+// scripts/download-habbo-assets.mjs
+// Downloads curated Habbo assets from CakeChloe/cortex-assets
+// Usage: node scripts/download-habbo-assets.mjs
+
+import * as fs from 'fs';
+import * as path from 'path';
+import * as https from 'https';
+
+const BASE_URL = 'https://raw.githubusercontent.com/CakeChloe/cortex-assets/master';
+
+// 8 office-suitable furniture items from cortex-assets exe_ (executive) collection
+const FURNITURE_ITEMS = [
+  'exe_chair',      // Office chair
+  'exe_table',      // Office desk/table
+  'exe_light',      // Desk lamp
+  'exe_plant',      // Office plant
+  'exe_globe',      // Globe (decorative)
+  'exe_sofa',       // Office sofa
+  'exe_rug',        // Office rug
+  'exe_copier',     // Copy machine / whiteboard substitute
+];
+
+// Avatar body + clothing
+const FIGURE_ITEMS = [
+  'hh_human_body',
+  'Hair_U_Messy',
+  'Shirt_M_Tshirt_Plain',
+  'Trousers_U_Skinny_Jeans',
+  'Shoes_U_Slipons',
+];
+
+function download(url) {
+  return new Promise((resolve, reject) => {
+    https.get(url, (res) => {
+      if (res.statusCode === 301 || res.statusCode === 302) {
+        return download(res.headers.location).then(resolve, reject);
+      }
+      if (res.statusCode !== 200) {
+        reject(new Error(`HTTP ${res.statusCode} for ${url}`));
+        return;
+      }
+      const chunks = [];
+      res.on('data', (chunk) => chunks.push(chunk));
+      res.on('end', () => resolve(Buffer.concat(chunks)));
+      res.on('error', reject);
+    }).on('error', reject);
+  });
+}
+
+async function downloadAsset(category, name, destDir) {
+  const jsonUrl = `${BASE_URL}/${category}/${name}/${name}.json`;
+  const pngUrl = `${BASE_URL}/${category}/${name}/${name}.png`;
+
+  fs.mkdirSync(destDir, { recursive: true });
+
+  // Download JSON
+  const jsonDest = path.join(destDir, `${name}.json`);
+  if (fs.existsSync(jsonDest)) {
+    console.log(`  ⏭ ${name}.json already exists, skipping`);
+  } else {
+    console.log(`  ⬇ ${name}.json`);
+    const jsonData = await download(jsonUrl);
+    fs.writeFileSync(jsonDest, jsonData);
+  }
+
+  // Download PNG
+  const pngDest = path.join(destDir, `${name}.png`);
+  if (fs.existsSync(pngDest)) {
+    console.log(`  ⏭ ${name}.png already exists, skipping`);
+  } else {
+    console.log(`  ⬇ ${name}.png`);
+    const pngData = await download(pngUrl);
+    fs.writeFileSync(pngDest, pngData);
+  }
+}
+
+async function main() {
+  console.log('Downloading Habbo assets from CakeChloe/cortex-assets...\n');
+
+  // Download furniture
+  const furnitureDir = 'assets/habbo-raw/furniture';
+  console.log(`Furniture → ${furnitureDir}/`);
+  for (const item of FURNITURE_ITEMS) {
+    try {
+      await downloadAsset('furnitures', item, furnitureDir);
+      console.log(`  ✓ ${item}`);
+    } catch (err) {
+      console.error(`  ✗ ${item}: ${err.message}`);
+    }
+  }
+
+  // Download figures
+  const figuresDir = 'assets/habbo-raw/figures';
+  console.log(`\nFigures → ${figuresDir}/`);
+  for (const item of FIGURE_ITEMS) {
+    try {
+      await downloadAsset('figures', item, figuresDir);
+      console.log(`  ✓ ${item}`);
+    } catch (err) {
+      console.error(`  ✗ ${item}: ${err.message}`);
+    }
+  }
+
+  console.log('\n✓ Download complete!');
+  console.log('Next: node scripts/convert-cortex-to-nitro.mjs');
+}
+
+main().catch((err) => {
+  console.error('Fatal error:', err);
+  process.exit(1);
+});

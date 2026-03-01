@@ -61,6 +61,45 @@ function copyAssets() {
       console.log(`  ✓ Copied ${file}`);
     }
   }
+
+  // Copy Nitro assets from assets/habbo/
+  const habboDir = 'assets/habbo';
+  if (fs.existsSync(habboDir)) {
+    // Copy manifest
+    const manifestPath = path.join(habboDir, 'manifest.json');
+    if (fs.existsSync(manifestPath)) {
+      fs.copyFileSync(manifestPath, path.join(destDir, 'manifest.json'));
+      console.log('  ✓ Copied manifest.json');
+    }
+
+    // Copy furniture assets
+    const furnitureSrc = path.join(habboDir, 'furniture');
+    if (fs.existsSync(furnitureSrc)) {
+      const furnitureDest = path.join(destDir, 'furniture');
+      fs.mkdirSync(furnitureDest, { recursive: true });
+      for (const file of fs.readdirSync(furnitureSrc)) {
+        if (file.endsWith('.png') || file.endsWith('.json')) {
+          fs.copyFileSync(path.join(furnitureSrc, file), path.join(furnitureDest, file));
+          console.log(`  ✓ Copied furniture/${file}`);
+        }
+      }
+    }
+
+    // Copy figure assets
+    const figuresSrc = path.join(habboDir, 'figures');
+    if (fs.existsSync(figuresSrc)) {
+      const figuresDest = path.join(destDir, 'figures');
+      fs.mkdirSync(figuresDest, { recursive: true });
+      for (const file of fs.readdirSync(figuresSrc)) {
+        if (file.endsWith('.png') || file.endsWith('.json')) {
+          fs.copyFileSync(path.join(figuresSrc, file), path.join(figuresDest, file));
+          console.log(`  ✓ Copied figures/${file}`);
+        }
+      }
+    }
+  } else {
+    console.log('⚠ No assets/habbo directory - skipping Nitro asset copy (run download + convert scripts first)');
+  }
 }
 
 async function build() {

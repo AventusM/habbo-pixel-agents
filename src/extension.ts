@@ -65,6 +65,17 @@ export function activate(context: vscode.ExtensionContext) {
       vscode.Uri.joinPath(context.extensionUri, 'dist', 'webview-assets', 'sounds', 'notification.ogg')
     );
 
+    // Generate webview URIs for Nitro assets (per-item spritesheets)
+    const nitroManifestUri = panel.webview.asWebviewUri(
+      vscode.Uri.joinPath(context.extensionUri, 'dist', 'webview-assets', 'manifest.json')
+    );
+    const nitroFurnitureBaseUri = panel.webview.asWebviewUri(
+      vscode.Uri.joinPath(context.extensionUri, 'dist', 'webview-assets', 'furniture')
+    );
+    const nitroFiguresBaseUri = panel.webview.asWebviewUri(
+      vscode.Uri.joinPath(context.extensionUri, 'dist', 'webview-assets', 'figures')
+    );
+
     console.log('Chair PNG URI:', chairPngUri.toString());
     console.log('Chair JSON URI:', chairJsonUri.toString());
     console.log('Furniture PNG URI:', furniturePngUri.toString());
@@ -99,7 +110,10 @@ export function activate(context: vscode.ExtensionContext) {
         furnitureJson: '${furnitureJsonUri}',
         avatarPng: '${avatarPngUri}',
         avatarJson: '${avatarJsonUri}',
-        notificationSound: '${notificationSoundUri}'
+        notificationSound: '${notificationSoundUri}',
+        nitroManifest: '${nitroManifestUri}',
+        nitroFurnitureBase: '${nitroFurnitureBaseUri}',
+        nitroFiguresBase: '${nitroFiguresBaseUri}'
       };
     </script>
   </head>

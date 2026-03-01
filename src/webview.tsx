@@ -4,16 +4,17 @@ import { RoomCanvas } from './RoomCanvas.js';
 import { SpriteCache } from './isoSpriteCache.js';
 
 const DEMO_HEIGHTMAP = [
-  '0000000000',
-  '0111111110',
-  '0111111110',
-  '0111111110',
-  '0111111110',
-  '0111111110',
-  '0111111110',
-  '0111111110',
-  '0000000000',
-  '0000000000',
+  'xxxxxxxxxxxx',
+  'x0000000000x',
+  'x0000000000x',
+  'x0000000000x',
+  'x0000000000x',
+  'x0000000000x',
+  'x0000000000x',
+  'x0000000000x',
+  'x0000000000x',
+  'x0000000000x',
+  'xxxxxxxxxxxx',
 ].join('\n');
 
 // Initialize sprite cache and load assets BEFORE rendering
@@ -67,6 +68,54 @@ const spriteCache = new SpriteCache();
         w: avatarFrame.w,
         h: avatarFrame.h,
       });
+    }
+
+    // Load Nitro per-item assets (real Habbo sprites)
+    const { nitroManifest, nitroFurnitureBase, nitroFiguresBase } = (window as any).ASSET_URIS;
+    if (nitroManifest) {
+      try {
+        const manifestRes = await fetch(nitroManifest);
+        if (manifestRes.ok) {
+          const manifest = await manifestRes.json();
+          console.log('Nitro manifest loaded:', manifest);
+
+          // Load furniture items
+          if (manifest.furniture && nitroFurnitureBase) {
+            for (const name of manifest.furniture) {
+              try {
+                await spriteCache.loadNitroAsset(
+                  name,
+                  `${nitroFurnitureBase}/${name}.png`,
+                  `${nitroFurnitureBase}/${name}.json`
+                );
+                console.log(`✓ Loaded Nitro furniture: ${name}`);
+              } catch (err) {
+                console.warn(`⚠ Failed to load Nitro furniture ${name}:`, err);
+              }
+            }
+          }
+
+          // Load figure items
+          if (manifest.figures && nitroFiguresBase) {
+            for (const name of manifest.figures) {
+              try {
+                await spriteCache.loadNitroAsset(
+                  name,
+                  `${nitroFiguresBase}/${name}.png`,
+                  `${nitroFiguresBase}/${name}.json`
+                );
+                console.log(`✓ Loaded Nitro figure: ${name}`);
+              } catch (err) {
+                console.warn(`⚠ Failed to load Nitro figure ${name}:`, err);
+              }
+            }
+          }
+        } else {
+          console.log('⚠ Nitro manifest not found, using placeholder sprites only');
+        }
+      } catch (err) {
+        console.log('⚠ Nitro assets unavailable, using placeholder sprites:', err);
+      }
     }
 
     // Make sprite cache globally available for RoomCanvas

@@ -14,10 +14,24 @@ import { tileColors, depthSort } from './isoTypes.js';
 import {
   createFurnitureRenderable,
   createMultiTileFurnitureRenderable,
+  createNitroFurnitureRenderable,
+  createNitroMultiTileFurnitureRenderable,
   type FurnitureSpec,
   type MultiTileFurnitureSpec,
 } from './isoFurnitureRenderer.js';
 import type { SpriteCache } from './isoSpriteCache.js';
+
+/** Map friendly furniture names → cortex-assets Nitro names */
+const NITRO_FURNITURE_MAP: Record<string, string> = {
+  chair: 'exe_chair',
+  desk: 'exe_table',
+  lamp: 'exe_light',
+  plant: 'exe_plant',
+  bookshelf: 'exe_globe',
+  computer: 'exe_copier',
+  rug: 'exe_rug',
+  whiteboard: 'exe_sofa',
+};
 
 /**
  * Wall height in pixels — 4 tile heights (128px).
@@ -198,9 +212,18 @@ export function preRenderRoom(
   }
 
   // Add furniture renderables to unified depth-sort array
+  // Try Nitro (real Habbo sprites) first, fall back to placeholder atlas
   if (furniture && spriteCache) {
     for (const furni of furniture) {
-      const furnitureRenderable = createFurnitureRenderable(furni, spriteCache, atlasName);
+      const nitroName = NITRO_FURNITURE_MAP[furni.name];
+      let furnitureRenderable = nitroName
+        ? createNitroFurnitureRenderable(furni, spriteCache, nitroName)
+        : null;
+
+      // Fall back to placeholder atlas
+      if (!furnitureRenderable) {
+        furnitureRenderable = createFurnitureRenderable(furni, spriteCache, atlasName);
+      }
 
       // Wrap the draw function to apply camera origin offset
       const originalDraw = furnitureRenderable.draw;
@@ -218,7 +241,15 @@ export function preRenderRoom(
   // Add multi-tile furniture renderables
   if (multiTileFurniture && spriteCache) {
     for (const furni of multiTileFurniture) {
-      const furnitureRenderable = createMultiTileFurnitureRenderable(furni, spriteCache, atlasName);
+      const nitroName = NITRO_FURNITURE_MAP[furni.name];
+      let furnitureRenderable = nitroName
+        ? createNitroMultiTileFurnitureRenderable(furni, spriteCache, nitroName)
+        : null;
+
+      // Fall back to placeholder atlas
+      if (!furnitureRenderable) {
+        furnitureRenderable = createMultiTileFurnitureRenderable(furni, spriteCache, atlasName);
+      }
 
       // Wrap the draw function to apply camera origin offset
       const originalDraw = furnitureRenderable.draw;
