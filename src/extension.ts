@@ -60,6 +60,11 @@ export function activate(context: vscode.ExtensionContext) {
       vscode.Uri.joinPath(context.extensionUri, 'dist', 'webview-assets', 'PressStart2P-Regular.ttf')
     );
 
+    // Generate webview URI for notification sound (Phase 8 - placeholder)
+    const notificationSoundUri = panel.webview.asWebviewUri(
+      vscode.Uri.joinPath(context.extensionUri, 'dist', 'webview-assets', 'sounds', 'notification.ogg')
+    );
+
     console.log('Chair PNG URI:', chairPngUri.toString());
     console.log('Chair JSON URI:', chairJsonUri.toString());
     console.log('Furniture PNG URI:', furniturePngUri.toString());
@@ -67,13 +72,14 @@ export function activate(context: vscode.ExtensionContext) {
     console.log('Avatar PNG URI:', avatarPngUri.toString());
     console.log('Avatar JSON URI:', avatarJsonUri.toString());
     console.log('Font URI:', fontUri.toString());
+    console.log('Notification sound URI:', notificationSoundUri.toString());
 
     // Set HTML content
     panel.webview.html = `<!DOCTYPE html>
 <html>
   <head>
     <meta charset="UTF-8" />
-    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' ${panel.webview.cspSource}; img-src ${panel.webview.cspSource}; connect-src ${panel.webview.cspSource}; style-src 'unsafe-inline'; font-src ${panel.webview.cspSource};" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' ${panel.webview.cspSource}; img-src ${panel.webview.cspSource}; connect-src ${panel.webview.cspSource}; style-src 'unsafe-inline'; font-src ${panel.webview.cspSource}; media-src ${panel.webview.cspSource};" />
     <link rel="preload" href="${fontUri}" as="font" type="font/ttf" crossorigin />
     <style>
       @font-face {
@@ -92,7 +98,8 @@ export function activate(context: vscode.ExtensionContext) {
         furniturePng: '${furniturePngUri}',
         furnitureJson: '${furnitureJsonUri}',
         avatarPng: '${avatarPngUri}',
-        avatarJson: '${avatarJsonUri}'
+        avatarJson: '${avatarJsonUri}',
+        notificationSound: '${notificationSoundUri}'
       };
     </script>
   </head>
