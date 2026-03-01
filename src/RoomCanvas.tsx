@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import { parseHeightmap, depthSort } from './isoTypes.js';
 import { initCanvas, computeCameraOrigin, preRenderRoom } from './isoTileRenderer.js';
 import type { TileGrid, Renderable } from './isoTypes.js';
@@ -17,10 +17,15 @@ import {
   drawHoverHighlight,
   toggleTileWalkability,
   setTileColor,
+  placeFurniture,
+  rotateFurniture,
+  saveLayout,
+  loadLayout,
   type EditorMode,
   type EditorState,
 } from './isoLayoutEditor.js';
 import type { HsbColor } from './isoTypes.js';
+import { LayoutEditorPanel } from './LayoutEditorPanel.js';
 
 interface RoomCanvasProps {
   heightmap: string;
@@ -30,10 +35,16 @@ interface RoomCanvasProps {
 // Avatar sprite dimensions (from placeholder sprite generation)
 const AVATAR_HEIGHT = 128;
 
-export function RoomCanvas({ heightmap, editorMode = 'view' }: RoomCanvasProps) {
+export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: RoomCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const runningRef = useRef(false);
   const rafIdRef = useRef(0);
+
+  // Editor UI state
+  const [editorMode, setEditorMode] = useState<EditorMode>(editorModeProp);
+  const [selectedColor, setSelectedColor] = useState<HsbColor>({ h: 200, s: 50, b: 50 });
+  const [selectedFurniture, setSelectedFurniture] = useState<string>('chair');
+  const [furnitureDirection, setFurnitureDirection] = useState<number>(0);
   const renderState = useRef<{
     offscreenCanvas: OffscreenCanvas | null;
     cameraOrigin: { x: number; y: number };
@@ -45,6 +56,8 @@ export function RoomCanvas({ heightmap, editorMode = 'view' }: RoomCanvasProps) 
     editorState: EditorState;
     grid: TileGrid | null;
     tileColorMap: Map<string, HsbColor>;
+    furniture: FurnitureSpec[];
+    multiTileFurniture: MultiTileFurnitureSpec[];
   }>({
     offscreenCanvas: null,
     cameraOrigin: { x: 0, y: 0 },
@@ -60,6 +73,8 @@ export function RoomCanvas({ heightmap, editorMode = 'view' }: RoomCanvasProps) 
     },
     grid: null,
     tileColorMap: new Map(),
+    furniture: [],
+    multiTileFurniture: [],
   });
 
   useEffect(() => {
@@ -77,8 +92,11 @@ export function RoomCanvas({ heightmap, editorMode = 'view' }: RoomCanvasProps) 
     // Store grid in renderState for editor mutations
     renderState.current.grid = grid;
 
-    // Update editor state mode from prop
+    // Update editor state mode from React state
     renderState.current.editorState.mode = editorMode;
+    renderState.current.editorState.selectedColor = selectedColor;
+    renderState.current.editorState.selectedFurniture = selectedFurniture;
+    renderState.current.editorState.furnitureDirection = furnitureDirection;
 
     // Step 4: Compute camera origin
     renderState.current.cameraOrigin = computeCameraOrigin(
@@ -394,7 +412,7 @@ export function RoomCanvas({ heightmap, editorMode = 'view' }: RoomCanvasProps) 
       // cancelAnimationFrame(rafIdRef.current)
       cancelAnimationFrame(rafIdRef.current);
     };
-  }, [heightmap]);
+  }, [heightmap, editorMode, selectedColor, selectedFurniture, furnitureDirection]);
 
   // Mouse event handlers for editor mode
   const handleMouseMove = (event: React.MouseEvent<HTMLCanvasElement>) => {
@@ -440,8 +458,8 @@ export function RoomCanvas({ heightmap, editorMode = 'view' }: RoomCanvasProps) 
         canvasRef.current.height,
         window.devicePixelRatio || 1,
         undefined,
-        [], // furniture - using empty arrays for now
-        [],
+        renderState.current.furniture,
+        renderState.current.multiTileFurniture,
         (window as any).spriteCache,
         undefined,
         renderState.current.tileColorMap
@@ -465,12 +483,45 @@ export function RoomCanvas({ heightmap, editorMode = 'view' }: RoomCanvasProps) 
         canvasRef.current.height,
         window.devicePixelRatio || 1,
         undefined,
-        [],
-        [],
+        renderState.current.furniture,
+        renderState.current.multiTileFurniture,
         (window as any).spriteCache,
         undefined,
         renderState.current.tileColorMap
       );
+    }
+
+    // Furniture mode: place furniture
+    if (renderState.current.editorState.mode === 'furniture') {
+      const furnitureType = renderState.current.editorState.selectedFurniture || 'chair';
+      const direction = renderState.current.editorState.furnitureDirection || 0;
+
+      const placed = placeFurniture(
+        renderState.current.grid,
+        renderState.current.furniture,
+        renderState.current.multiTileFurniture,
+        tileX,
+        tileY,
+        furnitureType,
+        direction
+      );
+
+      if (placed) {
+        // Re-render offscreen canvas with new furniture
+        renderState.current.offscreenCanvas = preRenderRoom(
+          renderState.current.grid,
+          renderState.current.cameraOrigin,
+          canvasRef.current.width,
+          canvasRef.current.height,
+          window.devicePixelRatio || 1,
+          undefined,
+          renderState.current.furniture,
+          renderState.current.multiTileFurniture,
+          (window as any).spriteCache,
+          undefined,
+          renderState.current.tileColorMap
+        );
+      }
     }
   };
 
@@ -478,13 +529,98 @@ export function RoomCanvas({ heightmap, editorMode = 'view' }: RoomCanvasProps) 
     renderState.current.editorState.hoveredTile = null;
   };
 
+  const handleSave = () => {
+    if (!renderState.current.grid) return;
+
+    const json = saveLayout(
+      renderState.current.grid,
+      renderState.current.tileColorMap,
+      renderState.current.furniture,
+      renderState.current.multiTileFurniture,
+      { x: 0, y: 0, z: 0, dir: 2 } // Default door coords
+    );
+
+    // Create blob and trigger download
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'layout.json';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleLoad = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const text = e.target?.result as string;
+      if (!text || !canvasRef.current) return;
+
+      try {
+        const data = loadLayout(text);
+
+        // Update grid
+        const newGrid = parseHeightmap(data.heightmap);
+        renderState.current.grid = newGrid;
+
+        // Update tile colors
+        renderState.current.tileColorMap = new Map(Object.entries(data.tileColors));
+
+        // Update furniture
+        renderState.current.furniture = data.furniture;
+        renderState.current.multiTileFurniture = data.multiTileFurniture;
+
+        // Recompute camera origin for new grid
+        renderState.current.cameraOrigin = computeCameraOrigin(
+          newGrid,
+          canvasRef.current.offsetWidth,
+          canvasRef.current.offsetHeight
+        );
+
+        // Re-render offscreen canvas
+        renderState.current.offscreenCanvas = preRenderRoom(
+          newGrid,
+          renderState.current.cameraOrigin,
+          canvasRef.current.width,
+          canvasRef.current.height,
+          window.devicePixelRatio || 1,
+          undefined,
+          renderState.current.furniture,
+          renderState.current.multiTileFurniture,
+          (window as any).spriteCache,
+          undefined,
+          renderState.current.tileColorMap
+        );
+
+        console.log('Layout loaded successfully');
+      } catch (error) {
+        console.error('Failed to load layout:', error);
+      }
+    };
+    reader.readAsText(file);
+  };
+
   return (
-    <canvas
-      ref={canvasRef}
-      style={{ width: '100%', height: '100%', display: 'block' }}
-      onMouseMove={handleMouseMove}
-      onClick={handleClick}
-      onMouseLeave={handleMouseLeave}
-    />
+    <>
+      <LayoutEditorPanel
+        editorMode={editorMode}
+        onModeChange={setEditorMode}
+        selectedColor={selectedColor}
+        onColorChange={setSelectedColor}
+        selectedFurniture={selectedFurniture}
+        onFurnitureChange={setSelectedFurniture}
+        furnitureDirection={furnitureDirection}
+        onRotate={() => setFurnitureDirection(rotateFurniture(furnitureDirection))}
+        onSave={handleSave}
+        onLoad={handleLoad}
+      />
+      <canvas
+        ref={canvasRef}
+        style={{ width: '100%', height: '100%', display: 'block' }}
+        onMouseMove={handleMouseMove}
+        onClick={handleClick}
+        onMouseLeave={handleMouseLeave}
+      />
+    </>
   );
 }
