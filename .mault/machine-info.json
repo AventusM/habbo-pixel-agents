@@ -5,5 +5,5 @@
   "arch": "arm64",
   "nodeVersion": "v22.21.1",
   "vscodeVersion": "1.109.3",
-  "maultVersion": "0.9.4"
+  "maultVersion": "0.9.11"
 }

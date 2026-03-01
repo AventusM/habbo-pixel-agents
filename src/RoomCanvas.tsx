@@ -77,6 +77,14 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
     multiTileFurniture: [],
   });
 
+  // Sync React editor state to renderState (no re-init)
+  useEffect(() => {
+    renderState.current.editorState.mode = editorMode;
+    renderState.current.editorState.selectedColor = selectedColor;
+    renderState.current.editorState.selectedFurniture = selectedFurniture;
+    renderState.current.editorState.furnitureDirection = furnitureDirection;
+  }, [editorMode, selectedColor, selectedFurniture, furnitureDirection]);
+
   useEffect(() => {
     // Step 1: Get canvas from canvasRef.current — return early if null
     const canvas = canvasRef.current;
@@ -91,12 +99,6 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
 
     // Store grid in renderState for editor mutations
     renderState.current.grid = grid;
-
-    // Update editor state mode from React state
-    renderState.current.editorState.mode = editorMode;
-    renderState.current.editorState.selectedColor = selectedColor;
-    renderState.current.editorState.selectedFurniture = selectedFurniture;
-    renderState.current.editorState.furnitureDirection = furnitureDirection;
 
     // Step 4: Compute camera origin
     renderState.current.cameraOrigin = computeCameraOrigin(
@@ -125,6 +127,10 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
       multiTile: multiTileFurniture.length,
       total: furniture.length + multiTileFurniture.length
     });
+
+    // Store furniture in renderState for editor mutations
+    renderState.current.furniture = furniture;
+    renderState.current.multiTileFurniture = multiTileFurniture;
 
     // Get sprite cache from window (loaded in webview.tsx)
     const spriteCache: SpriteCache | undefined = (window as any).spriteCache;
@@ -412,7 +418,7 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
       // cancelAnimationFrame(rafIdRef.current)
       cancelAnimationFrame(rafIdRef.current);
     };
-  }, [heightmap, editorMode, selectedColor, selectedFurniture, furnitureDirection]);
+  }, [heightmap]); // Only re-init when heightmap changes, not editor state
 
   // Mouse event handlers for editor mode
   const handleMouseMove = (event: React.MouseEvent<HTMLCanvasElement>) => {
@@ -472,7 +478,7 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
         renderState.current.tileColorMap,
         tileX,
         tileY,
-        renderState.current.editorState.selectedColor
+        selectedColor // Use React state directly, not renderState
       );
 
       // Re-render offscreen canvas with updated colors
