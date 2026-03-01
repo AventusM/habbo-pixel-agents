@@ -98,8 +98,15 @@ export function createFurnitureRenderable(
       // Look up sprite frame from cache
       const frame = spriteCache.getFrame(atlasName, frameKey);
       if (!frame) {
-        console.warn(`Missing furniture sprite: ${frameKey} in atlas ${atlasName}`);
+        console.warn(`❌ Missing furniture sprite: ${frameKey} in atlas ${atlasName}`);
         return; // Graceful fallback - don't crash render loop
+      }
+
+      // Debug log (only once per furniture type)
+      if (!window._debuggedFurniture) window._debuggedFurniture = new Set();
+      if (!window._debuggedFurniture.has(spec.name)) {
+        console.log(`✓ Rendering ${spec.name} at (${spec.tileX},${spec.tileY},${spec.tileZ}) with frame ${frameKey}`);
+        window._debuggedFurniture.add(spec.name);
       }
 
       // Convert tile position to screen coordinates
@@ -176,8 +183,15 @@ export function createMultiTileFurnitureRenderable(
       // Look up sprite frame from cache
       const frame = spriteCache.getFrame(atlasName, frameKey);
       if (!frame) {
-        console.warn(`Missing furniture sprite: ${frameKey} in atlas ${atlasName}`);
+        console.warn(`❌ Missing multi-tile furniture sprite: ${frameKey} in atlas ${atlasName}`);
         return; // Graceful fallback
+      }
+
+      // Debug log (only once per furniture type)
+      if (!window._debuggedFurniture) window._debuggedFurniture = new Set();
+      if (!window._debuggedFurniture.has(spec.name)) {
+        console.log(`✓ Rendering ${spec.name} [${spec.widthTiles}×${spec.heightTiles}] at (${spec.tileX},${spec.tileY},${spec.tileZ}) with frame ${frameKey}`);
+        window._debuggedFurniture.add(spec.name);
       }
 
       // CRITICAL: Render at ORIGIN tile position, not sort tile position

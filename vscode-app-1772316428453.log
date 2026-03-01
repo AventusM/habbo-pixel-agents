@@ -1,0 +1,75 @@
+localProcessExtensionHost.ts:351 [Extension Host] STOPPED on first line for debugging on port 53322
+R @ localProcessExtensionHost.ts:351
+log.ts:440  INFO Started local extension host with pid 64782.
+log.ts:440  INFO Loading development extension at /Users/antonmoroz/Documents/GitHub/habbo-pixel-agents
+languagesAssociations.ts:71 Overwriting extension <<.hbs>> to now point to mime <<text/x-handlebars>>
+(anonymous) @ languagesAssociations.ts:71
+languagesAssociations.ts:71 Overwriting extension <<.handlebars>> to now point to mime <<text/x-handlebars>>
+(anonymous) @ languagesAssociations.ts:71
+languagesAssociations.ts:71 Overwriting extension <<.properties>> to now point to mime <<text/x-java-properties>>
+(anonymous) @ languagesAssociations.ts:71
+languagesAssociations.ts:71 Overwriting extension <<.gradle>> to now point to mime <<text/x-gradle>>
+(anonymous) @ languagesAssociations.ts:71
+log.ts:440  INFO MCP Registry configured: https://api.mcp.github.com
+log.ts:440  INFO Settings Sync: Account status changed from uninitialized to unavailable
+localProcessExtensionHost.ts:281 Extension Host
+localProcessExtensionHost.ts:282 Debugger attached.
+log.ts:460   ERR [Extension Host] (node:64782) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `Code Helper (Plugin) --trace-deprecation ...` to show where the warning was created)
+error @ log.ts:460
+console.ts:139 [Extension Host] (node:64782) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `Code Helper (Plugin) --trace-deprecation ...` to show where the warning was created) (at file:///Applications/Visual%20Studio%20Code.app/Contents/Resources/app/out/vs/workbench/api/node/extensionHostProcess.js:215:30112)
+fMs @ console.ts:139
+log.ts:460   ERR [Extension Host] (node:64782) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+error @ log.ts:460
+console.ts:139 [Extension Host] (node:64782) ExperimentalWarning: SQLite is an experimental feature and might change at any time (at file:///Applications/Visual%20Studio%20Code.app/Contents/Resources/app/out/vs/workbench/api/node/extensionHostProcess.js:215:30112)
+fMs @ console.ts:139
+TMScopeRegistry.ts:46 Overwriting grammar scope name to file mapping for scope source.java.
+Old grammar file: file:///Applications/Visual%20Studio%20Code.app/Contents/Resources/app/extensions/java/syntaxes/java.tmLanguage.json.
+New grammar file: file:///Users/antonmoroz/.vscode/extensions/redhat.java-1.53.0-darwin-arm64/language-support/java/java.tmLanguage.json
+register @ TMScopeRegistry.ts:46
+TMScopeRegistry.ts:46 Overwriting grammar scope name to file mapping for scope source.groovy.
+Old grammar file: file:///Applications/Visual%20Studio%20Code.app/Contents/Resources/app/extensions/groovy/syntaxes/groovy.tmLanguage.json.
+New grammar file: file:///Users/antonmoroz/.vscode/extensions/vscjava.vscode-gradle-3.17.2/syntaxes/groovy.tmLanguage.json
+register @ TMScopeRegistry.ts:46
+log.ts:440  INFO [perf] Render performance baseline is 15ms
+api.github.com/copilot/mcp_registry:1  Failed to load resource: the server responded with a status of 404 ()
+console.ts:139 [Extension Host] Claude Code Chat extension is being activated! (at console.<anonymous> (file:///Applications/Visual%20Studio%20Code.app/Contents/Resources/app/out/vs/workbench/api/node/extensionHostProcess.js:215:30112))
+console.ts:139 [Extension Host] Claude Code Chat extension activation completed successfully! (at console.<anonymous> (file:///Applications/Visual%20Studio%20Code.app/Contents/Resources/app/out/vs/workbench/api/node/extensionHostProcess.js:215:30112))
+console.ts:139 [Extension Host] Created lock file at /Users/antonmoroz/.claude/ide/61904.lock (at console.<anonymous> (file:///Applications/Visual%20Studio%20Code.app/Contents/Resources/app/out/vs/workbench/api/node/extensionHostProcess.js:215:30112))
+console.ts:139 [Extension Host] Set CLAUDE_CODE_SSE_PORT=61904 in terminal environment (in-memory) (at console.<anonymous> (file:///Applications/Visual%20Studio%20Code.app/Contents/Resources/app/out/vs/workbench/api/node/extensionHostProcess.js:215:30112))
+api.github.com/copilot/mcp_registry:1  Failed to load resource: the server responded with a status of 404 ()
+api.github.com/copilot/mcp_registry:1  Failed to load resource: the server responded with a status of 404 ()
+api.github.com/copilot/mcp_registry:1  Failed to load resource: the server responded with a status of 404 ()
+console.ts:139 [Extension Host] Funnel tracking failed: 500 (at console.<anonymous> (file:///Applications/Visual%20Studio%20Code.app/Contents/Resources/app/out/vs/workbench/api/node/extensionHostProcess.js:215:30112))
+fMs @ console.ts:139
+webviewElement.ts:409 Unrecognized feature: 'local-network-access'.
+gb @ webviewElement.ts:409
+webviewElement.ts:489 An iframe which has both allow-scripts and allow-same-origin for its sandbox attribute can escape its sandboxing.
+mountTo @ webviewElement.ts:489
+console.ts:139 [Extension Host] Chair PNG URI: https://file%2B.vscode-resource.vscode-cdn.net/Users/antonmoroz/Documents/GitHub/habbo-pixel-agents/dist/webview-assets/chair_atlas.png (at console.<anonymous> (file:///Applications/Visual%20Studio%20Code.app/Contents/Resources/app/out/vs/workbench/api/node/extensionHostProcess.js:215:30112))
+console.ts:139 [Extension Host] Chair JSON URI: https://file%2B.vscode-resource.vscode-cdn.net/Users/antonmoroz/Documents/GitHub/habbo-pixel-agents/dist/webview-assets/chair_atlas.json (at console.<anonymous> (file:///Applications/Visual%20Studio%20Code.app/Contents/Resources/app/out/vs/workbench/api/node/extensionHostProcess.js:215:30112))
+console.ts:139 [Extension Host] Furniture PNG URI: https://file%2B.vscode-resource.vscode-cdn.net/Users/antonmoroz/Documents/GitHub/habbo-pixel-agents/dist/webview-assets/furniture_atlas.png (at console.<anonymous> (file:///Applications/Visual%20Studio%20Code.app/Contents/Resources/app/out/vs/workbench/api/node/extensionHostProcess.js:215:30112))
+console.ts:139 [Extension Host] Furniture JSON URI: https://file%2B.vscode-resource.vscode-cdn.net/Users/antonmoroz/Documents/GitHub/habbo-pixel-agents/dist/webview-assets/furniture_atlas.json (at console.<anonymous> (file:///Applications/Visual%20Studio%20Code.app/Contents/Resources/app/out/vs/workbench/api/node/extensionHostProcess.js:215:30112))
+index.html?id=72a87e33-bbf2-4c6a-b776-7a8ce8b39dd6&parentId=7&origin=1a0e41df-2048-4384-83ae-31d68e32a716&swVersion=4&extensionId=undefined_publisher.habbo-pixel-agents&platform=electron&vscode-resource-base-authority=vscode-resource.vscode-cdn.net&parentOrigin=vscode-file%3A%2F%2Fvscode-app:1060 Unrecognized feature: 'local-network-access'.
+(anonymous) @ index.html?id=72a87e33-bbf2-4c6a-b776-7a8ce8b39dd6&parentId=7&origin=1a0e41df-2048-4384-83ae-31d68e32a716&swVersion=4&extensionId=undefined_publisher.habbo-pixel-agents&platform=electron&vscode-resource-base-authority=vscode-resource.vscode-cdn.net&parentOrigin=vscode-file%3A%2F%2Fvscode-app:1060
+index.html?id=72a87e33-bbf2-4c6a-b776-7a8ce8b39dd6&parentId=7&origin=1a0e41df-2048-4384-83ae-31d68e32a716&swVersion=4&extensionId=undefined_publisher.habbo-pixel-agents&platform=electron&vscode-resource-base-authority=vscode-resource.vscode-cdn.net&parentOrigin=vscode-file%3A%2F%2Fvscode-app:1086 Executing inline script violates the following Content Security Policy directive 'script-src 'self' https://*.vscode-cdn.net'. Either the 'unsafe-inline' keyword, a hash ('sha256-Y73JM7+dPc5M6thOzPul406aEVMVUNfszstQmlCahyM='), or a nonce ('nonce-...') is required to enable inline execution. The action has been blocked.
+(anonymous) @ index.html?id=72a87e33-bbf2-4c6a-b776-7a8ce8b39dd6&parentId=7&origin=1a0e41df-2048-4384-83ae-31d68e32a716&swVersion=4&extensionId=undefined_publisher.habbo-pixel-agents&platform=electron&vscode-resource-base-authority=vscode-resource.vscode-cdn.net&parentOrigin=vscode-file%3A%2F%2Fvscode-app:1086
+webview.js:22240 Asset loading failed: TypeError: Cannot destructure property 'chairPng' of 'window.ASSET_URIS' as it is undefined.
+    at webview.js:22212:15
+    at webview.js:22242:5
+    at webview.js:22243:3
+(anonymous) @ webview.js:22240
+log.ts:460   ERR lock() request could not be registered.: InvalidStateError: lock() request could not be registered.
+error @ log.ts:460
+Connecting to 'https://file+.vscode-resource.vscode-cdn.net/Users/antonmoroz/Documents/GitHub/habbo-pixel-agents/dist/webview.js.map' violates the following Content Security Policy directive: "default-src 'none'". The request has been blocked. Note that 'connect-src' was not explicitly set, so 'default-src' is used as a fallback.
+
+log.ts:460   ERR lock() request could not be registered.: InvalidStateError: lock() request could not be registered.
+error @ log.ts:460
+error @ log.ts:565
+error @ logService.ts:51
+oc @ workbench.ts:128
+(anonymous) @ workbench.ts:109
+onUnexpectedError @ errors.ts:65
+Dt @ errors.ts:110
+(anonymous) @ workbench.ts:102

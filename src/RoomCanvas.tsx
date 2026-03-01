@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import { parseHeightmap, depthSort } from './isoTypes.js';
 import { initCanvas, computeCameraOrigin, preRenderRoom } from './isoTileRenderer.js';
 import type { TileGrid, Renderable } from './isoTypes.js';
@@ -9,15 +9,48 @@ import { createAvatarRenderable, updateAvatarAnimation } from './isoAvatarRender
 import type { SpriteCache } from './isoSpriteCache.js';
 import { pathToIsometricPositions, updateAvatarAlongPath, drawParentChildLine } from './isoAgentBehavior.js';
 import type { TilePath, IsometricPosition } from './isoAgentBehavior.js';
+import { drawSpeechBubble } from './isoBubbleRenderer.js';
+import { drawNameTag } from './isoNameTagRenderer.js';
+import { tileToScreen } from './isometricMath.js';
+import {
+  getHoveredTile,
+  drawHoverHighlight,
+  toggleTileWalkability,
+  setTileColor,
+  placeFurniture,
+  rotateFurniture,
+  saveLayout,
+  loadLayout,
+  type EditorMode,
+  type EditorState,
+} from './isoLayoutEditor.js';
+import type { HsbColor } from './isoTypes.js';
+import { LayoutEditorPanel } from './LayoutEditorPanel.js';
+import { AudioManager } from './isoAudioManager.js';
 
 interface RoomCanvasProps {
   heightmap: string;
+  editorMode?: EditorMode; // Optional, defaults to 'view'
 }
 
-export function RoomCanvas({ heightmap }: RoomCanvasProps) {
+// Avatar sprite dimensions (from placeholder sprite generation)
+const AVATAR_HEIGHT = 128;
+
+export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: RoomCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const runningRef = useRef(false);
   const rafIdRef = useRef(0);
+
+  // Audio manager (Phase 8)
+  const audioManagerRef = useRef<AudioManager | null>(null);
+  const [audioInitialized, setAudioInitialized] = useState(false);
+  const notificationSoundRef = useRef<AudioBuffer | null>(null);
+
+  // Editor UI state
+  const [editorMode, setEditorMode] = useState<EditorMode>(editorModeProp);
+  const [selectedColor, setSelectedColor] = useState<HsbColor>({ h: 200, s: 50, b: 50 });
+  const [selectedFurniture, setSelectedFurniture] = useState<string>('chair');
+  const [furnitureDirection, setFurnitureDirection] = useState<number>(0);
   const renderState = useRef<{
     offscreenCanvas: OffscreenCanvas | null;
     cameraOrigin: { x: number; y: number };
@@ -26,6 +59,11 @@ export function RoomCanvas({ heightmap }: RoomCanvasProps) {
     lastFrameTimeMs: number;
     avatarPaths: Map<string, { path: IsometricPosition[]; startTimeMs: number; durationMs: number }>;
     parentChildPairs: Array<{ parent: AvatarSpec; child: AvatarSpec }>;
+    editorState: EditorState;
+    grid: TileGrid | null;
+    tileColorMap: Map<string, HsbColor>;
+    furniture: FurnitureSpec[];
+    multiTileFurniture: MultiTileFurnitureSpec[];
   }>({
     offscreenCanvas: null,
     cameraOrigin: { x: 0, y: 0 },
@@ -34,7 +72,24 @@ export function RoomCanvas({ heightmap }: RoomCanvasProps) {
     lastFrameTimeMs: Date.now(),
     avatarPaths: new Map(),
     parentChildPairs: [],
+    editorState: {
+      mode: 'view',
+      hoveredTile: null,
+      selectedColor: { h: 200, s: 50, b: 50 },
+    },
+    grid: null,
+    tileColorMap: new Map(),
+    furniture: [],
+    multiTileFurniture: [],
   });
+
+  // Sync React editor state to renderState (no re-init)
+  useEffect(() => {
+    renderState.current.editorState.mode = editorMode;
+    renderState.current.editorState.selectedColor = selectedColor;
+    renderState.current.editorState.selectedFurniture = selectedFurniture;
+    renderState.current.editorState.furnitureDirection = furnitureDirection;
+  }, [editorMode, selectedColor, selectedFurniture, furnitureDirection]);
 
   useEffect(() => {
     // Step 1: Get canvas from canvasRef.current — return early if null
@@ -47,6 +102,9 @@ export function RoomCanvas({ heightmap }: RoomCanvasProps) {
 
     // Step 3: Parse the heightmap
     const grid: TileGrid = parseHeightmap(heightmap);
+
+    // Store grid in renderState for editor mutations
+    renderState.current.grid = grid;
 
     // Step 4: Compute camera origin
     renderState.current.cameraOrigin = computeCameraOrigin(
@@ -75,6 +133,10 @@ export function RoomCanvas({ heightmap }: RoomCanvasProps) {
       multiTile: multiTileFurniture.length,
       total: furniture.length + multiTileFurniture.length
     });
+
+    // Store furniture in renderState for editor mutations
+    renderState.current.furniture = furniture;
+    renderState.current.multiTileFurniture = multiTileFurniture;
 
     // Get sprite cache from window (loaded in webview.tsx)
     const spriteCache: SpriteCache | undefined = (window as any).spriteCache;
@@ -180,8 +242,8 @@ export function RoomCanvas({ heightmap }: RoomCanvasProps) {
       furniture,
       multiTileFurniture,
       spriteCache,
-      'furniture'
-      // NO avatars - they render dynamically in frame()
+      'furniture',
+      renderState.current.tileColorMap // Pass tileColorMap for per-tile colors
     );
 
     // Step 5.5: Store avatars in renderState for animation loop
@@ -230,6 +292,12 @@ export function RoomCanvas({ heightmap }: RoomCanvasProps) {
       for (const avatar of renderState.current.avatars) {
         updateAvatarAnimation(avatar, currentTimeMs);
 
+        // Play notification sound on spawn start (demo hook - Phase 8)
+        if (avatar.state === 'spawning' && avatar.spawnProgress === 0 && audioManagerRef.current && !( window as any)._audioPlayed) {
+          audioManagerRef.current.play(notificationSoundRef.current);
+          (window as any)._audioPlayed = true; // Play once per session
+        }
+
         // Update position along path if assigned
         const pathData = renderState.current.avatarPaths.get(avatar.id);
         if (pathData) {
@@ -266,6 +334,12 @@ export function RoomCanvas({ heightmap }: RoomCanvasProps) {
       // Blit: ctx.drawImage(offscreen, 0, 0) — single drawImage per frame (ROOM-08)
       ctx.drawImage(offscreen, 0, 0);
 
+      // Draw hover highlight if tile is hovered (editor mode)
+      if (renderState.current.editorState.hoveredTile) {
+        const { x, y, z } = renderState.current.editorState.hoveredTile;
+        drawHoverHighlight(ctx, x, y, z, renderState.current.cameraOrigin);
+      }
+
       // Render avatars dynamically (NOT pre-rendered - animation state changes each frame)
       if (spriteCache && renderState.current.avatars.length > 0) {
         const avatarRenderables = renderState.current.avatars.map(spec => {
@@ -298,6 +372,48 @@ export function RoomCanvas({ heightmap }: RoomCanvasProps) {
           }
           ctx.restore();
         }
+
+        // UI Overlays (UI-06): Render after all depth-sorted elements
+        // Order: name tags → speech bubbles (name tags closest to avatar head)
+
+        // Render name tags (above avatars, before speech bubbles)
+        ctx.font = '8px "Press Start 2P"'; // Set font for measureText
+        for (const avatar of renderState.current.avatars) {
+          const { x: screenX, y: screenY } = tileToScreen(avatar.tileX, avatar.tileY, avatar.tileZ);
+          const headY = screenY - AVATAR_HEIGHT; // Avatar head position (top of sprite)
+
+          // Map avatar state to name tag status
+          const status = avatar.state === 'idle' ? 'idle' : 'active'; // walk/spawning = active
+
+          ctx.save();
+          ctx.translate(renderState.current.cameraOrigin.x, renderState.current.cameraOrigin.y);
+          drawNameTag(ctx, {
+            name: avatar.id,
+            status,
+            anchorX: screenX,
+            anchorY: headY,
+          });
+          ctx.restore();
+        }
+
+        // Render speech bubbles (below name tags)
+        for (const avatar of renderState.current.avatars) {
+          const { x: screenX, y: screenY } = tileToScreen(avatar.tileX, avatar.tileY, avatar.tileZ);
+          const headY = screenY - AVATAR_HEIGHT; // Avatar head position (top of sprite)
+
+          // TODO(Phase 7): Replace demo text with real agent log line from JSONL watcher
+          const text = `${avatar.id}: ${avatar.state}`; // Demo placeholder
+
+          ctx.save();
+          ctx.translate(renderState.current.cameraOrigin.x, renderState.current.cameraOrigin.y);
+          drawSpeechBubble(ctx, {
+            text,
+            anchorX: screenX,
+            anchorY: headY,
+            isWaiting: avatar.state === 'idle', // Demo: idle avatars show waiting bubble
+          }, currentTimeMs);
+          ctx.restore();
+        }
       }
 
       // Schedule next: rafIdRef.current = requestAnimationFrame(frame)
@@ -314,12 +430,230 @@ export function RoomCanvas({ heightmap }: RoomCanvasProps) {
       // cancelAnimationFrame(rafIdRef.current)
       cancelAnimationFrame(rafIdRef.current);
     };
-  }, [heightmap]);
+  }, [heightmap]); // Only re-init when heightmap changes, not editor state
+
+  // Mouse event handlers for editor mode
+  const handleMouseMove = (event: React.MouseEvent<HTMLCanvasElement>) => {
+    if (!renderState.current.grid) return;
+
+    const hoveredCoords = getHoveredTile(event, renderState.current.cameraOrigin);
+
+    if (hoveredCoords) {
+      const { tileX, tileY } = hoveredCoords;
+      // Check if tile exists in grid
+      if (
+        tileY >= 0 && tileY < renderState.current.grid.height &&
+        tileX >= 0 && tileX < renderState.current.grid.width
+      ) {
+        const tile = renderState.current.grid.tiles[tileY][tileX];
+        const tileZ = tile ? tile.height : 0;
+        renderState.current.editorState.hoveredTile = { x: tileX, y: tileY, z: tileZ };
+      } else {
+        renderState.current.editorState.hoveredTile = null;
+      }
+    } else {
+      renderState.current.editorState.hoveredTile = null;
+    }
+  };
+
+  const handleClick = async (event: React.MouseEvent<HTMLCanvasElement>) => {
+    // Initialize audio on first click (autoplay policy compliance)
+    if (!audioInitialized && !audioManagerRef.current) {
+      audioManagerRef.current = new AudioManager();
+      await audioManagerRef.current.init();
+      setAudioInitialized(true);
+
+      // Load notification sound
+      const notificationUri = (window as any).ASSET_URIS?.notificationSound;
+      if (notificationUri) {
+        notificationSoundRef.current = await audioManagerRef.current.loadSound(notificationUri);
+      }
+
+      console.log('AudioManager initialized, notification sound loaded:', notificationSoundRef.current !== null);
+    }
+
+    if (!renderState.current.grid || !canvasRef.current) return;
+
+    const clickedCoords = getHoveredTile(event, renderState.current.cameraOrigin);
+    if (!clickedCoords) return;
+
+    const { tileX, tileY } = clickedCoords;
+
+    // Paint mode: toggle tile walkability
+    if (renderState.current.editorState.mode === 'paint') {
+      toggleTileWalkability(renderState.current.grid, tileX, tileY);
+
+      // Re-render offscreen canvas with updated grid
+      renderState.current.offscreenCanvas = preRenderRoom(
+        renderState.current.grid,
+        renderState.current.cameraOrigin,
+        canvasRef.current.width,
+        canvasRef.current.height,
+        window.devicePixelRatio || 1,
+        undefined,
+        renderState.current.furniture,
+        renderState.current.multiTileFurniture,
+        (window as any).spriteCache,
+        undefined,
+        renderState.current.tileColorMap
+      );
+    }
+
+    // Color mode: set tile color
+    if (renderState.current.editorState.mode === 'color') {
+      setTileColor(
+        renderState.current.tileColorMap,
+        tileX,
+        tileY,
+        selectedColor // Use React state directly, not renderState
+      );
+
+      // Re-render offscreen canvas with updated colors
+      renderState.current.offscreenCanvas = preRenderRoom(
+        renderState.current.grid,
+        renderState.current.cameraOrigin,
+        canvasRef.current.width,
+        canvasRef.current.height,
+        window.devicePixelRatio || 1,
+        undefined,
+        renderState.current.furniture,
+        renderState.current.multiTileFurniture,
+        (window as any).spriteCache,
+        undefined,
+        renderState.current.tileColorMap
+      );
+    }
+
+    // Furniture mode: place furniture
+    if (renderState.current.editorState.mode === 'furniture') {
+      const furnitureType = renderState.current.editorState.selectedFurniture || 'chair';
+      const direction = renderState.current.editorState.furnitureDirection || 0;
+
+      const placed = placeFurniture(
+        renderState.current.grid,
+        renderState.current.furniture,
+        renderState.current.multiTileFurniture,
+        tileX,
+        tileY,
+        furnitureType,
+        direction
+      );
+
+      if (placed) {
+        // Re-render offscreen canvas with new furniture
+        renderState.current.offscreenCanvas = preRenderRoom(
+          renderState.current.grid,
+          renderState.current.cameraOrigin,
+          canvasRef.current.width,
+          canvasRef.current.height,
+          window.devicePixelRatio || 1,
+          undefined,
+          renderState.current.furniture,
+          renderState.current.multiTileFurniture,
+          (window as any).spriteCache,
+          undefined,
+          renderState.current.tileColorMap
+        );
+      }
+    }
+  };
+
+  const handleMouseLeave = () => {
+    renderState.current.editorState.hoveredTile = null;
+  };
+
+  const handleSave = () => {
+    if (!renderState.current.grid) return;
+
+    const json = saveLayout(
+      renderState.current.grid,
+      renderState.current.tileColorMap,
+      renderState.current.furniture,
+      renderState.current.multiTileFurniture,
+      { x: 0, y: 0, z: 0, dir: 2 } // Default door coords
+    );
+
+    // Create blob and trigger download
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'layout.json';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleLoad = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const text = e.target?.result as string;
+      if (!text || !canvasRef.current) return;
+
+      try {
+        const data = loadLayout(text);
+
+        // Update grid
+        const newGrid = parseHeightmap(data.heightmap);
+        renderState.current.grid = newGrid;
+
+        // Update tile colors
+        renderState.current.tileColorMap = new Map(Object.entries(data.tileColors));
+
+        // Update furniture
+        renderState.current.furniture = data.furniture;
+        renderState.current.multiTileFurniture = data.multiTileFurniture;
+
+        // Recompute camera origin for new grid
+        renderState.current.cameraOrigin = computeCameraOrigin(
+          newGrid,
+          canvasRef.current.offsetWidth,
+          canvasRef.current.offsetHeight
+        );
+
+        // Re-render offscreen canvas
+        renderState.current.offscreenCanvas = preRenderRoom(
+          newGrid,
+          renderState.current.cameraOrigin,
+          canvasRef.current.width,
+          canvasRef.current.height,
+          window.devicePixelRatio || 1,
+          undefined,
+          renderState.current.furniture,
+          renderState.current.multiTileFurniture,
+          (window as any).spriteCache,
+          undefined,
+          renderState.current.tileColorMap
+        );
+
+        console.log('Layout loaded successfully');
+      } catch (error) {
+        console.error('Failed to load layout:', error);
+      }
+    };
+    reader.readAsText(file);
+  };
 
   return (
-    <canvas
-      ref={canvasRef}
-      style={{ width: '100%', height: '100%', display: 'block' }}
-    />
+    <>
+      <LayoutEditorPanel
+        editorMode={editorMode}
+        onModeChange={setEditorMode}
+        selectedColor={selectedColor}
+        onColorChange={setSelectedColor}
+        selectedFurniture={selectedFurniture}
+        onFurnitureChange={setSelectedFurniture}
+        furnitureDirection={furnitureDirection}
+        onRotate={() => setFurnitureDirection(rotateFurniture(furnitureDirection))}
+        onSave={handleSave}
+        onLoad={handleLoad}
+      />
+      <canvas
+        ref={canvasRef}
+        style={{ width: '100%', height: '100%', display: 'block' }}
+        onMouseMove={handleMouseMove}
+        onClick={handleClick}
+        onMouseLeave={handleMouseLeave}
+      />
+    </>
   );
 }

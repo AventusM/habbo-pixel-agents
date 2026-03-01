@@ -143,6 +143,7 @@ export function preRenderRoom(
   multiTileFurniture?: MultiTileFurnitureSpec[],
   spriteCache?: SpriteCache,
   atlasName: string = 'furniture',
+  tileColorMap?: Map<string, HsbColor>,
 ): OffscreenCanvas {
   const offscreen = new OffscreenCanvas(physicalW, physicalH);
   const ctx = offscreen.getContext('2d')!;
@@ -175,17 +176,21 @@ export function preRenderRoom(
           const screenX = sx + cameraOrigin.x;
           const screenY = sy + cameraOrigin.y;
 
+          // Check for per-tile color override
+          const tileKey = `${tx},${ty}`;
+          const tileHsb = (tileColorMap && tileColorMap.get(tileKey)) || hsb;
+
           // Draw floor tile (top face)
-          drawFloorTile(ctx, screenX, screenY, hsb);
+          drawFloorTile(ctx, screenX, screenY, tileHsb);
 
           // Draw left wall strip (if on left edge or tile to left is void)
           if (tx === 0 || grid.tiles[ty][tx - 1] == null) {
-            drawLeftFace(ctx, screenX, screenY, hsb);
+            drawLeftFace(ctx, screenX, screenY, tileHsb);
           }
 
           // Draw right wall strip (if on top edge or tile above is void)
           if (ty === 0 || grid.tiles[ty - 1]?.[tx] == null) {
-            drawRightFace(ctx, screenX, screenY, hsb);
+            drawRightFace(ctx, screenX, screenY, tileHsb);
           }
         },
       });

@@ -15,7 +15,7 @@
     ]
   },
   "scripts": {
-    "prebuild": "echo 'Asset extraction deferred to Plan 03-03'",
+    "prebuild": "bash scripts/convert-audio-to-ogg.sh",
     "build:ext": "node esbuild.config.mjs extension",
     "build:webview": "node esbuild.config.mjs webview",
     "build": "node esbuild.config.mjs",
