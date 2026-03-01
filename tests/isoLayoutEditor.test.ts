@@ -2,7 +2,15 @@
 // Unit tests for layout editor mouse-to-tile conversion
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import { getHoveredTile, drawHoverHighlight } from '../src/isoLayoutEditor.js';
+import {
+  getHoveredTile,
+  drawHoverHighlight,
+  toggleTileWalkability,
+  setTileColor,
+  gridToHeightmap,
+} from '../src/isoLayoutEditor.js';
+import type { TileGrid, HsbColor } from '../src/isoTypes.js';
+import { parseHeightmap } from '../src/isoTypes.js';
 
 describe('getHoveredTile', () => {
   // Mock React.MouseEvent factory
@@ -157,5 +165,76 @@ describe('drawHoverHighlight', () => {
     expect(() => {
       drawHoverHighlight(ctx, 2, 2, 5, { x: 400, y: 300 });
     }).not.toThrow();
+  });
+});
+
+describe('editor operations', () => {
+  it('toggleTileWalkability: walkable → void → walkable round-trip', () => {
+    const grid = parseHeightmap('0\n1\n2');
+
+    // Initial state: tile (0,0) is walkable with height 0
+    expect(grid.tiles[0][0]).toEqual({ height: 0 });
+
+    // Toggle to void
+    toggleTileWalkability(grid, 0, 0);
+    expect(grid.tiles[0][0]).toBeNull();
+
+    // Toggle back to walkable (height 0)
+    toggleTileWalkability(grid, 0, 0);
+    expect(grid.tiles[0][0]).toEqual({ height: 0 });
+  });
+
+  it('setTileColor: color persists in map with correct key format', () => {
+    const tileColorMap = new Map<string, HsbColor>();
+    const color: HsbColor = { h: 120, s: 50, b: 75 };
+
+    setTileColor(tileColorMap, 3, 5, color);
+
+    expect(tileColorMap.get('3,5')).toEqual(color);
+    expect(tileColorMap.size).toBe(1);
+  });
+
+  it('setTileColor: overwrites existing color for same tile', () => {
+    const tileColorMap = new Map<string, HsbColor>();
+    const color1: HsbColor = { h: 120, s: 50, b: 75 };
+    const color2: HsbColor = { h: 240, s: 80, b: 60 };
+
+    setTileColor(tileColorMap, 2, 3, color1);
+    setTileColor(tileColorMap, 2, 3, color2);
+
+    expect(tileColorMap.get('2,3')).toEqual(color2);
+    expect(tileColorMap.size).toBe(1);
+  });
+
+  it('gridToHeightmap: serializes grid back to Habbo heightmap format correctly', () => {
+    const originalHeightmap = '012\n345\n678';
+    const grid = parseHeightmap(originalHeightmap);
+
+    const serialized = gridToHeightmap(grid);
+
+    expect(serialized).toBe(originalHeightmap);
+  });
+
+  it('gridToHeightmap: handles void tiles with x character', () => {
+    const grid = parseHeightmap('0x2\nx1x\n2x0');
+
+    const serialized = gridToHeightmap(grid);
+
+    expect(serialized).toBe('0x2\nx1x\n2x0');
+  });
+
+  it('toggleTileWalkability: handles out-of-bounds gracefully', () => {
+    const grid = parseHeightmap('000\n111');
+
+    // Should not crash or modify grid
+    expect(() => {
+      toggleTileWalkability(grid, -1, 0);
+      toggleTileWalkability(grid, 0, -1);
+      toggleTileWalkability(grid, 100, 0);
+      toggleTileWalkability(grid, 0, 100);
+    }).not.toThrow();
+
+    // Grid unchanged
+    expect(grid.tiles[0][0]).toEqual({ height: 0 });
   });
 });

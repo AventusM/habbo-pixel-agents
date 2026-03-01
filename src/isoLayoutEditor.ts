@@ -8,7 +8,21 @@ import {
   tileToScreen,
   screenToTile,
 } from './isometricMath.js';
-import type { HsbColor } from './isoTypes.js';
+import type { HsbColor, TileGrid } from './isoTypes.js';
+
+/**
+ * Editor mode enum
+ */
+export type EditorMode = 'view' | 'paint' | 'color';
+
+/**
+ * Editor state for tracking current editor mode and selection
+ */
+export interface EditorState {
+  mode: EditorMode;
+  hoveredTile: { x: number; y: number; z: number } | null;
+  selectedColor: HsbColor;
+}
 
 /**
  * Convert a React mouse event to isometric tile coordinates.
@@ -93,4 +107,65 @@ export function drawHoverHighlight(
 
   // Restore context state
   ctx.restore();
+}
+
+/**
+ * Toggle tile walkability (void ↔ walkable).
+ * Mutates grid in place.
+ *
+ * @param grid - TileGrid to modify
+ * @param tileX - Tile X coordinate
+ * @param tileY - Tile Y coordinate
+ */
+export function toggleTileWalkability(
+  grid: TileGrid,
+  tileX: number,
+  tileY: number,
+): void {
+  // Check bounds
+  if (tileY < 0 || tileY >= grid.height || tileX < 0 || tileX >= grid.width) {
+    return;
+  }
+
+  const tile = grid.tiles[tileY][tileX];
+
+  if (tile === null) {
+    // Tile is void → make walkable at height 0
+    grid.tiles[tileY][tileX] = { height: 0 };
+  } else {
+    // Tile is walkable → make void
+    grid.tiles[tileY][tileX] = null;
+  }
+}
+
+/**
+ * Set color for a specific tile.
+ * Mutates tileColorMap in place.
+ *
+ * @param tileColorMap - Map of tile coordinates to colors
+ * @param tileX - Tile X coordinate
+ * @param tileY - Tile Y coordinate
+ * @param color - HSB color to set
+ */
+export function setTileColor(
+  tileColorMap: Map<string, HsbColor>,
+  tileX: number,
+  tileY: number,
+  color: HsbColor,
+): void {
+  const key = `${tileX},${tileY}`;
+  tileColorMap.set(key, color);
+}
+
+/**
+ * Convert TileGrid back to Habbo heightmap string format.
+ * Inverse of parseHeightmap.
+ *
+ * @param grid - TileGrid to serialize
+ * @returns Heightmap string (rows separated by newlines)
+ */
+export function gridToHeightmap(grid: TileGrid): string {
+  return grid.tiles
+    .map(row => row.map(tile => (tile ? String(tile.height) : 'x')).join(''))
+    .join('\n');
 }
