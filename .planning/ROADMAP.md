@@ -111,9 +111,9 @@ Plans:
 **Plans:** 3 plans
 
 Plans:
-- [ ] 05-01-PLAN.md — Avatar renderer with 8-direction support, multi-layer composition, and 6 palette variants using placeholder sprites
-- [ ] 05-02-PLAN.md — Walk cycle animation (4 frames), idle blinks (3-frame overlay), and Matrix spawn/despawn effects
-- [ ] 05-03-PLAN.md — Pathfinding integration (BFS path to screen positions), direction updates, parent/child relationship lines
+- [x] 05-01-PLAN.md — Avatar renderer with 8-direction support, multi-layer composition, and 6 palette variants using placeholder sprites
+- [x] 05-02-PLAN.md — Walk cycle animation (4 frames), idle blinks (3-frame overlay), and Matrix spawn/despawn effects
+- [x] 05-03-PLAN.md — Pathfinding integration (BFS path to screen positions), direction updates, parent/child relationship lines
 
 **Deliverables:**
 - [ ] `src/isoAvatarRenderer.ts` renders an avatar at a tile position using a 3-4 layer sprite composition (body/skin, clothing, head, hair) in the correct Habbo direction based on `getDirection()` applied to BFS path step deltas.
@@ -132,6 +132,13 @@ Plans:
 
 **Goal:** Render authentic Habbo-style speech bubbles and name tags so each agent's identity and current action are legible at a glance without looking at the terminal.
 **Requirements:** UI-01, UI-02, UI-03, UI-04, UI-05, UI-06, UI-07, UI-08, AGENT-01
+
+**Plans:** 3 plans
+
+Plans:
+- [ ] 06-01-PLAN.md — Speech bubble renderer with word wrapping and waiting animation (isoBubbleRenderer.ts)
+- [ ] 06-02-PLAN.md — Name tag renderer with status dots and semi-transparent pills (isoNameTagRenderer.ts)
+- [ ] 06-03-PLAN.md — Font bundling (Press Start 2P) and webview HTML @font-face integration
 
 **Deliverables:**
 - [ ] `src/isoBubbleRenderer.ts` draws speech bubbles as white Canvas 2D rounded rectangles with a 1-2 px dark border and a downward-pointing triangular tail anchored above the avatar head position.
@@ -195,7 +202,7 @@ Plans:
 | 2. Static Room Rendering | ROOM-01 – ROOM-11 | Complete | 2026-02-28 |
 | 3. Asset Pipeline | ASSET-01 – ASSET-07, BUILD-01 – BUILD-03 | Complete | 2026-02-28 |
 | 4. Furniture Rendering | FURN-01 – FURN-05 | Complete | 2026-03-01 |
-| 5. Avatar System | AVAT-01 – AVAT-08, AGENT-03, AGENT-05 | Not started | — |
+| 5. Avatar System | AVAT-01 – AVAT-08, AGENT-03, AGENT-05 | Complete | 2026-03-01 |
 | 6. UI Overlays | UI-01 – UI-08, AGENT-01 | Not started | — |
 | 7. Layout Editor Integration | EDIT-01 – EDIT-04 | Not started | — |
 | 8. Audio | AUDIO-01 – AUDIO-05 | Not started | — |
@@ -203,4 +210,4 @@ Plans:
 ---
 
 *Created: 2026-02-28*
-*Last updated: 2026-03-01 after Phase 5 planning*
+*Last updated: 2026-03-01 after Phase 6 planning*
