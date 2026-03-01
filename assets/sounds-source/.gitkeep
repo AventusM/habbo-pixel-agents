@@ -1,0 +1,9 @@
+# Place Habbo Hotel sound effects here (.mp3, .wav, .m4a)
+# Files will be converted to OGG Vorbis at build time via scripts/convert-audio-to-ogg.sh
+#
+# To obtain sounds:
+# 1. See scripts/obtain-habbo-sounds.md for detailed instructions
+# 2. Download from 101soundboards Habbo collection: https://www.101soundboards.com/boards/172347-habbo-soundboard
+# 3. Or extract from Habbo v14 SWF using JPEXS Free Flash Decompiler
+#
+# Priority file for v1 demo: notification.mp3
