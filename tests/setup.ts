@@ -58,4 +58,35 @@ beforeAll(() => {
       close: () => {},
     });
   }
+
+  // AudioContext mock for audio tests (Phase 8)
+  class MockAudioContext {
+    state: 'suspended' | 'running' | 'closed' = 'suspended';
+    destination = {};
+
+    async resume() {
+      this.state = 'running';
+    }
+
+    async decodeAudioData(buffer: ArrayBuffer): Promise<AudioBuffer> {
+      if (buffer.byteLength === 0) {
+        throw new DOMException('Empty buffer', 'EncodingError');
+      }
+      return {
+        duration: 1.0,
+        numberOfChannels: 2,
+        sampleRate: 44100,
+      } as AudioBuffer;
+    }
+
+    createBufferSource() {
+      return {
+        buffer: null,
+        connect: () => {},
+        start: () => {},
+      };
+    }
+  }
+
+  (global as any).AudioContext = MockAudioContext;
 });
