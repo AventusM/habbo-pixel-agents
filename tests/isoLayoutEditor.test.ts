@@ -8,9 +8,14 @@ import {
   toggleTileWalkability,
   setTileColor,
   gridToHeightmap,
+  placeFurniture,
+  rotateFurniture,
+  saveLayout,
+  loadLayout,
 } from '../src/isoLayoutEditor.js';
 import type { TileGrid, HsbColor } from '../src/isoTypes.js';
 import { parseHeightmap } from '../src/isoTypes.js';
+import type { FurnitureSpec, MultiTileFurnitureSpec } from '../src/isoFurnitureRenderer.js';
 
 describe('getHoveredTile', () => {
   // Mock React.MouseEvent factory
@@ -236,5 +241,118 @@ describe('editor operations', () => {
 
     // Grid unchanged
     expect(grid.tiles[0][0]).toEqual({ height: 0 });
+  });
+});
+
+describe('placeFurniture', () => {
+  it('rejects placement out of bounds', () => {
+    const grid = parseHeightmap('000\n111\n222');
+    const furniture: FurnitureSpec[] = [];
+    const multiTileFurniture: MultiTileFurnitureSpec[] = [];
+
+    const result = placeFurniture(grid, furniture, multiTileFurniture, 10, 10, 'chair', 0);
+
+    expect(result).toBe(false);
+    expect(furniture.length).toBe(0);
+  });
+
+  it('rejects placement on void tile', () => {
+    const grid = parseHeightmap('0x0\n111');
+    const furniture: FurnitureSpec[] = [];
+    const multiTileFurniture: MultiTileFurnitureSpec[] = [];
+
+    const result = placeFurniture(grid, furniture, multiTileFurniture, 1, 0, 'chair', 0);
+
+    expect(result).toBe(false);
+    expect(furniture.length).toBe(0);
+  });
+
+  it('successfully places single-tile furniture on valid position', () => {
+    const grid = parseHeightmap('000\n111\n222');
+    const furniture: FurnitureSpec[] = [];
+    const multiTileFurniture: MultiTileFurnitureSpec[] = [];
+
+    const result = placeFurniture(grid, furniture, multiTileFurniture, 1, 1, 'chair', 2);
+
+    expect(result).toBe(true);
+    expect(furniture.length).toBe(1);
+    expect(furniture[0]).toEqual({
+      name: 'chair',
+      tileX: 1,
+      tileY: 1,
+      tileZ: 1,
+      direction: 2,
+    });
+  });
+
+  it('successfully places multi-tile furniture on valid position', () => {
+    const grid = parseHeightmap('0000\n1111\n2222');
+    const furniture: FurnitureSpec[] = [];
+    const multiTileFurniture: MultiTileFurnitureSpec[] = [];
+
+    const result = placeFurniture(grid, furniture, multiTileFurniture, 1, 1, 'desk', 0);
+
+    expect(result).toBe(true);
+    expect(multiTileFurniture.length).toBe(1);
+    expect(multiTileFurniture[0]).toEqual({
+      name: 'desk',
+      tileX: 1,
+      tileY: 1,
+      tileZ: 1,
+      direction: 0,
+      widthTiles: 2,
+      heightTiles: 1,
+    });
+  });
+
+  it('rejects multi-tile furniture extending into void', () => {
+    const grid = parseHeightmap('01x\n111');
+    const furniture: FurnitureSpec[] = [];
+    const multiTileFurniture: MultiTileFurnitureSpec[] = [];
+
+    // Desk is 2×1, would extend from (1,0) to (2,0) which is void
+    const result = placeFurniture(grid, furniture, multiTileFurniture, 1, 0, 'desk', 0);
+
+    expect(result).toBe(false);
+    expect(multiTileFurniture.length).toBe(0);
+  });
+});
+
+describe('rotateFurniture', () => {
+  it('cycles through Habbo directions correctly', () => {
+    expect(rotateFurniture(0)).toBe(2);
+    expect(rotateFurniture(2)).toBe(4);
+    expect(rotateFurniture(4)).toBe(6);
+    expect(rotateFurniture(6)).toBe(0);
+  });
+});
+
+describe('saveLayout and loadLayout', () => {
+  it('round-trip preserves all layout data', () => {
+    const grid = parseHeightmap('012\n345\n678');
+    const tileColorMap = new Map<string, HsbColor>();
+    tileColorMap.set('1,1', { h: 120, s: 50, b: 75 });
+
+    const furniture: FurnitureSpec[] = [
+      { name: 'chair', tileX: 0, tileY: 0, tileZ: 0, direction: 0 },
+    ];
+
+    const multiTileFurniture: MultiTileFurnitureSpec[] = [
+      { name: 'desk', tileX: 1, tileY: 1, tileZ: 3, direction: 2, widthTiles: 2, heightTiles: 1 },
+    ];
+
+    const doorCoords = { x: 5, y: 5, z: 0, dir: 4 };
+
+    const json = saveLayout(grid, tileColorMap, furniture, multiTileFurniture, doorCoords);
+    const loaded = loadLayout(json);
+
+    expect(loaded.heightmap).toBe('012\n345\n678');
+    expect(loaded.doorX).toBe(5);
+    expect(loaded.doorY).toBe(5);
+    expect(loaded.doorZ).toBe(0);
+    expect(loaded.doorDir).toBe(4);
+    expect(loaded.tileColors['1,1']).toEqual({ h: 120, s: 50, b: 75 });
+    expect(loaded.furniture).toEqual(furniture);
+    expect(loaded.multiTileFurniture).toEqual(multiTileFurniture);
   });
 });
