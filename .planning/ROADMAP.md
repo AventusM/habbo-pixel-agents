@@ -157,6 +157,13 @@ Plans:
 **Goal:** Make the layout editor work correctly with the isometric grid so users can paint tiles, place furniture, and customise colours using the same interface as the original pixel-agents editor.
 **Requirements:** EDIT-01, EDIT-02, EDIT-03, EDIT-04
 
+**Plans:** 3 plans
+
+Plans:
+- [ ] 07-01-PLAN.md — Mouse-to-tile conversion and hover highlight rendering
+- [ ] 07-02-PLAN.md — Editor state management and tile painting integration
+- [ ] 07-03-PLAN.md — Furniture placement, color picker UI, rotation, and save/load
+
 **Deliverables:**
 - [ ] `src/isoLayoutEditor.ts` implements mouse-to-tile conversion using the inverse isometric formula with z=0 assumption (Strategy B): `rawX = adjX / 64 + adjY / 32`, `rawY = adjY / 32 - adjX / 64`, floored to integer tile indices.
 - [ ] Hovering over a tile draws a yellow rhombus outline (`rgba(255, 255, 100, 0.8)`, 2 px stroke) after the main render pass on the correct isometric tile position.
@@ -210,4 +217,4 @@ Plans:
 ---
 
 *Created: 2026-02-28*
-*Last updated: 2026-03-01 after Phase 6 planning*
+*Last updated: 2026-03-01 after Phase 7 planning*
