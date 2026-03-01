@@ -305,6 +305,9 @@ export function RoomCanvas({ heightmap }: RoomCanvasProps) {
           ctx.restore();
         }
 
+        // UI Overlays (UI-06): Render after all depth-sorted elements
+        // Order: name tags → speech bubbles (name tags closest to avatar head)
+
         // Render name tags (above avatars, before speech bubbles)
         ctx.font = '8px "Press Start 2P"'; // Set font for measureText
         for (const avatar of renderState.current.avatars) {
@@ -330,8 +333,8 @@ export function RoomCanvas({ heightmap }: RoomCanvasProps) {
           const { x: screenX, y: screenY } = tileToScreen(avatar.tileX, avatar.tileY, avatar.tileZ);
           const headY = screenY - AVATAR_HEIGHT; // Avatar head position (top of sprite)
 
-          // Demo text: show avatar ID and state
-          const text = `${avatar.id}: ${avatar.state}`;
+          // TODO(Phase 7): Replace demo text with real agent log line from JSONL watcher
+          const text = `${avatar.id}: ${avatar.state}`; // Demo placeholder
 
           ctx.save();
           ctx.translate(renderState.current.cameraOrigin.x, renderState.current.cameraOrigin.y);
