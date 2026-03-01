@@ -9,10 +9,15 @@ import { createAvatarRenderable, updateAvatarAnimation } from './isoAvatarRender
 import type { SpriteCache } from './isoSpriteCache.js';
 import { pathToIsometricPositions, updateAvatarAlongPath, drawParentChildLine } from './isoAgentBehavior.js';
 import type { TilePath, IsometricPosition } from './isoAgentBehavior.js';
+import { drawSpeechBubble } from './isoBubbleRenderer.js';
+import { tileToScreen } from './isometricMath.js';
 
 interface RoomCanvasProps {
   heightmap: string;
 }
+
+// Avatar sprite dimensions (from placeholder sprite generation)
+const AVATAR_HEIGHT = 128;
 
 export function RoomCanvas({ heightmap }: RoomCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -296,6 +301,26 @@ export function RoomCanvas({ heightmap }: RoomCanvasProps) {
           for (const pair of renderState.current.parentChildPairs) {
             drawParentChildLine(ctx, pair.parent, pair.child);
           }
+          ctx.restore();
+        }
+
+        // Render speech bubbles (always on top of avatars)
+        ctx.font = '8px "Press Start 2P"'; // Set font for measureText in drawSpeechBubble
+        for (const avatar of renderState.current.avatars) {
+          const { x: screenX, y: screenY } = tileToScreen(avatar.tileX, avatar.tileY, avatar.tileZ);
+          const headY = screenY - AVATAR_HEIGHT; // Avatar head position (top of sprite)
+
+          // Demo text: show avatar ID and state
+          const text = `${avatar.id}: ${avatar.state}`;
+
+          ctx.save();
+          ctx.translate(renderState.current.cameraOrigin.x, renderState.current.cameraOrigin.y);
+          drawSpeechBubble(ctx, {
+            text,
+            anchorX: screenX,
+            anchorY: headY,
+            isWaiting: avatar.state === 'idle', // Demo: idle avatars show waiting bubble
+          }, currentTimeMs);
           ctx.restore();
         }
       }
