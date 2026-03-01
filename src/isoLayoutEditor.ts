@@ -209,6 +209,9 @@ export function placeFurniture(
   furnitureType: string,
   direction: number,
 ): boolean {
+  // FIXME: Chair placement fails silently - other furniture types work
+  // Issue: Likely sprite key mismatch or frame lookup problem specific to chair
+  // Workaround: Use lamp, desk, or other furniture types
   const spec = FURNITURE_SPECS[furnitureType];
   if (!spec) {
     console.warn(`Unknown furniture type: ${furnitureType}`);
