@@ -17,6 +17,20 @@ const DEMO_HEIGHTMAP = [
   'xxxxxxxxxxxx',
 ].join('\n');
 
+// Acquire VS Code API immediately (can only be called once per webview)
+const vscodeApi = (window as any).acquireVsCodeApi?.();
+
+// Set up extension message forwarding immediately so no messages are missed
+if (vscodeApi) {
+  window.addEventListener('message', (event: MessageEvent) => {
+    const msg = event.data;
+    if (msg && msg.type) {
+      window.dispatchEvent(new CustomEvent('extensionMessage', { detail: msg }));
+    }
+  });
+  (window as any).vscodeApi = vscodeApi;
+}
+
 // Initialize sprite cache and load assets BEFORE rendering
 const spriteCache = new SpriteCache();
 
@@ -126,6 +140,11 @@ const spriteCache = new SpriteCache();
     if (root) {
       console.log('✓ Rendering RoomCanvas with loaded assets');
       createRoot(root).render(React.createElement(RoomCanvas, { heightmap: DEMO_HEIGHTMAP }));
+    }
+
+    // Notify extension that webview is ready (triggers agent discovery)
+    if (vscodeApi) {
+      vscodeApi.postMessage({ type: 'ready' });
     }
   } catch (error) {
     console.error('Asset loading failed:', error);

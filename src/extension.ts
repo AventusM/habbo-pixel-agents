@@ -1,4 +1,6 @@
 import * as vscode from 'vscode';
+import { AgentManager } from './agentManager.js';
+import type { WebviewMessage, ExtensionMessage } from './agentTypes.js';
 
 const DEMO_HEIGHTMAP = [
   '0000000000',
@@ -76,14 +78,44 @@ export function activate(context: vscode.ExtensionContext) {
       vscode.Uri.joinPath(context.extensionUri, 'dist', 'webview-assets', 'figures')
     );
 
-    console.log('Chair PNG URI:', chairPngUri.toString());
-    console.log('Chair JSON URI:', chairJsonUri.toString());
-    console.log('Furniture PNG URI:', furniturePngUri.toString());
-    console.log('Furniture JSON URI:', furnitureJsonUri.toString());
-    console.log('Avatar PNG URI:', avatarPngUri.toString());
-    console.log('Avatar JSON URI:', avatarJsonUri.toString());
-    console.log('Font URI:', fontUri.toString());
-    console.log('Notification sound URI:', notificationSoundUri.toString());
+    // --- Agent Manager ---
+    const workspaceDir = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath
+      || vscode.workspace.rootPath
+      || '';
+    console.log('[Extension] Workspace dir for AgentManager:', workspaceDir);
+    const agentManager = new AgentManager(workspaceDir, (msg: ExtensionMessage) => {
+      panel.webview.postMessage(msg);
+    });
+
+    // Listen for messages from webview
+    panel.webview.onDidReceiveMessage((msg: WebviewMessage) => {
+      switch (msg.type) {
+        case 'ready':
+          agentManager.discoverAgents();
+          break;
+        case 'requestAgents':
+          // Send current agents to webview
+          for (const agent of agentManager.getAgents()) {
+            panel.webview.postMessage({
+              type: 'agentCreated',
+              agentId: agent.agentId,
+              terminalName: agent.terminalName,
+              variant: agent.variant,
+            } as ExtensionMessage);
+            panel.webview.postMessage({
+              type: 'agentStatus',
+              agentId: agent.agentId,
+              status: agent.status,
+            } as ExtensionMessage);
+          }
+          break;
+      }
+    });
+
+    // Cleanup on panel dispose
+    panel.onDidDispose(() => {
+      agentManager.dispose();
+    });
 
     // Set HTML content
     panel.webview.html = `<!DOCTYPE html>

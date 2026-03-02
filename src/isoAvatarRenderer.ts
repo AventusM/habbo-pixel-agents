@@ -2,18 +2,32 @@
 // Avatar sprite rendering for isometric rooms
 // Implements 8-direction support with multi-layer composition (body, clothing, head, hair)
 
-import { tileToScreen, TILE_H_HALF } from './isometricMath.js';
-import type { SpriteCache, NitroSpriteFrame } from './isoSpriteCache.js';
-import type { Renderable } from './isoTypes.js';
+import { tileToScreen, TILE_W_HALF, TILE_H_HALF } from "./isometricMath.js";
+import type { SpriteCache, NitroSpriteFrame } from "./isoSpriteCache.js";
+import type { Renderable } from "./isoTypes.js";
 
 /** Set to true to draw colored debug borders around each body part */
 const DEBUG_AVATAR_PARTS = false;
 
+/**
+ * Vertical pixel offset to position avatar on tile.
+ * 0 = avatar centered on tile diamond.
+ */
+export const AVATAR_GROUND_Y = 0;
+
 /** Debug colors for each body part */
 const DEBUG_PART_COLORS: Record<string, string> = {
-  hrb: '#FF00FF', bd: '#FF0000', lh: '#00FF00', lg: '#0000FF',
-  sh: '#FFFF00', ch: '#00FFFF', ls: '#FF8000', rh: '#8000FF',
-  rs: '#FF0080', hd: '#80FF00', hr: '#0080FF',
+  hrb: "#FF00FF",
+  bd: "#FF0000",
+  lh: "#00FF00",
+  lg: "#0000FF",
+  sh: "#FFFF00",
+  ch: "#00FFFF",
+  ls: "#FF8000",
+  rh: "#8000FF",
+  rs: "#FF0080",
+  hd: "#80FF00",
+  hr: "#0080FF",
 };
 
 /** Animation timing constants */
@@ -39,7 +53,7 @@ export interface AvatarSpec {
   /** Palette variant (0-5 for 6 distinct characters) */
   variant: 0 | 1 | 2 | 3 | 4 | 5;
   /** Animation state ('idle' | 'walk' | 'spawning' | 'despawning') */
-  state: 'idle' | 'walk' | 'spawning' | 'despawning';
+  state: "idle" | "walk" | "spawning" | "despawning";
   /** Animation frame (0-3 for walk, 0 for idle, 0-2 for blink overlay, 0-N for spawn effect) */
   frame: number;
   /** Timestamp of last state/frame change (for animation timing) */
@@ -50,17 +64,26 @@ export interface AvatarSpec {
   blinkFrame: number;
   /** Spawn effect progress (0.0-1.0, only for spawning/despawning states) */
   spawnProgress: number;
+  /** Sub-tile X offset in screen pixels for smooth walk interpolation */
+  screenOffsetX?: number;
+  /** Sub-tile Y offset in screen pixels for smooth walk interpolation */
+  screenOffsetY?: number;
+  /** Whether this avatar is currently selected (visual highlight) */
+  isSelected?: boolean;
 }
 
 /**
  * Update avatar animation state based on elapsed time.
  * Call this each frame BEFORE rendering.
  */
-export function updateAvatarAnimation(spec: AvatarSpec, currentTimeMs: number): void {
+export function updateAvatarAnimation(
+  spec: AvatarSpec,
+  currentTimeMs: number,
+): void {
   const elapsed = currentTimeMs - spec.lastUpdateMs;
 
   // Handle walk cycle
-  if (spec.state === 'walk') {
+  if (spec.state === "walk") {
     if (elapsed >= WALK_FRAME_DURATION_MS) {
       spec.frame = (spec.frame + 1) % 4; // Cycle through frames 0-3
       spec.lastUpdateMs = currentTimeMs;
@@ -68,7 +91,7 @@ export function updateAvatarAnimation(spec: AvatarSpec, currentTimeMs: number): 
   }
 
   // Handle idle blinks
-  if (spec.state === 'idle') {
+  if (spec.state === "idle") {
     if (currentTimeMs >= spec.nextBlinkMs && spec.blinkFrame === 0) {
       spec.blinkFrame = 1;
       spec.lastUpdateMs = currentTimeMs;
@@ -77,7 +100,8 @@ export function updateAvatarAnimation(spec: AvatarSpec, currentTimeMs: number): 
       spec.lastUpdateMs = currentTimeMs;
 
       if (spec.blinkFrame === 0) {
-        const interval = BLINK_INTERVAL_MIN_MS +
+        const interval =
+          BLINK_INTERVAL_MIN_MS +
           Math.random() * (BLINK_INTERVAL_MAX_MS - BLINK_INTERVAL_MIN_MS);
         spec.nextBlinkMs = currentTimeMs + interval;
       }
@@ -85,14 +109,14 @@ export function updateAvatarAnimation(spec: AvatarSpec, currentTimeMs: number): 
   }
 
   // Handle spawn/despawn effects
-  if (spec.state === 'spawning' || spec.state === 'despawning') {
+  if (spec.state === "spawning" || spec.state === "despawning") {
     const SPAWN_DURATION_MS = 1000;
     const progress = elapsed / SPAWN_DURATION_MS;
     spec.spawnProgress = Math.min(1.0, spec.spawnProgress + progress);
     spec.lastUpdateMs = currentTimeMs;
 
-    if (spec.spawnProgress >= 1.0 && spec.state === 'spawning') {
-      spec.state = 'idle';
+    if (spec.spawnProgress >= 1.0 && spec.state === "spawning") {
+      spec.state = "idle";
       spec.spawnProgress = 0;
       spec.nextBlinkMs = currentTimeMs + BLINK_INTERVAL_MIN_MS;
     }
@@ -101,7 +125,7 @@ export function updateAvatarAnimation(spec: AvatarSpec, currentTimeMs: number): 
 
 // ---- Placeholder avatar rendering (fallback) ----
 
-const AVATAR_LAYERS = ['body', 'clothing', 'head', 'hair'] as const;
+const AVATAR_LAYERS = ["body", "clothing", "head", "hair"] as const;
 
 export function createAvatarRenderable(
   spec: AvatarSpec,
@@ -114,12 +138,14 @@ export function createAvatarRenderable(
     tileZ: spec.tileZ,
     draw: (ctx) => {
       const screen = tileToScreen(spec.tileX, spec.tileY, spec.tileZ);
+      screen.y += AVATAR_GROUND_Y;
+      screen.x += spec.screenOffsetX || 0;
+      screen.y += spec.screenOffsetY || 0;
 
-      const stateFrameKey = spec.state === 'walk'
-        ? `walk_${spec.frame}`
-        : 'idle_0';
+      const stateFrameKey =
+        spec.state === "walk" ? `walk_${spec.frame}` : "idle_0";
 
-      if (spec.state === 'spawning' || spec.state === 'despawning') {
+      if (spec.state === "spawning" || spec.state === "despawning") {
         ctx.save();
       }
 
@@ -131,11 +157,12 @@ export function createAvatarRenderable(
         const dx = Math.floor(screen.x - frame.w / 2);
         const dy = Math.floor(screen.y - frame.h);
 
-        if (spec.state === 'spawning' || spec.state === 'despawning') {
+        if (spec.state === "spawning" || spec.state === "despawning") {
           if (layer === AVATAR_LAYERS[0]) {
-            const clipY = spec.state === 'spawning'
-              ? dy
-              : dy + frame.h * (1 - spec.spawnProgress);
+            const clipY =
+              spec.state === "spawning"
+                ? dy
+                : dy + frame.h * (1 - spec.spawnProgress);
             const clipHeight = frame.h * spec.spawnProgress;
             ctx.beginPath();
             ctx.rect(dx, clipY, frame.w, clipHeight);
@@ -145,14 +172,18 @@ export function createAvatarRenderable(
 
         ctx.drawImage(
           frame.bitmap,
-          frame.x, frame.y,
-          frame.w, frame.h,
-          dx, dy,
-          frame.w, frame.h
+          frame.x,
+          frame.y,
+          frame.w,
+          frame.h,
+          dx,
+          dy,
+          frame.w,
+          frame.h,
         );
       }
 
-      if (spec.state === 'spawning' || spec.state === 'despawning') {
+      if (spec.state === "spawning" || spec.state === "despawning") {
         ctx.restore();
       }
     },
@@ -171,10 +202,30 @@ export function createAvatarRenderable(
  * We use the MAPPED direction (after mapBodyDirection) to determine order.
  */
 const RENDER_ORDER_LEFT_BEHIND: PartType[] = [
-  'hrb', 'bd', 'lh', 'ls', 'lg', 'sh', 'ch', 'rh', 'rs', 'hd', 'hr',
+  "hrb",
+  "bd",
+  "lh",
+  "ls",
+  "lg",
+  "sh",
+  "ch",
+  "rh",
+  "rs",
+  "hd",
+  "hr",
 ];
 const RENDER_ORDER_RIGHT_BEHIND: PartType[] = [
-  'hrb', 'bd', 'rh', 'rs', 'lg', 'sh', 'ch', 'lh', 'ls', 'hd', 'hr',
+  "hrb",
+  "bd",
+  "rh",
+  "rs",
+  "lg",
+  "sh",
+  "ch",
+  "lh",
+  "ls",
+  "hd",
+  "hr",
 ];
 
 function getRenderOrder(mappedDir: number): PartType[] {
@@ -182,29 +233,48 @@ function getRenderOrder(mappedDir: number): PartType[] {
   // Dirs 0,1,7: right arm is far → rh/rs drawn behind body
   // Flip does NOT affect this: when sprites flip, both position and visual
   // content mirror together, so the behind/front relationship stays the same.
-  const leftIsFar = (mappedDir === 2 || mappedDir === 3);
+  const leftIsFar = mappedDir === 2 || mappedDir === 3;
   return leftIsFar ? RENDER_ORDER_LEFT_BEHIND : RENDER_ORDER_RIGHT_BEHIND;
 }
 
-type PartType = 'hrb' | 'bd' | 'lh' | 'lg' | 'sh' | 'ch' | 'ls' | 'rh' | 'rs' | 'hd' | 'hr';
+type PartType =
+  | "hrb"
+  | "bd"
+  | "lh"
+  | "lg"
+  | "sh"
+  | "ch"
+  | "ls"
+  | "rh"
+  | "rs"
+  | "hd"
+  | "hr";
 
 /** Part registry: maps part type → asset name + setId */
 const FIGURE_PARTS: Record<PartType, { asset: string; setId: number }> = {
-  bd:  { asset: 'hh_human_body', setId: 1 },
-  lh:  { asset: 'hh_human_body', setId: 1 },
-  rh:  { asset: 'hh_human_body', setId: 1 },
-  hd:  { asset: 'hh_human_body', setId: 1 },
-  hr:  { asset: 'Hair_U_Messy', setId: 2071 },
-  hrb: { asset: 'Hair_U_Messy', setId: 2071 },
-  ch:  { asset: 'Shirt_M_Tshirt_Plain', setId: 2050 },
-  ls:  { asset: 'Shirt_M_Tshirt_Plain', setId: 2050 },
-  rs:  { asset: 'Shirt_M_Tshirt_Plain', setId: 2050 },
-  lg:  { asset: 'Trousers_U_Skinny_Jeans', setId: 2097 },
-  sh:  { asset: 'Shoes_U_Slipons', setId: 2044 },
+  bd: { asset: "hh_human_body", setId: 1 },
+  lh: { asset: "hh_human_body", setId: 1 },
+  rh: { asset: "hh_human_body", setId: 1 },
+  hd: { asset: "hh_human_body", setId: 1 },
+  hr: { asset: "Hair_M_yo", setId: 2096 },
+  hrb: { asset: "Hair_M_yo", setId: 2096 },
+  ch: { asset: "Shirt_M_Tshirt_Plain", setId: 2050 },
+  ls: { asset: "Shirt_M_Tshirt_Plain", setId: 2050 },
+  rs: { asset: "Shirt_M_Tshirt_Plain", setId: 2050 },
+  lg: { asset: "Trousers_U_Skinny_Jeans", setId: 2097 },
+  sh: { asset: "Shoes_U_Slipons", setId: 2044 },
 };
 
 /** Parts that have walk animation frames */
-const WALK_PARTS = new Set<PartType>(['bd', 'lh', 'rh', 'lg', 'sh', 'ls', 'rs']);
+const WALK_PARTS = new Set<PartType>([
+  "bd",
+  "lh",
+  "rh",
+  "lg",
+  "sh",
+  "ls",
+  "rs",
+]);
 // Note: ch (chest) has NO walk frames — always uses std
 // hd, hr, hrb also always use std
 
@@ -218,22 +288,69 @@ interface OutfitColors {
 }
 
 const VARIANT_OUTFITS: OutfitColors[] = [
-  { skin: '#EFCFB1', hair: '#4A3728', shirt: '#5B9BD5', pants: '#3B5998', shoes: '#2C2C2C' }, // 0: Blue outfit, brown hair
-  { skin: '#D4A574', hair: '#1A1A1A', shirt: '#D55B5B', pants: '#333333', shoes: '#5C3A1E' }, // 1: Red outfit, black hair
-  { skin: '#F5D6C3', hair: '#C4651A', shirt: '#5BD55B', pants: '#4A7023', shoes: '#8B6914' }, // 2: Green outfit, ginger hair
-  { skin: '#EFCFB1', hair: '#8B6DB0', shirt: '#9B5BD5', pants: '#4B0082', shoes: '#2C2C2C' }, // 3: Purple outfit, purple hair
-  { skin: '#D4A574', hair: '#D4A017', shirt: '#D5A05B', pants: '#8B4513', shoes: '#654321' }, // 4: Orange outfit, blonde hair
-  { skin: '#F5D6C3', hair: '#E0E0E0', shirt: '#D5D55B', pants: '#556B2F', shoes: '#696969' }, // 5: Yellow outfit, white hair
+  {
+    skin: "#EFCFB1",
+    hair: "#4A3728",
+    shirt: "#5B9BD5",
+    pants: "#3B5998",
+    shoes: "#2C2C2C",
+  }, // 0: Blue outfit, brown hair
+  {
+    skin: "#D4A574",
+    hair: "#1A1A1A",
+    shirt: "#D55B5B",
+    pants: "#333333",
+    shoes: "#5C3A1E",
+  }, // 1: Red outfit, black hair
+  {
+    skin: "#F5D6C3",
+    hair: "#C4651A",
+    shirt: "#5BD55B",
+    pants: "#4A7023",
+    shoes: "#8B6914",
+  }, // 2: Green outfit, ginger hair
+  {
+    skin: "#EFCFB1",
+    hair: "#8B6DB0",
+    shirt: "#9B5BD5",
+    pants: "#4B0082",
+    shoes: "#2C2C2C",
+  }, // 3: Purple outfit, purple hair
+  {
+    skin: "#D4A574",
+    hair: "#D4A017",
+    shirt: "#D5A05B",
+    pants: "#8B4513",
+    shoes: "#654321",
+  }, // 4: Orange outfit, blonde hair
+  {
+    skin: "#F5D6C3",
+    hair: "#E0E0E0",
+    shirt: "#D5D55B",
+    pants: "#556B2F",
+    shoes: "#696969",
+  }, // 5: Yellow outfit, white hair
 ];
 
 /** Map part type to outfit color category */
 function getPartColor(part: PartType, outfit: OutfitColors): string {
   switch (part) {
-    case 'bd': case 'lh': case 'rh': case 'hd': return outfit.skin;
-    case 'hr': case 'hrb': return outfit.hair;
-    case 'ch': case 'ls': case 'rs': return outfit.shirt;
-    case 'lg': return outfit.pants;
-    case 'sh': return outfit.shoes;
+    case "bd":
+    case "lh":
+    case "rh":
+    case "hd":
+      return outfit.skin;
+    case "hr":
+    case "hrb":
+      return outfit.hair;
+    case "ch":
+    case "ls":
+    case "rs":
+      return outfit.shirt;
+    case "lg":
+      return outfit.pants;
+    case "sh":
+      return outfit.shoes;
   }
 }
 
@@ -241,10 +358,13 @@ function getPartColor(part: PartType, outfit: OutfitColors): string {
 let _tintCanvas: OffscreenCanvas | null = null;
 let _tintCtx: OffscreenCanvasRenderingContext2D | null = null;
 
-function getTintCanvas(w: number, h: number): OffscreenCanvasRenderingContext2D {
+function getTintCanvas(
+  w: number,
+  h: number,
+): OffscreenCanvasRenderingContext2D {
   if (!_tintCanvas || _tintCanvas.width < w || _tintCanvas.height < h) {
     _tintCanvas = new OffscreenCanvas(Math.max(w, 128), Math.max(h, 128));
-    _tintCtx = _tintCanvas.getContext('2d')!;
+    _tintCtx = _tintCanvas.getContext("2d")!;
   }
   return _tintCtx!;
 }
@@ -263,45 +383,86 @@ function drawTintedBodyPart(
   partName?: string,
 ): void {
   // Registration point: tile center at (screenX, screenY + TILE_H_HALF)
-  // Figure offsets: offsetX = horizontal shift (negative = left), offsetY = upward shift (positive = up)
+  // Cortex figure offsets: reg point position relative to sprite top-left.
+  // sprite_x = regX - offsetX, sprite_y = regY - offsetY.
   const regX = screenX;
   const regY = screenY + TILE_H_HALF;
-  const dx = Math.floor(regX + frame.offsetX);
+  const dx = Math.floor(regX - frame.offsetX);
   const dy = Math.floor(regY - frame.offsetY);
 
   const tCtx = getTintCanvas(frame.w, frame.h);
   tCtx.clearRect(0, 0, frame.w, frame.h);
 
   // Step 1: Draw original sprite (optionally flipped on the offscreen canvas)
-  tCtx.globalCompositeOperation = 'source-over';
+  tCtx.globalCompositeOperation = "source-over";
   if (flip) {
     tCtx.save();
     tCtx.translate(frame.w, 0);
     tCtx.scale(-1, 1);
-    tCtx.drawImage(frame.bitmap, frame.x, frame.y, frame.w, frame.h, 0, 0, frame.w, frame.h);
+    tCtx.drawImage(
+      frame.bitmap,
+      frame.x,
+      frame.y,
+      frame.w,
+      frame.h,
+      0,
+      0,
+      frame.w,
+      frame.h,
+    );
     tCtx.restore();
   } else {
-    tCtx.drawImage(frame.bitmap, frame.x, frame.y, frame.w, frame.h, 0, 0, frame.w, frame.h);
+    tCtx.drawImage(
+      frame.bitmap,
+      frame.x,
+      frame.y,
+      frame.w,
+      frame.h,
+      0,
+      0,
+      frame.w,
+      frame.h,
+    );
   }
 
   // Step 2: Multiply with outfit color (preserves shading)
-  tCtx.globalCompositeOperation = 'multiply';
+  tCtx.globalCompositeOperation = "multiply";
   tCtx.fillStyle = color;
   tCtx.fillRect(0, 0, frame.w, frame.h);
 
   // Step 3: Restore original alpha mask (re-draw sprite, also flipped if needed)
-  tCtx.globalCompositeOperation = 'destination-in';
+  tCtx.globalCompositeOperation = "destination-in";
   if (flip) {
     tCtx.save();
     tCtx.translate(frame.w, 0);
     tCtx.scale(-1, 1);
-    tCtx.drawImage(frame.bitmap, frame.x, frame.y, frame.w, frame.h, 0, 0, frame.w, frame.h);
+    tCtx.drawImage(
+      frame.bitmap,
+      frame.x,
+      frame.y,
+      frame.w,
+      frame.h,
+      0,
+      0,
+      frame.w,
+      frame.h,
+    );
     tCtx.restore();
   } else {
-    tCtx.drawImage(frame.bitmap, frame.x, frame.y, frame.w, frame.h, 0, 0, frame.w, frame.h);
+    tCtx.drawImage(
+      frame.bitmap,
+      frame.x,
+      frame.y,
+      frame.w,
+      frame.h,
+      0,
+      0,
+      frame.w,
+      frame.h,
+    );
   }
 
-  tCtx.globalCompositeOperation = 'source-over';
+  tCtx.globalCompositeOperation = "source-over";
 
   // Draw tinted+flipped result to main canvas at the correct position
   let drawX: number;
@@ -310,17 +471,35 @@ function drawTintedBodyPart(
   } else {
     drawX = dx;
   }
-  ctx.drawImage(_tintCanvas!, 0, 0, frame.w, frame.h, drawX, dy, frame.w, frame.h);
+
+  // Cortex figure offsets are all negative (~-22 average), causing the whole
+  // avatar to render ~TILE_W_HALF away from tile center. Apply a uniform
+  // post-flip correction to center the assembly on the tile. This preserves
+  // relative part positions (identical to uncorrected formula) while aligning
+  // the avatar's visual center with tileToScreen().
+  drawX += flip ? TILE_W_HALF : -TILE_W_HALF;
+
+  ctx.drawImage(
+    _tintCanvas!,
+    0,
+    0,
+    frame.w,
+    frame.h,
+    drawX,
+    dy,
+    frame.w,
+    frame.h,
+  );
 
   // Debug: draw colored border around this part
   if (DEBUG_AVATAR_PARTS && partName) {
-    const debugColor = DEBUG_PART_COLORS[partName] || '#FFFFFF';
+    const debugColor = DEBUG_PART_COLORS[partName] || "#FFFFFF";
     ctx.strokeStyle = debugColor;
     ctx.lineWidth = 1;
     ctx.strokeRect(drawX + 0.5, dy + 0.5, frame.w - 1, frame.h - 1);
     // Label the part
     ctx.fillStyle = debugColor;
-    ctx.font = '7px monospace';
+    ctx.font = "7px monospace";
     ctx.fillText(partName, drawX, dy - 1);
   }
 }
@@ -359,13 +538,13 @@ function buildFrameKey(
   let setId = partDef.setId;
 
   // Head uses variant-mapped setId for 4 head shapes
-  if (part === 'hd') {
+  if (part === "hd") {
     setId = (variant % 4) + 1;
   }
 
   // Determine action: walk parts use h_wlk when walking, everything else h_std
-  const isWalking = state === 'walk' && WALK_PARTS.has(part);
-  const action = isWalking ? 'wlk' : 'std';
+  const isWalking = state === "walk" && WALK_PARTS.has(part);
+  const action = isWalking ? "wlk" : "std";
   const frameNum = isWalking ? frame : 0;
 
   return `h_${action}_${part}_${setId}_${dir}_${frameNum}`;
@@ -380,7 +559,7 @@ export function createNitroAvatarRenderable(
   spriteCache: SpriteCache,
 ): Renderable | null {
   // Need at least the body asset to render
-  if (!spriteCache.hasNitroAsset('hh_human_body')) {
+  if (!spriteCache.hasNitroAsset("hh_human_body")) {
     return null;
   }
 
@@ -390,12 +569,17 @@ export function createNitroAvatarRenderable(
     tileZ: spec.tileZ,
     draw: (ctx) => {
       const screen = tileToScreen(spec.tileX, spec.tileY, spec.tileZ);
+      // Shift avatar down to align feet with tile surface ground plane
+      screen.y += AVATAR_GROUND_Y;
+      // Apply sub-tile interpolation offsets for smooth walking
+      screen.x += spec.screenOffsetX || 0;
+      screen.y += spec.screenOffsetY || 0;
       const { dir: mappedDir, flip } = mapBodyDirection(spec.direction);
       const outfit = VARIANT_OUTFITS[spec.variant] || VARIANT_OUTFITS[0];
-      const stateForFrame = (spec.state === 'walk') ? 'walk' : 'idle';
+      const stateForFrame = spec.state === "walk" ? "walk" : "idle";
       const renderOrder = getRenderOrder(mappedDir);
 
-      if (spec.state === 'spawning' || spec.state === 'despawning') {
+      if (spec.state === "spawning" || spec.state === "despawning") {
         ctx.save();
       }
 
@@ -407,11 +591,20 @@ export function createNitroAvatarRenderable(
         // Skip if asset not loaded (graceful degradation)
         if (!spriteCache.hasNitroAsset(partDef.asset)) continue;
 
-        const frameKey = buildFrameKey(part, stateForFrame, spec.direction, spec.frame, spec.variant);
+        const frameKey = buildFrameKey(
+          part,
+          stateForFrame,
+          spec.direction,
+          spec.frame,
+          spec.variant,
+        );
         let frame = spriteCache.getNitroFrame(partDef.asset, frameKey);
         // Fallback: if walk frame missing, try std
-        if (!frame && stateForFrame === 'walk') {
-          frame = spriteCache.getNitroFrame(partDef.asset, buildFrameKey(part, 'idle', spec.direction, 0, spec.variant));
+        if (!frame && stateForFrame === "walk") {
+          frame = spriteCache.getNitroFrame(
+            partDef.asset,
+            buildFrameKey(part, "idle", spec.direction, 0, spec.variant),
+          );
         }
         if (!frame) continue;
 
@@ -419,11 +612,15 @@ export function createNitroAvatarRenderable(
         const effectiveFlip = flip !== frame.flipH;
 
         // Setup spawn clipping on first drawn frame
-        if (!firstFrameDrawn && (spec.state === 'spawning' || spec.state === 'despawning')) {
+        if (
+          !firstFrameDrawn &&
+          (spec.state === "spawning" || spec.state === "despawning")
+        ) {
           const clDy = Math.floor(screen.y + TILE_H_HALF - frame.offsetY);
-          const clipY = spec.state === 'spawning'
-            ? clDy
-            : clDy + frame.h * (1 - spec.spawnProgress);
+          const clipY =
+            spec.state === "spawning"
+              ? clDy
+              : clDy + frame.h * (1 - spec.spawnProgress);
           const clipHeight = frame.h * spec.spawnProgress;
 
           ctx.beginPath();
@@ -433,10 +630,18 @@ export function createNitroAvatarRenderable(
         }
 
         const color = getPartColor(part, outfit);
-        drawTintedBodyPart(ctx, frame, screen.x, screen.y, effectiveFlip, color, part);
+        drawTintedBodyPart(
+          ctx,
+          frame,
+          screen.x,
+          screen.y,
+          effectiveFlip,
+          color,
+          part,
+        );
       }
 
-      if (spec.state === 'spawning' || spec.state === 'despawning') {
+      if (spec.state === "spawning" || spec.state === "despawning") {
         ctx.restore();
       }
 
@@ -444,7 +649,7 @@ export function createNitroAvatarRenderable(
       if (DEBUG_AVATAR_PARTS) {
         const regX = screen.x;
         const regY = screen.y + TILE_H_HALF;
-        ctx.strokeStyle = '#FF0000';
+        ctx.strokeStyle = "#FF0000";
         ctx.lineWidth = 1;
         ctx.beginPath();
         ctx.moveTo(regX - 5, regY);
