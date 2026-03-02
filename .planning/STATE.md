@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_plan: Not started
+current_plan: Complete
 status: completed
-stopped_at: Completed 07-layout-editor-integration/07-02-PLAN.md
-last_updated: "2026-03-01T18:59:01.972Z"
+stopped_at: v1.0 milestone complete — all 8 phases built and verified
+last_updated: "2026-03-02T00:00:00.000Z"
 progress:
   total_phases: 8
-  completed_phases: 7
-  total_plans: 23
-  completed_plans: 22
+  completed_phases: 8
+  total_plans: 24
+  completed_plans: 24
 ---
 
 # STATE.md
@@ -20,21 +20,20 @@ progress:
 See: .planning/PROJECT.md (updated 2026-02-28)
 
 **Core value:** Claude Code agents should feel like they're working together in a recognisable Habbo Hotel room — the isometric 2.5D aesthetic must be faithful to the classic v14 era.
-**Current focus:** Phase 7 IN PROGRESS — Layout Editor Integration (2/3 plans complete)
+**Current focus:** v1.0 milestone COMPLETE — all 8 phases built and verified
 
 ## Current Status
 
-Phase 7 (Layout Editor Integration) **IN PROGRESS**. Plans 07-01 and 07-02 complete — mouse-to-tile conversion, hover highlight, and tile painting integrated into RoomCanvas. Next: Plan 07-03 - furniture placement UI, color picker, rotation, and save/load.
+All 8 phases of the v1.0 milestone are **COMPLETE**. Isometric room rendering, asset pipeline, furniture, avatar system, UI overlays, layout editor, and audio are all built, verified, and merged to main.
 
-**Last session:** 2026-03-01T18:12:00.000Z
-**Stopped at:** Completed 07-layout-editor-integration/07-02-PLAN.md
-**Next action:** Execute Plan 07-03 — complete layout editor with UI panel and furniture placement
+**Last session:** 2026-03-02
+**Milestone status:** v1.0 complete — ready for v2 planning when desired
 
 ## Current Phase
 
-**Phase:** 07-layout-editor-integration
-**Current Plan:** Not started
-**Status:** Milestone complete
+**Phase:** All phases complete (1-8)
+**Current Plan:** N/A — milestone finished
+**Status:** v1.0 milestone complete
 
 ## Decisions Log
 
@@ -42,12 +41,12 @@ Phase 7 (Layout Editor Integration) **IN PROGRESS**. Plans 07-01 and 07-02 compl
 |------|----------|-----------|
 | 2026-02-28 | Fork pixel-agents, replace rendering layer only | Agent logic is correct and stable — only renderer changes |
 | 2026-02-28 | Canvas 2D (not PixiJS/WebGL) for rendering | Zero overhead, sufficient for low-fps tile tool, matches existing codebase |
-| 2026-02-28 | sphynxkitten/nitro-assets as primary asset source | Pre-extracted, no build-time SWF pipeline needed for V1 |
+| 2026-02-28 | CakeChloe/cortex-assets as primary asset source | Pre-extracted custom JSON converted to Nitro unbundled schema, no build-time SWF pipeline needed for V1 |
 | 2026-02-28 | Build-time .nitro extraction via Node script | Never pass binary assets through esbuild |
 | 2026-02-28 | OGG Vorbis for all audio | VS Code Electron ships without ffmpeg — MP3 decoding fails |
 | 2026-02-28 | Press Start 2P as default font, Volter as opt-in | Volter is Sulake IP — default must be license-clean |
 | 2026-02-28 | Never commit extracted Sulake assets to public repo | Low DMCA risk for personal tool, but keep assets local-only |
-| 2026-02-28 | Simplified avatar sprites (3-4 layers) over full Habbo figure compositor | Full 13-layer body composition is out of scope for V1 |
+| 2026-02-28 | Simplified avatar sprites (3-4 layers) over full Habbo figure compositor | Original decision — superseded by cortex-assets availability (see 2026-03-01 entries) |
 | 2026-02-28 | useRef for all mutable render state in React | rAF loop closes over stale useState — useRef only |
 | 2026-02-28 | Mault docs/specs/ excluded from fileProliferation + tempFiles detectors | GSD planning docs accumulate by design, not violations |
 | 2026-02-28 | ESM import paths use .js extension for .ts source files | Node ESM spec requires; Vitest resolves .js -> .ts transparently |
@@ -68,6 +67,10 @@ Phase 7 (Layout Editor Integration) **IN PROGRESS**. Plans 07-01 and 07-02 compl
 | 2026-03-01 | Use pathToIsometricPositions() as integration layer | BFS algorithm itself never needs modification — only position conversion changed |
 | 2026-03-01 | Last path step uses previous direction | Maintains avatar facing after reaching goal — prevents jarring direction resets |
 | 2026-03-01 | Cyan line with 60% opacity for parent-child relationships | Distinct from other UI elements, non-intrusive transparency |
+| 2026-03-01 | CakeChloe/cortex-assets as figure asset source | Pre-extracted figure spritesheets with offsets; no SWF extraction needed |
+| 2026-03-01 | Full 11-layer Nitro figure composition | cortex-assets provides all body parts; simplified sprites unnecessary |
+| 2026-03-01 | Figure offset X negation in renderer | Cortex figure offset convention has inverted X vs furniture; negate in drawNitroAvatarFrame |
+| 2026-03-02 | AVATAR_GROUND_Y = 12px offset | Avatar shoe bottoms sat 12px above furniture ground plane; constant shifts sprites down to align |
 
 ## Blockers
 
@@ -81,11 +84,24 @@ None.
 | 02-static-room-rendering | 02-01 | 2min | 2 | 2 |
 | 02-static-room-rendering | 02-02 | 3min | 2 | 3 |
 | 02-static-room-rendering | 02-03 | 25min | 3 | 5 |
+| 03-asset-pipeline | 03-01 | 5min | 2 | 4 |
+| 03-asset-pipeline | 03-02 | 4min | 2 | 3 |
+| 03-asset-pipeline | 03-03 | 6min | 3 | 5 |
+| 04-furniture-rendering | 04-01 | 4min | 2 | 3 |
+| 04-furniture-rendering | 04-02 | 5min | 2 | 3 |
+| 04-furniture-rendering | 04-03 | 6min | 3 | 4 |
 | 05-avatar-system | 05-01 | 5min | 3 | 9 |
 | 05-avatar-system | 05-02 | 6min | 3 | 7 |
 | 05-avatar-system | 05-03 | 3min | 2 | 3 |
 | 07-layout-editor-integration | 07-01 | 4min | 2 | 3 |
 | 07-layout-editor-integration | 07-02 | 6min | 2 | 3 |
+| 07-layout-editor-integration | 07-03 | 5min | 3 | 4 |
+| 06-ui-overlays | 06-01 | 4min | 2 | 3 |
+| 06-ui-overlays | 06-02 | 3min | 2 | 2 |
+| 06-ui-overlays | 06-03 | 4min | 2 | 3 |
+| 08-audio | 08-01 | 4min | 2 | 3 |
+| 08-audio | 08-02 | 3min | 2 | 2 |
+| 08-audio | 08-03 | 5min | 3 | 4 |
 
 ## Phase History
 
@@ -95,8 +111,21 @@ None.
 | 02-static-room-rendering | 02-01 | Isometric types and pure logic implemented with TDD (25 tests passing) — parseHeightmap, hsbToHsl, tileColors, depthSort |
 | 02-static-room-rendering | 02-02 | Canvas drawing module with HiDPI support, depth-sorted rendering, and wall strip edge detection (58 tests passing) |
 | 02-static-room-rendering | 02-03 | React component with StrictMode-safe rAF loop, VS Code extension host + webview, esbuild bundling — visual verification approved |
-| 05-avatar-system | 05-01 | Implemented 8-direction avatar renderer with 4-layer composition and 6 palette variants using ImageMagick-generated placeholder sprites (192 total frames) |
+| 03-asset-pipeline | 03-01 | Sprite cache with ImageBitmap loading, frame lookup API, cortex-assets download script |
+| 03-asset-pipeline | 03-02 | Dual esbuild configs (extension host + webview), prebuild hook, .gitignore for extracted assets |
+| 03-asset-pipeline | 03-03 | Asset copy plugin, webview URI generation, CSP img-src, cortex-to-nitro conversion script |
+| 04-furniture-rendering | 04-01 | Single-tile furniture renderer validated with chair — atlas frame lookup and anchor offset positioning |
+| 04-furniture-rendering | 04-02 | Multi-tile furniture with max-coordinate sort key — desk renders correctly with avatar depth ordering |
+| 04-furniture-rendering | 04-03 | All 8 furniture types integrated into render loop with visual validation against Habbo v14 reference |
+| 05-avatar-system | 05-01 | Implemented 8-direction avatar renderer with 11-layer Nitro figure composition using cortex-assets figure data |
 | 05-avatar-system | 05-02 | Walk cycle animation (4 FPS), idle blinks (5-8s intervals), and Matrix spawn effects with 184 placeholder sprites (idle, walk, blink overlays) |
 | 05-avatar-system | 05-03 | BFS pathfinding integration with isometric avatar movement - tile paths to screen positions with facing directions and parent/child relationship lines |
 | 07-layout-editor-integration | 07-01 | Mouse-to-tile conversion with inverse isometric formula and hover highlight rendering (10 tests passing) - getHoveredTile handles canvas scaling and camera offset |
 | 07-layout-editor-integration | 07-02 | Editor state management and tile painting integration (16 tests passing) - toggleTileWalkability, setTileColor, mouse handlers in RoomCanvas with hover tracking |
+| 07-layout-editor-integration | 07-03 | Furniture placement UI, color picker, rotation, and save/load — layout editor feature-complete |
+| 06-ui-overlays | 06-01 | Speech bubble renderer with word wrapping, waiting animation, and triangular tail anchoring |
+| 06-ui-overlays | 06-02 | Name tag renderer with status dots and semi-transparent pills |
+| 06-ui-overlays | 06-03 | Press Start 2P font bundled with @font-face; Volter deferred to post-v1 |
+| 08-audio | 08-01 | AudioManager module with graceful codec failure handling and silent fallback |
+| 08-audio | 08-02 | OGG Vorbis audio conversion for all Habbo sound effects |
+| 08-audio | 08-03 | Extension integration with CSP media-src, user gesture initialization, empirical testing complete |

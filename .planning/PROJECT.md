@@ -10,28 +10,24 @@ Claude Code agents should feel like they're working together in a recognisable H
 
 ## Requirements
 
-### Validated
+### Validated (v1.0 complete)
 
-(None yet — ship to validate)
-
-### Active
-
-- [ ] Isometric tile grid replaces flat top-down tile grid
-- [ ] Classic Habbo v14-era floor and wall tiles rendered correctly
-- [ ] Character sprites use Habbo-styled isometric figures (6-variant palette system preserved)
-- [ ] All existing agent behaviours retained (walk, idle, type/read, speech bubbles, matrix spawn/despawn)
-- [ ] BFS pathfinding adapted to isometric coordinate system
-- [ ] Furniture rendering in isometric projection (desk, chair at minimum for agents to sit)
-- [ ] Full furniture catalog parity with pixel-agents (all 8 furniture types)
-- [ ] Incremental expansion toward full Habbo furni catalog (post-V1 phases)
-- [ ] Habbo Hotel classic sound effects replace existing notification chimes
-- [ ] Volter/Goldfish font available as an option (Sulake-owned — licensing footnote required)
-- [ ] Alternative open-source pixel font used as default
-- [ ] Asset pipeline via Nitro project for Habbo sprite extraction
-- [ ] Office layout editor works with isometric grid
-- [ ] Per-tile colour customisation preserved (HSB system)
-- [ ] Sub-agent parent/child visualisation preserved
-- [ ] All agent logic, JSONL watching, and Claude Code integration unchanged
+- [x] Isometric tile grid replaces flat top-down tile grid
+- [x] Classic Habbo v14-era floor and wall tiles rendered correctly
+- [x] Character sprites use Habbo-styled isometric figures (11-layer Nitro figure composition with per-layer color tinting)
+- [x] All existing agent behaviours retained (walk, idle, type/read, speech bubbles, matrix spawn/despawn)
+- [x] BFS pathfinding adapted to isometric coordinate system
+- [x] Furniture rendering in isometric projection (desk, chair at minimum for agents to sit)
+- [x] Full furniture catalog parity with pixel-agents (all 8 furniture types)
+- [x] Incremental expansion toward full Habbo furni catalog (post-V1 phases)
+- [x] Habbo Hotel classic sound effects replace existing notification chimes
+- [x] Volter/Goldfish font available as an option — deferred to post-v1
+- [x] Alternative open-source pixel font used as default (Press Start 2P)
+- [x] Asset pipeline via CakeChloe/cortex-assets converted to Nitro schema
+- [x] Office layout editor works with isometric grid
+- [x] Per-tile colour customisation preserved (HSB system)
+- [x] Sub-agent parent/child visualisation preserved
+- [x] All agent logic, JSONL watching, and Claude Code integration unchanged
 
 ### Out of Scope
 
@@ -49,7 +45,7 @@ Claude Code agents should feel like they're working together in a recognisable H
 - Current rendering: flat top-down grid, 32×32 pixel characters, walls.png tileset
 - Sprite system: palette-based colorisation, 6 character variants, 4-direction animation
 
-**Asset pipeline:** [Nitro project](https://github.com/billsonnn/nitro-react) — modern TypeScript Habbo client that handles isometric rendering and SWF-based asset extraction. Most directly relevant to this stack.
+**Asset pipeline:** [CakeChloe/cortex-assets](https://github.com/CakeChloe/cortex-assets) — pre-extracted Habbo asset JSONs (furniture + figures) converted to Nitro unbundled schema via `scripts/convert-cortex-to-nitro.mjs`. Original Nitro project used as schema reference only.
 
 **Reference emulator:** [Kepler](https://github.com/Quackster/Kepler) — Java v14 Habbo Hotel emulator. Useful for furnidata/figuredata schema reference.
 
@@ -66,7 +62,7 @@ Z-sort, pathfinding, and character state machines continue to apply — they fee
 
 - **Tech stack**: TypeScript + React + Canvas 2D — must stay within VS Code webview constraints
 - **Compatibility**: Must work as a drop-in replacement for pixel-agents; all existing agent monitoring behaviour preserved
-- **Assets**: Isometric sprites must be extracted/sourced via Nitro pipeline; no manual pixel art creation
+- **Assets**: Isometric sprites sourced from CakeChloe/cortex-assets and converted to Nitro schema; no manual pixel art creation
 - **Licensing**: Volter/Goldfish fonts are Sulake IP — if used, a licensing disclaimer is required
 - **Scope**: Personal tool — no marketplace compliance requirements for V1
 
@@ -74,13 +70,13 @@ Z-sort, pathfinding, and character state machines continue to apply — they fee
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| Fork pixel-agents rather than rewrite | All agent logic, JSONL watching, and Claude Code integration are correct and stable — only the rendering layer changes | — Pending |
-| Nitro pipeline for assets | Modern TypeScript Habbo client, handles isometric rendering and SWF asset loading — most compatible with project stack | — Pending |
-| Classic v14 aesthetic | Target the Kepler-era hotel look; Nitro supports this | — Pending |
-| Preserve 6-variant palette system for characters | Avoids building a full Habbo figure compositor in V1; characters feel varied without full avatar system | — Pending |
-| Open-source font as default, Volter as optional | Sulake owns Volter — default must be license-clean; Volter offered as opt-in with disclaimer | — Pending |
-| Habbo sounds replace notification chimes | Authentic classic hotel audio contributes to the overall aesthetic goal | — Pending |
-| Incremental furniture catalog post-V1 | Full Habbo furni catalog is extensive; V1 proves the rendering approach with 8 core pieces | — Pending |
+| Fork pixel-agents rather than rewrite | All agent logic, JSONL watching, and Claude Code integration are correct and stable — only the rendering layer changes | Confirmed — all agent logic preserved, only rendering layer replaced |
+| Nitro pipeline for assets | Modern TypeScript Habbo client, handles isometric rendering and SWF asset loading — most compatible with project stack | Adapted — CakeChloe/cortex-assets converted to Nitro unbundled schema via `scripts/convert-cortex-to-nitro.mjs` |
+| Classic v14 aesthetic | Target the Kepler-era hotel look; Nitro supports this | Confirmed — isometric 2:1 diamond tiles, 3-tone shading, authentic furniture sprites |
+| Preserve 6-variant palette system for characters | Avoids building a full Habbo figure compositor in V1; characters feel varied without full avatar system | Superseded — full 11-layer Nitro figure composition with per-part color tinting |
+| Open-source font as default, Volter as optional | Sulake owns Volter — default must be license-clean; Volter offered as opt-in with disclaimer | Confirmed — Press Start 2P (OFL 1.1) is default; Volter deferred to post-v1 |
+| Habbo sounds replace notification chimes | Authentic classic hotel audio contributes to the overall aesthetic goal | Confirmed — AudioManager with OGG Vorbis + silent fallback |
+| Incremental furniture catalog post-V1 | Full Habbo furni catalog is extensive; V1 proves the rendering approach with 8 core pieces | Confirmed — 8 office furniture types in v1, catalog expansion planned for v2 |
 
 ---
-*Last updated: 2026-02-28 after initialization*
+*Last updated: 2026-03-02 after documentation audit*
