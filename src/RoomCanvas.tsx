@@ -22,12 +22,14 @@ import {
   type EditorState,
 } from './isoLayoutEditor.js';
 import type { HsbColor } from './isoTypes.js';
+import { getSupportedDirections } from './furnitureRegistry.js';
 import { LayoutEditorPanel } from './LayoutEditorPanel.js';
 import { AudioManager } from './isoAudioManager.js';
 import { AvatarManager } from './avatarManager.js';
 import { IdleWanderManager } from './idleWander.js';
 import { AvatarSelectionManager } from './avatarSelection.js';
 import type { ExtensionMessage } from './agentTypes.js';
+import { computeBlockedTiles } from './isoPathfinding.js';
 
 interface RoomCanvasProps {
   heightmap: string;
@@ -37,12 +39,12 @@ interface RoomCanvasProps {
 // Avatar sprite height for name tag positioning (Nitro figure sprites)
 const AVATAR_HEIGHT = 65;
 
-/** Desk tiles where active agents walk to (near the desk furniture) */
+/** Tiles where active agents walk to when working */
 const DESK_TILES = [
-  { x: 5, y: 3, dir: 0 as const },  // chair position, face NE
-  { x: 4, y: 3, dir: 0 as const },
-  { x: 3, y: 3, dir: 0 as const },
-  { x: 6, y: 3, dir: 0 as const },
+  { x: 9, y: 5, dir: 0 as const },
+  { x: 10, y: 5, dir: 0 as const },
+  { x: 9, y: 6, dir: 0 as const },
+  { x: 10, y: 6, dir: 0 as const },
 ];
 
 export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: RoomCanvasProps) {
@@ -66,7 +68,7 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
   // Editor UI state
   const [editorMode, setEditorMode] = useState<EditorMode>(editorModeProp);
   const [selectedColor, setSelectedColor] = useState<HsbColor>({ h: 200, s: 50, b: 50 });
-  const [selectedFurniture, setSelectedFurniture] = useState<string>('exe_chair');
+  const [selectedFurniture, setSelectedFurniture] = useState<string>('hc_chr');
   const [furnitureDirection, setFurnitureDirection] = useState<number>(0);
   const renderState = useRef<{
     offscreenCanvas: OffscreenCanvas | null;
@@ -94,6 +96,17 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
     multiTileFurniture: [],
   });
 
+  // Reset direction to first supported direction when furniture type changes
+  useEffect(() => {
+    const spriteCache: SpriteCache | undefined = (window as any).spriteCache;
+    if (spriteCache) {
+      const supported = getSupportedDirections(selectedFurniture, spriteCache);
+      if (supported.length > 0 && !supported.includes(furnitureDirection)) {
+        setFurnitureDirection(supported[0]);
+      }
+    }
+  }, [selectedFurniture]);
+
   // Sync React editor state to renderState (no re-init)
   useEffect(() => {
     renderState.current.editorState.mode = editorMode;
@@ -112,10 +125,15 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
       const idleWander = idleWanderRef.current;
       const grid = renderState.current.grid;
 
+      const blocked = computeBlockedTiles(
+        renderState.current.furniture,
+        renderState.current.multiTileFurniture,
+      );
+
       switch (msg.type) {
         case 'agentCreated': {
           if (grid) {
-            avatarManager.spawnAvatar(msg.agentId, msg.variant, grid, msg.terminalName);
+            avatarManager.spawnAvatar(msg.agentId, msg.variant, grid, msg.terminalName, blocked);
             // New agents start wandering until they become active
             idleWander.startWandering(msg.agentId);
           }
@@ -134,7 +152,7 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
             const deskTile = DESK_TILES.find(
               t => !avatarManager.getAvatarAtTile(t.x, t.y)
             ) || DESK_TILES[0];
-            avatarManager.moveAvatarTo(msg.agentId, deskTile.x, deskTile.y, grid, deskTile.dir);
+            avatarManager.moveAvatarTo(msg.agentId, deskTile.x, deskTile.y, grid, deskTile.dir, blocked);
           } else if (msg.status === 'idle') {
             agentToolTextRef.current.delete(msg.agentId);
             idleWander.startWandering(msg.agentId);
@@ -168,18 +186,9 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
       canvas.offsetHeight
     );
 
-    const furniture: FurnitureSpec[] = [
-      { name: 'exe_plant', tileX: 1, tileY: 1, tileZ: 0, direction: 0 },
-      { name: 'exe_chair', tileX: 5, tileY: 3, tileZ: 0, direction: 2 },
-      { name: 'exe_light', tileX: 1, tileY: 4, tileZ: 0, direction: 0 },
-      { name: 'exe_globe', tileX: 8, tileY: 2, tileZ: 0, direction: 0 },
-      { name: 'exe_copier', tileX: 8, tileY: 7, tileZ: 0, direction: 2 },
-    ];
+    const furniture: FurnitureSpec[] = [];
 
-    const multiTileFurniture: MultiTileFurnitureSpec[] = [
-      { name: 'exe_table', tileX: 2, tileY: 1, tileZ: 0, widthTiles: 3, heightTiles: 2, direction: 0 },
-      { name: 'exe_sofa', tileX: 1, tileY: 6, tileZ: 0, widthTiles: 3, heightTiles: 1, direction: 2 },
-    ];
+    const multiTileFurniture: MultiTileFurnitureSpec[] = [];
 
     renderState.current.furniture = furniture;
     renderState.current.multiTileFurniture = multiTileFurniture;
@@ -217,7 +226,11 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
 
       // Tick idle wander
       if (renderState.current.grid) {
-        idleWanderRef.current.tick(currentTimeMs, avatarManagerRef.current, renderState.current.grid);
+        const blocked = computeBlockedTiles(
+          renderState.current.furniture,
+          renderState.current.multiTileFurniture,
+        );
+        idleWanderRef.current.tick(currentTimeMs, avatarManagerRef.current, renderState.current.grid, blocked);
       }
 
       // Update animation state for all avatars
@@ -234,6 +247,22 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
       if (renderState.current.editorState.hoveredTile) {
         const { x, y, z } = renderState.current.editorState.hoveredTile;
         drawHoverHighlight(ctx, x, y, z, renderState.current.cameraOrigin);
+
+        // Show direction arrow when in furniture mode
+        if (renderState.current.editorState.mode === 'furniture') {
+          const dir = renderState.current.editorState.furnitureDirection ?? 0;
+          const { x: sx, y: sy } = tileToScreen(x, y, z);
+          const cx = sx + renderState.current.cameraOrigin.x;
+          const cy = sy + TILE_H_HALF + renderState.current.cameraOrigin.y;
+          // Direction arrows: 0=NE, 2=SE, 4=SW, 6=NW
+          const arrows: Record<number, string> = { 0: '\u2197', 2: '\u2198', 4: '\u2199', 6: '\u2196' };
+          ctx.save();
+          ctx.font = '14px sans-serif';
+          ctx.fillStyle = 'rgba(255, 255, 100, 0.9)';
+          ctx.textAlign = 'center';
+          ctx.fillText(arrows[dir] || '?', cx, cy - 4);
+          ctx.restore();
+        }
       }
 
       // Render avatars
@@ -381,8 +410,9 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
 
     if (renderState.current.editorState.mode === 'furniture') {
       const furnitureType = renderState.current.editorState.selectedFurniture || 'exe_chair';
-      const direction = renderState.current.editorState.furnitureDirection || 0;
+      const direction = renderState.current.editorState.furnitureDirection ?? 0;
       const spriteCache: SpriteCache | undefined = (window as any).spriteCache;
+      console.log(`[Furniture] Placing ${furnitureType} at (${tileX},${tileY}) dir=${direction}`);
       const placed = placeFurniture(
         renderState.current.grid,
         renderState.current.furniture,
@@ -419,8 +449,12 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
     if (selectionMgr.selectedAvatarId && renderState.current.grid) {
       const tile = renderState.current.grid.tiles[tileY]?.[tileX];
       if (tile !== null && tile !== undefined) {
+        const blocked = computeBlockedTiles(
+          renderState.current.furniture,
+          renderState.current.multiTileFurniture,
+        );
         const moved = avatarManager.moveAvatarTo(
-          selectionMgr.selectedAvatarId, tileX, tileY, renderState.current.grid
+          selectionMgr.selectedAvatarId, tileX, tileY, renderState.current.grid, undefined, blocked
         );
         if (moved) {
           // Stop idle wandering for this avatar while it walks to clicked tile
@@ -522,7 +556,13 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
         selectedFurniture={selectedFurniture}
         onFurnitureChange={setSelectedFurniture}
         furnitureDirection={furnitureDirection}
-        onRotate={() => setFurnitureDirection(rotateFurniture(furnitureDirection))}
+        onRotate={() => {
+          const spriteCache: SpriteCache | undefined = (window as any).spriteCache;
+          const supported = spriteCache
+            ? getSupportedDirections(selectedFurniture, spriteCache)
+            : undefined;
+          setFurnitureDirection(rotateFurniture(furnitureDirection, supported));
+        }}
         onSave={handleSave}
         onLoad={handleLoad}
       />

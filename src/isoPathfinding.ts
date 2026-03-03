@@ -5,6 +5,7 @@
 import type { TileGrid } from './isoTypes.js';
 import type { TilePathStep, TilePath } from './isoAgentBehavior.js';
 import type { AvatarSpec } from './isoAvatarRenderer.js';
+import type { FurnitureSpec, MultiTileFurnitureSpec } from './isoFurnitureRenderer.js';
 
 /** 8-connected neighbor offsets (cardinals + diagonals) */
 const NEIGHBORS: [number, number][] = [
@@ -13,11 +14,35 @@ const NEIGHBORS: [number, number][] = [
 ];
 
 /**
+ * Build a set of tile keys blocked by furniture.
+ * Multi-tile furniture blocks all tiles in its footprint.
+ */
+export function computeBlockedTiles(
+  furniture: FurnitureSpec[],
+  multiTileFurniture: MultiTileFurnitureSpec[],
+): Set<string> {
+  const blocked = new Set<string>();
+  for (const f of furniture) {
+    blocked.add(`${f.tileX},${f.tileY}`);
+  }
+  for (const f of multiTileFurniture) {
+    for (let dy = 0; dy < f.heightTiles; dy++) {
+      for (let dx = 0; dx < f.widthTiles; dx++) {
+        blocked.add(`${f.tileX + dx},${f.tileY + dy}`);
+      }
+    }
+  }
+  return blocked;
+}
+
+/**
  * Check if a tile coordinate is walkable in the grid.
  */
-function isWalkable(grid: TileGrid, x: number, y: number): boolean {
+function isWalkable(grid: TileGrid, x: number, y: number, blockedTiles?: Set<string>): boolean {
   if (y < 0 || y >= grid.height || x < 0 || x >= grid.width) return false;
-  return grid.tiles[y][x] !== null;
+  if (grid.tiles[y][x] === null) return false;
+  if (blockedTiles && blockedTiles.has(`${x},${y}`)) return false;
+  return true;
 }
 
 /**
@@ -39,9 +64,10 @@ export function findPath(
   startY: number,
   endX: number,
   endY: number,
+  blockedTiles?: Set<string>,
 ): TilePath | null {
-  // Start or end not walkable
-  if (!isWalkable(grid, startX, startY) || !isWalkable(grid, endX, endY)) {
+  // Start or end not walkable (start is exempt from blocking so avatar can leave furniture tile)
+  if (!isWalkable(grid, startX, startY) || !isWalkable(grid, endX, endY, blockedTiles)) {
     return null;
   }
 
@@ -68,12 +94,12 @@ export function findPath(
       const nk = key(nx, ny);
 
       if (visited.has(nk)) continue;
-      if (!isWalkable(grid, nx, ny)) continue;
+      if (!isWalkable(grid, nx, ny, blockedTiles)) continue;
 
       // Diagonal corner-cutting prevention:
       // Only allow diagonal if both adjacent cardinals are walkable
       if (dx !== 0 && dy !== 0) {
-        if (!isWalkable(grid, cx + dx, cy) || !isWalkable(grid, cx, cy + dy)) {
+        if (!isWalkable(grid, cx + dx, cy, blockedTiles) || !isWalkable(grid, cx, cy + dy, blockedTiles)) {
           continue;
         }
       }
@@ -107,13 +133,13 @@ export function findPath(
  * @param grid - Tile grid
  * @returns Random walkable tile step, or null if no walkable tiles
  */
-export function getRandomWalkableTile(grid: TileGrid): TilePathStep | null {
+export function getRandomWalkableTile(grid: TileGrid, blockedTiles?: Set<string>): TilePathStep | null {
   const walkable: TilePathStep[] = [];
 
   for (let y = 0; y < grid.height; y++) {
     for (let x = 0; x < grid.width; x++) {
       const tile = grid.tiles[y][x];
-      if (tile !== null) {
+      if (tile !== null && (!blockedTiles || !blockedTiles.has(`${x},${y}`))) {
         walkable.push({ tileX: x, tileY: y, tileZ: tile.height });
       }
     }

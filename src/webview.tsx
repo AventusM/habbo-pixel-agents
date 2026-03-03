@@ -4,17 +4,26 @@ import { RoomCanvas } from './RoomCanvas.js';
 import { SpriteCache } from './isoSpriteCache.js';
 
 const DEMO_HEIGHTMAP = [
-  'xxxxxxxxxxxx',
-  'x0000000000x',
-  'x0000000000x',
-  'x0000000000x',
-  'x0000000000x',
-  'x0000000000x',
-  'x0000000000x',
-  'x0000000000x',
-  'x0000000000x',
-  'x0000000000x',
-  'xxxxxxxxxxxx',
+  'xxxxxxxxxxxxxxxxxxxx',
+  'x000000000000000000x',
+  'x000000000000000000x',
+  'x000000000000000000x',
+  'x000000000000000000x',
+  'x000000000000000000x',
+  'x000000000000000000x',
+  'x000000000000000000x',
+  'x000000000000000000x',
+  'x000000000000000000x',
+  'x000000000000000000x',
+  'x000000000000000000x',
+  'x000000000000000000x',
+  'x000000000000000000x',
+  'x000000000000000000x',
+  'x000000000000000000x',
+  'x000000000000000000x',
+  'x000000000000000000x',
+  'x000000000000000000x',
+  'xxxxxxxxxxxxxxxxxxxx',
 ].join('\n');
 
 // Acquire VS Code API immediately (can only be called once per webview)

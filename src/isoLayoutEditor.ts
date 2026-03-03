@@ -199,8 +199,21 @@ export function placeFurniture(
   spriteCache?: SpriteCache,
 ): boolean {
   const { widthTiles, heightTiles } = spriteCache
-    ? getFurnitureDimensions(furnitureType, spriteCache)
+    ? getFurnitureDimensions(furnitureType, spriteCache, direction)
     : { widthTiles: 1, heightTiles: 1 };
+
+  // Build set of tiles already occupied by existing furniture
+  const occupied = new Set<string>();
+  for (const f of furnitureList) {
+    occupied.add(`${f.tileX},${f.tileY}`);
+  }
+  for (const f of multiTileFurnitureList) {
+    for (let fy = 0; fy < f.heightTiles; fy++) {
+      for (let fx = 0; fx < f.widthTiles; fx++) {
+        occupied.add(`${f.tileX + fx},${f.tileY + fy}`);
+      }
+    }
+  }
 
   // Validate footprint
   for (let dy = 0; dy < heightTiles; dy++) {
@@ -218,6 +231,12 @@ export function placeFurniture(
       const tile = grid.tiles[checkY][checkX];
       if (tile === null) {
         console.warn(`Furniture placement rejected: void tile at (${checkX}, ${checkY})`);
+        return false;
+      }
+
+      // Check not already occupied by furniture
+      if (occupied.has(`${checkX},${checkY}`)) {
+        console.warn(`Furniture placement rejected: tile already occupied at (${checkX}, ${checkY})`);
         return false;
       }
     }
@@ -254,16 +273,23 @@ export function placeFurniture(
 }
 
 /**
- * Rotate furniture direction through Habbo's 4 directions.
- * Habbo directions: 0=NE, 2=SE, 4=SW, 6=NW
+ * Rotate furniture direction through supported directions.
+ * Falls back to full Habbo rotation [0, 2, 4, 6] if no supported list given.
  *
  * @param currentDirection - Current direction (0, 2, 4, 6)
+ * @param supportedDirections - Optional list of directions the item supports
  * @returns Next direction in rotation sequence
  */
-export function rotateFurniture(currentDirection: number): number {
-  const directions = [0, 2, 4, 6];
+export function rotateFurniture(
+  currentDirection: number,
+  supportedDirections?: number[],
+): number {
+  const directions = supportedDirections && supportedDirections.length > 0
+    ? supportedDirections
+    : [0, 2, 4, 6];
   const currentIndex = directions.indexOf(currentDirection);
-  const nextIndex = (currentIndex + 1) % directions.length;
+  // If current direction isn't in the list, wrap to first
+  const nextIndex = currentIndex < 0 ? 0 : (currentIndex + 1) % directions.length;
   return directions[nextIndex];
 }
 

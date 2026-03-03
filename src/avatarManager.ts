@@ -29,16 +29,16 @@ export class AvatarManager {
   /**
    * Spawn a new avatar at a random walkable tile.
    */
-  spawnAvatar(agentId: string, variant: 0 | 1 | 2 | 3 | 4 | 5, grid: TileGrid, displayName?: string): AvatarSpec | null {
+  spawnAvatar(agentId: string, variant: 0 | 1 | 2 | 3 | 4 | 5, grid: TileGrid, displayName?: string, blockedTiles?: Set<string>): AvatarSpec | null {
     if (this.avatars.has(agentId)) return this.avatars.get(agentId)!;
 
-    // Find a walkable tile not occupied by another avatar
+    // Find a walkable tile not occupied by another avatar or furniture
     const existingAvatars = this.getAvatars();
     let attempts = 0;
-    let tile = getRandomWalkableTile(grid);
+    let tile = getRandomWalkableTile(grid, blockedTiles);
 
     while (tile && isTileOccupied(tile.tileX, tile.tileY, existingAvatars) && attempts < 50) {
-      tile = getRandomWalkableTile(grid);
+      tile = getRandomWalkableTile(grid, blockedTiles);
       attempts++;
     }
 
@@ -95,7 +95,7 @@ export class AvatarManager {
    * Move an avatar to a target tile using BFS pathfinding.
    * @returns true if path was found and movement started
    */
-  moveAvatarTo(agentId: string, targetX: number, targetY: number, grid: TileGrid, arrivalDirection?: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7): boolean {
+  moveAvatarTo(agentId: string, targetX: number, targetY: number, grid: TileGrid, arrivalDirection?: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7, blockedTiles?: Set<string>): boolean {
     const avatar = this.avatars.get(agentId);
     if (!avatar) return false;
     if (avatar.state === 'spawning' || avatar.state === 'despawning') return false;
@@ -107,7 +107,7 @@ export class AvatarManager {
     const others = this.getAvatars().filter(a => a.id !== agentId);
     if (isTileOccupied(targetX, targetY, others)) return false;
 
-    const tilePath = findPath(grid, avatar.tileX, avatar.tileY, targetX, targetY);
+    const tilePath = findPath(grid, avatar.tileX, avatar.tileY, targetX, targetY, blockedTiles);
     if (!tilePath || tilePath.length < 2) return false;
 
     const isoPositions = pathToIsometricPositions(tilePath);

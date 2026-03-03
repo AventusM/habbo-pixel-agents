@@ -256,11 +256,11 @@ export function createMultiTileFurnitureRenderable(
 
 /**
  * Cache for pre-flipped sprite canvases.
- * Key format: "srcX:srcY:srcW:srcH"
- * We use pixel-level manipulation (getImageData + swap) to flip,
- * avoiding ctx.scale(-1,1) which can be unreliable on OffscreenCanvasRenderingContext2D.
+ * Two-level map: ImageBitmap → frame-coords-key → flipped OffscreenCanvas.
+ * Using the bitmap as outer key ensures different items with identical frame
+ * coordinates (e.g. coins) get separate cached flips.
  */
-const flipCache = new Map<string, OffscreenCanvas>();
+const flipCache = new WeakMap<ImageBitmap, Map<string, OffscreenCanvas>>();
 
 /**
  * Get or create a horizontally flipped version of a sprite frame.
@@ -274,8 +274,13 @@ function getFlippedSprite(
   sw: number,
   sh: number,
 ): OffscreenCanvas | null {
+  let bitmapCache = flipCache.get(bitmap);
+  if (!bitmapCache) {
+    bitmapCache = new Map();
+    flipCache.set(bitmap, bitmapCache);
+  }
   const key = `${sx}:${sy}:${sw}:${sh}`;
-  const cached = flipCache.get(key);
+  const cached = bitmapCache.get(key);
   if (cached) return cached;
 
   try {
@@ -302,7 +307,7 @@ function getFlippedSprite(
     }
     ctx.putImageData(imageData, 0, 0);
 
-    flipCache.set(key, canvas);
+    bitmapCache.set(key, canvas);
     return canvas;
   } catch {
     return null; // OffscreenCanvas not available

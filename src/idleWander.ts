@@ -44,7 +44,7 @@ export class IdleWanderManager {
    * Tick each frame: for each idle-and-wandering avatar past its timer,
    * pick a random walkable tile within radius and start movement.
    */
-  tick(currentTimeMs: number, avatarManager: AvatarManager, grid: TileGrid): void {
+  tick(currentTimeMs: number, avatarManager: AvatarManager, grid: TileGrid, blockedTiles?: Set<string>): void {
     for (const avatarId of this.enabled) {
       const nextWander = this.wanderTimers.get(avatarId);
       if (nextWander === undefined || currentTimeMs < nextWander) continue;
@@ -64,11 +64,11 @@ export class IdleWanderManager {
 
       // Find a random walkable tile within radius
       const target = findNearbyWalkableTile(
-        grid, avatar.tileX, avatar.tileY, WANDER_RADIUS, avatarManager.getAvatars()
+        grid, avatar.tileX, avatar.tileY, WANDER_RADIUS, avatarManager.getAvatars(), blockedTiles
       );
 
       if (target) {
-        avatarManager.moveAvatarTo(avatarId, target.x, target.y, grid);
+        avatarManager.moveAvatarTo(avatarId, target.x, target.y, grid, undefined, blockedTiles);
       }
 
       // Reset timer regardless
@@ -86,6 +86,7 @@ function findNearbyWalkableTile(
   cy: number,
   radius: number,
   avatars: { tileX: number; tileY: number }[],
+  blockedTiles?: Set<string>,
 ): { x: number; y: number } | null {
   const candidates: { x: number; y: number }[] = [];
 
@@ -96,6 +97,7 @@ function findNearbyWalkableTile(
       const ny = cy + dy;
       if (ny < 0 || ny >= grid.height || nx < 0 || nx >= grid.width) continue;
       if (grid.tiles[ny][nx] === null) continue;
+      if (blockedTiles && blockedTiles.has(`${nx},${ny}`)) continue;
       if (avatars.some(a => a.tileX === nx && a.tileY === ny)) continue;
       candidates.push({ x: nx, y: ny });
     }

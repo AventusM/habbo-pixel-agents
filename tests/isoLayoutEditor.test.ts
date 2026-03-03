@@ -321,6 +321,90 @@ describe('placeFurniture', () => {
     });
   });
 
+  it('swaps dimensions when placing multi-tile furniture at direction 2', () => {
+    const grid = parseHeightmap('0000\n1111\n2222');
+    const furniture: FurnitureSpec[] = [];
+    const multiTileFurniture: MultiTileFurnitureSpec[] = [];
+
+    // exe_table is 2×1 at direction 0 → should become 1×2 at direction 2
+    const result = placeFurniture(grid, furniture, multiTileFurniture, 1, 0, 'exe_table', 2, mockSpriteCache);
+
+    expect(result).toBe(true);
+    expect(multiTileFurniture.length).toBe(1);
+    expect(multiTileFurniture[0]).toEqual({
+      name: 'exe_table',
+      tileX: 1,
+      tileY: 0,
+      tileZ: 0,
+      direction: 2,
+      widthTiles: 1,
+      heightTiles: 2,
+    });
+  });
+
+  it('swaps dimensions when placing multi-tile furniture at direction 4', () => {
+    const grid = parseHeightmap('0000\n1111\n2222');
+    const furniture: FurnitureSpec[] = [];
+    const multiTileFurniture: MultiTileFurnitureSpec[] = [];
+
+    // exe_sofa is 3×1 at direction 0 → should become 1×3 at direction 4
+    const result = placeFurniture(grid, furniture, multiTileFurniture, 0, 0, 'exe_sofa', 4, mockSpriteCache);
+
+    expect(result).toBe(true);
+    expect(multiTileFurniture.length).toBe(1);
+    expect(multiTileFurniture[0]).toEqual({
+      name: 'exe_sofa',
+      tileX: 0,
+      tileY: 0,
+      tileZ: 0,
+      direction: 4,
+      widthTiles: 1,
+      heightTiles: 3,
+    });
+  });
+
+  it('keeps original dimensions at direction 6 (mirror of 0)', () => {
+    const grid = parseHeightmap('0000\n1111\n2222');
+    const furniture: FurnitureSpec[] = [];
+    const multiTileFurniture: MultiTileFurnitureSpec[] = [];
+
+    // exe_table is 2×1 at direction 0 → should stay 2×1 at direction 6
+    const result = placeFurniture(grid, furniture, multiTileFurniture, 1, 1, 'exe_table', 6, mockSpriteCache);
+
+    expect(result).toBe(true);
+    expect(multiTileFurniture.length).toBe(1);
+    expect(multiTileFurniture[0].widthTiles).toBe(2);
+    expect(multiTileFurniture[0].heightTiles).toBe(1);
+  });
+
+  it('rejects placement on tile occupied by existing furniture', () => {
+    const grid = parseHeightmap('000\n111\n222');
+    const furniture: FurnitureSpec[] = [
+      { name: 'exe_chair', tileX: 1, tileY: 1, tileZ: 1, direction: 0 },
+    ];
+    const multiTileFurniture: MultiTileFurnitureSpec[] = [];
+
+    // Try to place another item on the same tile
+    const result = placeFurniture(grid, furniture, multiTileFurniture, 1, 1, 'exe_plant', 0);
+
+    expect(result).toBe(false);
+    expect(furniture.length).toBe(1); // Only original item remains
+  });
+
+  it('rejects placement overlapping multi-tile furniture footprint', () => {
+    const grid = parseHeightmap('0000\n1111\n2222');
+    const furniture: FurnitureSpec[] = [];
+    const multiTileFurniture: MultiTileFurnitureSpec[] = [
+      { name: 'exe_table', tileX: 0, tileY: 1, tileZ: 1, widthTiles: 2, heightTiles: 1, direction: 0 },
+    ];
+
+    // Try to place on tile (1,1) which is part of the table's footprint
+    const result = placeFurniture(grid, furniture, multiTileFurniture, 1, 1, 'exe_chair', 0);
+
+    expect(result).toBe(false);
+    expect(furniture.length).toBe(0);
+  });
+
   it('rejects multi-tile furniture extending into void', () => {
     const grid = parseHeightmap('01x\n111');
     const furniture: FurnitureSpec[] = [];
@@ -335,11 +419,29 @@ describe('placeFurniture', () => {
 });
 
 describe('rotateFurniture', () => {
-  it('cycles through Habbo directions correctly', () => {
+  it('cycles through all 4 Habbo directions by default', () => {
     expect(rotateFurniture(0)).toBe(2);
     expect(rotateFurniture(2)).toBe(4);
     expect(rotateFurniture(4)).toBe(6);
     expect(rotateFurniture(6)).toBe(0);
+  });
+
+  it('cycles through only supported directions when provided', () => {
+    const supported = [0, 2];
+    expect(rotateFurniture(0, supported)).toBe(2);
+    expect(rotateFurniture(2, supported)).toBe(0);
+  });
+
+  it('wraps to first supported direction if current is unsupported', () => {
+    const supported = [2, 4];
+    expect(rotateFurniture(0, supported)).toBe(2);
+    expect(rotateFurniture(6, supported)).toBe(2);
+  });
+
+  it('handles single-direction items', () => {
+    const supported = [0];
+    expect(rotateFurniture(0, supported)).toBe(0);
+    expect(rotateFurniture(4, supported)).toBe(0);
   });
 });
 

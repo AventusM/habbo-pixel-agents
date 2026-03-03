@@ -1,16 +1,13 @@
 // src/furnitureRegistry.ts
 // Single source of truth for the furniture catalog.
-// Replaces scattered NITRO_FURNITURE_MAP, FURNITURE_SPECS, and FURNITURE_TYPES.
+// Classic Habbo Hotel 2000-2005 era items verified against cortex-assets.
 
 import type { SpriteCache } from './isoSpriteCache.js';
 
 /** Category for grouping furniture in the UI */
 export type FurnitureCategory =
-  | 'office'
-  | 'bathroom'
-  | 'outdoor'
-  | 'classic'
-  | 'decor';
+  | 'habboclub'
+  | 'fun';
 
 /** Single entry in the furniture catalog */
 export interface FurnitureEntry {
@@ -23,42 +20,27 @@ export interface FurnitureEntry {
 }
 
 /**
- * Full furniture catalog. Each entry's `id` doubles as the Nitro asset name.
+ * Full furniture catalog — classic Habbo Hotel 2000-2005 era.
+ * Each entry's `id` doubles as the Nitro asset name.
  */
 export const FURNITURE_CATALOG: FurnitureEntry[] = [
-  // Office (exe_)
-  { id: 'exe_chair',   displayName: 'Office Chair',    category: 'office' },
-  { id: 'exe_table',   displayName: 'Office Desk',     category: 'office' },
-  { id: 'exe_light',   displayName: 'Desk Lamp',       category: 'office' },
-  { id: 'exe_plant',   displayName: 'Office Plant',    category: 'office' },
-  { id: 'exe_globe',   displayName: 'Globe',           category: 'office' },
-  { id: 'exe_sofa',    displayName: 'Office Sofa',     category: 'office' },
-  { id: 'exe_rug',     displayName: 'Office Rug',      category: 'office' },
-  { id: 'exe_copier',  displayName: 'Copy Machine',    category: 'office' },
+  // Habbo Club (hc_) — Members-only exclusive furniture
+  { id: 'hc_chr',       displayName: 'HC Chair',         category: 'habboclub' },
+  { id: 'hc_tbl',       displayName: 'HC Table',         category: 'habboclub' },
+  { id: 'hc_dsk',       displayName: 'HC Desk',          category: 'habboclub' },
+  { id: 'hc_lmp',       displayName: 'HC Lamp',          category: 'habboclub' },
+  { id: 'hc_bkshlf',    displayName: 'HC Bookshelf',     category: 'habboclub' },
+  { id: 'hc_crpt',      displayName: 'HC Carpet',        category: 'habboclub' },
+  { id: 'hc_djset',     displayName: 'HC DJ Turntable',  category: 'habboclub' },
+  { id: 'hc_wall_lamp', displayName: 'HC Wall Lamp',     category: 'habboclub' },
 
-  // Bathroom
-  { id: 'bathroom_bath1',   displayName: 'Bathtub',    category: 'bathroom' },
-  { id: 'bathroom_toilet1', displayName: 'Toilet',     category: 'bathroom' },
-
-  // Outdoor (country_)
-  { id: 'country_lantern',   displayName: 'Lantern',     category: 'outdoor' },
-  { id: 'country_well',      displayName: 'Well',        category: 'outdoor' },
-  { id: 'country_scarecrow', displayName: 'Scarecrow',   category: 'outdoor' },
-  { id: 'country_gate',      displayName: 'Gate',        category: 'outdoor' },
-
-  // Classic (greek_, bolly_table)
-  { id: 'greek_c19_table', displayName: 'Greek Table', category: 'classic' },
-  { id: 'greek_c19_chair', displayName: 'Greek Chair', category: 'classic' },
-  { id: 'bolly_table',     displayName: 'Tropical Table', category: 'classic' },
-
-  // Decorations (bolly_, bazaar_)
-  { id: 'bolly_palm',        displayName: 'Palm Tree',      category: 'decor' },
-  { id: 'bolly_swing',       displayName: 'Swing',          category: 'decor' },
-  { id: 'bolly_fountain',    displayName: 'Fountain',       category: 'decor' },
-  { id: 'bolly_vase',        displayName: 'Tropical Vase',  category: 'decor' },
-  { id: 'bazaar_c17_pillow', displayName: 'Cushion',        category: 'decor' },
-  { id: 'bazaar_c17_lamp',   displayName: 'Bazaar Lamp',    category: 'decor' },
-  { id: 'bazaar_c17_curtain', displayName: 'Curtain',       category: 'decor' },
+  // Fun & Games
+  { id: 'edice',            displayName: 'Dice',         category: 'fun' },
+  { id: 'edicehc',          displayName: 'HC Dice',      category: 'fun' },
+  { id: 'club_sofa',        displayName: 'Club Sofa',    category: 'fun' },
+  { id: 'CF_1_coin_bronze', displayName: 'Bronze Coin',  category: 'fun' },
+  { id: 'CF_5_coin_silver', displayName: 'Silver Coin',  category: 'fun' },
+  { id: 'CF_10_coin_gold',  displayName: 'Gold Coin',    category: 'fun' },
 ];
 
 /**
@@ -116,26 +98,47 @@ export function getCatalogByCategory(): Map<FurnitureCategory, FurnitureEntry[]>
 
 /** Category display labels for the UI */
 export const CATEGORY_LABELS: Record<FurnitureCategory, string> = {
-  office: 'Office',
-  bathroom: 'Bathroom',
-  outdoor: 'Outdoor',
-  classic: 'Classic',
-  decor: 'Decorations',
+  habboclub: 'Habbo Club',
+  fun: 'Fun & Games',
 };
 
 /**
  * Get furniture tile dimensions from Nitro metadata at runtime.
- * Falls back to 1×1 if metadata is unavailable.
+ * When direction is 2 or 4 (90° rotation), width and height are swapped.
+ * Falls back to 1x1 if metadata is unavailable.
  */
 export function getFurnitureDimensions(
   name: string,
   spriteCache: SpriteCache,
+  direction: number = 0,
 ): { widthTiles: number; heightTiles: number } {
   const assetName = resolveAssetName(name);
   const metadata = spriteCache.getNitroMetadata(assetName);
+  let w = 1;
+  let h = 1;
   if (metadata?.logic?.dimensions) {
-    const [w, h] = metadata.logic.dimensions;
-    return { widthTiles: w, heightTiles: h };
+    [w, h] = metadata.logic.dimensions;
   }
-  return { widthTiles: 1, heightTiles: 1 };
+  // Directions 2 and 4 are 90° rotated — swap width and height
+  if (direction === 2 || direction === 4) {
+    return { widthTiles: h, heightTiles: w };
+  }
+  return { widthTiles: w, heightTiles: h };
+}
+
+/**
+ * Get the supported Habbo directions for a furniture item.
+ * Reads from Nitro metadata logic.directions.
+ * Falls back to [0, 2, 4, 6] if metadata is unavailable.
+ */
+export function getSupportedDirections(
+  name: string,
+  spriteCache: SpriteCache,
+): number[] {
+  const assetName = resolveAssetName(name);
+  const metadata = spriteCache.getNitroMetadata(assetName);
+  if (metadata?.logic?.directions && metadata.logic.directions.length > 0) {
+    return metadata.logic.directions;
+  }
+  return [0, 2, 4, 6];
 }

@@ -9,9 +9,9 @@ import * as https from 'https';
 
 const BASE_URL = 'https://raw.githubusercontent.com/CakeChloe/cortex-assets/master';
 
-// Curated furniture items from cortex-assets collections
+// Furniture items (verified against cortex-assets)
 const FURNITURE_ITEMS = [
-  // Office (exe_)
+  // Executive (exe_) — used by default room layout
   'exe_chair',          // Office chair
   'exe_table',          // Office desk/table
   'exe_light',          // Desk lamp
@@ -20,31 +20,30 @@ const FURNITURE_ITEMS = [
   'exe_sofa',           // Office sofa
   'exe_rug',            // Office rug
   'exe_copier',         // Copy machine
-  // Bathroom
-  'bathroom_bath1',     // Bathtub
-  'bathroom_toilet1',   // Toilet
-  // Outdoor (country_)
-  'country_lantern',    // Lantern
-  'country_well',       // Well
-  'country_scarecrow',  // Scarecrow
-  'country_gate',       // Gate
-  // Classic (greek_, bolly_)
-  'greek_c19_table',    // Greek table
-  'greek_c19_chair',    // Greek chair
-  'bolly_table',        // Tropical table
-  // Decorations (bolly_, bazaar_)
-  'bolly_palm',         // Palm tree
-  'bolly_swing',        // Swing
-  'bolly_fountain',     // Fountain
-  'bolly_vase',         // Tropical vase
-  'bazaar_c17_pillow',  // Cushion
-  'bazaar_c17_lamp',    // Bazaar lamp
-  'bazaar_c17_curtain', // Curtain
+
+  // Habbo Club (hc_) — Members-only exclusive furniture
+  'hc_chr',             // HC chair
+  'hc_tbl',             // HC table
+  'hc_dsk',             // HC desk
+  'hc_lmp',             // HC lamp
+  'hc_bkshlf',          // HC bookshelf
+  'hc_crpt',            // HC carpet
+  'hc_djset',           // HC DJ turntable
+  'hc_wall_lamp',       // HC wall lamp
+
+  // Fun & Games
+  'edice',              // Dice
+  'edicehc',            // HC dice
+  'club_sofa',          // Club sofa
+  'CF_1_coin_bronze',   // Bronze coin
+  'CF_5_coin_silver',   // Silver coin
+  'CF_10_coin_gold',    // Gold coin
 ];
 
 // Avatar body + clothing
 const FIGURE_ITEMS = [
   'hh_human_body',
+  'Hair_M_yo',
   'Hair_U_Messy',
   'Shirt_M_Tshirt_Plain',
   'Trousers_U_Skinny_Jeans',

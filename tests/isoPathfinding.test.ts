@@ -2,7 +2,7 @@
 // Tests for BFS pathfinding
 
 import { describe, it, expect } from 'vitest';
-import { findPath, getRandomWalkableTile, isTileOccupied } from '../src/isoPathfinding.js';
+import { findPath, getRandomWalkableTile, isTileOccupied, computeBlockedTiles } from '../src/isoPathfinding.js';
 import { parseHeightmap } from '../src/isoTypes.js';
 import type { AvatarSpec } from '../src/isoAvatarRenderer.js';
 
@@ -149,6 +149,38 @@ describe('findPath', () => {
     expect(path![path!.length - 1].tileZ).toBe(5);
   });
 
+  it('routes around furniture-blocked tiles', () => {
+    // Open grid with furniture blocking the middle
+    const grid = makeGrid([
+      '00000',
+      '00000',
+      '00000',
+    ].join('\n'));
+
+    const blocked = new Set(['1,1', '2,1', '3,1']);
+
+    const path = findPath(grid, 0, 1, 4, 1, blocked);
+
+    expect(path).not.toBeNull();
+    // Path must go around the blocked tiles (row 0 or row 2)
+    for (const step of path!) {
+      if (step.tileX >= 1 && step.tileX <= 3) {
+        expect(step.tileY).not.toBe(1);
+      }
+    }
+  });
+
+  it('returns null when destination is blocked by furniture', () => {
+    const grid = makeGrid([
+      '000',
+      '000',
+    ].join('\n'));
+
+    const blocked = new Set(['2,0']);
+    const path = findPath(grid, 0, 0, 2, 0, blocked);
+    expect(path).toBeNull();
+  });
+
   it('handles 20x20 grid within performance bounds', () => {
     const row = '0'.repeat(20);
     const rows = Array(20).fill(row);
@@ -176,6 +208,20 @@ describe('getRandomWalkableTile', () => {
     expect(grid.tiles[tile!.tileY][tile!.tileX]).not.toBeNull();
   });
 
+  it('excludes furniture-blocked tiles', () => {
+    const grid = makeGrid([
+      '000',
+      '000',
+    ].join('\n'));
+
+    const blocked = new Set(['0,0', '1,0', '2,0', '0,1', '2,1']);
+    // Only (1,1) is unblocked
+    const tile = getRandomWalkableTile(grid, blocked);
+    expect(tile).not.toBeNull();
+    expect(tile!.tileX).toBe(1);
+    expect(tile!.tileY).toBe(1);
+  });
+
   it('returns null for all-void grid', () => {
     const grid = makeGrid([
       'xxx',
@@ -184,6 +230,34 @@ describe('getRandomWalkableTile', () => {
 
     const tile = getRandomWalkableTile(grid);
     expect(tile).toBeNull();
+  });
+});
+
+describe('computeBlockedTiles', () => {
+  it('blocks single-tile furniture positions', () => {
+    const blocked = computeBlockedTiles(
+      [{ name: 'chair', tileX: 3, tileY: 4, tileZ: 0, direction: 0 }],
+      [],
+    );
+    expect(blocked.has('3,4')).toBe(true);
+    expect(blocked.has('0,0')).toBe(false);
+  });
+
+  it('blocks full footprint of multi-tile furniture', () => {
+    const blocked = computeBlockedTiles(
+      [],
+      [{ name: 'desk', tileX: 1, tileY: 2, tileZ: 0, direction: 0, widthTiles: 3, heightTiles: 2 }],
+    );
+    // All 6 tiles in the 3×2 footprint
+    expect(blocked.has('1,2')).toBe(true);
+    expect(blocked.has('2,2')).toBe(true);
+    expect(blocked.has('3,2')).toBe(true);
+    expect(blocked.has('1,3')).toBe(true);
+    expect(blocked.has('2,3')).toBe(true);
+    expect(blocked.has('3,3')).toBe(true);
+    // Outside footprint
+    expect(blocked.has('0,2')).toBe(false);
+    expect(blocked.has('4,2')).toBe(false);
   });
 });
 
