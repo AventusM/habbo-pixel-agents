@@ -3,7 +3,7 @@
 // Implements single-tile and multi-tile furniture with depth sorting
 
 import { tileToScreen, TILE_H_HALF } from './isometricMath.js';
-import type { SpriteCache, NitroSpriteFrame } from './isoSpriteCache.js';
+import type { SpriteCache, NitroSpriteFrame, NitroAssetData } from './isoSpriteCache.js';
 import type { Renderable } from './isoTypes.js';
 
 /**
@@ -119,16 +119,29 @@ export function createFurnitureRenderable(
 
       // Apply horizontal mirror for directions 4 and 6
       if (shouldMirrorSprite(spec.direction)) {
-        ctx.save();
-        ctx.scale(-1, 1); // Horizontal flip
-        ctx.drawImage(
-          frame.bitmap,
-          frame.x, frame.y,  // Source atlas position
-          frame.w, frame.h,  // Source size
-          -dx - frame.w, dy, // Destination position (flipped X coordinate)
-          frame.w, frame.h   // Destination size (no scaling)
-        );
-        ctx.restore();
+        const flipped = getFlippedSprite(frame.bitmap, frame.x, frame.y, frame.w, frame.h);
+        if (flipped) {
+          // For center-aligned sprites, flipped position is the same
+          ctx.drawImage(
+            flipped,
+            0, 0,
+            frame.w, frame.h,
+            dx, dy,
+            frame.w, frame.h
+          );
+        } else {
+          // Fallback for test environments
+          ctx.save();
+          ctx.scale(-1, 1);
+          ctx.drawImage(
+            frame.bitmap,
+            frame.x, frame.y,
+            frame.w, frame.h,
+            -dx - frame.w, dy,
+            frame.w, frame.h
+          );
+          ctx.restore();
+        }
       } else {
         ctx.drawImage(
           frame.bitmap,
@@ -205,16 +218,27 @@ export function createMultiTileFurnitureRenderable(
 
       // Apply horizontal mirror for directions 4 and 6
       if (shouldMirrorSprite(spec.direction)) {
-        ctx.save();
-        ctx.scale(-1, 1); // Horizontal flip
-        ctx.drawImage(
-          frame.bitmap,
-          frame.x, frame.y,
-          frame.w, frame.h,
-          -dx - frame.w, dy,
-          frame.w, frame.h
-        );
-        ctx.restore();
+        const flipped = getFlippedSprite(frame.bitmap, frame.x, frame.y, frame.w, frame.h);
+        if (flipped) {
+          ctx.drawImage(
+            flipped,
+            0, 0,
+            frame.w, frame.h,
+            dx, dy,
+            frame.w, frame.h
+          );
+        } else {
+          ctx.save();
+          ctx.scale(-1, 1);
+          ctx.drawImage(
+            frame.bitmap,
+            frame.x, frame.y,
+            frame.w, frame.h,
+            -dx - frame.w, dy,
+            frame.w, frame.h
+          );
+          ctx.restore();
+        }
       } else {
         ctx.drawImage(
           frame.bitmap,
@@ -231,10 +255,86 @@ export function createMultiTileFurnitureRenderable(
 // ---- Nitro rendering functions ----
 
 /**
+ * Cache for pre-flipped sprite canvases.
+ * Key format: "srcX:srcY:srcW:srcH"
+ * We use pixel-level manipulation (getImageData + swap) to flip,
+ * avoiding ctx.scale(-1,1) which can be unreliable on OffscreenCanvasRenderingContext2D.
+ */
+const flipCache = new Map<string, OffscreenCanvas>();
+
+/**
+ * Get or create a horizontally flipped version of a sprite frame.
+ * Uses pixel-level manipulation for reliable cross-environment flipping.
+ * Returns null if OffscreenCanvas is not available (test environments).
+ */
+function getFlippedSprite(
+  bitmap: ImageBitmap,
+  sx: number,
+  sy: number,
+  sw: number,
+  sh: number,
+): OffscreenCanvas | null {
+  const key = `${sx}:${sy}:${sw}:${sh}`;
+  const cached = flipCache.get(key);
+  if (cached) return cached;
+
+  try {
+    const canvas = new OffscreenCanvas(sw, sh);
+    const ctx = canvas.getContext('2d');
+    if (!ctx || typeof ctx.drawImage !== 'function') return null;
+
+    // Draw source frame
+    ctx.drawImage(bitmap, sx, sy, sw, sh, 0, 0, sw, sh);
+
+    // Flip pixels horizontally via ImageData swap
+    const imageData = ctx.getImageData(0, 0, sw, sh);
+    const { data, width, height } = imageData;
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < Math.floor(width / 2); x++) {
+        const i1 = (y * width + x) * 4;
+        const i2 = (y * width + (width - 1 - x)) * 4;
+        for (let c = 0; c < 4; c++) {
+          const tmp = data[i1 + c];
+          data[i1 + c] = data[i2 + c];
+          data[i2 + c] = tmp;
+        }
+      }
+    }
+    ctx.putImageData(imageData, 0, 0);
+
+    flipCache.set(key, canvas);
+    return canvas;
+  } catch {
+    return null; // OffscreenCanvas not available
+  }
+}
+
+/**
+ * Get the per-direction layer z-ordering from visualization metadata.
+ * Returns a map of layer index → z value for the given direction.
+ * Layers without explicit z values default to 0.
+ */
+function getLayerZValues(
+  metadata: NitroAssetData,
+  direction: number,
+): Map<number, number> {
+  const zMap = new Map<number, number>();
+  const dirData = metadata.visualization.directions?.[String(direction)];
+  if (dirData) {
+    for (const [layerIdx, layerProps] of Object.entries(dirData)) {
+      const z = Number((layerProps as Record<string, string>).z) || 0;
+      zMap.set(Number(layerIdx), z);
+    }
+  }
+  return zMap;
+}
+
+/**
  * Draw a single Nitro sprite frame with offset and optional flip.
+ * Uses pre-computed flipped bitmaps for reliable rendering.
  */
 function drawNitroFrame(
-  ctx: CanvasRenderingContext2D,
+  ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D,
   frame: NitroSpriteFrame,
   screenX: number,
   screenY: number,
@@ -242,23 +342,40 @@ function drawNitroFrame(
 ): void {
   // Nitro offsets are relative to the tile floor center (diamond center),
   // but tileToScreen returns the top vertex. Shift down by TILE_H_HALF.
-  const dx = Math.floor(screenX + frame.offsetX);
   const dy = Math.floor(screenY + TILE_H_HALF + frame.offsetY);
 
   const flip = needsFlip !== frame.flipH; // XOR: direction flip combined with asset flipH
 
   if (flip) {
-    ctx.save();
-    ctx.scale(-1, 1);
-    ctx.drawImage(
-      frame.bitmap,
-      frame.x, frame.y,
-      frame.w, frame.h,
-      -dx - frame.w, dy,
-      frame.w, frame.h
-    );
-    ctx.restore();
+    // Mirror the x offset around the tile center:
+    // Original: left edge at screenX + offsetX
+    // Flipped:  left edge at screenX - offsetX - width
+    const flipped = getFlippedSprite(frame.bitmap, frame.x, frame.y, frame.w, frame.h);
+    if (flipped) {
+      const dx = Math.floor(screenX - frame.offsetX - frame.w);
+      ctx.drawImage(
+        flipped,
+        0, 0,
+        frame.w, frame.h,
+        dx, dy,
+        frame.w, frame.h
+      );
+    } else {
+      // Fallback for test environments: use ctx.scale(-1, 1)
+      const dx = Math.floor(screenX + frame.offsetX);
+      ctx.save();
+      ctx.scale(-1, 1);
+      ctx.drawImage(
+        frame.bitmap,
+        frame.x, frame.y,
+        frame.w, frame.h,
+        -dx - frame.w, dy,
+        frame.w, frame.h
+      );
+      ctx.restore();
+    }
   } else {
+    const dx = Math.floor(screenX + frame.offsetX);
     ctx.drawImage(
       frame.bitmap,
       frame.x, frame.y,
@@ -333,28 +450,24 @@ export function createNitroFurnitureRenderable(
       const screen = tileToScreen(spec.tileX, spec.tileY, spec.tileZ);
       const needsFlip = shouldMirrorSprite(spec.direction);
       const baseDir = getBaseDirection(spec.direction);
+      const layerZValues = getLayerZValues(metadata, spec.direction);
 
+      // Resolve all layers and sort by per-direction z value
       const layerCount = metadata.visualization.layerCount || 1;
-      let drawnLayers = 0;
+      const layers: { frame: NitroSpriteFrame; z: number }[] = [];
       for (let i = 0; i < layerCount; i++) {
         const layerLetter = String.fromCharCode(97 + i); // 'a', 'b', 'c', ...
         const frameName = `${nitroAssetName}_64_${layerLetter}_${baseDir}_0`;
-
         const frame = resolveNitroFrame(spriteCache, nitroAssetName, frameName);
         if (!frame) continue;
-
-        drawNitroFrame(ctx, frame, screen.x, screen.y, needsFlip);
-        drawnLayers++;
+        layers.push({ frame, z: layerZValues.get(i) ?? 0 });
       }
 
-      if (!window._debuggedFurniture) window._debuggedFurniture = new Set();
-      if (!window._debuggedFurniture.has(`nitro:${nitroAssetName}`)) {
-        if (drawnLayers === 0) {
-          console.warn(`⚠ Nitro furniture ${nitroAssetName}: 0/${layerCount} layers resolved for dir ${baseDir} at (${spec.tileX},${spec.tileY})`);
-        } else {
-          console.log(`✓ Nitro furniture: ${nitroAssetName} (${drawnLayers}/${layerCount} layers, dir ${baseDir}) at (${spec.tileX},${spec.tileY})`);
-        }
-        window._debuggedFurniture.add(`nitro:${nitroAssetName}`);
+      // Sort by z: lower z = drawn first (behind)
+      layers.sort((a, b) => a.z - b.z);
+
+      for (const layer of layers) {
+        drawNitroFrame(ctx, layer.frame, screen.x, screen.y, needsFlip);
       }
     },
   };
@@ -387,28 +500,24 @@ export function createNitroMultiTileFurnitureRenderable(
       const screen = tileToScreen(spec.tileX, spec.tileY, spec.tileZ);
       const needsFlip = shouldMirrorSprite(spec.direction);
       const baseDir = getBaseDirection(spec.direction);
+      const layerZValues = getLayerZValues(metadata, spec.direction);
 
+      // Resolve all layers and sort by per-direction z value
       const layerCount = metadata.visualization.layerCount || 1;
-      let drawnLayers = 0;
+      const layers: { frame: NitroSpriteFrame; z: number }[] = [];
       for (let i = 0; i < layerCount; i++) {
         const layerLetter = String.fromCharCode(97 + i);
         const frameName = `${nitroAssetName}_64_${layerLetter}_${baseDir}_0`;
-
         const frame = resolveNitroFrame(spriteCache, nitroAssetName, frameName);
         if (!frame) continue;
-
-        drawNitroFrame(ctx, frame, screen.x, screen.y, needsFlip);
-        drawnLayers++;
+        layers.push({ frame, z: layerZValues.get(i) ?? 0 });
       }
 
-      if (!window._debuggedFurniture) window._debuggedFurniture = new Set();
-      if (!window._debuggedFurniture.has(`nitro:${nitroAssetName}`)) {
-        if (drawnLayers === 0) {
-          console.warn(`⚠ Nitro furniture ${nitroAssetName}: 0/${layerCount} layers resolved for dir ${baseDir} at (${spec.tileX},${spec.tileY})`);
-        } else {
-          console.log(`✓ Nitro furniture: ${nitroAssetName} [${spec.widthTiles}×${spec.heightTiles}] (${drawnLayers}/${layerCount} layers, dir ${baseDir}) at (${spec.tileX},${spec.tileY})`);
-        }
-        window._debuggedFurniture.add(`nitro:${nitroAssetName}`);
+      // Sort by z: lower z = drawn first (behind)
+      layers.sort((a, b) => a.z - b.z);
+
+      for (const layer of layers) {
+        drawNitroFrame(ctx, layer.frame, screen.x, screen.y, needsFlip);
       }
     },
   };
