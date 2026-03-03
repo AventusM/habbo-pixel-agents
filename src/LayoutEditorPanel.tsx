@@ -4,6 +4,7 @@
 import React from 'react';
 import type { EditorMode } from './isoLayoutEditor.js';
 import type { HsbColor } from './isoTypes.js';
+import { getCatalogByCategory, CATEGORY_LABELS } from './furnitureRegistry.js';
 
 interface LayoutEditorPanelProps {
   editorMode: EditorMode;
@@ -18,16 +19,7 @@ interface LayoutEditorPanelProps {
   onLoad: (file: File) => void;
 }
 
-const FURNITURE_TYPES = [
-  'chair',
-  'lamp',
-  'plant',
-  'computer',
-  'desk',
-  'bookshelf',
-  'rug',
-  'whiteboard',
-];
+const GROUPED_CATALOG = getCatalogByCategory();
 
 export function LayoutEditorPanel({
   editorMode,
@@ -174,10 +166,14 @@ export function LayoutEditorPanel({
             onChange={(e) => onFurnitureChange(e.target.value)}
             style={{ width: '100%', padding: '4px', marginBottom: '4px' }}
           >
-            {FURNITURE_TYPES.map((type) => (
-              <option key={type} value={type}>
-                {type}
-              </option>
+            {Array.from(GROUPED_CATALOG.entries()).map(([category, entries]) => (
+              <optgroup key={category} label={CATEGORY_LABELS[category] || category}>
+                {entries.map((entry) => (
+                  <option key={entry.id} value={entry.id}>
+                    {entry.displayName}
+                  </option>
+                ))}
+              </optgroup>
             ))}
           </select>
           <button onClick={onRotate} style={buttonStyle}>

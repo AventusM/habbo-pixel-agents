@@ -13,6 +13,22 @@ import {
   saveLayout,
   loadLayout,
 } from '../src/isoLayoutEditor.js';
+import type { SpriteCache } from '../src/isoSpriteCache.js';
+
+/** Mock spriteCache that returns dimensions for known furniture */
+const mockSpriteCache = {
+  getNitroMetadata(name: string) {
+    const dims: Record<string, number[]> = {
+      exe_table: [2, 1, 1],
+      exe_sofa: [3, 1, 1],
+      exe_rug: [3, 3, 0],
+    };
+    if (dims[name]) {
+      return { logic: { dimensions: dims[name], directions: [0, 2, 4, 6] } };
+    }
+    return null;
+  },
+} as unknown as SpriteCache;
 import type { TileGrid, HsbColor } from '../src/isoTypes.js';
 import { parseHeightmap } from '../src/isoTypes.js';
 import type { FurnitureSpec, MultiTileFurnitureSpec } from '../src/isoFurnitureRenderer.js';
@@ -290,7 +306,7 @@ describe('placeFurniture', () => {
     const furniture: FurnitureSpec[] = [];
     const multiTileFurniture: MultiTileFurnitureSpec[] = [];
 
-    const result = placeFurniture(grid, furniture, multiTileFurniture, 1, 1, 'desk', 0);
+    const result = placeFurniture(grid, furniture, multiTileFurniture, 1, 1, 'desk', 0, mockSpriteCache);
 
     expect(result).toBe(true);
     expect(multiTileFurniture.length).toBe(1);
@@ -311,7 +327,7 @@ describe('placeFurniture', () => {
     const multiTileFurniture: MultiTileFurnitureSpec[] = [];
 
     // Desk is 2×1, would extend from (1,0) to (2,0) which is void
-    const result = placeFurniture(grid, furniture, multiTileFurniture, 1, 0, 'desk', 0);
+    const result = placeFurniture(grid, furniture, multiTileFurniture, 1, 0, 'desk', 0, mockSpriteCache);
 
     expect(result).toBe(false);
     expect(multiTileFurniture.length).toBe(0);

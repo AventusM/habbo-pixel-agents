@@ -66,7 +66,7 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
   // Editor UI state
   const [editorMode, setEditorMode] = useState<EditorMode>(editorModeProp);
   const [selectedColor, setSelectedColor] = useState<HsbColor>({ h: 200, s: 50, b: 50 });
-  const [selectedFurniture, setSelectedFurniture] = useState<string>('chair');
+  const [selectedFurniture, setSelectedFurniture] = useState<string>('exe_chair');
   const [furnitureDirection, setFurnitureDirection] = useState<number>(0);
   const renderState = useRef<{
     offscreenCanvas: OffscreenCanvas | null;
@@ -169,16 +169,16 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
     );
 
     const furniture: FurnitureSpec[] = [
-      { name: 'plant', tileX: 1, tileY: 1, tileZ: 0, direction: 0 },
-      { name: 'chair', tileX: 5, tileY: 3, tileZ: 0, direction: 2 },
-      { name: 'lamp', tileX: 1, tileY: 4, tileZ: 0, direction: 0 },
-      { name: 'bookshelf', tileX: 8, tileY: 2, tileZ: 0, direction: 0 },
-      { name: 'computer', tileX: 8, tileY: 7, tileZ: 0, direction: 2 },
+      { name: 'exe_plant', tileX: 1, tileY: 1, tileZ: 0, direction: 0 },
+      { name: 'exe_chair', tileX: 5, tileY: 3, tileZ: 0, direction: 2 },
+      { name: 'exe_light', tileX: 1, tileY: 4, tileZ: 0, direction: 0 },
+      { name: 'exe_globe', tileX: 8, tileY: 2, tileZ: 0, direction: 0 },
+      { name: 'exe_copier', tileX: 8, tileY: 7, tileZ: 0, direction: 2 },
     ];
 
     const multiTileFurniture: MultiTileFurnitureSpec[] = [
-      { name: 'desk', tileX: 2, tileY: 1, tileZ: 0, widthTiles: 3, heightTiles: 2, direction: 0 },
-      { name: 'whiteboard', tileX: 1, tileY: 6, tileZ: 0, widthTiles: 3, heightTiles: 1, direction: 2 },
+      { name: 'exe_table', tileX: 2, tileY: 1, tileZ: 0, widthTiles: 3, heightTiles: 2, direction: 0 },
+      { name: 'exe_sofa', tileX: 1, tileY: 6, tileZ: 0, widthTiles: 3, heightTiles: 1, direction: 2 },
     ];
 
     renderState.current.furniture = furniture;
@@ -380,13 +380,15 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
     }
 
     if (renderState.current.editorState.mode === 'furniture') {
-      const furnitureType = renderState.current.editorState.selectedFurniture || 'chair';
+      const furnitureType = renderState.current.editorState.selectedFurniture || 'exe_chair';
       const direction = renderState.current.editorState.furnitureDirection || 0;
+      const spriteCache: SpriteCache | undefined = (window as any).spriteCache;
       const placed = placeFurniture(
         renderState.current.grid,
         renderState.current.furniture,
         renderState.current.multiTileFurniture,
-        tileX, tileY, furnitureType, direction
+        tileX, tileY, furnitureType, direction,
+        spriteCache,
       );
       if (placed) reRenderRoom();
       return;

@@ -20,18 +20,7 @@ import {
   type MultiTileFurnitureSpec,
 } from './isoFurnitureRenderer.js';
 import type { SpriteCache } from './isoSpriteCache.js';
-
-/** Map friendly furniture names → cortex-assets Nitro names */
-const NITRO_FURNITURE_MAP: Record<string, string> = {
-  chair: 'exe_chair',
-  desk: 'exe_table',
-  lamp: 'exe_light',
-  plant: 'exe_plant',
-  bookshelf: 'exe_globe',
-  computer: 'exe_copier',
-  rug: 'exe_rug',
-  whiteboard: 'exe_sofa',
-};
+import { resolveAssetName } from './furnitureRegistry.js';
 
 /**
  * Wall height in pixels — 4 tile heights (128px).
@@ -215,8 +204,8 @@ export function preRenderRoom(
   // Try Nitro (real Habbo sprites) first, fall back to placeholder atlas
   if (furniture && spriteCache) {
     for (const furni of furniture) {
-      const nitroName = NITRO_FURNITURE_MAP[furni.name];
-      let furnitureRenderable = nitroName
+      const nitroName = resolveAssetName(furni.name);
+      let furnitureRenderable = spriteCache.hasNitroAsset(nitroName)
         ? createNitroFurnitureRenderable(furni, spriteCache, nitroName)
         : null;
 
@@ -241,8 +230,8 @@ export function preRenderRoom(
   // Add multi-tile furniture renderables
   if (multiTileFurniture && spriteCache) {
     for (const furni of multiTileFurniture) {
-      const nitroName = NITRO_FURNITURE_MAP[furni.name];
-      let furnitureRenderable = nitroName
+      const nitroName = resolveAssetName(furni.name);
+      let furnitureRenderable = spriteCache.hasNitroAsset(nitroName)
         ? createNitroMultiTileFurnitureRenderable(furni, spriteCache, nitroName)
         : null;
 

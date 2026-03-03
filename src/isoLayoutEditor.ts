@@ -10,6 +10,8 @@ import {
 } from './isometricMath.js';
 import type { HsbColor, TileGrid } from './isoTypes.js';
 import type { FurnitureSpec, MultiTileFurnitureSpec } from './isoFurnitureRenderer.js';
+import { getFurnitureDimensions } from './furnitureRegistry.js';
+import type { SpriteCache } from './isoSpriteCache.js';
 
 /**
  * Editor mode enum
@@ -26,20 +28,6 @@ export interface EditorState {
   selectedFurniture?: string;
   furnitureDirection?: number;
 }
-
-/**
- * Furniture specifications for multi-tile furniture
- */
-const FURNITURE_SPECS: Record<string, { widthTiles: number; heightTiles: number }> = {
-  chair: { widthTiles: 1, heightTiles: 1 },
-  lamp: { widthTiles: 1, heightTiles: 1 },
-  plant: { widthTiles: 1, heightTiles: 1 },
-  computer: { widthTiles: 1, heightTiles: 1 },
-  desk: { widthTiles: 2, heightTiles: 1 },
-  bookshelf: { widthTiles: 2, heightTiles: 1 },
-  rug: { widthTiles: 1, heightTiles: 1 },
-  whiteboard: { widthTiles: 1, heightTiles: 1 },
-};
 
 /**
  * Convert a React mouse event to isometric tile coordinates.
@@ -208,17 +196,11 @@ export function placeFurniture(
   tileY: number,
   furnitureType: string,
   direction: number,
+  spriteCache?: SpriteCache,
 ): boolean {
-  // FIXME: Chair placement fails silently - other furniture types work
-  // Issue: Likely sprite key mismatch or frame lookup problem specific to chair
-  // Workaround: Use lamp, desk, or other furniture types
-  const spec = FURNITURE_SPECS[furnitureType];
-  if (!spec) {
-    console.warn(`Unknown furniture type: ${furnitureType}`);
-    return false;
-  }
-
-  const { widthTiles, heightTiles } = spec;
+  const { widthTiles, heightTiles } = spriteCache
+    ? getFurnitureDimensions(furnitureType, spriteCache)
+    : { widthTiles: 1, heightTiles: 1 };
 
   // Validate footprint
   for (let dy = 0; dy < heightTiles; dy++) {
