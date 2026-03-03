@@ -19,6 +19,7 @@ interface PathState {
   isoPositions: IsometricPosition[];
   startTimeMs: number;
   currentStep: number;
+  arrivalDirection?: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7;
 }
 
 export class AvatarManager {
@@ -28,7 +29,7 @@ export class AvatarManager {
   /**
    * Spawn a new avatar at a random walkable tile.
    */
-  spawnAvatar(agentId: string, variant: 0 | 1 | 2 | 3 | 4 | 5, grid: TileGrid): AvatarSpec | null {
+  spawnAvatar(agentId: string, variant: 0 | 1 | 2 | 3 | 4 | 5, grid: TileGrid, displayName?: string): AvatarSpec | null {
     if (this.avatars.has(agentId)) return this.avatars.get(agentId)!;
 
     // Find a walkable tile not occupied by another avatar
@@ -60,6 +61,7 @@ export class AvatarManager {
       screenOffsetX: 0,
       screenOffsetY: 0,
       isSelected: false,
+      displayName,
     };
 
     this.avatars.set(agentId, spec);
@@ -93,7 +95,7 @@ export class AvatarManager {
    * Move an avatar to a target tile using BFS pathfinding.
    * @returns true if path was found and movement started
    */
-  moveAvatarTo(agentId: string, targetX: number, targetY: number, grid: TileGrid): boolean {
+  moveAvatarTo(agentId: string, targetX: number, targetY: number, grid: TileGrid, arrivalDirection?: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7): boolean {
     const avatar = this.avatars.get(agentId);
     if (!avatar) return false;
     if (avatar.state === 'spawning' || avatar.state === 'despawning') return false;
@@ -115,6 +117,7 @@ export class AvatarManager {
       isoPositions,
       startTimeMs: Date.now(),
       currentStep: 0,
+      arrivalDirection,
     });
 
     avatar.state = 'walk';
@@ -160,7 +163,9 @@ export class AvatarManager {
         avatar.screenOffsetX = 0;
         avatar.screenOffsetY = 0;
         avatar.state = 'idle';
-        avatar.direction = pathState.isoPositions[maxStep]?.direction ?? avatar.direction;
+        avatar.direction = pathState.arrivalDirection
+          ?? pathState.isoPositions[maxStep]?.direction
+          ?? avatar.direction;
         avatar.lastUpdateMs = currentTimeMs;
 
         this.pathStates.delete(agentId);

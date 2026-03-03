@@ -39,10 +39,10 @@ const AVATAR_HEIGHT = 65;
 
 /** Desk tiles where active agents walk to (near the desk furniture) */
 const DESK_TILES = [
-  { x: 5, y: 3 },  // chair position
-  { x: 4, y: 3 },
-  { x: 3, y: 3 },
-  { x: 6, y: 3 },
+  { x: 5, y: 3, dir: 0 as const },  // chair position, face NE
+  { x: 4, y: 3, dir: 0 as const },
+  { x: 3, y: 3, dir: 0 as const },
+  { x: 6, y: 3, dir: 0 as const },
 ];
 
 export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: RoomCanvasProps) {
@@ -115,7 +115,7 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
       switch (msg.type) {
         case 'agentCreated': {
           if (grid) {
-            avatarManager.spawnAvatar(msg.agentId, msg.variant, grid);
+            avatarManager.spawnAvatar(msg.agentId, msg.variant, grid, msg.terminalName);
             // New agents start wandering until they become active
             idleWander.startWandering(msg.agentId);
           }
@@ -134,8 +134,9 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
             const deskTile = DESK_TILES.find(
               t => !avatarManager.getAvatarAtTile(t.x, t.y)
             ) || DESK_TILES[0];
-            avatarManager.moveAvatarTo(msg.agentId, deskTile.x, deskTile.y, grid);
+            avatarManager.moveAvatarTo(msg.agentId, deskTile.x, deskTile.y, grid, deskTile.dir);
           } else if (msg.status === 'idle') {
+            agentToolTextRef.current.delete(msg.agentId);
             idleWander.startWandering(msg.agentId);
           }
           break;
@@ -279,7 +280,7 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
           ctx.save();
           ctx.translate(renderState.current.cameraOrigin.x, renderState.current.cameraOrigin.y);
           drawNameTag(ctx, {
-            name: avatar.id,
+            name: avatar.displayName || avatar.id,
             status,
             anchorX: screenX + offsetX,
             anchorY: headY,
@@ -288,21 +289,23 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
         }
 
         for (const avatar of avatars) {
+          // Skip speech bubbles during spawn/despawn animations
+          if (avatar.state === 'spawning' || avatar.state === 'despawning') continue;
+
           const { x: screenX, y: screenY } = tileToScreen(avatar.tileX, avatar.tileY, avatar.tileZ);
           const offsetX = avatar.screenOffsetX || 0;
           const offsetY = avatar.screenOffsetY || 0;
           const headY = screenY + AVATAR_GROUND_Y - AVATAR_HEIGHT + offsetY;
 
           const toolText = agentToolTextRef.current.get(avatar.id);
-          const text = toolText || `${avatar.state}`;
 
           ctx.save();
           ctx.translate(renderState.current.cameraOrigin.x, renderState.current.cameraOrigin.y);
           drawSpeechBubble(ctx, {
-            text,
+            text: toolText || '',
             anchorX: screenX + offsetX,
             anchorY: headY,
-            isWaiting: avatar.state === 'idle',
+            isWaiting: !toolText,
           }, currentTimeMs);
           ctx.restore();
         }

@@ -70,6 +70,8 @@ export interface AvatarSpec {
   screenOffsetY?: number;
   /** Whether this avatar is currently selected (visual highlight) */
   isSelected?: boolean;
+  /** Display name shown in name tag (e.g. "Claude 1") */
+  displayName?: string;
 }
 
 /**
@@ -112,14 +114,19 @@ export function updateAvatarAnimation(
   if (spec.state === "spawning" || spec.state === "despawning") {
     const SPAWN_DURATION_MS = 1000;
     const progress = elapsed / SPAWN_DURATION_MS;
-    spec.spawnProgress = Math.min(1.0, spec.spawnProgress + progress);
-    spec.lastUpdateMs = currentTimeMs;
 
-    if (spec.spawnProgress >= 1.0 && spec.state === "spawning") {
-      spec.state = "idle";
-      spec.spawnProgress = 0;
-      spec.nextBlinkMs = currentTimeMs + BLINK_INTERVAL_MIN_MS;
+    if (spec.state === "spawning") {
+      spec.spawnProgress = Math.min(1.0, spec.spawnProgress + progress);
+      if (spec.spawnProgress >= 1.0) {
+        spec.state = "idle";
+        spec.spawnProgress = 0;
+        spec.nextBlinkMs = currentTimeMs + BLINK_INTERVAL_MIN_MS;
+      }
+    } else {
+      // Despawning: decrement toward 0
+      spec.spawnProgress = Math.max(0, spec.spawnProgress - progress);
     }
+    spec.lastUpdateMs = currentTimeMs;
   }
 }
 

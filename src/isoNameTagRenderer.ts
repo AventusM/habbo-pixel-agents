@@ -71,5 +71,5 @@ export function drawNameTag(
   ctx.textBaseline = 'middle';
   const textX = Math.floor(pillX + DOT_RADIUS * 2 + PADDING * 1.5);
   const textY = Math.floor(pillY + pillHeight / 2);
-  ctx.fillText(name, textX, textY);
+  ctx.fillText(name, textX, textY, 120);
 }

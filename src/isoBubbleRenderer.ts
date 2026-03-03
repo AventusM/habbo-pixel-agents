@@ -47,7 +47,16 @@ export function wrapText(
     lines.push(currentLine);
   }
 
-  return lines.length > 0 ? lines : [''];
+  if (lines.length === 0) return [''];
+
+  // Cap at MAX_LINES, truncate last visible line with "..."
+  const MAX_LINES = 3;
+  if (lines.length > MAX_LINES) {
+    lines[MAX_LINES - 1] = lines[MAX_LINES - 1] + '...';
+    return lines.slice(0, MAX_LINES);
+  }
+
+  return lines;
 }
 
 /**
