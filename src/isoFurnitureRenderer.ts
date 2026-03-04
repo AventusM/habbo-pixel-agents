@@ -158,15 +158,10 @@ export function createFurnitureRenderable(
 /**
  * Create a renderable object for multi-tile furniture.
  *
- * This implements the max-coordinate sort key pattern to fix depth sorting bugs
- * where avatars standing behind furniture edges incorrectly appear in front.
- *
- * Key differences from single-tile:
- * 1. Sort key uses max(tileX + widthTiles - 1, tileY + heightTiles - 1)
- * 2. Rendering position uses origin tile (spec.tileX, spec.tileY), NOT sort tile
- * 3. Ensures furniture's farthest edge determines depth ordering
- *
- * Example: 2×1 desk at origin (3,3) uses sort key (4,3) but renders at (3,3)
+ * Uses origin tile + footprint metadata for depth sorting. The depthSort
+ * comparator uses the footprint to do range-based comparison: any point
+ * renderable at or past the back edge draws on top. This eliminates the
+ * ambiguity of a single sort position for large furniture.
  *
  * @param spec - Multi-tile furniture specification
  * @param spriteCache - Sprite cache instance
@@ -178,15 +173,9 @@ export function createMultiTileFurnitureRenderable(
   spriteCache: SpriteCache,
   atlasName: string,
 ): Renderable {
-  // Calculate max coordinate across full footprint for depth sorting
-  // This ensures the furniture's farthest edge determines rendering order
-  const sortTileX = spec.tileX + spec.widthTiles - 1;
-  const sortTileY = spec.tileY + spec.heightTiles - 1;
-
   return {
-    // Use max coordinate for depth sort key
-    tileX: sortTileX,
-    tileY: sortTileY,
+    tileX: spec.tileX,
+    tileY: spec.tileY,
     tileZ: spec.tileZ,
     draw: (ctx) => {
       // Frame key format: {name}_{size}_{layer}_{direction}_{frame}
@@ -480,7 +469,8 @@ export function createNitroFurnitureRenderable(
 
 /**
  * Create a renderable for multi-tile furniture using Nitro per-item spritesheets.
- * Same as createNitroFurnitureRenderable but with max-coordinate depth sorting.
+ * Same as createNitroFurnitureRenderable but for multi-tile specs.
+ * Depth sorting is handled by sliceMultiTileRenderable at the call site.
  */
 export function createNitroMultiTileFurnitureRenderable(
   spec: MultiTileFurnitureSpec,
@@ -494,12 +484,9 @@ export function createNitroMultiTileFurnitureRenderable(
   const metadata = spriteCache.getNitroMetadata(nitroAssetName);
   if (!metadata) return null;
 
-  const sortTileX = spec.tileX + spec.widthTiles - 1;
-  const sortTileY = spec.tileY + spec.heightTiles - 1;
-
   return {
-    tileX: sortTileX,
-    tileY: sortTileY,
+    tileX: spec.tileX,
+    tileY: spec.tileY,
     tileZ: spec.tileZ,
     draw: (ctx) => {
       const screen = tileToScreen(spec.tileX, spec.tileY, spec.tileZ);
@@ -526,4 +513,81 @@ export function createNitroMultiTileFurnitureRenderable(
       }
     },
   };
+}
+
+/**
+ * Split a multi-tile furniture renderable into horizontal strip renderables,
+ * one per iso-depth row of the footprint. Each strip clips the full sprite
+ * to a horizontal band and sorts independently against avatars, enabling
+ * correct per-row occlusion.
+ *
+ * For 1×1 items, returns the original renderable unchanged (no slicing needed).
+ *
+ * @param spec - Multi-tile furniture specification with footprint dimensions
+ * @param renderable - The full-sprite renderable to slice
+ * @returns Array of slice renderables, each with its own depth position
+ */
+export function sliceMultiTileRenderable(
+  spec: MultiTileFurnitureSpec,
+  renderable: Renderable,
+): Renderable[] {
+  if (spec.widthTiles <= 1 && spec.heightTiles <= 1) {
+    return [renderable];
+  }
+
+  const dBack = spec.tileX + spec.tileY;
+  const dFront = dBack + spec.widthTiles + spec.heightTiles - 2;
+  const numSlices = dFront - dBack + 1;
+  const centerTileX = spec.tileX + (spec.widthTiles - 1) / 2;
+  const slices: Renderable[] = [];
+
+  // The front-most boundary: screen Y of the front edge ground level.
+  // The "height cap" slice covers everything ABOVE this boundary at the
+  // front-most depth, ensuring avatars at ANY intermediate depth are fully
+  // occluded by the furniture's tall upper portion (roofs, shelf tops, etc.).
+  const frontBoundary = dFront * TILE_H_HALF - spec.tileZ * TILE_H_HALF;
+
+  for (let i = 0; i < numSlices; i++) {
+    const d = dBack + i;
+    // Each ground-level band clips to its horizontal strip.
+    // -1px overlap on clipTop eliminates sub-pixel seam artifacts.
+    const clipTop = (d * TILE_H_HALF - spec.tileZ * TILE_H_HALF) - 1;
+    const clipBottom = i === numSlices - 1
+      ? 100000   // front-most: include everything below
+      : ((d + 1) * TILE_H_HALF - spec.tileZ * TILE_H_HALF);
+
+    slices.push({
+      tileX: centerTileX,
+      tileY: d - centerTileX,
+      tileZ: spec.tileZ,
+      draw: (ctx) => {
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(-100000, clipTop, 200000, clipBottom - clipTop);
+        ctx.clip();
+        renderable.draw(ctx);
+        ctx.restore();
+      },
+    });
+  }
+
+  // "Height cap" slice: the tall upper portion of the sprite above the
+  // front ground band. Sorted at the front-most depth so it draws AFTER
+  // avatars at intermediate depths, fully occluding them with the
+  // furniture's height (roofs, shelf tops, etc.).
+  slices.push({
+    tileX: centerTileX,
+    tileY: dFront - centerTileX,
+    tileZ: spec.tileZ,
+    draw: (ctx) => {
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(-100000, -100000, 200000, frontBoundary + 1 - (-100000));
+      ctx.clip();
+      renderable.draw(ctx);
+      ctx.restore();
+    },
+  });
+
+  return slices;
 }
