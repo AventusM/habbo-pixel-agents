@@ -2,7 +2,7 @@
 // Furniture sprite rendering for isometric rooms
 // Implements single-tile and multi-tile furniture with depth sorting
 
-import { tileToScreen, TILE_H_HALF } from './isometricMath.js';
+import { tileToScreen, TILE_W_HALF, TILE_H_HALF } from './isometricMath.js';
 import type { SpriteCache, NitroSpriteFrame, NitroAssetData } from './isoSpriteCache.js';
 import type { Renderable } from './isoTypes.js';
 
@@ -516,10 +516,15 @@ export function createNitroMultiTileFurnitureRenderable(
 }
 
 /**
- * Split a multi-tile furniture renderable into horizontal strip renderables,
- * one per iso-depth row of the footprint. Each strip clips the full sprite
- * to a horizontal band and sorts independently against avatars, enabling
- * correct per-row occlusion.
+ * Split a multi-tile furniture renderable into per-depth-row renderables.
+ * Each depth row gets two clip-based renderables:
+ *   1. A ground strip (full-width horizontal band at ground level)
+ *   2. A column cap (horizontally-clipped upper portion above ground level)
+ *
+ * The column caps replace the old single full-width "height cap" approach.
+ * By clipping each column cap to the horizontal extent of its depth row's
+ * footprint tiles, avatars at the SIDES of the furniture are no longer
+ * incorrectly occluded by the tall upper portion of the sprite.
  *
  * For 1×1 items, returns the original renderable unchanged (no slicing needed).
  *
@@ -535,31 +540,32 @@ export function sliceMultiTileRenderable(
     return [renderable];
   }
 
-  const dBack = spec.tileX + spec.tileY;
-  const dFront = dBack + spec.widthTiles + spec.heightTiles - 2;
-  const numSlices = dFront - dBack + 1;
-  const centerTileX = spec.tileX + (spec.widthTiles - 1) / 2;
-  const slices: Renderable[] = [];
+  const ox = spec.tileX;
+  const oy = spec.tileY;
+  const w = spec.widthTiles;
+  const h = spec.heightTiles;
+  const z = spec.tileZ;
 
-  // The front-most boundary: screen Y of the front edge ground level.
-  // The "height cap" slice covers everything ABOVE this boundary at the
-  // front-most depth, ensuring avatars at ANY intermediate depth are fully
-  // occluded by the furniture's tall upper portion (roofs, shelf tops, etc.).
-  const frontBoundary = dFront * TILE_H_HALF - spec.tileZ * TILE_H_HALF;
+  const dBack = ox + oy;
+  const dFront = dBack + w + h - 2;
+  const numSlices = dFront - dBack + 1;
+  const centerTileX = ox + (w - 1) / 2;
+  const slices: Renderable[] = [];
 
   for (let i = 0; i < numSlices; i++) {
     const d = dBack + i;
     // Each ground-level band clips to its horizontal strip.
     // -1px overlap on clipTop eliminates sub-pixel seam artifacts.
-    const clipTop = (d * TILE_H_HALF - spec.tileZ * TILE_H_HALF) - 1;
+    const clipTop = (d * TILE_H_HALF - z * TILE_H_HALF) - 1;
     const clipBottom = i === numSlices - 1
       ? 100000   // front-most: include everything below
-      : ((d + 1) * TILE_H_HALF - spec.tileZ * TILE_H_HALF);
+      : ((d + 1) * TILE_H_HALF - z * TILE_H_HALF);
 
+    // Ground strip: full-width horizontal band at ground level
     slices.push({
       tileX: centerTileX,
       tileY: d - centerTileX,
-      tileZ: spec.tileZ,
+      tileZ: z,
       draw: (ctx) => {
         ctx.save();
         ctx.beginPath();
@@ -569,25 +575,30 @@ export function sliceMultiTileRenderable(
         ctx.restore();
       },
     });
-  }
 
-  // "Height cap" slice: the tall upper portion of the sprite above the
-  // front ground band. Sorted at the front-most depth so it draws AFTER
-  // avatars at intermediate depths, fully occluding them with the
-  // furniture's height (roofs, shelf tops, etc.).
-  slices.push({
-    tileX: centerTileX,
-    tileY: dFront - centerTileX,
-    tileZ: spec.tileZ,
-    draw: (ctx) => {
-      ctx.save();
-      ctx.beginPath();
-      ctx.rect(-100000, -100000, 200000, frontBoundary + 1 - (-100000));
-      ctx.clip();
-      renderable.draw(ctx);
-      ctx.restore();
-    },
-  });
+    // Column cap: upper portion (above ground strip) for this depth row.
+    // Horizontally clipped to the screen X range of footprint tiles at depth d.
+    // This prevents the furniture's tall upper portion from incorrectly
+    // occluding avatars at the corners/sides of the furniture.
+    const minTx = Math.max(ox, d - oy - h + 1);
+    const maxTx = Math.min(ox + w - 1, d - oy);
+    const clipLeft = (2 * minTx - d) * TILE_W_HALF - TILE_W_HALF - 1;
+    const clipRight = (2 * maxTx - d) * TILE_W_HALF + TILE_W_HALF + 1;
+
+    slices.push({
+      tileX: centerTileX,
+      tileY: d - centerTileX,
+      tileZ: z,
+      draw: (ctx) => {
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(clipLeft, -100000, clipRight - clipLeft, clipTop + 1 + 100000);
+        ctx.clip();
+        renderable.draw(ctx);
+        ctx.restore();
+      },
+    });
+  }
 
   return slices;
 }

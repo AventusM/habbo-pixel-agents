@@ -5,6 +5,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   createFurnitureRenderable,
   createMultiTileFurnitureRenderable,
+  sliceMultiTileRenderable,
   getBaseDirection,
   shouldMirrorSprite,
   type FurnitureSpec,
@@ -39,6 +40,9 @@ describe('isoFurnitureRenderer', () => {
       save: vi.fn(),
       restore: vi.fn(),
       scale: vi.fn(),
+      beginPath: vi.fn(),
+      rect: vi.fn(),
+      clip: vi.fn(),
     };
   });
 
@@ -254,7 +258,7 @@ describe('isoFurnitureRenderer', () => {
   });
 
   describe('createMultiTileFurnitureRenderable', () => {
-    it('uses max coordinate for sort key (2×1 desk)', () => {
+    it('returns renderable with origin tile coordinates (2×1 desk)', () => {
       const spec: MultiTileFurnitureSpec = {
         name: 'desk',
         tileX: 3,
@@ -267,14 +271,12 @@ describe('isoFurnitureRenderer', () => {
 
       const renderable = createMultiTileFurnitureRenderable(spec, mockSpriteCache, 'furniture');
 
-      // Sort key should use max coordinate across footprint
-      // Origin: (3,3), Footprint: 2×1, Max: (4,3)
-      expect(renderable.tileX).toBe(4); // 3 + 2 - 1
-      expect(renderable.tileY).toBe(3); // 3 + 1 - 1
+      expect(renderable.tileX).toBe(3);
+      expect(renderable.tileY).toBe(3);
       expect(renderable.tileZ).toBe(0);
     });
 
-    it('uses max coordinate for sort key (2×2 bookshelf)', () => {
+    it('returns renderable with origin tile coordinates (2×2 bookshelf)', () => {
       const spec: MultiTileFurnitureSpec = {
         name: 'bookshelf',
         tileX: 5,
@@ -287,9 +289,8 @@ describe('isoFurnitureRenderer', () => {
 
       const renderable = createMultiTileFurnitureRenderable(spec, mockSpriteCache, 'furniture');
 
-      // Origin: (5,5), Footprint: 2×2, Max: (6,6)
-      expect(renderable.tileX).toBe(6); // 5 + 2 - 1
-      expect(renderable.tileY).toBe(6); // 5 + 2 - 1
+      expect(renderable.tileX).toBe(5);
+      expect(renderable.tileY).toBe(5);
       expect(renderable.tileZ).toBe(0);
     });
 
@@ -407,7 +408,7 @@ describe('isoFurnitureRenderer', () => {
       expect(Number.isInteger(dy)).toBe(true);
     });
 
-    it('calculates correct sort key for 1×2 furniture', () => {
+    it('returns renderable with origin tile coordinates for 1×2 furniture', () => {
       const spec: MultiTileFurnitureSpec = {
         name: 'tall_shelf',
         tileX: 2,
@@ -420,9 +421,116 @@ describe('isoFurnitureRenderer', () => {
 
       const renderable = createMultiTileFurnitureRenderable(spec, mockSpriteCache, 'furniture');
 
-      // Origin: (2,3), Footprint: 1×2, Max: (2,4)
-      expect(renderable.tileX).toBe(2); // 2 + 1 - 1
-      expect(renderable.tileY).toBe(4); // 3 + 2 - 1
+      expect(renderable.tileX).toBe(2);
+      expect(renderable.tileY).toBe(3);
+      expect(renderable.tileZ).toBe(0);
+    });
+  });
+
+  describe('sliceMultiTileRenderable', () => {
+    it('returns single renderable unchanged for 1×1 furniture', () => {
+      const spec: MultiTileFurnitureSpec = {
+        name: 'chair',
+        tileX: 3,
+        tileY: 4,
+        tileZ: 0,
+        widthTiles: 1,
+        heightTiles: 1,
+        direction: 0,
+      };
+      const renderable: Renderable = { tileX: 3, tileY: 4, tileZ: 0, draw: () => {} };
+      const slices = sliceMultiTileRenderable(spec, renderable);
+
+      expect(slices).toHaveLength(1);
+      expect(slices[0]).toBe(renderable); // same reference, not a copy
+    });
+
+    it('returns 4 slices for 2×1 furniture (2 ground bands + 2 column caps)', () => {
+      const spec: MultiTileFurnitureSpec = {
+        name: 'desk',
+        tileX: 3,
+        tileY: 3,
+        tileZ: 0,
+        widthTiles: 2,
+        heightTiles: 1,
+        direction: 0,
+      };
+      const renderable: Renderable = { tileX: 3, tileY: 3, tileZ: 0, draw: () => {} };
+      const slices = sliceMultiTileRenderable(spec, renderable);
+
+      // 2 ground bands + 2 column caps = 4
+      expect(slices).toHaveLength(4);
+      // Pairs: [ground d=6, cap d=6, ground d=7, cap d=7]
+      expect(slices[0].tileX + slices[0].tileY).toBe(6); // ground d=6
+      expect(slices[1].tileX + slices[1].tileY).toBe(6); // column cap d=6
+      expect(slices[2].tileX + slices[2].tileY).toBe(7); // ground d=7
+      expect(slices[3].tileX + slices[3].tileY).toBe(7); // column cap d=7
+    });
+
+    it('returns 8 slices for 3×2 furniture (4 ground bands + 4 column caps)', () => {
+      const spec: MultiTileFurnitureSpec = {
+        name: 'table',
+        tileX: 5,
+        tileY: 5,
+        tileZ: 0,
+        widthTiles: 3,
+        heightTiles: 2,
+        direction: 0,
+      };
+      const renderable: Renderable = { tileX: 5, tileY: 5, tileZ: 0, draw: () => {} };
+      const slices = sliceMultiTileRenderable(spec, renderable);
+
+      // 4 ground bands + 4 column caps = 8
+      expect(slices).toHaveLength(8);
+      // Pairs: [ground, cap] at each depth
+      expect(slices[0].tileX + slices[0].tileY).toBe(10); // ground d=10
+      expect(slices[1].tileX + slices[1].tileY).toBe(10); // cap d=10
+      expect(slices[2].tileX + slices[2].tileY).toBe(11); // ground d=11
+      expect(slices[3].tileX + slices[3].tileY).toBe(11); // cap d=11
+      expect(slices[4].tileX + slices[4].tileY).toBe(12); // ground d=12
+      expect(slices[5].tileX + slices[5].tileY).toBe(12); // cap d=12
+      expect(slices[6].tileX + slices[6].tileY).toBe(13); // ground d=13
+      expect(slices[7].tileX + slices[7].tileY).toBe(13); // cap d=13
+    });
+
+    it('preserves tileZ on all slices', () => {
+      const spec: MultiTileFurnitureSpec = {
+        name: 'desk',
+        tileX: 2,
+        tileY: 3,
+        tileZ: 2,
+        widthTiles: 2,
+        heightTiles: 2,
+        direction: 0,
+      };
+      const renderable: Renderable = { tileX: 2, tileY: 3, tileZ: 2, draw: () => {} };
+      const slices = sliceMultiTileRenderable(spec, renderable);
+
+      for (const slice of slices) {
+        expect(slice.tileZ).toBe(2);
+      }
+    });
+
+    it('each slice draw function calls the original renderable draw', () => {
+      const spec: MultiTileFurnitureSpec = {
+        name: 'desk',
+        tileX: 3,
+        tileY: 3,
+        tileZ: 0,
+        widthTiles: 2,
+        heightTiles: 1,
+        direction: 0,
+      };
+      const drawFn = vi.fn();
+      const renderable: Renderable = { tileX: 3, tileY: 3, tileZ: 0, draw: drawFn };
+      const slices = sliceMultiTileRenderable(spec, renderable);
+
+      // Draw each slice — each should call the original draw
+      // 2 ground bands + 2 column caps = 4 slices
+      for (const slice of slices) {
+        slice.draw(mockCtx);
+      }
+      expect(drawFn).toHaveBeenCalledTimes(4);
     });
   });
 });
