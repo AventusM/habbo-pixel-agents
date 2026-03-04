@@ -16,6 +16,7 @@ import {
   createMultiTileFurnitureRenderable,
   createNitroFurnitureRenderable,
   createNitroMultiTileFurnitureRenderable,
+  sliceMultiTileRenderable,
   type FurnitureSpec,
   type MultiTileFurnitureSpec,
 } from './isoFurnitureRenderer.js';
@@ -200,59 +201,6 @@ export function preRenderRoom(
     }
   }
 
-  // Add furniture renderables to unified depth-sort array
-  // Try Nitro (real Habbo sprites) first, fall back to placeholder atlas
-  if (furniture && spriteCache) {
-    for (const furni of furniture) {
-      const nitroName = resolveAssetName(furni.name);
-      let furnitureRenderable = spriteCache.hasNitroAsset(nitroName)
-        ? createNitroFurnitureRenderable(furni, spriteCache, nitroName)
-        : null;
-
-      // Fall back to placeholder atlas
-      if (!furnitureRenderable) {
-        furnitureRenderable = createFurnitureRenderable(furni, spriteCache, atlasName);
-      }
-
-      // Wrap the draw function to apply camera origin offset
-      const originalDraw = furnitureRenderable.draw;
-      furnitureRenderable.draw = (ctx) => {
-        ctx.save();
-        ctx.translate(cameraOrigin.x, cameraOrigin.y);
-        originalDraw(ctx);
-        ctx.restore();
-      };
-
-      renderables.push(furnitureRenderable);
-    }
-  }
-
-  // Add multi-tile furniture renderables
-  if (multiTileFurniture && spriteCache) {
-    for (const furni of multiTileFurniture) {
-      const nitroName = resolveAssetName(furni.name);
-      let furnitureRenderable = spriteCache.hasNitroAsset(nitroName)
-        ? createNitroMultiTileFurnitureRenderable(furni, spriteCache, nitroName)
-        : null;
-
-      // Fall back to placeholder atlas
-      if (!furnitureRenderable) {
-        furnitureRenderable = createMultiTileFurnitureRenderable(furni, spriteCache, atlasName);
-      }
-
-      // Wrap the draw function to apply camera origin offset
-      const originalDraw = furnitureRenderable.draw;
-      furnitureRenderable.draw = (ctx) => {
-        ctx.save();
-        ctx.translate(cameraOrigin.x, cameraOrigin.y);
-        originalDraw(ctx);
-        ctx.restore();
-      };
-
-      renderables.push(furnitureRenderable);
-    }
-  }
-
   // Depth sort (back-to-front painter's algorithm)
   const sorted = depthSort(renderables);
 
@@ -262,6 +210,68 @@ export function preRenderRoom(
   }
 
   return offscreen;
+}
+
+/**
+ * Create furniture renderables for dynamic per-frame rendering.
+ * Returns an array of Renderables with camera origin baked in,
+ * ready to be depth-sorted alongside avatar renderables.
+ */
+export function createFurnitureRenderables(
+  furniture: FurnitureSpec[],
+  multiTileFurniture: MultiTileFurnitureSpec[],
+  spriteCache: SpriteCache,
+  cameraOrigin: { x: number; y: number },
+  atlasName: string = 'furniture',
+): Renderable[] {
+  const renderables: Renderable[] = [];
+
+  for (const furni of furniture) {
+    const nitroName = resolveAssetName(furni.name);
+    let renderable = spriteCache.hasNitroAsset(nitroName)
+      ? createNitroFurnitureRenderable(furni, spriteCache, nitroName)
+      : null;
+
+    if (!renderable) {
+      renderable = createFurnitureRenderable(furni, spriteCache, atlasName);
+    }
+
+    const originalDraw = renderable.draw;
+    renderable.draw = (ctx) => {
+      ctx.save();
+      ctx.translate(cameraOrigin.x, cameraOrigin.y);
+      originalDraw(ctx);
+      ctx.restore();
+    };
+
+    renderables.push(renderable);
+  }
+
+  for (const furni of multiTileFurniture) {
+    const nitroName = resolveAssetName(furni.name);
+    let renderable = spriteCache.hasNitroAsset(nitroName)
+      ? createNitroMultiTileFurnitureRenderable(furni, spriteCache, nitroName)
+      : null;
+
+    if (!renderable) {
+      renderable = createMultiTileFurnitureRenderable(furni, spriteCache, atlasName);
+    }
+
+    // Slice multi-tile furniture into per-depth-row renderables
+    const slices = sliceMultiTileRenderable(furni, renderable);
+    for (const slice of slices) {
+      const originalDraw = slice.draw;
+      slice.draw = (ctx) => {
+        ctx.save();
+        ctx.translate(cameraOrigin.x, cameraOrigin.y);
+        originalDraw(ctx);
+        ctx.restore();
+      };
+      renderables.push(slice);
+    }
+  }
+
+  return renderables;
 }
 
 /**

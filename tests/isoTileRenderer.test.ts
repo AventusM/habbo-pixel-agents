@@ -79,11 +79,11 @@ describe('isoTileRenderer', () => {
 
       const sorted = depthSort(renderables);
 
-      // Expected order: [0,0,5], [2,0,0], [0,2,0]
-      // (For same keys 2.0, stable sort preserves original order)
+      // Expected order: [0,0,5], [0,2,0], [2,0,0]
+      // (For same depth 2.0, higher tileX draws later)
       expect(sorted[0]).toMatchObject({ tileX: 0, tileY: 0, tileZ: 5 });
-      expect(sorted[1]).toMatchObject({ tileX: 2, tileY: 0, tileZ: 0 });
-      expect(sorted[2]).toMatchObject({ tileX: 0, tileY: 2, tileZ: 0 });
+      expect(sorted[1]).toMatchObject({ tileX: 0, tileY: 2, tileZ: 0 });
+      expect(sorted[2]).toMatchObject({ tileX: 2, tileY: 0, tileZ: 0 });
     });
 
     it('should handle empty array', () => {

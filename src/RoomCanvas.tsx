@@ -1,7 +1,7 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { parseHeightmap, depthSort } from './isoTypes.js';
-import { initCanvas, computeCameraOrigin, preRenderRoom } from './isoTileRenderer.js';
-import type { TileGrid } from './isoTypes.js';
+import { initCanvas, computeCameraOrigin, preRenderRoom, createFurnitureRenderables } from './isoTileRenderer.js';
+import type { TileGrid, Renderable } from './isoTypes.js';
 import type { FurnitureSpec, MultiTileFurnitureSpec } from './isoFurnitureRenderer.js';
 import type { AvatarSpec } from './isoAvatarRenderer.js';
 import { createAvatarRenderable, createNitroAvatarRenderable, updateAvatarAnimation, AVATAR_GROUND_Y } from './isoAvatarRenderer.js';
@@ -80,6 +80,7 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
     tileColorMap: Map<string, HsbColor>;
     furniture: FurnitureSpec[];
     multiTileFurniture: MultiTileFurnitureSpec[];
+    furnitureRenderables: Renderable[];
   }>({
     offscreenCanvas: null,
     cameraOrigin: { x: 0, y: 0 },
@@ -94,6 +95,7 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
     tileColorMap: new Map(),
     furniture: [],
     multiTileFurniture: [],
+    furnitureRenderables: [],
   });
 
   // Reset direction to first supported direction when furniture type changes
@@ -202,12 +204,21 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
       canvas.height,
       window.devicePixelRatio || 1,
       undefined,
-      furniture,
-      multiTileFurniture,
-      spriteCache,
+      undefined,
+      undefined,
+      undefined,
       'furniture',
       renderState.current.tileColorMap
     );
+
+    if (spriteCache) {
+      renderState.current.furnitureRenderables = createFurnitureRenderables(
+        furniture,
+        multiTileFurniture,
+        spriteCache,
+        renderState.current.cameraOrigin,
+      );
+    }
 
     runningRef.current = true;
 
@@ -265,9 +276,11 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
         }
       }
 
-      // Render avatars
+      // Render furniture + avatars with unified depth sorting
+      const dynamicRenderables = [...renderState.current.furnitureRenderables];
+
       if (spriteCache && avatars.length > 0) {
-        const avatarRenderables = avatars.map(spec => {
+        for (const spec of avatars) {
           const renderable = createNitroAvatarRenderable(spec, spriteCache)
             || createAvatarRenderable(spec, spriteCache, 'avatar');
 
@@ -279,14 +292,16 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
             ctx.restore();
           };
 
-          return renderable;
-        });
-
-        const sorted = depthSort(avatarRenderables);
-        for (const avatar of sorted) {
-          avatar.draw(ctx);
+          dynamicRenderables.push(renderable);
         }
+      }
 
+      const sorted = depthSort(dynamicRenderables);
+      for (const r of sorted) {
+        r.draw(ctx);
+      }
+
+      if (spriteCache && avatars.length > 0) {
         // Draw selection highlight
         const selectedId = selectionManagerRef.current.selectedAvatarId;
         if (selectedId) {
@@ -488,12 +503,22 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
       canvasRef.current.height,
       window.devicePixelRatio || 1,
       undefined,
-      renderState.current.furniture,
-      renderState.current.multiTileFurniture,
-      (window as any).spriteCache,
+      undefined,
+      undefined,
+      undefined,
       undefined,
       renderState.current.tileColorMap
     );
+
+    const spriteCache: SpriteCache | undefined = (window as any).spriteCache;
+    if (spriteCache) {
+      renderState.current.furnitureRenderables = createFurnitureRenderables(
+        renderState.current.furniture,
+        renderState.current.multiTileFurniture,
+        spriteCache,
+        renderState.current.cameraOrigin,
+      );
+    }
   }
 
   const handleSave = () => {

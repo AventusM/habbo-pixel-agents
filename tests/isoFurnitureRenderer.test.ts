@@ -458,13 +458,14 @@ describe('isoFurnitureRenderer', () => {
       const renderable: Renderable = { tileX: 3, tileY: 3, tileZ: 0, draw: () => {} };
       const slices = sliceMultiTileRenderable(spec, renderable);
 
-      // 2 ground bands + 2 column caps = 4
-      expect(slices).toHaveLength(4);
-      // Pairs: [ground d=6, cap d=6, ground d=7, cap d=7]
+      // 2 ground bands + 2 column caps + 1 base = 5
+      expect(slices).toHaveLength(5);
+      // Pairs: [ground d=6, cap d=6, ground d=7, cap d=7], then base
       expect(slices[0].tileX + slices[0].tileY).toBe(6); // ground d=6
       expect(slices[1].tileX + slices[1].tileY).toBe(6); // column cap d=6
       expect(slices[2].tileX + slices[2].tileY).toBe(7); // ground d=7
       expect(slices[3].tileX + slices[3].tileY).toBe(7); // column cap d=7
+      expect(slices[4].tileX + slices[4].tileY).toBe(6); // base at origin depth
     });
 
     it('returns 8 slices for 3×2 furniture (4 ground bands + 4 column caps)', () => {
@@ -480,9 +481,9 @@ describe('isoFurnitureRenderer', () => {
       const renderable: Renderable = { tileX: 5, tileY: 5, tileZ: 0, draw: () => {} };
       const slices = sliceMultiTileRenderable(spec, renderable);
 
-      // 4 ground bands + 4 column caps = 8
-      expect(slices).toHaveLength(8);
-      // Pairs: [ground, cap] at each depth
+      // 4 ground bands + 4 column caps + 1 base = 9
+      expect(slices).toHaveLength(9);
+      // Pairs: [ground, cap] at each depth, then base
       expect(slices[0].tileX + slices[0].tileY).toBe(10); // ground d=10
       expect(slices[1].tileX + slices[1].tileY).toBe(10); // cap d=10
       expect(slices[2].tileX + slices[2].tileY).toBe(11); // ground d=11
@@ -491,6 +492,7 @@ describe('isoFurnitureRenderer', () => {
       expect(slices[5].tileX + slices[5].tileY).toBe(12); // cap d=12
       expect(slices[6].tileX + slices[6].tileY).toBe(13); // ground d=13
       expect(slices[7].tileX + slices[7].tileY).toBe(13); // cap d=13
+      expect(slices[8].tileX + slices[8].tileY).toBe(10); // base at origin
     });
 
     it('preserves tileZ on all slices', () => {
@@ -526,11 +528,11 @@ describe('isoFurnitureRenderer', () => {
       const slices = sliceMultiTileRenderable(spec, renderable);
 
       // Draw each slice — each should call the original draw
-      // 2 ground bands + 2 column caps = 4 slices
+      // 2 ground bands + 2 column caps + 1 base = 5 slices
       for (const slice of slices) {
         slice.draw(mockCtx);
       }
-      expect(drawFn).toHaveBeenCalledTimes(4);
+      expect(drawFn).toHaveBeenCalledTimes(5);
     });
   });
 });

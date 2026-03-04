@@ -140,7 +140,12 @@ export function createAvatarRenderable(
   atlasName: string,
 ): Renderable {
   return {
-    tileX: spec.tileX,
+    // +0.6 bias: avatars at depth D sort at D+0.6, placing them after all
+    // furniture at depth D (and D-0.5 height caps). Specifically, avatars at
+    // depth dFront-1 (adjacent to furniture's front face, outside footprint)
+    // sort at dFront-0.4 > dFront-0.5, making them visible; avatars at
+    // dFront-2 sort at dFront-1.4 < dFront-0.5, remaining correctly occluded.
+    tileX: spec.tileX + 0.6,
     tileY: spec.tileY,
     tileZ: spec.tileZ,
     draw: (ctx) => {
@@ -571,7 +576,12 @@ export function createNitroAvatarRenderable(
   }
 
   return {
-    tileX: spec.tileX,
+    // +0.6 bias: avatars at depth D sort at D+0.6, placing them after all
+    // furniture at depth D (and D-0.5 height caps). Specifically, avatars at
+    // depth dFront-1 (adjacent to furniture's front face, outside footprint)
+    // sort at dFront-0.4 > dFront-0.5, making them visible; avatars at
+    // dFront-2 sort at dFront-1.4 < dFront-0.5, remaining correctly occluded.
+    tileX: spec.tileX + 0.6,
     tileY: spec.tileY,
     tileZ: spec.tileZ,
     draw: (ctx) => {

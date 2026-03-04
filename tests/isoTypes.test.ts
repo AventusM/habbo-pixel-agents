@@ -210,17 +210,17 @@ describe('depthSort', () => {
     expect(sorted[1].tileY).toBe(2);
   });
 
-  it('preserves order for renderables with identical sort keys (stable sort)', () => {
+  it('at same depth, sorts by tileX (higher tileX = more to camera-right = on top)', () => {
     const renderables: Renderable[] = [
-      { tileX: 1, tileY: 0, tileZ: 0, draw: () => {} }, // sort key: 1.000
-      { tileX: 0, tileY: 1, tileZ: 0, draw: () => {} }, // sort key: 1.000 (same)
+      { tileX: 1, tileY: 0, tileZ: 0, draw: () => {} }, // depth 1, tileX 1
+      { tileX: 0, tileY: 1, tileZ: 0, draw: () => {} }, // depth 1, tileX 0
     ];
     const sorted = depthSort(renderables);
-    // Order should be preserved (first in, first out for ties)
-    expect(sorted[0].tileX).toBe(1);
-    expect(sorted[0].tileY).toBe(0);
-    expect(sorted[1].tileX).toBe(0);
-    expect(sorted[1].tileY).toBe(1);
+    // Lower tileX draws first (behind), higher tileX draws later (in front)
+    expect(sorted[0].tileX).toBe(0);
+    expect(sorted[0].tileY).toBe(1);
+    expect(sorted[1].tileX).toBe(1);
+    expect(sorted[1].tileY).toBe(0);
   });
 
   it('handles empty array', () => {

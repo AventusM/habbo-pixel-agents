@@ -521,10 +521,11 @@ export function createNitroMultiTileFurnitureRenderable(
  *   1. A ground strip (full-width horizontal band at ground level)
  *   2. A column cap (horizontally-clipped upper portion above ground level)
  *
- * The column caps replace the old single full-width "height cap" approach.
- * By clipping each column cap to the horizontal extent of its depth row's
- * footprint tiles, avatars at the SIDES of the furniture are no longer
- * incorrectly occluded by the tall upper portion of the sprite.
+ * Additionally, a full-sprite "base" renderable is emitted at the back-most
+ * depth. This base draws the complete unclipped sprite, ensuring that layers
+ * extending beyond the tile footprint (e.g. hc_djset instruments) are still
+ * visible. The column-capped slices draw ON TOP to provide depth-correct
+ * occlusion with avatars; the base only shows through where no cap covers.
  *
  * For 1×1 items, returns the original renderable unchanged (no slicing needed).
  *
@@ -599,6 +600,21 @@ export function sliceMultiTileRenderable(
       },
     });
   }
+
+  // Base renderable: full unclipped sprite at the back-most depth.
+  // This ensures sprite overflow beyond tile footprint (e.g. instruments on
+  // hc_djset) is still visible. The column caps draw on top at their correct
+  // depths, so in-footprint pixels get proper avatar occlusion. Only the
+  // overflow pixels (outside any column cap) show through from this base,
+  // rendered behind nearby entities — which is the correct visual behavior.
+  slices.push({
+    tileX: ox,
+    tileY: oy,
+    tileZ: z,
+    draw: (ctx) => {
+      renderable.draw(ctx);
+    },
+  });
 
   return slices;
 }

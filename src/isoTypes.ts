@@ -33,9 +33,9 @@ export interface HsbColor {
  * Used for depth sorting in the rendering pipeline.
  */
 export interface Renderable {
-  /** Tile X coordinate */
+  /** Tile X coordinate (origin for multi-tile items) */
   tileX: number;
-  /** Tile Y coordinate */
+  /** Tile Y coordinate (origin for multi-tile items) */
   tileY: number;
   /** Tile Z coordinate (height level 0-9) */
   tileZ: number;
@@ -149,21 +149,21 @@ export function tileColors(hsb: HsbColor): { top: string; left: string; right: s
 /**
  * Sort renderables in back-to-front order for painter's algorithm.
  *
- * Sort key: tileX + tileY + tileZ * 0.001
+ * Primary key: tileX + tileY (iso-depth). Higher = closer to camera = draws later.
+ * Secondary key (same depth): tileX. Higher = more to the camera-right = draws later.
+ * Tertiary key: tileZ * 0.001 (height tiebreaker).
  *
- * This ensures:
- * - Tiles further back (lower X+Y) render first
- * - Height (Z) is a tiebreaker (0.001 weight prevents Z from overriding X+Y position)
- * - Stair tiles (high Z) stay behind lower-position tiles
- * - Stable sort preserves original order for identical keys
+ * Multi-tile furniture is handled by slicing into per-depth-row renderables
+ * (see sliceMultiTileRenderable), so each slice sorts independently.
  *
  * @param renderables - Array of renderables with tileX, tileY, tileZ
  * @returns New sorted array (does not mutate input)
  */
 export function depthSort(renderables: Renderable[]): Renderable[] {
   return [...renderables].sort((a, b) => {
-    const keyA = a.tileX + a.tileY + a.tileZ * 0.001;
-    const keyB = b.tileX + b.tileY + b.tileZ * 0.001;
-    return keyA - keyB;
+    const depthA = a.tileX + a.tileY + a.tileZ * 0.001;
+    const depthB = b.tileX + b.tileY + b.tileZ * 0.001;
+    if (depthA !== depthB) return depthA - depthB;
+    return a.tileX - b.tileX;
   });
 }
