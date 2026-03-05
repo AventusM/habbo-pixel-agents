@@ -11,6 +11,7 @@ import {
 } from './isometricMath.js';
 import type { TileGrid, HsbColor, Renderable } from './isoTypes.js';
 import { tileColors, depthSort } from './isoTypes.js';
+import { drawWallPanels } from './isoWallRenderer.js';
 import {
   createFurnitureRenderable,
   createMultiTileFurnitureRenderable,
@@ -161,6 +162,9 @@ export function preRenderRoom(
 
   const hsb = defaultHsb || DEFAULT_HSB;
 
+  // Draw full-height wall panels BEFORE floor tiles so walls appear behind all floor tiles.
+  drawWallPanels(ctx, grid, cameraOrigin, hsb, tileColorMap);
+
   // Build renderables array (one per non-void tile)
   const renderables: Renderable[] = [];
 
@@ -187,16 +191,6 @@ export function preRenderRoom(
 
           // Draw floor tile (top face)
           drawFloorTile(ctx, screenX, screenY, tileHsb);
-
-          // Draw left wall strip (if on left edge or tile to left is void)
-          if (tx === 0 || grid.tiles[ty][tx - 1] == null) {
-            drawLeftFace(ctx, screenX, screenY, tileHsb);
-          }
-
-          // Draw right wall strip (if on top edge or tile above is void)
-          if (ty === 0 || grid.tiles[ty - 1]?.[tx] == null) {
-            drawRightFace(ctx, screenX, screenY, tileHsb);
-          }
         },
       });
     }
