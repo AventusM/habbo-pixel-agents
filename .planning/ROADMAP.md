@@ -212,7 +212,7 @@ Plans:
 **Goal:** Split chair furniture into separate seat and backrest renderables at different depth values so that a sitting avatar sorts between them — backrest renders in front of avatar, seat renders behind.
 **Requirements:** —
 
-**Plans:** 1/2 plans executed
+**Plans:** 1/2 plans complete
 
 **Deliverables:**
 - [ ] `createNitroChairRenderables()` partitions chair layers by z-value into back (z <= 0) and front (z > 0) groups, returning multiple renderables at different depth offsets
@@ -249,7 +249,7 @@ Plans:
 | 9. Furniture Catalog & Fixes | — | Complete | 2026-03-05 |
 | 10a. Avatar Polish | — | Complete | 2026-03-05 |
 | 10b. Chair Sitting | — | Complete | 2026-03-05 |
-| 11. Chair Layer Splitting | 1/2 | In Progress|  |
+| 11. Chair Layer Splitting | 1/2 | Complete    | 2026-03-05 |
 
 ---
 
