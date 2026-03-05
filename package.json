@@ -12,7 +12,33 @@
         "command": "habbo-pixel-agents.openRoom",
         "title": "Open Habbo Room"
       }
-    ]
+    ],
+    "configuration": {
+      "title": "Habbo Pixel Agents",
+      "properties": {
+        "habboPixelAgents.githubProject.owner": {
+          "type": "string",
+          "default": "",
+          "description": "GitHub organization or user login for kanban sync"
+        },
+        "habboPixelAgents.githubProject.ownerType": {
+          "type": "string",
+          "enum": ["org", "user"],
+          "default": "org",
+          "description": "Whether the owner is an organization or user"
+        },
+        "habboPixelAgents.githubProject.projectNumber": {
+          "type": "number",
+          "default": 0,
+          "description": "GitHub Projects project number (visible in the project URL)"
+        },
+        "habboPixelAgents.githubProject.pollIntervalSeconds": {
+          "type": "number",
+          "default": 60,
+          "description": "How often to refresh kanban cards (seconds, 0 = disabled)"
+        }
+      }
+    }
   },
   "scripts": {
     "prebuild": "bash scripts/convert-audio-to-ogg.sh",

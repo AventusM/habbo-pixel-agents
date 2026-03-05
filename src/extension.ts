@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { AgentManager } from './agentManager.js';
 import type { WebviewMessage, ExtensionMessage } from './agentTypes.js';
+import { fetchKanbanCards } from './githubProjects.js';
 
 const DEMO_HEIGHTMAP = [
   '0000000000',
@@ -112,8 +113,34 @@ export function activate(context: vscode.ExtensionContext) {
       }
     });
 
+    // --- GitHub Projects kanban polling ---
+    const config = vscode.workspace.getConfiguration('habboPixelAgents');
+    const owner = config.get<string>('githubProject.owner', '');
+    const ownerType = config.get<string>('githubProject.ownerType', 'org') as 'org' | 'user';
+    const projectNumber = config.get<number>('githubProject.projectNumber', 0);
+    const pollIntervalSeconds = config.get<number>('githubProject.pollIntervalSeconds', 60);
+
+    let kanbanPollId: ReturnType<typeof setInterval> | undefined;
+
+    if (owner && projectNumber > 0) {
+      // Initial fetch
+      const cards = fetchKanbanCards(owner, projectNumber, ownerType);
+      panel.webview.postMessage({ type: 'kanbanCards', cards } as ExtensionMessage);
+
+      // Set up polling if interval is enabled
+      if (pollIntervalSeconds > 0) {
+        kanbanPollId = setInterval(() => {
+          const polledCards = fetchKanbanCards(owner, projectNumber, ownerType);
+          panel.webview.postMessage({ type: 'kanbanCards', cards: polledCards } as ExtensionMessage);
+        }, pollIntervalSeconds * 1000);
+      }
+    }
+
     // Cleanup on panel dispose
     panel.onDidDispose(() => {
+      if (kanbanPollId) {
+        clearInterval(kanbanPollId);
+      }
       agentManager.dispose();
     });
 
