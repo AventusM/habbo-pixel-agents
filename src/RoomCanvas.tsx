@@ -29,7 +29,9 @@ import { AvatarManager } from './avatarManager.js';
 import { IdleWanderManager } from './idleWander.js';
 import { AvatarSelectionManager } from './avatarSelection.js';
 import type { ExtensionMessage } from './agentTypes.js';
+import type { KanbanCard } from './agentTypes.js';
 import { computeBlockedTiles } from './isoPathfinding.js';
+import { drawKanbanNotes } from './isoKanbanRenderer.js';
 
 interface RoomCanvasProps {
   heightmap: string;
@@ -64,6 +66,9 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
 
   // Track agent speech bubble text
   const agentToolTextRef = useRef<Map<string, string>>(new Map());
+
+  // Kanban cards from GitHub Projects (Phase 12-03)
+  const kanbanCardsRef = useRef<KanbanCard[]>([]);
 
   // Editor UI state
   const [editorMode, setEditorMode] = useState<EditorMode>(editorModeProp);
@@ -168,6 +173,10 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
         }
         case 'agentTool': {
           agentToolTextRef.current.set(msg.agentId, msg.displayText);
+          break;
+        }
+        case 'kanbanCards': {
+          kanbanCardsRef.current = msg.cards;
           break;
         }
       }
@@ -365,6 +374,16 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
           }, currentTimeMs);
           ctx.restore();
         }
+      }
+
+      // Kanban sticky notes on walls (topmost overlay, after name tags and speech bubbles)
+      if (kanbanCardsRef.current.length > 0 && renderState.current.grid) {
+        drawKanbanNotes(
+          ctx,
+          kanbanCardsRef.current,
+          renderState.current.grid,
+          renderState.current.cameraOrigin,
+        );
       }
 
       rafIdRef.current = requestAnimationFrame(frame);
