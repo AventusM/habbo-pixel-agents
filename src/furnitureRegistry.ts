@@ -126,6 +126,38 @@ export function getFurnitureDimensions(
   return { widthTiles: w, heightTiles: h };
 }
 
+/** Furniture IDs that are chair-type (sittable) */
+const CHAIR_IDS = new Set([
+  'exe_chair',
+  'hc_chr',
+  'chair_norja',
+  'chair_polyfon',
+  'greek_c19_chair',
+  'club_sofa',
+]);
+
+/** Furniture IDs that are flat/walkable (rugs, mats) */
+const RUG_IDS = new Set([
+  'exe_rug',
+  'hc_crpt',
+]);
+
+/**
+ * Check if a furniture ID is a chair-type item (sittable).
+ */
+export function isChairType(furnitureId: string): boolean {
+  return CHAIR_IDS.has(resolveAssetName(furnitureId));
+}
+
+/**
+ * Check if a furniture item is walkable (avatars can stand on it).
+ * Chairs (sittable) and rugs/mats are walkable.
+ */
+export function isWalkableFurniture(furnitureId: string): boolean {
+  const id = resolveAssetName(furnitureId);
+  return CHAIR_IDS.has(id) || RUG_IDS.has(id);
+}
+
 /**
  * Get the supported Habbo directions for a furniture item.
  * Reads from Nitro metadata logic.directions.

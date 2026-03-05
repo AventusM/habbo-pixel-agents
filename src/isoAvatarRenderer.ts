@@ -31,7 +31,10 @@ const DEBUG_PART_COLORS: Record<string, string> = {
 };
 
 /** Animation timing constants */
-export const WALK_FRAME_DURATION_MS = 250; // 250ms per walk frame (4 FPS)
+/** Time per tile step during walking (movement speed) */
+export const TILE_STEP_DURATION_MS = 350;
+/** Time per walk animation frame (leg cycle speed) */
+export const WALK_FRAME_DURATION_MS = 150;
 export const BLINK_INTERVAL_MIN_MS = 5000; // Min 5 seconds between blinks
 export const BLINK_INTERVAL_MAX_MS = 8000; // Max 8 seconds between blinks
 export const BLINK_FRAME_DURATION_MS = 100; // 100ms per blink frame (fast blink)
@@ -52,8 +55,8 @@ export interface AvatarSpec {
   direction: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7;
   /** Palette variant (0-5 for 6 distinct characters) */
   variant: 0 | 1 | 2 | 3 | 4 | 5;
-  /** Animation state ('idle' | 'walk' | 'spawning' | 'despawning') */
-  state: "idle" | "walk" | "spawning" | "despawning";
+  /** Animation state */
+  state: "idle" | "walk" | "sit" | "spawning" | "despawning";
   /** Animation frame (0-3 for walk, 0 for idle, 0-2 for blink overlay, 0-N for spawn effect) */
   frame: number;
   /** Timestamp of last state/frame change (for animation timing) */
@@ -72,6 +75,8 @@ export interface AvatarSpec {
   isSelected?: boolean;
   /** Display name shown in name tag (e.g. "Claude 1") */
   displayName?: string;
+  /** Key of the chair tile the avatar is sitting on (e.g. "3,5") */
+  sittingChairKey?: string;
 }
 
 /**
@@ -92,8 +97,8 @@ export function updateAvatarAnimation(
     }
   }
 
-  // Handle idle blinks
-  if (spec.state === "idle") {
+  // Handle idle/sit blinks
+  if (spec.state === "idle" || spec.state === "sit") {
     if (currentTimeMs >= spec.nextBlinkMs && spec.blinkFrame === 0) {
       spec.blinkFrame = 1;
       spec.lastUpdateMs = currentTimeMs;
@@ -140,11 +145,9 @@ export function createAvatarRenderable(
   atlasName: string,
 ): Renderable {
   return {
-    // +0.6 bias: avatars at depth D sort at D+0.6, placing them after all
-    // furniture at depth D (and D-0.5 height caps). Specifically, avatars at
-    // depth dFront-1 (adjacent to furniture's front face, outside footprint)
-    // sort at dFront-0.4 > dFront-0.5, making them visible; avatars at
-    // dFront-2 sort at dFront-1.4 < dFront-0.5, remaining correctly occluded.
+    // +0.6 bias: avatars render after furniture at same depth.
+    // Sitting avatars also use +0.6 (avatar in front of chair is acceptable;
+    // true back/front layer splitting would require per-furniture layer slicing).
     tileX: spec.tileX + 0.6,
     tileY: spec.tileY,
     tileZ: spec.tileZ,
@@ -289,6 +292,17 @@ const WALK_PARTS = new Set<PartType>([
 ]);
 // Note: ch (chest) has NO walk frames — always uses std
 // hd, hr, hrb also always use std
+
+/** Parts that have sit animation frames */
+const SIT_PARTS = new Set<PartType>([
+  "bd",
+  "lh",
+  "rh",
+  "lg",
+  "sh",
+  "ls",
+  "rs",
+]);
 
 /** Per-variant outfit colors */
 interface OutfitColors {
@@ -554,9 +568,10 @@ function buildFrameKey(
     setId = (variant % 4) + 1;
   }
 
-  // Determine action: walk parts use h_wlk when walking, everything else h_std
+  // Determine action: walk parts use h_wlk, sit parts use h_sit, everything else h_std
   const isWalking = state === "walk" && WALK_PARTS.has(part);
-  const action = isWalking ? "wlk" : "std";
+  const isSitting = state === "sit" && SIT_PARTS.has(part);
+  const action = isSitting ? "sit" : isWalking ? "wlk" : "std";
   const frameNum = isWalking ? frame : 0;
 
   return `h_${action}_${part}_${setId}_${dir}_${frameNum}`;
@@ -576,11 +591,9 @@ export function createNitroAvatarRenderable(
   }
 
   return {
-    // +0.6 bias: avatars at depth D sort at D+0.6, placing them after all
-    // furniture at depth D (and D-0.5 height caps). Specifically, avatars at
-    // depth dFront-1 (adjacent to furniture's front face, outside footprint)
-    // sort at dFront-0.4 > dFront-0.5, making them visible; avatars at
-    // dFront-2 sort at dFront-1.4 < dFront-0.5, remaining correctly occluded.
+    // +0.6 bias: avatars render after furniture at same depth.
+    // Sitting avatars also use +0.6 (avatar in front of chair is acceptable;
+    // true back/front layer splitting would require per-furniture layer slicing).
     tileX: spec.tileX + 0.6,
     tileY: spec.tileY,
     tileZ: spec.tileZ,
@@ -593,7 +606,11 @@ export function createNitroAvatarRenderable(
       screen.y += spec.screenOffsetY || 0;
       const { dir: mappedDir, flip } = mapBodyDirection(spec.direction);
       const outfit = VARIANT_OUTFITS[spec.variant] || VARIANT_OUTFITS[0];
-      const stateForFrame = spec.state === "walk" ? "walk" : "idle";
+      // Apply seated Y offset to lower avatar onto chair
+      if (spec.state === "sit") {
+        screen.y += 4;
+      }
+      const stateForFrame = spec.state === "walk" ? "walk" : spec.state === "sit" ? "sit" : "idle";
       const renderOrder = getRenderOrder(mappedDir);
 
       if (spec.state === "spawning" || spec.state === "despawning") {
@@ -616,8 +633,8 @@ export function createNitroAvatarRenderable(
           spec.variant,
         );
         let frame = spriteCache.getNitroFrame(partDef.asset, frameKey);
-        // Fallback: if walk frame missing, try std
-        if (!frame && stateForFrame === "walk") {
+        // Fallback: if walk/sit frame missing, try std
+        if (!frame && (stateForFrame === "walk" || stateForFrame === "sit")) {
           frame = spriteCache.getNitroFrame(
             partDef.asset,
             buildFrameKey(part, "idle", spec.direction, 0, spec.variant),

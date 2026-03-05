@@ -8,10 +8,7 @@ import type { TilePath, IsometricPosition } from './isoAgentBehavior.js';
 import { pathToIsometricPositions } from './isoAgentBehavior.js';
 import { findPath, getRandomWalkableTile, isTileOccupied } from './isoPathfinding.js';
 import { tileToScreen } from './isometricMath.js';
-import { WALK_FRAME_DURATION_MS } from './isoAvatarRenderer.js';
-
-/** Time per tile step during walking (ms) */
-const TILE_STEP_DURATION_MS = WALK_FRAME_DURATION_MS; // 250ms per tile
+import { TILE_STEP_DURATION_MS } from './isoAvatarRenderer.js';
 
 /** Path state for an avatar in motion */
 interface PathState {
@@ -100,6 +97,11 @@ export class AvatarManager {
     if (!avatar) return false;
     if (avatar.state === 'spawning' || avatar.state === 'despawning') return false;
 
+    // Stand up first if sitting
+    if (avatar.state === 'sit') {
+      this.standAvatar(agentId);
+    }
+
     // Don't move to current tile
     if (avatar.tileX === targetX && avatar.tileY === targetY) return false;
 
@@ -137,6 +139,9 @@ export class AvatarManager {
         this.removeAvatar(agentId);
         continue;
       }
+
+      // Skip path processing for sitting avatars
+      if (avatar.state === 'sit') continue;
 
       // Handle path following
       const pathState = this.pathStates.get(agentId);
@@ -201,6 +206,48 @@ export class AvatarManager {
       // Ensure walk state
       avatar.state = 'walk';
     }
+  }
+
+  /**
+   * Sit an avatar on a chair at the given tile.
+   */
+  sitAvatar(agentId: string, chairTileX: number, chairTileY: number, chairDirection: number): void {
+    const avatar = this.avatars.get(agentId);
+    if (!avatar) return;
+
+    avatar.state = 'sit';
+    avatar.tileX = chairTileX;
+    avatar.tileY = chairTileY;
+    avatar.direction = chairDirection as 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7;
+    avatar.sittingChairKey = `${chairTileX},${chairTileY}`;
+    avatar.screenOffsetX = 0;
+    avatar.screenOffsetY = 0;
+    this.pathStates.delete(agentId);
+  }
+
+  /**
+   * Stand an avatar up from a chair.
+   */
+  standAvatar(agentId: string): void {
+    const avatar = this.avatars.get(agentId);
+    if (!avatar) return;
+
+    avatar.state = 'idle';
+    avatar.sittingChairKey = undefined;
+    avatar.lastUpdateMs = Date.now();
+  }
+
+  /**
+   * Get the set of chair tile keys currently occupied by sitting avatars.
+   */
+  getOccupiedChairs(): Set<string> {
+    const occupied = new Set<string>();
+    for (const avatar of this.avatars.values()) {
+      if (avatar.sittingChairKey) {
+        occupied.add(avatar.sittingChairKey);
+      }
+    }
+    return occupied;
   }
 
   /**

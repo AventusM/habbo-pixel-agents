@@ -59,7 +59,7 @@ describe('isoAvatarRenderer', () => {
 
     const renderable = createAvatarRenderable(spec, spriteCache, 'avatar');
 
-    expect(renderable.tileX).toBe(3);
+    expect(renderable.tileX).toBe(3.6); // +0.6 depth bias for avatar sorting
     expect(renderable.tileY).toBe(7);
     expect(renderable.tileZ).toBe(2);
     expect(typeof renderable.draw).toBe('function');
@@ -251,14 +251,14 @@ describe('isoAvatarRenderer', () => {
       spawnProgress: 0,
     };
 
-    // Before 250ms - no frame change
-    updateAvatarAnimation(spec, 200);
+    // Before WALK_FRAME_DURATION_MS - no frame change
+    updateAvatarAnimation(spec, WALK_FRAME_DURATION_MS - 50);
     expect(spec.frame).toBe(0);
 
-    // At 250ms - frame advances
-    updateAvatarAnimation(spec, 250);
+    // At WALK_FRAME_DURATION_MS - frame advances
+    updateAvatarAnimation(spec, WALK_FRAME_DURATION_MS);
     expect(spec.frame).toBe(1);
-    expect(spec.lastUpdateMs).toBe(250);
+    expect(spec.lastUpdateMs).toBe(WALK_FRAME_DURATION_MS);
   });
 
   it('walk cycle wraps from frame 3 to 0', () => {

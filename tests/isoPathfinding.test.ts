@@ -236,7 +236,7 @@ describe('getRandomWalkableTile', () => {
 describe('computeBlockedTiles', () => {
   it('blocks single-tile furniture positions', () => {
     const blocked = computeBlockedTiles(
-      [{ name: 'chair', tileX: 3, tileY: 4, tileZ: 0, direction: 0 }],
+      [{ name: 'exe_light', tileX: 3, tileY: 4, tileZ: 0, direction: 0 }],
       [],
     );
     expect(blocked.has('3,4')).toBe(true);

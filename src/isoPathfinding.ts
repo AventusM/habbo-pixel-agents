@@ -6,6 +6,7 @@ import type { TileGrid } from './isoTypes.js';
 import type { TilePathStep, TilePath } from './isoAgentBehavior.js';
 import type { AvatarSpec } from './isoAvatarRenderer.js';
 import type { FurnitureSpec, MultiTileFurnitureSpec } from './isoFurnitureRenderer.js';
+import { isWalkableFurniture } from './furnitureRegistry.js';
 
 /** 8-connected neighbor offsets (cardinals + diagonals) */
 const NEIGHBORS: [number, number][] = [
@@ -23,12 +24,16 @@ export function computeBlockedTiles(
 ): Set<string> {
   const blocked = new Set<string>();
   for (const f of furniture) {
-    blocked.add(`${f.tileX},${f.tileY}`);
+    if (!isWalkableFurniture(f.name)) {
+      blocked.add(`${f.tileX},${f.tileY}`);
+    }
   }
   for (const f of multiTileFurniture) {
-    for (let dy = 0; dy < f.heightTiles; dy++) {
-      for (let dx = 0; dx < f.widthTiles; dx++) {
-        blocked.add(`${f.tileX + dx},${f.tileY + dy}`);
+    if (!isWalkableFurniture(f.name)) {
+      for (let dy = 0; dy < f.heightTiles; dy++) {
+        for (let dx = 0; dx < f.widthTiles; dx++) {
+          blocked.add(`${f.tileX + dx},${f.tileY + dy}`);
+        }
       }
     }
   }

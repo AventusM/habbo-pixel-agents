@@ -22,7 +22,7 @@ import {
   type EditorState,
 } from './isoLayoutEditor.js';
 import type { HsbColor } from './isoTypes.js';
-import { getSupportedDirections } from './furnitureRegistry.js';
+import { getSupportedDirections, isChairType } from './furnitureRegistry.js';
 import { LayoutEditorPanel } from './LayoutEditorPanel.js';
 import { AudioManager } from './isoAudioManager.js';
 import { AvatarManager } from './avatarManager.js';
@@ -150,6 +150,11 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
         case 'agentStatus': {
           if (msg.status === 'active' && grid) {
             idleWander.stopWandering(msg.agentId);
+            // Stand up if sitting before moving to desk
+            const activeAvatar = avatarManager.getAvatar(msg.agentId);
+            if (activeAvatar?.state === 'sit') {
+              avatarManager.standAvatar(msg.agentId);
+            }
             // Move to a desk tile
             const deskTile = DESK_TILES.find(
               t => !avatarManager.getAvatarAtTile(t.x, t.y)
@@ -241,7 +246,14 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
           renderState.current.furniture,
           renderState.current.multiTileFurniture,
         );
-        idleWanderRef.current.tick(currentTimeMs, avatarManagerRef.current, renderState.current.grid, blocked);
+        idleWanderRef.current.tick(
+          currentTimeMs,
+          avatarManagerRef.current,
+          renderState.current.grid,
+          blocked,
+          renderState.current.furniture,
+          renderState.current.multiTileFurniture,
+        );
       }
 
       // Update animation state for all avatars
@@ -319,7 +331,7 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
           const offsetY = avatar.screenOffsetY || 0;
           const headY = screenY + AVATAR_GROUND_Y - AVATAR_HEIGHT + offsetY;
 
-          const status = avatar.state === 'idle' ? 'idle' : 'active';
+          const status = avatar.state === 'idle' || avatar.state === 'sit' ? 'idle' : 'active';
 
           ctx.save();
           ctx.translate(renderState.current.cameraOrigin.x, renderState.current.cameraOrigin.y);
@@ -439,7 +451,10 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
       return;
     }
 
-    // View mode: avatar selection + click-to-move
+    // Simulate server round-trip lag (75-175ms) for movement/sit actions
+    await new Promise(r => setTimeout(r, 75 + Math.random() * 100));
+
+    // View mode: avatar selection + click-to-move + click-to-sit
     const selectionMgr = selectionManagerRef.current;
     const avatarManager = avatarManagerRef.current;
 
@@ -447,6 +462,12 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
     const clickedAvatar = avatarManager.getAvatarAtTile(tileX, tileY);
 
     if (clickedAvatar) {
+      // If avatar is sitting, stand it up
+      if (clickedAvatar.state === 'sit') {
+        avatarManager.standAvatar(clickedAvatar.id);
+        idleWanderRef.current.startWandering(clickedAvatar.id);
+        return;
+      }
       // Toggle selection
       if (selectionMgr.isSelected(clickedAvatar.id)) {
         selectionMgr.deselectAvatar();
@@ -460,6 +481,72 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
       return;
     }
 
+    // Check if clicked tile has a chair — find nearest idle avatar and send to sit
+    const chairFurniture = renderState.current.furniture.find(
+      f => f.tileX === tileX && f.tileY === tileY && isChairType(f.name)
+    );
+    if (chairFurniture) {
+      const occupied = avatarManager.getOccupiedChairs();
+      const chairKey = `${tileX},${tileY}`;
+      if (!occupied.has(chairKey)) {
+        // Find nearest idle avatar (prefer selected, then closest)
+        const candidates = avatarManager.getAvatars().filter(
+          a => a.state === 'idle' || a.state === 'walk'
+        );
+        let target = selectionMgr.selectedAvatarId
+          ? avatarManager.getAvatar(selectionMgr.selectedAvatarId)
+          : undefined;
+        if (!target || (target.state !== 'idle' && target.state !== 'walk')) {
+          // Find closest idle avatar
+          target = candidates.sort((a, b) => {
+            const distA = Math.abs(a.tileX - tileX) + Math.abs(a.tileY - tileY);
+            const distB = Math.abs(b.tileX - tileX) + Math.abs(b.tileY - tileY);
+            return distA - distB;
+          })[0];
+        }
+        if (target && renderState.current.grid) {
+          const blocked = computeBlockedTiles(
+            renderState.current.furniture,
+            renderState.current.multiTileFurniture,
+          );
+          // If already on the chair tile, sit immediately
+          if (target.tileX === tileX && target.tileY === tileY) {
+            avatarManager.sitAvatar(target.id, tileX, tileY, chairFurniture.direction);
+          } else {
+            const moved = avatarManager.moveAvatarTo(
+              target.id, tileX, tileY, renderState.current.grid, undefined, blocked
+            );
+            if (moved) {
+              idleWanderRef.current.stopWandering(target.id);
+              // Set up arrival callback via a pending sit check in wander manager
+              // We'll use a simple interval check instead
+              const checkSitArrival = () => {
+                const av = avatarManager.getAvatar(target!.id);
+                if (!av) return;
+                if (av.state === 'idle' && av.tileX === tileX && av.tileY === tileY) {
+                  const occ = avatarManager.getOccupiedChairs();
+                  if (!occ.has(chairKey)) {
+                    avatarManager.sitAvatar(av.id, tileX, tileY, chairFurniture.direction);
+                  }
+                  return;
+                }
+                // Still walking, check again next frame
+                if (av.state === 'walk') {
+                  requestAnimationFrame(checkSitArrival);
+                }
+              };
+              requestAnimationFrame(checkSitArrival);
+            }
+          }
+          selectionMgr.deselectAvatar();
+          for (const avatar of avatarManager.getAvatars()) {
+            avatar.isSelected = false;
+          }
+          return;
+        }
+      }
+    }
+
     // If an avatar is selected and clicked a walkable tile, move there
     if (selectionMgr.selectedAvatarId && renderState.current.grid) {
       const tile = renderState.current.grid.tiles[tileY]?.[tileX];
@@ -468,6 +555,11 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
           renderState.current.furniture,
           renderState.current.multiTileFurniture,
         );
+        const selectedAvatar = avatarManager.getAvatar(selectionMgr.selectedAvatarId);
+        // Stand up if sitting before moving
+        if (selectedAvatar?.state === 'sit') {
+          avatarManager.standAvatar(selectionMgr.selectedAvatarId);
+        }
         const moved = avatarManager.moveAvatarTo(
           selectionMgr.selectedAvatarId, tileX, tileY, renderState.current.grid, undefined, blocked
         );
