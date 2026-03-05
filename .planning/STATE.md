@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_plan: "03"
-status: in_progress
-last_updated: "2026-03-05T23:51:00.000Z"
+current_plan: 03
+status: executing
+last_updated: "2026-03-05T21:52:26.861Z"
 progress:
   total_phases: 11
-  completed_phases: 8
+  completed_phases: 9
   total_plans: 27
-  completed_plans: 25
+  completed_plans: 26
 ---
 
 # STATE.md
@@ -19,13 +19,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-02-28)
 
 **Core value:** Claude Code agents should feel like they're working together in a recognisable Habbo Hotel room — the isometric 2.5D aesthetic must be faithful to the classic v14 era.
-**Current focus:** v2 in progress — Phase 12 (room walls + kanban notes) plan 02 complete
+**Current focus:** v2 in progress — Phase 12 (room walls + kanban notes) plan 03 tasks 1-2 complete, awaiting visual checkpoint
 
 ## Current Status
 
-v1.0 (phases 1-8) complete. v2 work in progress: Phase 9 (furniture catalog + rendering fixes) and Phase 10a/10b (avatar polish + chair sitting) are complete. Phase 11 plan 01 (chair layer splitting) is complete. Phase 12 plans 01 and 02 complete (wall panels + GitHub Projects kanban data pipeline).
+v1.0 (phases 1-8) complete. v2 work in progress: Phase 9 (furniture catalog + rendering fixes) and Phase 10a/10b (avatar polish + chair sitting) are complete. Phase 11 plan 01 (chair layer splitting) is complete. Phase 12 plans 01-03 implementation complete (wall panels + GitHub Projects kanban data pipeline + sticky note renderer); awaiting human visual verification.
 
-**Last session:** 2026-03-05T23:51:00.000Z
+**Last session:** 2026-03-05T21:52:26.859Z
 **Milestone status:** v2 in progress
 
 ## Current Phase
@@ -77,6 +77,8 @@ v1.0 (phases 1-8) complete. v2 work in progress: Phase 9 (furniture catalog + re
 | 2026-03-05 | execFileSync args array (not execSync shell string) for gh CLI graphql | Avoids shell quoting issues with multi-line GraphQL strings |
 | 2026-03-05 | Temp file with --input flag for complex items GraphQL query | Fully avoids shell quoting for the larger two-query GitHub Projects flow |
 | 2026-03-05 | Silent fallback pattern for fetchKanbanCards: catch all errors, return [] | Consistent with Phase 8 audio pattern; extension stays operational when gh uninstalled/unauthenticated |
+| 2026-03-05 | Kanban notes drawn as topmost overlay after speech bubbles in rAF loop | Always visible on top of room geometry; no depth sort needed for screen-space overlays |
+| 2026-03-05 | drawKanbanNotes no-op when cards.length === 0 | Zero draw cost for rooms without GitHub Projects settings configured |
 
 ## Blockers
 
@@ -111,6 +113,7 @@ None.
 | 11-chair-layer-splitting | 11-01 | 3min | 2 | 3 |
 | 12-room-walls-kanban-notes | 12-01 | 3min | 2 | 4 |
 | 12-room-walls-kanban-notes | 12-02 | 5min | 2 | 5 |
+| Phase 12-room-walls-kanban-notes P12-03 | 2min | 2 tasks | 3 files |
 
 ## Phase History
 
@@ -141,3 +144,4 @@ None.
 | 11-chair-layer-splitting | 11-01 | Chair seat and backrest split into separate renderables with depth bias for correct avatar occlusion |
 | 12-room-walls-kanban-notes | 12-01 | Full-height room perimeter wall panels with shared baseline replacing per-tile wall strips (14 new tests, 263 total passing) |
 | 12-room-walls-kanban-notes | 12-02 | GitHub Projects v2 kanban fetch via gh CLI graphql with VS Code settings, polling interval, and silent error fallback returning KanbanCard[] to webview (268 tests passing) |
+| 12-room-walls-kanban-notes | 12-03 | Sticky note renderer for kanban cards on isometric room walls — color-coded by status, distributed across left/right wall tile slots (279 tests passing) |

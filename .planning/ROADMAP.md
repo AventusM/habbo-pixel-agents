@@ -248,7 +248,7 @@ Plans:
 **Status:** Planning complete
 **Depends on:** Phase 11
 
-**Plans:** 2/3 plans executed
+**Plans:** 3/3 plans complete
 
 Plans:
 - [ ] 12-01-PLAN.md — Full wall panel geometry replacing per-tile strips (isoWallRenderer.ts)
@@ -314,7 +314,7 @@ Notes:
 | 10a. Avatar Polish | Complete | 2026-03-05 |
 | 10b. Chair Sitting | Complete | 2026-03-05 |
 | 11. Chair Layer Splitting | Complete | 2026-03-05 |
-| 12. Room Walls & Kanban Notes | 2/3 | In Progress|  | 13. Volter Font as Default | Pending | — |
+| 12. Room Walls & Kanban Notes | 3/3 | Complete   | 2026-03-05 | 13. Volter Font as Default | Pending | — |
 | 14. Avatar Builder UI | Pending | — |
 | 15. Performance Optimisation | Pending | — |
 
