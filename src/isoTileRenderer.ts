@@ -16,12 +16,13 @@ import {
   createMultiTileFurnitureRenderable,
   createNitroFurnitureRenderable,
   createNitroMultiTileFurnitureRenderable,
+  createNitroChairRenderables,
   sliceMultiTileRenderable,
   type FurnitureSpec,
   type MultiTileFurnitureSpec,
 } from './isoFurnitureRenderer.js';
 import type { SpriteCache } from './isoSpriteCache.js';
-import { resolveAssetName } from './furnitureRegistry.js';
+import { resolveAssetName, isChairType } from './furnitureRegistry.js';
 
 /**
  * Wall height in pixels — 4 tile heights (128px).
@@ -228,6 +229,26 @@ export function createFurnitureRenderables(
 
   for (const furni of furniture) {
     const nitroName = resolveAssetName(furni.name);
+
+    // Chair-type single-tile furniture: split into seat + backrest renderables
+    // for correct avatar depth sorting (backrest in front, seat behind).
+    // club_sofa is excluded — it goes through the multiTileFurniture path.
+    if (isChairType(furni.name) && spriteCache.hasNitroAsset(nitroName)) {
+      const chairRenderables = createNitroChairRenderables(furni, spriteCache, nitroName);
+      for (const r of chairRenderables) {
+        const origDraw = r.draw;
+        r.draw = (ctx) => {
+          ctx.save();
+          ctx.translate(cameraOrigin.x, cameraOrigin.y);
+          origDraw(ctx);
+          ctx.restore();
+        };
+        renderables.push(r);
+      }
+      continue; // Skip the standard single-renderable path
+    }
+
+    // Non-chair: existing single-renderable path (unchanged)
     let renderable = spriteCache.hasNitroAsset(nitroName)
       ? createNitroFurnitureRenderable(furni, spriteCache, nitroName)
       : null;
