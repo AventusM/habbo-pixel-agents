@@ -4,12 +4,12 @@ milestone: v1.0
 milestone_name: milestone
 current_plan: Not started
 status: completed
-last_updated: "2026-03-05T21:10:11.725Z"
+last_updated: "2026-03-05T21:44:12.813Z"
 progress:
-  total_phases: 10
+  total_phases: 11
   completed_phases: 8
-  total_plans: 24
-  completed_plans: 23
+  total_plans: 27
+  completed_plans: 24
 ---
 
 # STATE.md
@@ -19,20 +19,20 @@ progress:
 See: .planning/PROJECT.md (updated 2026-02-28)
 
 **Core value:** Claude Code agents should feel like they're working together in a recognisable Habbo Hotel room — the isometric 2.5D aesthetic must be faithful to the classic v14 era.
-**Current focus:** v2 in progress — Phase 11 (chair layer splitting) plan 01 complete
+**Current focus:** v2 in progress — Phase 12 (room walls + kanban notes) plan 01 complete
 
 ## Current Status
 
-v1.0 (phases 1-8) complete. v2 work in progress: Phase 9 (furniture catalog + rendering fixes) and Phase 10a/10b (avatar polish + chair sitting) are complete. Phase 11 plan 01 (chair layer splitting) is complete.
+v1.0 (phases 1-8) complete. v2 work in progress: Phase 9 (furniture catalog + rendering fixes) and Phase 10a/10b (avatar polish + chair sitting) are complete. Phase 11 plan 01 (chair layer splitting) is complete. Phase 12 plan 01 (full room wall panels) is complete.
 
-**Last session:** 2026-03-05
+**Last session:** 2026-03-05T21:44:12.811Z
 **Milestone status:** v2 in progress
 
 ## Current Phase
 
-**Phase:** 11 — Chair Layer Splitting
-**Current Plan:** Not started
-**Status:** Milestone complete
+**Phase:** 12 — Room Walls + Kanban Notes
+**Current Plan:** 02
+**Status:** In Progress
 
 ## Decisions Log
 
@@ -72,6 +72,8 @@ v1.0 (phases 1-8) complete. v2 work in progress: Phase 9 (furniture catalog + re
 | 2026-03-02 | AVATAR_GROUND_Y = 12px offset | Avatar shoe bottoms sat 12px above furniture ground plane; constant shifts sprites down to align |
 | 2026-03-05 | Chair backrest depth bias +0.8 (vs avatar +0.6) | Guarantees backrest renders in front of sitting avatar's torso; seat at base depth renders behind |
 | 2026-03-05 | Split threshold z>0 strict positive | Matches hc_chr metadata convention; z=-100 for dir2 backrest correctly skips split |
+| 2026-03-05 | Wall panels draw before floor tiles on OffscreenCanvas | Painter's algorithm keeps walls behind all floor geometry without extra z-sorting |
+| 2026-03-05 | Shared baseline per wall side as max(sy+TILE_H+WALL_HEIGHT) | Eliminates height-gap artifacts when tiles sit at different elevations |
 
 ## Blockers
 
@@ -104,6 +106,7 @@ None.
 | 08-audio | 08-02 | 3min | 2 | 2 |
 | 08-audio | 08-03 | 5min | 3 | 4 |
 | 11-chair-layer-splitting | 11-01 | 3min | 2 | 3 |
+| 12-room-walls-kanban-notes | 12-01 | 3min | 2 | 4 |
 
 ## Phase History
 
@@ -131,3 +134,5 @@ None.
 | 08-audio | 08-01 | AudioManager module with graceful codec failure handling and silent fallback |
 | 08-audio | 08-02 | OGG Vorbis audio conversion for all Habbo sound effects |
 | 08-audio | 08-03 | Extension integration with CSP media-src, user gesture initialization, empirical testing complete |
+| 11-chair-layer-splitting | 11-01 | Chair seat and backrest split into separate renderables with depth bias for correct avatar occlusion |
+| 12-room-walls-kanban-notes | 12-01 | Full-height room perimeter wall panels with shared baseline replacing per-tile wall strips (14 new tests, 263 total passing) |
