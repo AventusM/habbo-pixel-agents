@@ -2,15 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_plan: Complete
-status: completed
-stopped_at: v1.0 milestone complete — all 8 phases built and verified
-last_updated: "2026-03-02T00:00:00.000Z"
+current_plan: `.planning/phases/11-chair-layer-splitting/PLAN.md`
+status: Planned, pending execution
+last_updated: "2026-03-05T21:04:57.944Z"
 progress:
-  total_phases: 8
+  total_phases: 10
   completed_phases: 8
   total_plans: 24
-  completed_plans: 24
+  completed_plans: 23
 ---
 
 # STATE.md
@@ -20,20 +19,20 @@ progress:
 See: .planning/PROJECT.md (updated 2026-02-28)
 
 **Core value:** Claude Code agents should feel like they're working together in a recognisable Habbo Hotel room — the isometric 2.5D aesthetic must be faithful to the classic v14 era.
-**Current focus:** v1.0 milestone COMPLETE — all 8 phases built and verified
+**Current focus:** v2 in progress — Phase 11 (chair layer splitting) plan 01 complete
 
 ## Current Status
 
-All 8 phases of the v1.0 milestone are **COMPLETE**. Isometric room rendering, asset pipeline, furniture, avatar system, UI overlays, layout editor, and audio are all built, verified, and merged to main.
+v1.0 (phases 1-8) complete. v2 work in progress: Phase 9 (furniture catalog + rendering fixes) and Phase 10a/10b (avatar polish + chair sitting) are complete. Phase 11 plan 01 (chair layer splitting) is complete.
 
-**Last session:** 2026-03-02
-**Milestone status:** v1.0 complete — ready for v2 planning when desired
+**Last session:** 2026-03-05
+**Milestone status:** v2 in progress
 
 ## Current Phase
 
-**Phase:** All phases complete (1-8)
-**Current Plan:** N/A — milestone finished
-**Status:** v1.0 milestone complete
+**Phase:** 11 — Chair Layer Splitting
+**Current Plan:** `.planning/phases/11-chair-layer-splitting/11-01-PLAN.md`
+**Status:** Plan 01 complete — createNitroChairRenderables implemented and wired
 
 ## Decisions Log
 
@@ -71,6 +70,8 @@ All 8 phases of the v1.0 milestone are **COMPLETE**. Isometric room rendering, a
 | 2026-03-01 | Full 11-layer Nitro figure composition | cortex-assets provides all body parts; simplified sprites unnecessary |
 | 2026-03-01 | Figure offset X negation in renderer | Cortex figure offset convention has inverted X vs furniture; negate in drawNitroAvatarFrame |
 | 2026-03-02 | AVATAR_GROUND_Y = 12px offset | Avatar shoe bottoms sat 12px above furniture ground plane; constant shifts sprites down to align |
+| 2026-03-05 | Chair backrest depth bias +0.8 (vs avatar +0.6) | Guarantees backrest renders in front of sitting avatar's torso; seat at base depth renders behind |
+| 2026-03-05 | Split threshold z>0 strict positive | Matches hc_chr metadata convention; z=-100 for dir2 backrest correctly skips split |
 
 ## Blockers
 
@@ -102,6 +103,7 @@ None.
 | 08-audio | 08-01 | 4min | 2 | 3 |
 | 08-audio | 08-02 | 3min | 2 | 2 |
 | 08-audio | 08-03 | 5min | 3 | 4 |
+| 11-chair-layer-splitting | 11-01 | 3min | 2 | 3 |
 
 ## Phase History
 

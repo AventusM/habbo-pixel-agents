@@ -199,12 +199,38 @@ Plans:
 
 ---
 
-## v2 Phases (future)
+## v2 Completed Phases
 
-- Phase 9: Full Habbo Furniture Catalog — expand beyond the 8 core office pieces toward the complete Habbo furniture catalog incrementally.
-- Phase 10: Volter Font as Default — confirm licensing is clean for all distribution contexts; make Volter the default font with Press Start 2P as fallback.
-- Phase 11: Avatar Builder UI — v1 already has 11-layer Nitro figure composition; v2 adds avatar builder UI, clothing selection, and wardrobe customisation.
-- Phase 12: Performance Optimisation — dirty-rect tracking, PixiJS v8 migration, or other optimisations for large rooms (20×20+ tiles, 20+ agents) if Canvas 2D becomes a bottleneck.
+- Phase 9: Furniture Catalog & Rendering Fixes — data-driven furniture catalog with 16 new items, direction-aware rotation, flip caching, unified furniture+avatar depth sorting, avatar occlusion fixes. **Complete.**
+- Phase 10a: Avatar Polish — despawn bug fix, display names, speech bubble cleanup, desk facing, bubble height cap. **Complete.**
+- Phase 10b: Chair Sitting — slower walking, chair sitting, walkable furniture. **Complete.**
+
+---
+
+## Phase 11: Chair Layer Splitting
+
+**Goal:** Split chair furniture into separate seat and backrest renderables at different depth values so that a sitting avatar sorts between them — backrest renders in front of avatar, seat renders behind.
+**Requirements:** —
+
+**Plans:** 1/2 plans executed
+
+**Deliverables:**
+- [ ] `createNitroChairRenderables()` partitions chair layers by z-value into back (z <= 0) and front (z > 0) groups, returning multiple renderables at different depth offsets
+- [ ] `createFurnitureRenderables()` handles array returns from chair renderable creation
+- [ ] Single-layer chairs (layerCount: 1, all z=0) fall back to single renderable gracefully
+- [ ] Direction-dependent z-values work correctly (dir 0: backrest in front, dir 2: backrest behind)
+- [ ] Multi-tile chairs (sofas) handled or explicitly deferred
+
+**Research flags:** The existing PLAN.md in `11-chair-layer-splitting/` has a detailed approach — research may build on it.
+**Depends on:** Phase 10b
+
+---
+
+## v2 Future Phases
+
+- Phase 12: Volter Font as Default — confirm licensing is clean for all distribution contexts; make Volter the default font with Press Start 2P as fallback.
+- Phase 13: Avatar Builder UI — v1 already has 11-layer Nitro figure composition; v2 adds avatar builder UI, clothing selection, and wardrobe customisation.
+- Phase 14: Performance Optimisation — dirty-rect tracking, PixiJS v8 migration, or other optimisations for large rooms (20×20+ tiles, 20+ agents) if Canvas 2D becomes a bottleneck.
 
 ---
 
@@ -220,9 +246,13 @@ Plans:
 | 6. UI Overlays | UI-01 – UI-08, AGENT-01 | Complete | 2026-03-01 |
 | 7. Layout Editor Integration | EDIT-01 – EDIT-04 | Complete | 2026-03-01 |
 | 8. Audio | AUDIO-01 – AUDIO-05 | Complete | 2026-03-01 |
+| 9. Furniture Catalog & Fixes | — | Complete | 2026-03-05 |
+| 10a. Avatar Polish | — | Complete | 2026-03-05 |
+| 10b. Chair Sitting | — | Complete | 2026-03-05 |
+| 11. Chair Layer Splitting | 1/2 | In Progress|  |
 
 ---
 
 *Created: 2026-02-28*
-*Last updated: 2026-03-02 after documentation audit*
+*Last updated: 2026-03-05*
 
