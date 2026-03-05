@@ -23,12 +23,20 @@ export interface AgentState {
   jsonlPath: string;
 }
 
+/** A card from a GitHub Projects v2 kanban board */
+export interface KanbanCard {
+  id: string;
+  title: string;
+  status: string; // raw status column name from GitHub Projects
+}
+
 /** Messages from extension host → webview */
 export type ExtensionMessage =
   | { type: 'agentCreated'; agentId: string; terminalName: string; variant: 0 | 1 | 2 | 3 | 4 | 5 }
   | { type: 'agentRemoved'; agentId: string }
   | { type: 'agentStatus'; agentId: string; status: AgentStatus }
-  | { type: 'agentTool'; agentId: string; toolName: string; displayText: string };
+  | { type: 'agentTool'; agentId: string; toolName: string; displayText: string }
+  | { type: 'kanbanCards'; cards: KanbanCard[] };
 
 /** Messages from webview → extension host */
 export type WebviewMessage =
