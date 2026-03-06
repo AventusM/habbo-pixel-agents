@@ -443,14 +443,13 @@ export function drawKanbanNotes(
     noteHitAreas.push({ cardId: DONE_ID, corners, wallSide: 'right', aggregateType: 'done' });
   }
 
-  // Distribute small In Progress notes across remaining edge tiles
-  // Only skip middle tile on a wall if a large note was drawn there
+  // Distribute small In Progress notes on the left wall only.
+  // Only skip middle tile if a large backlog note was drawn there.
   const hasLeftLarge = backlogCards.length > 0 && leftEdge.length > 0;
   const hasRightLarge = doneCards.length > 0 && rightEdge.length > 0;
   const leftSmallTiles = hasLeftLarge ? leftEdge.filter((_, i) => i !== leftMidIdx) : leftEdge;
-  const rightSmallTiles = hasRightLarge ? rightEdge.filter((_, i) => i !== rightMidIdx) : rightEdge;
 
-  const smallCapacity = (leftSmallTiles.length + rightSmallTiles.length) * 2;
+  const smallCapacity = leftSmallTiles.length * 2;
   const ipCardsToShow = inProgressCards.slice(0, smallCapacity);
   let cardIndex = 0;
 
@@ -467,18 +466,8 @@ export function drawKanbanNotes(
     }
   }
 
-  for (const { tx, ty } of rightSmallTiles) {
-    if (cardIndex >= ipCardsToShow.length) break;
-    for (let slot = 0; slot < 2; slot++) {
-      if (cardIndex >= ipCardsToShow.length) break;
-      const card = ipCardsToShow[cardIndex++];
-      const pos = rightWallNotePosition(tx, ty, slot as 0 | 1, cameraOrigin);
-      const isExpanded = card.id === expandedNoteId;
-      drawStickyNote(ctx, pos.x, pos.y, card.title, card.status, 'right', isExpanded);
-      const corners = computeSkewedCorners(pos.x, pos.y, NOTE_W, NOTE_H, 'right');
-      noteHitAreas.push({ cardId: card.id, corners, wallSide: 'right' });
-    }
-  }
+  // Suppress unused variable warning — hasRightLarge is kept for the Done note drawing above.
+  void hasRightLarge;
 }
 
 /**

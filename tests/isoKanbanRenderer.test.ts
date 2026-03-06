@@ -154,13 +154,14 @@ describe('drawKanbanNotes', () => {
 
   it('respects capacity limit for In Progress notes on tiny grid', () => {
     const ctx = makeMockCtx();
-    // 2x2 grid — left edge 2 tiles, right edge 2 tiles, minus 1 mid each = 1+1 = 2 tiles = 4 slots
+    // 2x2 grid — left edge 2 tiles only (right wall no longer used for small notes)
+    // No large notes (all IP), so no middle tile skipped → 2 left tiles × 2 slots = 4
     const grid: TileGrid = {
       tiles: [[{ height: 0 }, { height: 0 }], [{ height: 0 }, { height: 0 }]],
       width: 2,
       height: 2,
     };
-    // 10 In Progress cards but only a few slots available
+    // 10 In Progress cards but only left wall slots available
     const cards: KanbanCard[] = Array.from({ length: 10 }, (_, i) => ({
       id: String(i),
       title: `Card ${i}`,
@@ -170,10 +171,34 @@ describe('drawKanbanNotes', () => {
     const hitAreas = getNoteHitAreas();
     // All should be small notes (no aggregate for In Progress)
     const smallNotes = hitAreas.filter(h => !h.aggregateType);
-    // 2x2 grid: 2 left edge + 2 right edge = 4 tiles * 2 slots = 8
-    // No large notes (all IP), so no middle tile skipped
-    expect(smallNotes.length).toBeLessThanOrEqual(8);
-    expect(smallNotes.length).toBe(8); // capacity = 8, 10 cards capped to 8
+    // 2x2 grid left wall only: 2 tiles × 2 slots = 4 (right wall no longer used)
+    expect(smallNotes.length).toBeLessThanOrEqual(4);
+    expect(smallNotes.length).toBe(4); // capacity = 4, 10 cards capped to 4
+  });
+
+  it('never places In Progress notes on the right wall', () => {
+    const ctx = makeMockCtx();
+    const grid = make5x5Grid();
+    // Provide more In Progress cards than left wall can hold (5 rows × 2 slots = 10 left,
+    // minus mid tile for backlog = 8 left slots; give 20 cards to ensure overflow would
+    // occur if right wall were still used)
+    const cards: KanbanCard[] = [
+      { id: 'bl1', title: 'Backlog task', status: 'Todo' },
+      { id: 'dn1', title: 'Done task', status: 'Done' },
+      ...Array.from({ length: 20 }, (_, i) => ({
+        id: `ip${i}`,
+        title: `In Progress ${i}`,
+        status: 'In Progress' as const,
+      })),
+    ];
+    drawKanbanNotes(ctx, cards, grid, { x: 320, y: 100 });
+    const hitAreas = getNoteHitAreas();
+    // No small (non-aggregate) note should appear on the right wall
+    const rightSmallNotes = hitAreas.filter(h => h.wallSide === 'right' && !h.aggregateType);
+    expect(rightSmallNotes.length).toBe(0);
+    // All small notes must be on the left wall
+    const smallNotes = hitAreas.filter(h => !h.aggregateType);
+    expect(smallNotes.every(h => h.wallSide === 'left')).toBe(true);
   });
 });
 
