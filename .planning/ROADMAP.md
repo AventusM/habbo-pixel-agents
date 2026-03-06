@@ -318,6 +318,16 @@ Notes:
 | 14. Avatar Builder UI | Pending | — |
 | 15. Performance Optimisation | Pending | — |
 
+### Phase 16: Agent factory workflow with team sections and orchestration UI
+
+**Goal:** [To be planned]
+**Requirements**: TBD
+**Depends on:** Phase 15
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 16 to break down)
+
 ---
 
 *Created: 2026-02-28*

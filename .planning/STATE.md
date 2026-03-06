@@ -145,3 +145,8 @@ None.
 | 12-room-walls-kanban-notes | 12-01 | Full-height room perimeter wall panels with shared baseline replacing per-tile wall strips (14 new tests, 263 total passing) |
 | 12-room-walls-kanban-notes | 12-02 | GitHub Projects v2 kanban fetch via gh CLI graphql with VS Code settings, polling interval, and silent error fallback returning KanbanCard[] to webview (268 tests passing) |
 | 12-room-walls-kanban-notes | 12-03 | Sticky note renderer for kanban cards on isometric room walls — color-coded by status, distributed across left/right wall tile slots (279 tests passing) |
+
+## Accumulated Context
+
+### Roadmap Evolution
+- Phase 16 added: Agent factory workflow with team sections and orchestration UI
