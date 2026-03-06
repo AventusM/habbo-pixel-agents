@@ -2,6 +2,8 @@
 // Renders GitHub Projects kanban cards as wall-mounted sticky notes in the isometric room.
 // Notes are drawn with isometric skew transforms to appear "on" wall surfaces,
 // with folded corners and click-to-expand interaction.
+// Large aggregate notes for Backlog (Todo + No Status) and Done columns;
+// small individual notes for In Progress cards.
 
 import type { TileGrid } from './isoTypes.js';
 import type { KanbanCard } from './agentTypes.js';
@@ -28,11 +30,23 @@ const NOTE_W = 12;
 const NOTE_H = 18;
 const FOLD_SIZE = 6;
 
+/** Large aggregate note dimensions */
+const LARGE_NOTE_W = 58;
+const LARGE_NOTE_H = 90;
+const LARGE_FOLD_SIZE = 12;
+const LARGE_NOTE_MAX_CHARS = 9;
+const LARGE_NOTE_MAX_LINES = 6;
+
+/** Sentinel card IDs for aggregate notes */
+const BACKLOG_ID = '__backlog__';
+const DONE_ID = '__done__';
+
 /** Hit area for a rendered note (screen-space quad corners) */
 export interface NoteHitArea {
   cardId: string;
   corners: [Point, Point, Point, Point]; // TL, TR, BR, BL in screen space
   wallSide: 'left' | 'right';
+  aggregateType?: 'backlog' | 'done';
 }
 
 interface Point { x: number; y: number }
@@ -103,6 +117,41 @@ export function rightWallNotePosition(
   return {
     x: sx + cameraOrigin.x + TILE_W_HALF * 0.5,
     y: sy + cameraOrigin.y - verticalOffset,
+  };
+}
+
+/** Edge tile with position */
+interface EdgeTile { tx: number; ty: number }
+
+/**
+ * Compute screen position for a large aggregate note on the left wall.
+ * Picks the middle edge tile and centers vertically on the wall.
+ */
+function largeLeftNotePosition(
+  leftEdge: EdgeTile[],
+  cameraOrigin: { x: number; y: number },
+): { x: number; y: number } {
+  const mid = leftEdge[Math.floor(leftEdge.length / 2)];
+  const { x: sx, y: sy } = tileToScreen(mid.tx, mid.ty, 0);
+  return {
+    x: sx + cameraOrigin.x - TILE_W_HALF * 0.5,
+    y: sy + cameraOrigin.y - WALL_HEIGHT * 0.5,
+  };
+}
+
+/**
+ * Compute screen position for a large aggregate note on the right wall.
+ * Picks the middle edge tile and centers vertically on the wall.
+ */
+function largeRightNotePosition(
+  rightEdge: EdgeTile[],
+  cameraOrigin: { x: number; y: number },
+): { x: number; y: number } {
+  const mid = rightEdge[Math.floor(rightEdge.length / 2)];
+  const { x: sx, y: sy } = tileToScreen(mid.tx, mid.ty, 0);
+  return {
+    x: sx + cameraOrigin.x + TILE_W_HALF * 0.5,
+    y: sy + cameraOrigin.y - WALL_HEIGHT * 0.5,
   };
 }
 
@@ -219,14 +268,114 @@ function drawStickyNote(
   ctx.restore();
 }
 
-/** Edge tile with position */
-interface EdgeTile { tx: number; ty: number }
+/**
+ * Draw a large aggregate sticky note with isometric skew.
+ * Displays a header label, list of card titles, and overflow indicator.
+ */
+function drawLargeNote(
+  ctx: CanvasRenderingContext2D,
+  anchorX: number,
+  anchorY: number,
+  label: string,
+  cards: KanbanCard[],
+  color: string,
+  fold: string,
+  wallSide: 'left' | 'right',
+  isExpanded: boolean,
+): void {
+  const w = LARGE_NOTE_W;
+  const h = LARGE_NOTE_H;
+  const x = -w / 2;
+  const y = -h / 2;
+
+  ctx.save();
+
+  const slope = wallSide === 'left' ? -0.5 : 0.5;
+  ctx.transform(1, slope, 0, 1, anchorX, anchorY);
+
+  // Note body polygon (with folded bottom-right corner)
+  ctx.beginPath();
+  ctx.moveTo(x, y);
+  ctx.lineTo(x + w, y);
+  ctx.lineTo(x + w, y + h - LARGE_FOLD_SIZE);
+  ctx.lineTo(x + w - LARGE_FOLD_SIZE, y + h);
+  ctx.lineTo(x, y + h);
+  ctx.closePath();
+
+  ctx.fillStyle = color;
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(0,0,0,0.5)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  // Folded corner triangle
+  ctx.beginPath();
+  ctx.moveTo(x + w, y + h - LARGE_FOLD_SIZE);
+  ctx.lineTo(x + w - LARGE_FOLD_SIZE, y + h - LARGE_FOLD_SIZE);
+  ctx.lineTo(x + w - LARGE_FOLD_SIZE, y + h);
+  ctx.closePath();
+  ctx.fillStyle = fold;
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(0,0,0,0.5)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  // Header label
+  ctx.font = '5px "Press Start 2P"';
+  ctx.fillStyle = '#1a1a2e';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'top';
+  ctx.fillText(label, x + 3, y + 3);
+
+  // Separator line under header
+  ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+  ctx.lineWidth = 0.5;
+  ctx.beginPath();
+  ctx.moveTo(x + 2, y + 12);
+  ctx.lineTo(x + w - 2, y + 12);
+  ctx.stroke();
+
+  // Card title list
+  ctx.font = '4px "Press Start 2P"';
+  ctx.fillStyle = '#333';
+  const visibleCards = cards.slice(0, LARGE_NOTE_MAX_LINES);
+  for (let i = 0; i < visibleCards.length; i++) {
+    let title = visibleCards[i].title;
+    if (title.length > LARGE_NOTE_MAX_CHARS) {
+      title = title.substring(0, LARGE_NOTE_MAX_CHARS - 1) + '\u2026';
+    }
+    ctx.fillText(title, x + 3, y + 16 + i * 8);
+  }
+
+  // Overflow indicator
+  if (cards.length > LARGE_NOTE_MAX_LINES) {
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillText(`+${cards.length - LARGE_NOTE_MAX_LINES} more`, x + 3, y + 16 + LARGE_NOTE_MAX_LINES * 8);
+  }
+
+  // Highlight border if expanded
+  if (isExpanded) {
+    ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x + w, y);
+    ctx.lineTo(x + w, y + h - LARGE_FOLD_SIZE);
+    ctx.lineTo(x + w - LARGE_FOLD_SIZE, y + h);
+    ctx.lineTo(x, y + h);
+    ctx.closePath();
+    ctx.stroke();
+  }
+
+  ctx.restore();
+}
 
 /**
  * Draw all kanban cards as sticky notes on the room walls.
  *
- * Cards are distributed left wall first (top-to-bottom, 2 per edge tile),
- * then right wall (left-to-right, 2 per edge tile).
+ * Backlog (Todo + No Status) → large aggregate note on left wall.
+ * Done → large aggregate note on right wall.
+ * In Progress → small individual notes distributed across remaining edge tiles.
  */
 export function drawKanbanNotes(
   ctx: CanvasRenderingContext2D,
@@ -234,11 +383,17 @@ export function drawKanbanNotes(
   grid: TileGrid,
   cameraOrigin: { x: number; y: number },
   expandedNoteId?: string | null,
+  expandedAggregateType?: 'backlog' | 'done' | null,
 ): void {
   if (cards.length === 0) return;
 
   // Reset hit areas for this frame
   noteHitAreas = [];
+
+  // Partition cards (unrecognized statuses go to backlog)
+  const doneCards = cards.filter(c => c.status === 'Done');
+  const inProgressCards = cards.filter(c => c.status === 'In Progress');
+  const backlogCards = cards.filter(c => c.status !== 'Done' && c.status !== 'In Progress');
 
   // Left wall edge: leftmost non-void tile per row
   const leftEdge: EdgeTile[] = [];
@@ -266,38 +421,60 @@ export function drawKanbanNotes(
     }
   }
 
-  const capacity = (leftEdge.length + rightEdge.length) * 2;
-  const cardsToShow = cards.slice(0, capacity);
+  // Middle tile indices (used for large notes)
+  const leftMidIdx = Math.floor(leftEdge.length / 2);
+  const rightMidIdx = Math.floor(rightEdge.length / 2);
 
+  // Draw large backlog note on left wall (if there are backlog cards)
+  if (backlogCards.length > 0 && leftEdge.length > 0) {
+    const pos = largeLeftNotePosition(leftEdge, cameraOrigin);
+    const isExpanded = expandedAggregateType === 'backlog';
+    drawLargeNote(ctx, pos.x, pos.y, 'BACKLOG', backlogCards, '#fef08a', '#eab308', 'left', isExpanded);
+    const corners = computeSkewedCorners(pos.x, pos.y, LARGE_NOTE_W, LARGE_NOTE_H, 'left');
+    noteHitAreas.push({ cardId: BACKLOG_ID, corners, wallSide: 'left', aggregateType: 'backlog' });
+  }
+
+  // Draw large done note on right wall (if there are done cards)
+  if (doneCards.length > 0 && rightEdge.length > 0) {
+    const pos = largeRightNotePosition(rightEdge, cameraOrigin);
+    const isExpanded = expandedAggregateType === 'done';
+    drawLargeNote(ctx, pos.x, pos.y, 'DONE', doneCards, '#86efac', '#22c55e', 'right', isExpanded);
+    const corners = computeSkewedCorners(pos.x, pos.y, LARGE_NOTE_W, LARGE_NOTE_H, 'right');
+    noteHitAreas.push({ cardId: DONE_ID, corners, wallSide: 'right', aggregateType: 'done' });
+  }
+
+  // Distribute small In Progress notes across remaining edge tiles
+  // Only skip middle tile on a wall if a large note was drawn there
+  const hasLeftLarge = backlogCards.length > 0 && leftEdge.length > 0;
+  const hasRightLarge = doneCards.length > 0 && rightEdge.length > 0;
+  const leftSmallTiles = hasLeftLarge ? leftEdge.filter((_, i) => i !== leftMidIdx) : leftEdge;
+  const rightSmallTiles = hasRightLarge ? rightEdge.filter((_, i) => i !== rightMidIdx) : rightEdge;
+
+  const smallCapacity = (leftSmallTiles.length + rightSmallTiles.length) * 2;
+  const ipCardsToShow = inProgressCards.slice(0, smallCapacity);
   let cardIndex = 0;
 
-  // Fill left wall first: 2 notes per edge tile
-  for (const { tx, ty } of leftEdge) {
-    if (cardIndex >= cardsToShow.length) break;
+  for (const { tx, ty } of leftSmallTiles) {
+    if (cardIndex >= ipCardsToShow.length) break;
     for (let slot = 0; slot < 2; slot++) {
-      if (cardIndex >= cardsToShow.length) break;
-      const card = cardsToShow[cardIndex++];
+      if (cardIndex >= ipCardsToShow.length) break;
+      const card = ipCardsToShow[cardIndex++];
       const pos = leftWallNotePosition(tx, ty, slot as 0 | 1, cameraOrigin);
       const isExpanded = card.id === expandedNoteId;
       drawStickyNote(ctx, pos.x, pos.y, card.title, card.status, 'left', isExpanded);
-
-      // Cache hit area
       const corners = computeSkewedCorners(pos.x, pos.y, NOTE_W, NOTE_H, 'left');
       noteHitAreas.push({ cardId: card.id, corners, wallSide: 'left' });
     }
   }
 
-  // Fill right wall: 2 notes per edge tile
-  for (const { tx, ty } of rightEdge) {
-    if (cardIndex >= cardsToShow.length) break;
+  for (const { tx, ty } of rightSmallTiles) {
+    if (cardIndex >= ipCardsToShow.length) break;
     for (let slot = 0; slot < 2; slot++) {
-      if (cardIndex >= cardsToShow.length) break;
-      const card = cardsToShow[cardIndex++];
+      if (cardIndex >= ipCardsToShow.length) break;
+      const card = ipCardsToShow[cardIndex++];
       const pos = rightWallNotePosition(tx, ty, slot as 0 | 1, cameraOrigin);
       const isExpanded = card.id === expandedNoteId;
       drawStickyNote(ctx, pos.x, pos.y, card.title, card.status, 'right', isExpanded);
-
-      // Cache hit area
       const corners = computeSkewedCorners(pos.x, pos.y, NOTE_W, NOTE_H, 'right');
       noteHitAreas.push({ cardId: card.id, corners, wallSide: 'right' });
     }
@@ -388,6 +565,127 @@ export function drawExpandedNote(
   }
   if (line) {
     ctx.fillText(line, px + 12, lineY);
+  }
+
+  // Close hint
+  ctx.font = '5px "Press Start 2P"';
+  ctx.fillStyle = 'rgba(0,0,0,0.4)';
+  ctx.textAlign = 'center';
+  ctx.fillText('click to close', cx, py + panelH - 10);
+
+  ctx.restore();
+}
+
+/**
+ * Draw an expanded aggregate note overlay centered on the canvas.
+ * Shows all cards in the aggregate with status color dots and titles.
+ */
+export function drawExpandedAggregateNote(
+  ctx: CanvasRenderingContext2D,
+  aggregateType: 'backlog' | 'done',
+  cards: KanbanCard[],
+  canvasWidth: number,
+  canvasHeight: number,
+): void {
+  const label = aggregateType === 'backlog' ? 'BACKLOG' : 'DONE';
+  const color = aggregateType === 'backlog' ? '#fef08a' : '#86efac';
+  const fold = aggregateType === 'backlog' ? '#eab308' : '#22c55e';
+
+  const panelW = 220;
+  const lineHeight = 16;
+  const headerHeight = 40;
+  const footerHeight = 20;
+  const panelH = Math.min(300, headerHeight + cards.length * lineHeight + footerHeight);
+  const foldSize = 16;
+
+  const cx = canvasWidth / 2;
+  const cy = canvasHeight / 2;
+  const px = cx - panelW / 2;
+  const py = cy - panelH / 2;
+
+  ctx.save();
+
+  // Semi-transparent backdrop
+  ctx.fillStyle = 'rgba(0,0,0,0.4)';
+  ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+
+  // Panel body with folded bottom-right corner
+  ctx.beginPath();
+  ctx.moveTo(px, py);
+  ctx.lineTo(px + panelW, py);
+  ctx.lineTo(px + panelW, py + panelH - foldSize);
+  ctx.lineTo(px + panelW - foldSize, py + panelH);
+  ctx.lineTo(px, py + panelH);
+  ctx.closePath();
+  ctx.fillStyle = color;
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(0,0,0,0.6)';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // Fold triangle
+  ctx.beginPath();
+  ctx.moveTo(px + panelW, py + panelH - foldSize);
+  ctx.lineTo(px + panelW - foldSize, py + panelH - foldSize);
+  ctx.lineTo(px + panelW - foldSize, py + panelH);
+  ctx.closePath();
+  ctx.fillStyle = fold;
+  ctx.fill();
+
+  // Header label + count badge
+  ctx.font = '7px "Press Start 2P"';
+  ctx.fillStyle = '#1a1a2e';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'top';
+  ctx.fillText(label, px + 10, py + 10);
+
+  // Count badge
+  ctx.font = '5px "Press Start 2P"';
+  ctx.fillStyle = 'rgba(0,0,0,0.5)';
+  const countText = `${cards.length}`;
+  const countW = ctx.measureText(countText).width + 6;
+  const countX = px + 10 + ctx.measureText(label).width + 8;
+  ctx.fillRect(countX, py + 10, countW, 10);
+  // Re-set font since measureText may have been affected
+  ctx.font = '5px "Press Start 2P"';
+  ctx.fillStyle = '#fff';
+  ctx.fillText(countText, countX + 3, py + 12);
+
+  // Separator
+  ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(px + 8, py + 28);
+  ctx.lineTo(px + panelW - 8, py + 28);
+  ctx.stroke();
+
+  // Card list
+  ctx.font = '6px "Press Start 2P"';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'top';
+  const maxVisibleCards = Math.floor((panelH - headerHeight - footerHeight) / lineHeight);
+  const visibleCards = cards.slice(0, maxVisibleCards);
+
+  for (let i = 0; i < visibleCards.length; i++) {
+    const card = visibleCards[i];
+    const itemY = py + headerHeight + i * lineHeight;
+
+    // Status color dot
+    ctx.fillStyle = statusToColor(card.status);
+    ctx.beginPath();
+    ctx.arc(px + 14, itemY + 5, 3, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+    ctx.lineWidth = 0.5;
+    ctx.stroke();
+
+    // Title (truncated to 22 chars)
+    let title = card.title;
+    if (title.length > 22) {
+      title = title.substring(0, 21) + '\u2026';
+    }
+    ctx.fillStyle = '#1a1a2e';
+    ctx.fillText(title, px + 22, itemY + 2);
   }
 
   // Close hint

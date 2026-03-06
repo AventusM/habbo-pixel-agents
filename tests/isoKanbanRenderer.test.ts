@@ -1,8 +1,8 @@
 // tests/isoKanbanRenderer.test.ts
-// Unit tests for isoKanbanRenderer: color mapping and note rendering
+// Unit tests for isoKanbanRenderer: color mapping, note rendering, aggregate notes
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { statusToColor, drawKanbanNotes } from '../src/isoKanbanRenderer.js';
+import { statusToColor, drawKanbanNotes, drawExpandedAggregateNote, getNoteHitAreas } from '../src/isoKanbanRenderer.js';
 import type { KanbanCard } from '../src/agentTypes.js';
 import type { TileGrid } from '../src/isoTypes.js';
 
@@ -53,6 +53,7 @@ function makeMockCtx() {
     fillText: vi.fn(),
     fillRect: vi.fn(),
     transform: vi.fn(),
+    arc: vi.fn(),
     measureText: vi.fn(() => ({ width: 40 })),
     fillStyle: '',
     strokeStyle: '',
@@ -93,7 +94,7 @@ describe('drawKanbanNotes', () => {
     expect(ctx.fill).not.toHaveBeenCalled();
   });
 
-  it('draws notes for 3 cards on a 5x5 grid without throwing', () => {
+  it('draws notes for mixed-status cards without throwing', () => {
     const ctx = makeMockCtx();
     const grid = make5x5Grid();
     const cards: KanbanCard[] = [
@@ -104,51 +105,131 @@ describe('drawKanbanNotes', () => {
     expect(() =>
       drawKanbanNotes(ctx, cards, grid, { x: 320, y: 100 })
     ).not.toThrow();
-    // save/restore should have been called for each drawn note
+    // save/restore called for: 1 large backlog + 1 large done + 1 small In Progress = 3
     expect(ctx.save).toHaveBeenCalledTimes(3);
     expect(ctx.restore).toHaveBeenCalledTimes(3);
   });
 
-  it('positions notes on the left wall for first tiles', () => {
+  it('creates aggregate hit areas for backlog and done notes', () => {
     const ctx = makeMockCtx();
     const grid = make5x5Grid();
     const cards: KanbanCard[] = [
-      { id: '1', title: 'Card One', status: 'Todo' },
+      { id: '1', title: 'Task A', status: 'Todo' },
+      { id: '2', title: 'Task B', status: 'Done' },
+      { id: '3', title: 'Task C', status: 'In Progress' },
     ];
-    // Should not throw; left wall column 0, row 0 has a tile
-    expect(() =>
-      drawKanbanNotes(ctx, cards, grid, { x: 0, y: 0 })
-    ).not.toThrow();
-    // Wall notes have no text — only shapes are drawn
-    expect(ctx.fillText).not.toHaveBeenCalled();
+    drawKanbanNotes(ctx, cards, grid, { x: 320, y: 100 });
+    const hitAreas = getNoteHitAreas();
+
+    const backlogHit = hitAreas.find(h => h.aggregateType === 'backlog');
+    expect(backlogHit).toBeDefined();
+    expect(backlogHit!.cardId).toBe('__backlog__');
+
+    const doneHit = hitAreas.find(h => h.aggregateType === 'done');
+    expect(doneHit).toBeDefined();
+    expect(doneHit!.cardId).toBe('__done__');
+
+    // In Progress card should have a normal hit area
+    const ipHit = hitAreas.find(h => h.cardId === '3');
+    expect(ipHit).toBeDefined();
+    expect(ipHit!.aggregateType).toBeUndefined();
   });
 
-  it('does not render text on wall notes (text only in expanded view)', () => {
+  it('only draws In Progress cards as small individual notes', () => {
     const ctx = makeMockCtx();
     const grid = make5x5Grid();
     const cards: KanbanCard[] = [
-      { id: '1', title: 'This is a very long title', status: 'Todo' },
+      { id: '1', title: 'IP 1', status: 'In Progress' },
+      { id: '2', title: 'IP 2', status: 'In Progress' },
+      { id: '3', title: 'Todo 1', status: 'Todo' },
     ];
-    drawKanbanNotes(ctx, cards, grid, { x: 0, y: 0 });
-    expect(ctx.fillText).not.toHaveBeenCalled();
+    drawKanbanNotes(ctx, cards, grid, { x: 320, y: 100 });
+    const hitAreas = getNoteHitAreas();
+
+    // 1 aggregate (backlog) + 2 small (In Progress)
+    expect(hitAreas.length).toBe(3);
+    const smallNotes = hitAreas.filter(h => !h.aggregateType);
+    expect(smallNotes.length).toBe(2);
   });
 
-  it('respects capacity limit and does not draw more than available wall slots', () => {
+  it('respects capacity limit for In Progress notes on tiny grid', () => {
     const ctx = makeMockCtx();
-    // Tiny 1x1 grid — left wall has 1 tile, right wall has 1 tile => capacity = 4
+    // 2x2 grid — left edge 2 tiles, right edge 2 tiles, minus 1 mid each = 1+1 = 2 tiles = 4 slots
     const grid: TileGrid = {
-      tiles: [[{ height: 0 }]],
-      width: 1,
-      height: 1,
+      tiles: [[{ height: 0 }, { height: 0 }], [{ height: 0 }, { height: 0 }]],
+      width: 2,
+      height: 2,
     };
-    // 10 cards but only 4 slots
+    // 10 In Progress cards but only a few slots available
     const cards: KanbanCard[] = Array.from({ length: 10 }, (_, i) => ({
       id: String(i),
       title: `Card ${i}`,
-      status: 'Todo',
+      status: 'In Progress',
     }));
     drawKanbanNotes(ctx, cards, grid, { x: 0, y: 0 });
-    // Only 4 notes drawn (4 save/restore pairs)
-    expect(ctx.save).toHaveBeenCalledTimes(4);
+    const hitAreas = getNoteHitAreas();
+    // All should be small notes (no aggregate for In Progress)
+    const smallNotes = hitAreas.filter(h => !h.aggregateType);
+    // 2x2 grid: 2 left edge + 2 right edge = 4 tiles * 2 slots = 8
+    // No large notes (all IP), so no middle tile skipped
+    expect(smallNotes.length).toBeLessThanOrEqual(8);
+    expect(smallNotes.length).toBe(8); // capacity = 8, 10 cards capped to 8
+  });
+});
+
+// ---------------------------------------------------------------------------
+// drawExpandedAggregateNote
+// ---------------------------------------------------------------------------
+
+describe('drawExpandedAggregateNote', () => {
+  it('draws backlog aggregate overlay without throwing', () => {
+    const ctx = makeMockCtx();
+    const cards: KanbanCard[] = [
+      { id: '1', title: 'Task A', status: 'Todo' },
+      { id: '2', title: 'Task B', status: 'No Status' },
+    ];
+    expect(() =>
+      drawExpandedAggregateNote(ctx, 'backlog', cards, 640, 480)
+    ).not.toThrow();
+    // Should draw backdrop, panel, fold, header, separator, card list, close hint
+    expect(ctx.save).toHaveBeenCalled();
+    expect(ctx.restore).toHaveBeenCalled();
+    expect(ctx.fillText).toHaveBeenCalled();
+  });
+
+  it('draws done aggregate overlay without throwing', () => {
+    const ctx = makeMockCtx();
+    const cards: KanbanCard[] = [
+      { id: '1', title: 'Completed task', status: 'Done' },
+    ];
+    expect(() =>
+      drawExpandedAggregateNote(ctx, 'done', cards, 640, 480)
+    ).not.toThrow();
+  });
+
+  it('renders status color dots for each card', () => {
+    const ctx = makeMockCtx();
+    const cards: KanbanCard[] = [
+      { id: '1', title: 'A', status: 'Todo' },
+      { id: '2', title: 'B', status: 'No Status' },
+      { id: '3', title: 'C', status: 'Todo' },
+    ];
+    drawExpandedAggregateNote(ctx, 'backlog', cards, 640, 480);
+    // arc is called for each card's status dot
+    expect(ctx.arc).toHaveBeenCalledTimes(3);
+  });
+
+  it('truncates long titles in aggregate overlay', () => {
+    const ctx = makeMockCtx();
+    const cards: KanbanCard[] = [
+      { id: '1', title: 'This is a very long title that should be truncated', status: 'Todo' },
+    ];
+    drawExpandedAggregateNote(ctx, 'backlog', cards, 640, 480);
+    // The truncated title should end with ellipsis (22 chars max)
+    const fillTextCalls = (ctx.fillText as ReturnType<typeof vi.fn>).mock.calls;
+    const titleCall = fillTextCalls.find(
+      (call: any[]) => typeof call[0] === 'string' && call[0].includes('\u2026')
+    );
+    expect(titleCall).toBeDefined();
   });
 });

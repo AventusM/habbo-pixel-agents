@@ -31,7 +31,7 @@ import { AvatarSelectionManager } from './avatarSelection.js';
 import type { ExtensionMessage } from './agentTypes.js';
 import type { KanbanCard } from './agentTypes.js';
 import { computeBlockedTiles } from './isoPathfinding.js';
-import { drawKanbanNotes, drawExpandedNote, getNoteHitAreas, pointInQuad } from './isoKanbanRenderer.js';
+import { drawKanbanNotes, drawExpandedNote, drawExpandedAggregateNote, getNoteHitAreas, pointInQuad } from './isoKanbanRenderer.js';
 
 interface RoomCanvasProps {
   heightmap: string;
@@ -73,6 +73,9 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
 
   // Expanded sticky note (click-to-open)
   const expandedNoteRef = useRef<string | null>(null);
+
+  // Expanded aggregate note (backlog / done)
+  const expandedAggregateRef = useRef<'backlog' | 'done' | null>(null);
 
   // Editor UI state
   const [editorMode, setEditorMode] = useState<EditorMode>(editorModeProp);
@@ -279,6 +282,18 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
       ctx.clearRect(0, 0, canvas.offsetWidth, canvas.offsetHeight);
       ctx.drawImage(offscreen, 0, 0);
 
+      // Kanban sticky notes on walls (drawn right after walls/floor, before furniture/avatars)
+      if (kanbanCardsRef.current.length > 0 && renderState.current.grid) {
+        drawKanbanNotes(
+          ctx,
+          kanbanCardsRef.current,
+          renderState.current.grid,
+          renderState.current.cameraOrigin,
+          expandedNoteRef.current,
+          expandedAggregateRef.current,
+        );
+      }
+
       // Draw hover highlight if tile is hovered (editor mode)
       if (renderState.current.editorState.hoveredTile) {
         const { x, y, z } = renderState.current.editorState.hoveredTile;
@@ -380,22 +395,22 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
         }
       }
 
-      // Kanban sticky notes on walls (topmost overlay, after name tags and speech bubbles)
-      if (kanbanCardsRef.current.length > 0 && renderState.current.grid) {
-        drawKanbanNotes(
-          ctx,
-          kanbanCardsRef.current,
-          renderState.current.grid,
-          renderState.current.cameraOrigin,
-          expandedNoteRef.current,
-        );
-      }
-
       // Expanded sticky note overlay (drawn last, on top of everything)
       if (expandedNoteRef.current && kanbanCardsRef.current.length > 0) {
         const expandedCard = kanbanCardsRef.current.find(c => c.id === expandedNoteRef.current);
         if (expandedCard && canvas) {
           drawExpandedNote(ctx, expandedCard, canvas.offsetWidth, canvas.offsetHeight);
+        }
+      }
+
+      // Expanded aggregate note overlay
+      if (expandedAggregateRef.current && kanbanCardsRef.current.length > 0 && canvas) {
+        const aggType = expandedAggregateRef.current;
+        const aggCards = aggType === 'backlog'
+          ? kanbanCardsRef.current.filter(c => c.status !== 'Done' && c.status !== 'In Progress')
+          : kanbanCardsRef.current.filter(c => c.status === 'Done');
+        if (aggCards.length > 0) {
+          drawExpandedAggregateNote(ctx, aggType, aggCards, canvas.offsetWidth, canvas.offsetHeight);
         }
       }
 
@@ -443,9 +458,10 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
     const noteClickX = (event.clientX - rect.left) * dpr;
     const noteClickY = (event.clientY - rect.top) * dpr;
 
-    // If a note is expanded, any click closes it
-    if (expandedNoteRef.current) {
+    // If any note overlay is expanded, any click closes it
+    if (expandedNoteRef.current || expandedAggregateRef.current) {
       expandedNoteRef.current = null;
+      expandedAggregateRef.current = null;
       return;
     }
 
@@ -453,7 +469,11 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
     const hitAreas = getNoteHitAreas();
     for (const area of hitAreas) {
       if (pointInQuad(noteClickX, noteClickY, area.corners)) {
-        expandedNoteRef.current = area.cardId;
+        if (area.aggregateType) {
+          expandedAggregateRef.current = area.aggregateType;
+        } else {
+          expandedNoteRef.current = area.cardId;
+        }
         return;
       }
     }
