@@ -23,14 +23,14 @@ describe('statusToColor', () => {
     expect(statusToColor('Done')).toBe('#86efac');
   });
 
-  it('returns light grey for "No Status"', () => {
-    expect(statusToColor('No Status')).toBe('#e5e7eb');
+  it('returns pink for "No Status"', () => {
+    expect(statusToColor('No Status')).toBe('#fda4af');
   });
 
-  it('returns grey fallback for unknown status strings', () => {
-    expect(statusToColor('Backlog')).toBe('#e5e7eb');
-    expect(statusToColor('')).toBe('#e5e7eb');
-    expect(statusToColor('review')).toBe('#e5e7eb');
+  it('returns pink fallback for unknown status strings', () => {
+    expect(statusToColor('Backlog')).toBe('#fda4af');
+    expect(statusToColor('')).toBe('#fda4af');
+    expect(statusToColor('review')).toBe('#fda4af');
   });
 });
 
@@ -51,6 +51,9 @@ function makeMockCtx() {
     fill: vi.fn(),
     stroke: vi.fn(),
     fillText: vi.fn(),
+    fillRect: vi.fn(),
+    transform: vi.fn(),
+    measureText: vi.fn(() => ({ width: 40 })),
     fillStyle: '',
     strokeStyle: '',
     lineWidth: 1,
@@ -116,22 +119,18 @@ describe('drawKanbanNotes', () => {
     expect(() =>
       drawKanbanNotes(ctx, cards, grid, { x: 0, y: 0 })
     ).not.toThrow();
-    expect(ctx.fillText).toHaveBeenCalledWith('Card One', expect.any(Number), expect.any(Number));
+    // Wall notes have no text — only shapes are drawn
+    expect(ctx.fillText).not.toHaveBeenCalled();
   });
 
-  it('truncates titles longer than 10 characters to 10 chars + ellipsis', () => {
+  it('does not render text on wall notes (text only in expanded view)', () => {
     const ctx = makeMockCtx();
     const grid = make5x5Grid();
     const cards: KanbanCard[] = [
       { id: '1', title: 'This is a very long title', status: 'Todo' },
     ];
     drawKanbanNotes(ctx, cards, grid, { x: 0, y: 0 });
-    // fillText should have been called with truncated text
-    expect(ctx.fillText).toHaveBeenCalledWith(
-      'This is a \u2026',
-      expect.any(Number),
-      expect.any(Number),
-    );
+    expect(ctx.fillText).not.toHaveBeenCalled();
   });
 
   it('respects capacity limit and does not draw more than available wall slots', () => {

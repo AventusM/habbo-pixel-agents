@@ -31,7 +31,7 @@ import { AvatarSelectionManager } from './avatarSelection.js';
 import type { ExtensionMessage } from './agentTypes.js';
 import type { KanbanCard } from './agentTypes.js';
 import { computeBlockedTiles } from './isoPathfinding.js';
-import { drawKanbanNotes } from './isoKanbanRenderer.js';
+import { drawKanbanNotes, drawExpandedNote, getNoteHitAreas, pointInQuad } from './isoKanbanRenderer.js';
 
 interface RoomCanvasProps {
   heightmap: string;
@@ -68,7 +68,18 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
   const agentToolTextRef = useRef<Map<string, string>>(new Map());
 
   // Kanban cards from GitHub Projects (Phase 12-03)
-  const kanbanCardsRef = useRef<KanbanCard[]>([]);
+  // Demo cards shown until real kanban data arrives
+  const kanbanCardsRef = useRef<KanbanCard[]>([
+    { id: 'demo-1', title: 'Setup CI', status: 'Done' },
+    { id: 'demo-2', title: 'Auth flow', status: 'In Progress' },
+    { id: 'demo-3', title: 'Dark mode', status: 'Todo' },
+    { id: 'demo-4', title: 'Unit tests', status: 'In Progress' },
+    { id: 'demo-5', title: 'API docs', status: 'Todo' },
+    { id: 'demo-6', title: 'Deploy v2', status: 'No Status' },
+  ]);
+
+  // Expanded sticky note (click-to-open)
+  const expandedNoteRef = useRef<string | null>(null);
 
   // Editor UI state
   const [editorMode, setEditorMode] = useState<EditorMode>(editorModeProp);
@@ -383,7 +394,16 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
           kanbanCardsRef.current,
           renderState.current.grid,
           renderState.current.cameraOrigin,
+          expandedNoteRef.current,
         );
+      }
+
+      // Expanded sticky note overlay (drawn last, on top of everything)
+      if (expandedNoteRef.current && kanbanCardsRef.current.length > 0) {
+        const expandedCard = kanbanCardsRef.current.find(c => c.id === expandedNoteRef.current);
+        if (expandedCard && canvas) {
+          drawExpandedNote(ctx, expandedCard, canvas.offsetWidth, canvas.offsetHeight);
+        }
       }
 
       rafIdRef.current = requestAnimationFrame(frame);
@@ -422,6 +442,28 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
 
   const handleClick = async (event: React.MouseEvent<HTMLCanvasElement>) => {
     if (!renderState.current.grid || !canvasRef.current) return;
+
+    // --- Sticky note click detection (before tile logic) ---
+    const canvas = canvasRef.current;
+    const dpr = window.devicePixelRatio || 1;
+    const rect = canvas.getBoundingClientRect();
+    const noteClickX = (event.clientX - rect.left) * dpr;
+    const noteClickY = (event.clientY - rect.top) * dpr;
+
+    // If a note is expanded, any click closes it
+    if (expandedNoteRef.current) {
+      expandedNoteRef.current = null;
+      return;
+    }
+
+    // Check if click hit a wall note
+    const hitAreas = getNoteHitAreas();
+    for (const area of hitAreas) {
+      if (pointInQuad(noteClickX, noteClickY, area.corners)) {
+        expandedNoteRef.current = area.cardId;
+        return;
+      }
+    }
 
     // Read event.currentTarget BEFORE any await (React clears it after)
     const clickedCoords = getHoveredTile(event, renderState.current.cameraOrigin);
