@@ -328,6 +328,16 @@ Notes:
 Plans:
 - [ ] TBD (run /gsd:plan-phase 16 to break down)
 
+### Phase 17: Bugfixes & Wishlist
+
+**Goal:** Ongoing phase for incremental fixes and polish. Items: (1) Sticky notes should render on a single wall only, not spread across multiple walls.
+**Requirements**: Ongoing — items added as needed
+**Depends on:** Phase 12
+**Plans:** 1 plan
+
+Plans:
+- [ ] 17-01-PLAN.md — Constrain In Progress sticky notes to left wall only (remove right-wall overflow)
+
 ---
 
 *Created: 2026-02-28*
