@@ -4,12 +4,12 @@ milestone: v1.0
 milestone_name: milestone
 current_plan: 03
 status: executing
-last_updated: "2026-03-05T21:52:26.861Z"
+last_updated: "2026-03-06T21:28:34.068Z"
 progress:
-  total_phases: 11
-  completed_phases: 9
-  total_plans: 27
-  completed_plans: 26
+  total_phases: 13
+  completed_phases: 10
+  total_plans: 28
+  completed_plans: 27
 ---
 
 # STATE.md
@@ -25,7 +25,7 @@ See: .planning/PROJECT.md (updated 2026-02-28)
 
 v1.0 (phases 1-8) complete. v2 work in progress: Phase 9 (furniture catalog + rendering fixes) and Phase 10a/10b (avatar polish + chair sitting) are complete. Phase 11 plan 01 (chair layer splitting) is complete. Phase 12 plans 01-03 implementation complete (wall panels + GitHub Projects kanban data pipeline + sticky note renderer); awaiting human visual verification.
 
-**Last session:** 2026-03-05T21:52:26.859Z
+**Last session:** 2026-03-06T21:28:34.065Z
 **Milestone status:** v2 in progress
 
 ## Current Phase
@@ -79,6 +79,7 @@ v1.0 (phases 1-8) complete. v2 work in progress: Phase 9 (furniture catalog + re
 | 2026-03-05 | Silent fallback pattern for fetchKanbanCards: catch all errors, return [] | Consistent with Phase 8 audio pattern; extension stays operational when gh uninstalled/unauthenticated |
 | 2026-03-05 | Kanban notes drawn as topmost overlay after speech bubbles in rAF loop | Always visible on top of room geometry; no depth sort needed for screen-space overlays |
 | 2026-03-05 | drawKanbanNotes no-op when cards.length === 0 | Zero draw cost for rooms without GitHub Projects settings configured |
+| 2026-03-06 | In Progress notes confined to left wall only | Right wall reserved exclusively for Done aggregate note — cross-wall overflow broke spatial metaphor |
 
 ## Blockers
 
@@ -114,6 +115,7 @@ None.
 | 12-room-walls-kanban-notes | 12-01 | 3min | 2 | 4 |
 | 12-room-walls-kanban-notes | 12-02 | 5min | 2 | 5 |
 | Phase 12-room-walls-kanban-notes P12-03 | 2min | 2 tasks | 3 files |
+| Phase 17-bugfixes-and-wishlist P17-01 | 3min | 2 tasks | 2 files |
 
 ## Phase History
 
@@ -145,8 +147,10 @@ None.
 | 12-room-walls-kanban-notes | 12-01 | Full-height room perimeter wall panels with shared baseline replacing per-tile wall strips (14 new tests, 263 total passing) |
 | 12-room-walls-kanban-notes | 12-02 | GitHub Projects v2 kanban fetch via gh CLI graphql with VS Code settings, polling interval, and silent error fallback returning KanbanCard[] to webview (268 tests passing) |
 | 12-room-walls-kanban-notes | 12-03 | Sticky note renderer for kanban cards on isometric room walls — color-coded by status, distributed across left/right wall tile slots (279 tests passing) |
+| 17-bugfixes-and-wishlist | 17-01 | In Progress notes constrained to left wall only — removed rightSmallTiles loop, updated capacity formula, added single-wall assertion test (277 tests passing) |
 
 ## Accumulated Context
 
 ### Roadmap Evolution
 - Phase 16 added: Agent factory workflow with team sections and orchestration UI
+- Phase 17 added: Bugfixes & Wishlist — ongoing phase for incremental fixes and polish
