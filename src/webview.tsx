@@ -3,6 +3,29 @@ import { createRoot } from 'react-dom/client';
 import { RoomCanvas } from './RoomCanvas.js';
 import { SpriteCache } from './isoSpriteCache.js';
 
+// Console log interceptor — capture last 200 lines for dev capture
+const LOG_BUFFER_MAX = 200;
+const logBuffer: string[] = [];
+const origConsole = {
+  log: console.log.bind(console),
+  warn: console.warn.bind(console),
+  error: console.error.bind(console),
+};
+
+function pushLog(level: string, args: unknown[]) {
+  const time = new Date().toLocaleTimeString('en-US', { hour12: false });
+  const text = args.map(a => typeof a === 'string' ? a : JSON.stringify(a)).join(' ');
+  logBuffer.push(`[${time} ${level}] ${text}`);
+  if (logBuffer.length > LOG_BUFFER_MAX) logBuffer.shift();
+}
+
+console.log = (...args: unknown[]) => { pushLog('LOG', args); origConsole.log(...args); };
+console.warn = (...args: unknown[]) => { pushLog('WRN', args); origConsole.warn(...args); };
+console.error = (...args: unknown[]) => { pushLog('ERR', args); origConsole.error(...args); };
+
+// Expose log buffer globally for RoomCanvas capture button
+(window as any).__devLogBuffer = logBuffer;
+
 const DEMO_HEIGHTMAP = [
   'xxxxxxxxxxxxxxxxxxxx',
   'x000000000000000000x',

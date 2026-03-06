@@ -17,6 +17,10 @@ interface LayoutEditorPanelProps {
   onRotate: () => void;
   onSave: () => void;
   onLoad: (file: File) => void;
+  devMode?: boolean;
+  onDevCapture?: () => void;
+  onPlaySound?: (soundName: string) => void;
+  availableSounds?: string[];
 }
 
 const GROUPED_CATALOG = getCatalogByCategory();
@@ -32,7 +36,12 @@ export function LayoutEditorPanel({
   onRotate,
   onSave,
   onLoad,
+  devMode,
+  onDevCapture,
+  onPlaySound,
+  availableSounds,
 }: LayoutEditorPanelProps) {
+  const [selectedSound, setSelectedSound] = React.useState(availableSounds?.[0] ?? '');
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -65,6 +74,7 @@ export function LayoutEditorPanel({
     fontSize: '11px',
     backgroundColor: '#444',
     color: 'white',
+    boxSizing: 'border-box',
   };
 
   const activeButtonStyle: React.CSSProperties = {
@@ -197,6 +207,34 @@ export function LayoutEditorPanel({
           />
         </label>
       </div>
+
+      {/* Dev capture button (dev mode only) */}
+      {devMode && onDevCapture && (
+        <div style={{ marginTop: '10px', borderTop: '1px solid #666', paddingTop: '8px' }}>
+          <button onClick={onDevCapture} style={buttonStyle}>
+            Dev Capture
+          </button>
+        </div>
+      )}
+
+      {/* Sound tester (dev mode only) */}
+      {devMode && onPlaySound && availableSounds && availableSounds.length > 0 && (
+        <div style={{ marginTop: '10px', borderTop: '1px solid #666', paddingTop: '8px' }}>
+          <div style={{ marginBottom: '4px' }}>Sounds</div>
+          <select
+            value={selectedSound}
+            onChange={(e) => setSelectedSound(e.target.value)}
+            style={{ width: '100%', padding: '4px', marginBottom: '4px' }}
+          >
+            {availableSounds.map((name) => (
+              <option key={name} value={name}>{name}</option>
+            ))}
+          </select>
+          <button onClick={() => onPlaySound(selectedSound)} style={buttonStyle}>
+            Play Sound
+          </button>
+        </div>
+      )}
     </div>
   );
 }

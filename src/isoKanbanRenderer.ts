@@ -103,57 +103,10 @@ export function leftWallNotePosition(
   };
 }
 
-/**
- * Compute screen position for a sticky note on the right wall.
- */
-export function rightWallNotePosition(
-  tx: number,
-  ty: number,
-  noteSlot: 0 | 1,
-  cameraOrigin: { x: number; y: number },
-): { x: number; y: number } {
-  const { x: sx, y: sy } = tileToScreen(tx, ty, 0);
-  const verticalOffset = noteSlot === 0 ? WALL_HEIGHT * 0.3 : WALL_HEIGHT * 0.65;
-  return {
-    x: sx + cameraOrigin.x + TILE_W_HALF * 0.5,
-    y: sy + cameraOrigin.y - verticalOffset,
-  };
-}
 
 /** Edge tile with position */
 interface EdgeTile { tx: number; ty: number }
 
-/**
- * Compute screen position for a large aggregate note on the left wall.
- * Picks the middle edge tile and centers vertically on the wall.
- */
-function largeLeftNotePosition(
-  leftEdge: EdgeTile[],
-  cameraOrigin: { x: number; y: number },
-): { x: number; y: number } {
-  const mid = leftEdge[Math.floor(leftEdge.length / 2)];
-  const { x: sx, y: sy } = tileToScreen(mid.tx, mid.ty, 0);
-  return {
-    x: sx + cameraOrigin.x - TILE_W_HALF * 0.5,
-    y: sy + cameraOrigin.y - WALL_HEIGHT * 0.5,
-  };
-}
-
-/**
- * Compute screen position for a large aggregate note on the right wall.
- * Picks the middle edge tile and centers vertically on the wall.
- */
-function largeRightNotePosition(
-  rightEdge: EdgeTile[],
-  cameraOrigin: { x: number; y: number },
-): { x: number; y: number } {
-  const mid = rightEdge[Math.floor(rightEdge.length / 2)];
-  const { x: sx, y: sy } = tileToScreen(mid.tx, mid.ty, 0);
-  return {
-    x: sx + cameraOrigin.x + TILE_W_HALF * 0.5,
-    y: sy + cameraOrigin.y - WALL_HEIGHT * 0.5,
-  };
-}
 
 /**
  * Transform a local-space point through the skew matrix for a wall side.
@@ -408,46 +361,47 @@ export function drawKanbanNotes(
     }
   }
 
-  // Right wall edge: topmost non-void tile per column
-  const rightEdge: EdgeTile[] = [];
-  for (let tx = 0; tx < grid.width; tx++) {
-    for (let ty = 0; ty < grid.height; ty++) {
-      const tile = grid.tiles[ty][tx];
-      if (tile == null) continue;
-      if (ty === 0 || grid.tiles[ty - 1]?.[tx] == null) {
-        rightEdge.push({ tx, ty });
-        break;
-      }
-    }
+  // BACKLOG at the far left of the left wall (second-to-last to stay within bounds)
+  const backlogIdx = Math.max(0, leftEdge.length - 2);
+  // DONE at the far right of the left wall (index 0 or 1 = top/back, near corner)
+  const doneIdx = Math.min(1, leftEdge.length - 1);
+
+  // Helper: compute left-wall large note position for a given edge tile
+  function largeNotePos(tile: EdgeTile) {
+    const { x: sx, y: sy } = tileToScreen(tile.tx, tile.ty, 0);
+    return {
+      x: sx + cameraOrigin.x - TILE_W_HALF * 0.5,
+      y: sy + cameraOrigin.y - WALL_HEIGHT * 0.5,
+    };
   }
 
-  // Middle tile indices (used for large notes)
-  const leftMidIdx = Math.floor(leftEdge.length / 2);
-  const rightMidIdx = Math.floor(rightEdge.length / 2);
-
-  // Draw large backlog note on left wall (if there are backlog cards)
+  // Draw large backlog note at far left of left wall
   if (backlogCards.length > 0 && leftEdge.length > 0) {
-    const pos = largeLeftNotePosition(leftEdge, cameraOrigin);
+    const pos = largeNotePos(leftEdge[backlogIdx]);
     const isExpanded = expandedAggregateType === 'backlog';
     drawLargeNote(ctx, pos.x, pos.y, 'BACKLOG', backlogCards, '#fef08a', '#eab308', 'left', isExpanded);
     const corners = computeSkewedCorners(pos.x, pos.y, LARGE_NOTE_W, LARGE_NOTE_H, 'left');
     noteHitAreas.push({ cardId: BACKLOG_ID, corners, wallSide: 'left', aggregateType: 'backlog' });
   }
 
-  // Draw large done note on right wall (if there are done cards)
-  if (doneCards.length > 0 && rightEdge.length > 0) {
-    const pos = largeRightNotePosition(rightEdge, cameraOrigin);
+  // Draw large done note at far right of left wall (near corner)
+  if (doneCards.length > 0 && leftEdge.length > 0 && doneIdx !== backlogIdx) {
+    const pos = largeNotePos(leftEdge[doneIdx]);
     const isExpanded = expandedAggregateType === 'done';
-    drawLargeNote(ctx, pos.x, pos.y, 'DONE', doneCards, '#86efac', '#22c55e', 'right', isExpanded);
-    const corners = computeSkewedCorners(pos.x, pos.y, LARGE_NOTE_W, LARGE_NOTE_H, 'right');
-    noteHitAreas.push({ cardId: DONE_ID, corners, wallSide: 'right', aggregateType: 'done' });
+    drawLargeNote(ctx, pos.x, pos.y, 'DONE', doneCards, '#86efac', '#22c55e', 'left', isExpanded);
+    const corners = computeSkewedCorners(pos.x, pos.y, LARGE_NOTE_W, LARGE_NOTE_H, 'left');
+    noteHitAreas.push({ cardId: DONE_ID, corners, wallSide: 'left', aggregateType: 'done' });
   }
 
-  // Distribute small In Progress notes on the left wall only.
-  // Only skip middle tile if a large backlog note was drawn there.
-  const hasLeftLarge = backlogCards.length > 0 && leftEdge.length > 0;
-  const hasRightLarge = doneCards.length > 0 && rightEdge.length > 0;
-  const leftSmallTiles = hasLeftLarge ? leftEdge.filter((_, i) => i !== leftMidIdx) : leftEdge;
+  // Distribute small In Progress notes on remaining left wall tiles.
+  // Skip tiles occupied by large aggregate notes.
+  const hasBacklog = backlogCards.length > 0 && leftEdge.length > 0;
+  const hasDone = doneCards.length > 0 && leftEdge.length > 0 && doneIdx !== backlogIdx;
+  const leftSmallTiles = leftEdge.filter((_, i) => {
+    if (hasBacklog && i === backlogIdx) return false;
+    if (hasDone && i === doneIdx) return false;
+    return true;
+  });
 
   const smallCapacity = leftSmallTiles.length * 2;
   const ipCardsToShow = inProgressCards.slice(0, smallCapacity);
@@ -466,8 +420,6 @@ export function drawKanbanNotes(
     }
   }
 
-  // Suppress unused variable warning — hasRightLarge is kept for the Done note drawing above.
-  void hasRightLarge;
 }
 
 /**

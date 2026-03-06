@@ -57,7 +57,7 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
   // Audio manager (Phase 8)
   const audioManagerRef = useRef<AudioManager | null>(null);
   const [audioInitialized, setAudioInitialized] = useState(false);
-  const notificationSoundRef = useRef<AudioBuffer | null>(null);
+  const soundBuffersRef = useRef<Map<string, AudioBuffer>>(new Map());
 
   // Avatar management (v2)
   const avatarManagerRef = useRef<AvatarManager>(new AvatarManager());
@@ -66,6 +66,9 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
 
   // Track agent speech bubble text
   const agentToolTextRef = useRef<Map<string, string>>(new Map());
+
+  // Dev mode flag (set by extension in Development mode)
+  const [devMode, setDevMode] = useState(false);
 
   // Kanban cards from GitHub Projects (Phase 12-03)
   // Starts empty; populated when extension sends kanbanCards message
@@ -184,6 +187,10 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
         }
         case 'kanbanCards': {
           kanbanCardsRef.current = msg.cards;
+          break;
+        }
+        case 'devMode': {
+          setDevMode(msg.enabled);
           break;
         }
       }
@@ -486,14 +493,7 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
 
     // Initialize audio on first click (autoplay policy compliance)
     if (!audioInitialized && !audioManagerRef.current) {
-      audioManagerRef.current = new AudioManager();
-      await audioManagerRef.current.init();
-      setAudioInitialized(true);
-
-      const notificationUri = (window as any).ASSET_URIS?.notificationSound;
-      if (notificationUri) {
-        notificationSoundRef.current = await audioManagerRef.current.loadSound(notificationUri);
-      }
+      await initAudio();
     }
 
     // Editor modes take priority
@@ -737,6 +737,46 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
     reader.readAsText(file);
   };
 
+  // Available sound names (keys match ASSET_URIS fields without 'Sound' suffix)
+  const availableSounds = ['notification'];
+
+  const initAudio = async () => {
+    if (audioManagerRef.current) return;
+    audioManagerRef.current = new AudioManager();
+    await audioManagerRef.current.init();
+    setAudioInitialized(true);
+
+    // Load all known sounds
+    const uris = (window as any).ASSET_URIS;
+    if (uris?.notificationSound) {
+      const buf = await audioManagerRef.current.loadSound(uris.notificationSound);
+      if (buf) soundBuffersRef.current.set('notification', buf);
+    }
+  };
+
+  const handlePlaySound = async (soundName: string) => {
+    if (!audioManagerRef.current) {
+      await initAudio();
+    }
+    const buf = soundBuffersRef.current.get(soundName);
+    if (buf && audioManagerRef.current) {
+      audioManagerRef.current.play(buf);
+    } else {
+      console.warn(`Sound "${soundName}" not loaded`);
+    }
+  };
+
+  const handleDevCapture = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const screenshot = canvas.toDataURL('image/png');
+    const logs = [...((window as any).__devLogBuffer || [])];
+    const vscodeApi = (window as any).vscodeApi;
+    if (vscodeApi) {
+      vscodeApi.postMessage({ type: 'devCapture', screenshot, logs });
+    }
+  };
+
   return (
     <>
       <LayoutEditorPanel
@@ -747,6 +787,10 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
         selectedFurniture={selectedFurniture}
         onFurnitureChange={setSelectedFurniture}
         furnitureDirection={furnitureDirection}
+        devMode={devMode}
+        onDevCapture={handleDevCapture}
+        onPlaySound={handlePlaySound}
+        availableSounds={availableSounds}
         onRotate={() => {
           const spriteCache: SpriteCache | undefined = (window as any).spriteCache;
           const supported = spriteCache

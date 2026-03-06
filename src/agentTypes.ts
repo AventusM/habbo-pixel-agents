@@ -36,9 +36,11 @@ export type ExtensionMessage =
   | { type: 'agentRemoved'; agentId: string }
   | { type: 'agentStatus'; agentId: string; status: AgentStatus }
   | { type: 'agentTool'; agentId: string; toolName: string; displayText: string }
-  | { type: 'kanbanCards'; cards: KanbanCard[] };
+  | { type: 'kanbanCards'; cards: KanbanCard[] }
+  | { type: 'devMode'; enabled: boolean };
 
 /** Messages from webview → extension host */
 export type WebviewMessage =
   | { type: 'ready' }
-  | { type: 'requestAgents' };
+  | { type: 'requestAgents' }
+  | { type: 'devCapture'; screenshot: string; logs: string[] };

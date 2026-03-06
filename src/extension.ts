@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
-import { readFileSync, existsSync } from 'fs';
+import { readFileSync, writeFileSync, existsSync } from 'fs';
 import { join } from 'path';
+import * as os from 'os';
 import { AgentManager } from './agentManager.js';
 import type { WebviewMessage, ExtensionMessage } from './agentTypes.js';
 import { fetchKanbanCards } from './githubProjects.js';
@@ -62,6 +63,7 @@ export function activate(context: vscode.ExtensionContext) {
       vscode.ViewColumn.One,
       {
         enableScripts: true,
+        retainContextWhenHidden: true,
         localResourceRoots: [vscode.Uri.joinPath(context.extensionUri, 'dist')]
       }
     );
@@ -100,9 +102,9 @@ export function activate(context: vscode.ExtensionContext) {
       vscode.Uri.joinPath(context.extensionUri, 'dist', 'webview-assets', 'PressStart2P-Regular.ttf')
     );
 
-    // Generate webview URI for notification sound (Phase 8 - placeholder)
+    // Generate webview URI for notification sound (Phase 8)
     const notificationSoundUri = panel.webview.asWebviewUri(
-      vscode.Uri.joinPath(context.extensionUri, 'dist', 'webview-assets', 'sounds', 'notification.ogg')
+      vscode.Uri.joinPath(context.extensionUri, 'dist', 'webview-assets', 'sounds', 'notification.wav')
     );
 
     // Generate webview URIs for Nitro assets (per-item spritesheets)
@@ -129,6 +131,10 @@ export function activate(context: vscode.ExtensionContext) {
     panel.webview.onDidReceiveMessage((msg: WebviewMessage) => {
       switch (msg.type) {
         case 'ready': {
+          // Signal dev mode to webview
+          if (context.extensionMode === vscode.ExtensionMode.Development) {
+            panel.webview.postMessage({ type: 'devMode', enabled: true } as ExtensionMessage);
+          }
           agentManager.discoverAgents();
           const { owner, ownerType, projectNumber } = readKanbanConfig(context.extensionUri);
           console.log(`[Kanban] ready received. owner="${owner}" projectNumber=${projectNumber} ownerType="${ownerType}"`);
@@ -157,6 +163,24 @@ export function activate(context: vscode.ExtensionContext) {
             } as ExtensionMessage);
           }
           break;
+        case 'devCapture': {
+          const { screenshot, logs } = msg as { type: 'devCapture'; screenshot: string; logs: string[] };
+          const timestamp = Date.now();
+          const pngPath = join(os.tmpdir(), `habbo-capture-${timestamp}.png`);
+
+          // Decode base64 data URL and write PNG
+          const base64Data = screenshot.replace(/^data:image\/png;base64,/, '');
+          writeFileSync(pngPath, Buffer.from(base64Data, 'base64'));
+
+          // Format clipboard text
+          const logSection = logs.length > 0
+            ? `\nConsole (last ${logs.length} lines):\n${logs.join('\n')}`
+            : '';
+          const clipboardText = `Screenshot: ${pngPath}${logSection}`;
+          vscode.env.clipboard.writeText(clipboardText);
+          vscode.window.showInformationMessage(`Dev capture saved: ${pngPath}`);
+          break;
+        }
       }
     });
 
@@ -221,4 +245,13 @@ export function activate(context: vscode.ExtensionContext) {
   });
 
   context.subscriptions.push(disposable);
+
+  // Auto-open room and devtools when running in Extension Development Host
+  if (context.extensionMode === vscode.ExtensionMode.Development) {
+    vscode.commands.executeCommand('habbo-pixel-agents.openRoom').then(() => {
+      setTimeout(() => {
+        vscode.commands.executeCommand('workbench.action.webview.openDeveloperTools');
+      }, 1000);
+    });
+  }
 }
