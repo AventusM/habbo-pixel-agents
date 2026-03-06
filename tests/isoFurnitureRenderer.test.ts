@@ -5,13 +5,14 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   createFurnitureRenderable,
   createMultiTileFurnitureRenderable,
+  createNitroChairRenderables,
   sliceMultiTileRenderable,
   getBaseDirection,
   shouldMirrorSprite,
   type FurnitureSpec,
   type MultiTileFurnitureSpec,
 } from '../src/isoFurnitureRenderer.js';
-import type { SpriteCache, SpriteFrame } from '../src/isoSpriteCache.js';
+import type { SpriteCache, SpriteFrame, NitroSpriteFrame, NitroAssetData } from '../src/isoSpriteCache.js';
 import type { Renderable } from '../src/isoTypes.js';
 
 describe('isoFurnitureRenderer', () => {
@@ -533,6 +534,176 @@ describe('isoFurnitureRenderer', () => {
         slice.draw(mockCtx);
       }
       expect(drawFn).toHaveBeenCalledTimes(5);
+    });
+  });
+
+  describe('createNitroChairRenderables', () => {
+    let mockNitroFrame: NitroSpriteFrame;
+    let mockNitroSpriteCache: SpriteCache;
+
+    // Metadata matching hc_chr dir 0: layer 0 (seat, z=0), layer 1 (backrest, z=100)
+    const dir0Metadata: NitroAssetData = {
+      name: 'hc_chr',
+      type: 'furniture',
+      spritesheet: {} as any,
+      assets: {
+        'hc_chr_64_a_0_0': { x: -10, y: -20 },
+        'hc_chr_64_b_0_0': { x: -10, y: -40 },
+      },
+      visualization: {
+        layerCount: 2,
+        directions: {
+          '0': { '1': { z: '100' } }, // layer 1 (b) has z=100 → backrest
+        },
+      },
+      logic: { dimensions: [1, 1, 0], directions: [0, 2, 4, 6] },
+    };
+
+    // Metadata matching hc_chr dir 2: layer 1 has z=-100 → no backrest, no split
+    const dir2Metadata: NitroAssetData = {
+      name: 'hc_chr',
+      type: 'furniture',
+      spritesheet: {} as any,
+      assets: {
+        'hc_chr_64_a_2_0': { x: -10, y: -20 },
+        'hc_chr_64_b_2_0': { x: -10, y: -40 },
+      },
+      visualization: {
+        layerCount: 2,
+        directions: {
+          '2': { '1': { z: '-100' } }, // layer 1 has z=-100 → seat side
+        },
+      },
+      logic: { dimensions: [1, 1, 0], directions: [0, 2, 4, 6] },
+    };
+
+    // Metadata for single-layer chair (no z values → all z=0 → no backrest)
+    const singleLayerMetadata: NitroAssetData = {
+      name: 'simple_chair',
+      type: 'furniture',
+      spritesheet: {} as any,
+      assets: {
+        'simple_chair_64_a_0_0': { x: -10, y: -20 },
+      },
+      visualization: {
+        layerCount: 1,
+        directions: {},
+      },
+      logic: { dimensions: [1, 1, 0], directions: [0, 2, 4, 6] },
+    };
+
+    beforeEach(() => {
+      mockNitroFrame = {
+        bitmap: {} as ImageBitmap,
+        x: 0,
+        y: 0,
+        w: 32,
+        h: 48,
+        offsetX: -10,
+        offsetY: -20,
+        flipH: false,
+      };
+
+      mockNitroSpriteCache = {
+        hasNitroAsset: vi.fn().mockReturnValue(true),
+        getNitroMetadata: vi.fn().mockReturnValue(dir0Metadata),
+        getNitroFrame: vi.fn().mockReturnValue(mockNitroFrame),
+        getFrame: vi.fn().mockReturnValue(null),
+      } as any;
+    });
+
+    it('dir 0 chair with backrest layer returns 2 renderables (seat + backrest)', () => {
+      const spec: FurnitureSpec = { name: 'hc_chr', tileX: 3, tileY: 4, tileZ: 0, direction: 0 };
+      (mockNitroSpriteCache.getNitroMetadata as any).mockReturnValue(dir0Metadata);
+
+      const renderables = createNitroChairRenderables(spec, mockNitroSpriteCache, 'hc_chr');
+
+      expect(renderables).toHaveLength(2);
+    });
+
+    it('seat renderable has tileX === spec.tileX', () => {
+      const spec: FurnitureSpec = { name: 'hc_chr', tileX: 3, tileY: 4, tileZ: 0, direction: 0 };
+      (mockNitroSpriteCache.getNitroMetadata as any).mockReturnValue(dir0Metadata);
+
+      const renderables = createNitroChairRenderables(spec, mockNitroSpriteCache, 'hc_chr');
+
+      expect(renderables[0].tileX).toBe(3);
+    });
+
+    it('backrest renderable has tileX === spec.tileX + 0.8', () => {
+      const spec: FurnitureSpec = { name: 'hc_chr', tileX: 3, tileY: 4, tileZ: 0, direction: 0 };
+      (mockNitroSpriteCache.getNitroMetadata as any).mockReturnValue(dir0Metadata);
+
+      const renderables = createNitroChairRenderables(spec, mockNitroSpriteCache, 'hc_chr');
+
+      expect(renderables[1].tileX).toBe(3.8);
+    });
+
+    it('both renderables have correct tileY matching spec', () => {
+      const spec: FurnitureSpec = { name: 'hc_chr', tileX: 3, tileY: 4, tileZ: 0, direction: 0 };
+      (mockNitroSpriteCache.getNitroMetadata as any).mockReturnValue(dir0Metadata);
+
+      const renderables = createNitroChairRenderables(spec, mockNitroSpriteCache, 'hc_chr');
+
+      expect(renderables[0].tileY).toBe(4);
+      expect(renderables[1].tileY).toBe(4);
+    });
+
+    it('both renderables have correct tileZ matching spec', () => {
+      const spec: FurnitureSpec = { name: 'hc_chr', tileX: 3, tileY: 4, tileZ: 2, direction: 0 };
+      (mockNitroSpriteCache.getNitroMetadata as any).mockReturnValue(dir0Metadata);
+
+      const renderables = createNitroChairRenderables(spec, mockNitroSpriteCache, 'hc_chr');
+
+      expect(renderables[0].tileZ).toBe(2);
+      expect(renderables[1].tileZ).toBe(2);
+    });
+
+    it('dir 2 chair with all z <= 0 returns 1 renderable (no split)', () => {
+      const spec: FurnitureSpec = { name: 'hc_chr', tileX: 3, tileY: 4, tileZ: 0, direction: 2 };
+      (mockNitroSpriteCache.getNitroMetadata as any).mockReturnValue(dir2Metadata);
+
+      const renderables = createNitroChairRenderables(spec, mockNitroSpriteCache, 'hc_chr');
+
+      expect(renderables).toHaveLength(1);
+      expect(renderables[0].tileX).toBe(3);
+    });
+
+    it('single-layer chair (layerCount 1, no z > 0) returns 1 renderable', () => {
+      const spec: FurnitureSpec = { name: 'simple_chair', tileX: 1, tileY: 2, tileZ: 0, direction: 0 };
+      (mockNitroSpriteCache.getNitroMetadata as any).mockReturnValue(singleLayerMetadata);
+
+      const renderables = createNitroChairRenderables(spec, mockNitroSpriteCache, 'simple_chair');
+
+      expect(renderables).toHaveLength(1);
+      expect(renderables[0].tileX).toBe(1);
+    });
+
+    it('missing asset returns empty array', () => {
+      const spec: FurnitureSpec = { name: 'missing_chair', tileX: 0, tileY: 0, tileZ: 0, direction: 0 };
+      (mockNitroSpriteCache.hasNitroAsset as any).mockReturnValue(false);
+
+      const renderables = createNitroChairRenderables(spec, mockNitroSpriteCache, 'missing_chair');
+
+      expect(renderables).toHaveLength(0);
+    });
+
+    it('draw functions call drawImage for each layer in the group', () => {
+      const spec: FurnitureSpec = { name: 'hc_chr', tileX: 3, tileY: 4, tileZ: 0, direction: 0 };
+      (mockNitroSpriteCache.getNitroMetadata as any).mockReturnValue(dir0Metadata);
+
+      const renderables = createNitroChairRenderables(spec, mockNitroSpriteCache, 'hc_chr');
+      expect(renderables).toHaveLength(2);
+
+      // Draw seat (layer a only — z=0)
+      const seatCtx = { drawImage: vi.fn(), save: vi.fn(), restore: vi.fn(), scale: vi.fn() } as any;
+      renderables[0].draw(seatCtx);
+      expect(seatCtx.drawImage).toHaveBeenCalledTimes(1);
+
+      // Draw backrest (layer b only — z=100)
+      const backCtx = { drawImage: vi.fn(), save: vi.fn(), restore: vi.fn(), scale: vi.fn() } as any;
+      renderables[1].draw(backCtx);
+      expect(backCtx.drawImage).toHaveBeenCalledTimes(1);
     });
   });
 });

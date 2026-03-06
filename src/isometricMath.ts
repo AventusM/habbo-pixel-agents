@@ -12,6 +12,12 @@ export const TILE_W_HALF = 32;
 export const TILE_H_HALF = 16;
 
 /**
+ * Wall height in pixels — 4 tile heights (128px).
+ * Wall strips hang below tile edges by this amount.
+ */
+export const WALL_HEIGHT = 128;
+
+/**
  * Convert isometric tile coordinates to screen pixel coordinates.
  * Returns the TOP VERTEX of the tile rhombus (before camera offset).
  *

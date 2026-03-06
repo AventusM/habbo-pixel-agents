@@ -7,27 +7,27 @@ import {
   TILE_H,
   TILE_W_HALF,
   TILE_H_HALF,
+  WALL_HEIGHT,
   tileToScreen,
 } from './isometricMath.js';
 import type { TileGrid, HsbColor, Renderable } from './isoTypes.js';
 import { tileColors, depthSort } from './isoTypes.js';
+import { drawWallPanels } from './isoWallRenderer.js';
 import {
   createFurnitureRenderable,
   createMultiTileFurnitureRenderable,
   createNitroFurnitureRenderable,
   createNitroMultiTileFurnitureRenderable,
+  createNitroChairRenderables,
   sliceMultiTileRenderable,
   type FurnitureSpec,
   type MultiTileFurnitureSpec,
 } from './isoFurnitureRenderer.js';
 import type { SpriteCache } from './isoSpriteCache.js';
-import { resolveAssetName } from './furnitureRegistry.js';
+import { resolveAssetName, isChairType } from './furnitureRegistry.js';
 
-/**
- * Wall height in pixels — 4 tile heights (128px).
- * Wall strips hang below tile edges by this amount.
- */
-export const WALL_HEIGHT = 128;
+// Re-export WALL_HEIGHT from isometricMath (moved there to break circular dependency with isoWallRenderer)
+export { WALL_HEIGHT } from './isometricMath.js';
 
 /**
  * Default HSB color for tiles without per-tile color set.
@@ -109,14 +109,14 @@ export function computeCameraOrigin(
     return { x: 0, y: 0 };
   }
 
-  // Add wall height to room height (for tallest wall)
+  // Walls rise ABOVE the floor, so extend minSy upward by WALL_HEIGHT
   const roomW = maxSx - minSx;
-  const roomH = maxSy - minSy + WALL_HEIGHT;
+  const roomH = (maxSy - minSy) + WALL_HEIGHT;
 
-  // Center the room in the viewport
+  // Center the room in the viewport (walls extend above minSy)
   return {
     x: Math.floor((canvasCssWidth - roomW) / 2) - minSx,
-    y: Math.floor((canvasCssHeight - roomH) / 2) - minSy,
+    y: Math.floor((canvasCssHeight - roomH) / 2) - (minSy - WALL_HEIGHT),
   };
 }
 
@@ -160,6 +160,9 @@ export function preRenderRoom(
 
   const hsb = defaultHsb || DEFAULT_HSB;
 
+  // Draw continuous wall panels BEFORE floor tiles so walls appear behind the floor.
+  drawWallPanels(ctx, grid, cameraOrigin, hsb, tileColorMap);
+
   // Build renderables array (one per non-void tile)
   const renderables: Renderable[] = [];
 
@@ -184,18 +187,8 @@ export function preRenderRoom(
           const tileKey = `${tx},${ty}`;
           const tileHsb = (tileColorMap && tileColorMap.get(tileKey)) || hsb;
 
-          // Draw floor tile (top face)
+          // Draw floor tile (top face only — walls drawn in a second pass after all floors)
           drawFloorTile(ctx, screenX, screenY, tileHsb);
-
-          // Draw left wall strip (if on left edge or tile to left is void)
-          if (tx === 0 || grid.tiles[ty][tx - 1] == null) {
-            drawLeftFace(ctx, screenX, screenY, tileHsb);
-          }
-
-          // Draw right wall strip (if on top edge or tile above is void)
-          if (ty === 0 || grid.tiles[ty - 1]?.[tx] == null) {
-            drawRightFace(ctx, screenX, screenY, tileHsb);
-          }
         },
       });
     }
@@ -228,6 +221,26 @@ export function createFurnitureRenderables(
 
   for (const furni of furniture) {
     const nitroName = resolveAssetName(furni.name);
+
+    // Chair-type single-tile furniture: split into seat + backrest renderables
+    // for correct avatar depth sorting (backrest in front, seat behind).
+    // club_sofa is excluded — it goes through the multiTileFurniture path.
+    if (isChairType(furni.name) && spriteCache.hasNitroAsset(nitroName)) {
+      const chairRenderables = createNitroChairRenderables(furni, spriteCache, nitroName);
+      for (const r of chairRenderables) {
+        const origDraw = r.draw;
+        r.draw = (ctx) => {
+          ctx.save();
+          ctx.translate(cameraOrigin.x, cameraOrigin.y);
+          origDraw(ctx);
+          ctx.restore();
+        };
+        renderables.push(r);
+      }
+      continue; // Skip the standard single-renderable path
+    }
+
+    // Non-chair: existing single-renderable path (unchanged)
     let renderable = spriteCache.hasNitroAsset(nitroName)
       ? createNitroFurnitureRenderable(furni, spriteCache, nitroName)
       : null;

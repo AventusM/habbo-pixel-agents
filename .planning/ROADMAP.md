@@ -1,8 +1,12 @@
 # Roadmap: habbo-pixel-agents
 
-**Milestone:** v1 — Habbo Isometric Drop-in Replacement
+---
+
+# Milestone: v1 — Habbo Isometric Drop-in Replacement
+
 **Goal:** Replace the flat top-down pixel-art renderer in pixel-agents with a faithful Habbo Hotel v14-era isometric 2.5D rendering layer while leaving all agent logic, pathfinding, JSONL watching, and Claude Code integration untouched.
 **Requirements:** 57 v1 requirements across 10 categories
+**Status:** Complete (2026-03-01)
 
 ---
 
@@ -167,7 +171,7 @@ Plans:
 **Deliverables:**
 - [x] `src/isoLayoutEditor.ts` implements mouse-to-tile conversion using the inverse isometric formula with z=0 assumption (Strategy B): `rawX = adjX / 64 + adjY / 32`, `rawY = adjY / 32 - adjX / 64`, floored to integer tile indices.
 - [x] Hovering over a tile draws a yellow rhombus outline (`rgba(255, 255, 100, 0.8)`, 2 px stroke) after the main render pass on the correct isometric tile position.
-- [x] All existing editor behaviours work correctly: tile walkability painting, per-tile HSB colour picker, furniture placement at clicked tile, furniture rotation, and save/load of the heightmap string with door coordinates.
+- [x] All existing layout editor behaviours work correctly: tile walkability painting, per-tile HSB colour picker, furniture placement at clicked tile, furniture rotation, and saving/loading the layout as a Habbo heightmap string with door coordinates.
 - [x] Placed furniture in the editor aligns correctly with the isometric tile grid and renders using the furniture renderer (Phase 4) at the selected tile position.
 
 **Research flags:** No deep research needed — inverse isometric transform is a solved problem and Strategy B (z=0 assumption) is a documented accepted approach for editors. This phase must be last among rendering phases because it depends on finalised tile render dimensions (TILE_W=64, TILE_H=32) being locked in by Phase 2.
@@ -199,16 +203,97 @@ Plans:
 
 ---
 
-## v2 Phases (future)
+# Milestone: v2 — Polish & Extended Features
 
-- Phase 9: Full Habbo Furniture Catalog — expand beyond the 8 core office pieces toward the complete Habbo furniture catalog incrementally.
-- Phase 10: Volter Font as Default — confirm licensing is clean for all distribution contexts; make Volter the default font with Press Start 2P as fallback.
-- Phase 11: Avatar Builder UI — v1 already has 11-layer Nitro figure composition; v2 adds avatar builder UI, clothing selection, and wardrobe customisation.
-- Phase 12: Performance Optimisation — dirty-rect tracking, PixiJS v8 migration, or other optimisations for large rooms (20×20+ tiles, 20+ agents) if Canvas 2D becomes a bottleneck.
+**Goal:** Expand the v1 isometric renderer with a richer furniture catalog, avatar interaction polish (sitting, depth sorting fixes), and visual refinements.
+**Status:** In Progress
+
+---
+
+## Phase 9: Furniture Catalog & Rendering Fixes
+
+**Goal:** Data-driven furniture catalog with 16 new items, direction-aware rotation, flip caching, unified furniture+avatar depth sorting, avatar occlusion fixes.
+**Status:** Complete (2026-03-05)
+**Depends on:** v1
+
+---
+
+## Phase 10a: Avatar Polish
+
+**Goal:** Despawn bug fix, display names, speech bubble cleanup, desk facing, bubble height cap.
+**Status:** Complete (2026-03-05)
+**Depends on:** Phase 9
+
+---
+
+## Phase 10b: Chair Sitting
+
+**Goal:** Slower walking, chair sitting, walkable furniture.
+**Status:** Complete (2026-03-05)
+**Depends on:** Phase 10a
+
+---
+
+## Phase 11: Chair Layer Splitting
+
+**Goal:** Split chair furniture into separate seat and backrest renderables at different depth values so that a sitting avatar sorts between them — backrest renders in front of avatar, seat renders behind.
+**Status:** Complete (2026-03-05)
+**Depends on:** Phase 10b
+
+---
+
+## Phase 12: Room Walls & Kanban Notes
+
+**Goal:** Render proper room walls (not just edge strips) with optional window cutouts, and add wall-mounted sticky notes that act as a kanban board synced with GitHub Projects — cards on the board appear as physical post-it notes on the office walls.
+**Status:** Planning complete
+**Depends on:** Phase 11
+
+**Plans:** 3/3 plans complete
+
+Plans:
+- [ ] 12-01-PLAN.md — Full wall panel geometry replacing per-tile strips (isoWallRenderer.ts)
+- [ ] 12-02-PLAN.md — GitHub Projects v2 integration via gh CLI with VS Code settings and polling
+- [ ] 12-03-PLAN.md — Wall-mounted sticky note rendering and RoomCanvas integration
+
+Notes:
+- Replace current wall edge strips with full wall surfaces (back wall, side walls)
+- Wall surfaces should support mounted objects (notes, whiteboards, windows)
+- Sticky notes on walls follow kanban columns (To Do, In Progress, Done)
+- GitHub Projects integration: fetch board columns + cards via `gh` CLI or GitHub REST API, map to wall notes
+- Auth via existing `gh` CLI token (no separate OAuth flow needed)
+- Settings UI for configuring which GitHub Project to sync (repo + project number)
+- Poll/refresh interval for keeping notes in sync
+- Optional: window cutouts in walls for visual variety
+
+---
+
+## Phase 13: Volter Font as Default
+
+**Goal:** Confirm licensing is clean for all distribution contexts; make Volter the default font with Press Start 2P as fallback.
+**Status:** Pending
+**Depends on:** Phase 11
+
+---
+
+## Phase 14: Avatar Builder UI
+
+**Goal:** Add avatar builder UI, clothing selection, and wardrobe customisation — building on the existing 11-layer Nitro figure composition.
+**Status:** Pending
+**Depends on:** Phase 11
+
+---
+
+## Phase 15: Performance Optimisation
+
+**Goal:** Dirty-rect tracking, PixiJS v8 migration, or other optimisations for large rooms (20×20+ tiles, 20+ agents) if Canvas 2D becomes a bottleneck.
+**Status:** Pending
+**Depends on:** Phase 14
 
 ---
 
 ## Progress
+
+### v1 (Complete)
 
 | Phase | Requirements | Status | Completed |
 |-------|-------------|--------|-----------|
@@ -221,8 +306,29 @@ Plans:
 | 7. Layout Editor Integration | EDIT-01 – EDIT-04 | Complete | 2026-03-01 |
 | 8. Audio | AUDIO-01 – AUDIO-05 | Complete | 2026-03-01 |
 
+### v2 (In Progress)
+
+| Phase | Status | Completed |
+|-------|--------|-----------|
+| 9. Furniture Catalog & Fixes | Complete | 2026-03-05 |
+| 10a. Avatar Polish | Complete | 2026-03-05 |
+| 10b. Chair Sitting | Complete | 2026-03-05 |
+| 11. Chair Layer Splitting | Complete | 2026-03-05 |
+| 12. Room Walls & Kanban Notes | 3/3 | Complete   | 2026-03-05 | 13. Volter Font as Default | Pending | — |
+| 14. Avatar Builder UI | Pending | — |
+| 15. Performance Optimisation | Pending | — |
+
+### Phase 16: Agent factory workflow with team sections and orchestration UI
+
+**Goal:** [To be planned]
+**Requirements**: TBD
+**Depends on:** Phase 15
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 16 to break down)
+
 ---
 
 *Created: 2026-02-28*
-*Last updated: 2026-03-02 after documentation audit*
-
+*Last updated: 2026-03-05*

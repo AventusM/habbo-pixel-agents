@@ -1,6 +1,44 @@
 import * as vscode from 'vscode';
+import { readFileSync, existsSync } from 'fs';
+import { join } from 'path';
 import { AgentManager } from './agentManager.js';
 import type { WebviewMessage, ExtensionMessage } from './agentTypes.js';
+import { fetchKanbanCards } from './githubProjects.js';
+
+interface KanbanConfig {
+  owner: string;
+  ownerType: 'org' | 'user';
+  projectNumber: number;
+  pollIntervalSeconds: number;
+}
+
+/**
+ * Read kanban config from VS Code settings, falling back to .vscode/settings.json
+ * in the extension directory when no workspace folder is open (e.g. Extension Dev Host).
+ */
+function readKanbanConfig(extUri: vscode.Uri): KanbanConfig {
+  const config = vscode.workspace.getConfiguration('habboPixelAgents');
+  let owner = config.get<string>('githubProject.owner', '');
+  let ownerType = config.get<string>('githubProject.ownerType', 'org') as 'org' | 'user';
+  let projectNumber = config.get<number>('githubProject.projectNumber', 0);
+  const pollIntervalSeconds = config.get<number>('githubProject.pollIntervalSeconds', 60);
+
+  if (!owner) {
+    try {
+      const settingsPath = join(extUri.fsPath, '.vscode', 'settings.json');
+      if (existsSync(settingsPath)) {
+        const raw = JSON.parse(readFileSync(settingsPath, 'utf8'));
+        owner = raw['habboPixelAgents.githubProject.owner'] || '';
+        ownerType = (raw['habboPixelAgents.githubProject.ownerType'] || 'org') as 'org' | 'user';
+        projectNumber = raw['habboPixelAgents.githubProject.projectNumber'] || 0;
+      }
+    } catch {
+      // Ignore — settings simply not available
+    }
+  }
+
+  return { owner, ownerType, projectNumber, pollIntervalSeconds };
+}
 
 const DEMO_HEIGHTMAP = [
   '0000000000',
@@ -90,9 +128,19 @@ export function activate(context: vscode.ExtensionContext) {
     // Listen for messages from webview
     panel.webview.onDidReceiveMessage((msg: WebviewMessage) => {
       switch (msg.type) {
-        case 'ready':
+        case 'ready': {
           agentManager.discoverAgents();
+          const { owner, ownerType, projectNumber } = readKanbanConfig(context.extensionUri);
+          console.log(`[Kanban] ready received. owner="${owner}" projectNumber=${projectNumber} ownerType="${ownerType}"`);
+          if (owner && projectNumber > 0) {
+            const cards = fetchKanbanCards(owner, projectNumber, ownerType);
+            console.log(`[Kanban] fetched ${cards.length} cards:`, cards.map(c => c.title));
+            panel.webview.postMessage({ type: 'kanbanCards', cards } as ExtensionMessage);
+          } else {
+            console.log('[Kanban] skipped fetch: owner or projectNumber not configured');
+          }
           break;
+        }
         case 'requestAgents':
           // Send current agents to webview
           for (const agent of agentManager.getAgents()) {
@@ -112,8 +160,24 @@ export function activate(context: vscode.ExtensionContext) {
       }
     });
 
+    // --- GitHub Projects kanban polling ---
+    let kanbanPollId: ReturnType<typeof setInterval> | undefined;
+
+    {
+      const { owner: pollOwner, ownerType: pollOwnerType, projectNumber: pollProjectNumber, pollIntervalSeconds } = readKanbanConfig(context.extensionUri);
+      if (pollOwner && pollProjectNumber > 0 && pollIntervalSeconds > 0) {
+        kanbanPollId = setInterval(() => {
+          const polledCards = fetchKanbanCards(pollOwner, pollProjectNumber, pollOwnerType);
+          panel.webview.postMessage({ type: 'kanbanCards', cards: polledCards } as ExtensionMessage);
+        }, pollIntervalSeconds * 1000);
+      }
+    }
+
     // Cleanup on panel dispose
     panel.onDidDispose(() => {
+      if (kanbanPollId) {
+        clearInterval(kanbanPollId);
+      }
       agentManager.dispose();
     });
 

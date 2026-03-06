@@ -29,7 +29,9 @@ import { AvatarManager } from './avatarManager.js';
 import { IdleWanderManager } from './idleWander.js';
 import { AvatarSelectionManager } from './avatarSelection.js';
 import type { ExtensionMessage } from './agentTypes.js';
+import type { KanbanCard } from './agentTypes.js';
 import { computeBlockedTiles } from './isoPathfinding.js';
+import { drawKanbanNotes, drawExpandedNote, drawExpandedAggregateNote, getNoteHitAreas, pointInQuad } from './isoKanbanRenderer.js';
 
 interface RoomCanvasProps {
   heightmap: string;
@@ -64,6 +66,16 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
 
   // Track agent speech bubble text
   const agentToolTextRef = useRef<Map<string, string>>(new Map());
+
+  // Kanban cards from GitHub Projects (Phase 12-03)
+  // Starts empty; populated when extension sends kanbanCards message
+  const kanbanCardsRef = useRef<KanbanCard[]>([]);
+
+  // Expanded sticky note (click-to-open)
+  const expandedNoteRef = useRef<string | null>(null);
+
+  // Expanded aggregate note (backlog / done)
+  const expandedAggregateRef = useRef<'backlog' | 'done' | null>(null);
 
   // Editor UI state
   const [editorMode, setEditorMode] = useState<EditorMode>(editorModeProp);
@@ -170,6 +182,10 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
           agentToolTextRef.current.set(msg.agentId, msg.displayText);
           break;
         }
+        case 'kanbanCards': {
+          kanbanCardsRef.current = msg.cards;
+          break;
+        }
       }
     }
 
@@ -265,6 +281,18 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
 
       ctx.clearRect(0, 0, canvas.offsetWidth, canvas.offsetHeight);
       ctx.drawImage(offscreen, 0, 0);
+
+      // Kanban sticky notes on walls (drawn right after walls/floor, before furniture/avatars)
+      if (kanbanCardsRef.current.length > 0 && renderState.current.grid) {
+        drawKanbanNotes(
+          ctx,
+          kanbanCardsRef.current,
+          renderState.current.grid,
+          renderState.current.cameraOrigin,
+          expandedNoteRef.current,
+          expandedAggregateRef.current,
+        );
+      }
 
       // Draw hover highlight if tile is hovered (editor mode)
       if (renderState.current.editorState.hoveredTile) {
@@ -367,6 +395,25 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
         }
       }
 
+      // Expanded sticky note overlay (drawn last, on top of everything)
+      if (expandedNoteRef.current && kanbanCardsRef.current.length > 0) {
+        const expandedCard = kanbanCardsRef.current.find(c => c.id === expandedNoteRef.current);
+        if (expandedCard && canvas) {
+          drawExpandedNote(ctx, expandedCard, canvas.offsetWidth, canvas.offsetHeight);
+        }
+      }
+
+      // Expanded aggregate note overlay
+      if (expandedAggregateRef.current && kanbanCardsRef.current.length > 0 && canvas) {
+        const aggType = expandedAggregateRef.current;
+        const aggCards = aggType === 'backlog'
+          ? kanbanCardsRef.current.filter(c => c.status !== 'Done' && c.status !== 'In Progress')
+          : kanbanCardsRef.current.filter(c => c.status === 'Done');
+        if (aggCards.length > 0) {
+          drawExpandedAggregateNote(ctx, aggType, aggCards, canvas.offsetWidth, canvas.offsetHeight);
+        }
+      }
+
       rafIdRef.current = requestAnimationFrame(frame);
     }
 
@@ -403,6 +450,33 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
 
   const handleClick = async (event: React.MouseEvent<HTMLCanvasElement>) => {
     if (!renderState.current.grid || !canvasRef.current) return;
+
+    // --- Sticky note click detection (before tile logic) ---
+    const canvas = canvasRef.current;
+    const dpr = window.devicePixelRatio || 1;
+    const rect = canvas.getBoundingClientRect();
+    const noteClickX = (event.clientX - rect.left) * dpr;
+    const noteClickY = (event.clientY - rect.top) * dpr;
+
+    // If any note overlay is expanded, any click closes it
+    if (expandedNoteRef.current || expandedAggregateRef.current) {
+      expandedNoteRef.current = null;
+      expandedAggregateRef.current = null;
+      return;
+    }
+
+    // Check if click hit a wall note
+    const hitAreas = getNoteHitAreas();
+    for (const area of hitAreas) {
+      if (pointInQuad(noteClickX, noteClickY, area.corners)) {
+        if (area.aggregateType) {
+          expandedAggregateRef.current = area.aggregateType;
+        } else {
+          expandedNoteRef.current = area.cardId;
+        }
+        return;
+      }
+    }
 
     // Read event.currentTarget BEFORE any await (React clears it after)
     const clickedCoords = getHoveredTile(event, renderState.current.cameraOrigin);

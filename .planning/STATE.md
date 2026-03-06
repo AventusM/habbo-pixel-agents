@@ -2,15 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_plan: Complete
-status: completed
-stopped_at: v1.0 milestone complete — all 8 phases built and verified
-last_updated: "2026-03-02T00:00:00.000Z"
+current_plan: 03
+status: executing
+last_updated: "2026-03-05T21:52:26.861Z"
 progress:
-  total_phases: 8
-  completed_phases: 8
-  total_plans: 24
-  completed_plans: 24
+  total_phases: 11
+  completed_phases: 9
+  total_plans: 27
+  completed_plans: 26
 ---
 
 # STATE.md
@@ -20,20 +19,20 @@ progress:
 See: .planning/PROJECT.md (updated 2026-02-28)
 
 **Core value:** Claude Code agents should feel like they're working together in a recognisable Habbo Hotel room — the isometric 2.5D aesthetic must be faithful to the classic v14 era.
-**Current focus:** v1.0 milestone COMPLETE — all 8 phases built and verified
+**Current focus:** v2 in progress — Phase 12 (room walls + kanban notes) plan 03 tasks 1-2 complete, awaiting visual checkpoint
 
 ## Current Status
 
-All 8 phases of the v1.0 milestone are **COMPLETE**. Isometric room rendering, asset pipeline, furniture, avatar system, UI overlays, layout editor, and audio are all built, verified, and merged to main.
+v1.0 (phases 1-8) complete. v2 work in progress: Phase 9 (furniture catalog + rendering fixes) and Phase 10a/10b (avatar polish + chair sitting) are complete. Phase 11 plan 01 (chair layer splitting) is complete. Phase 12 plans 01-03 implementation complete (wall panels + GitHub Projects kanban data pipeline + sticky note renderer); awaiting human visual verification.
 
-**Last session:** 2026-03-02
-**Milestone status:** v1.0 complete — ready for v2 planning when desired
+**Last session:** 2026-03-05T21:52:26.859Z
+**Milestone status:** v2 in progress
 
 ## Current Phase
 
-**Phase:** All phases complete (1-8)
-**Current Plan:** N/A — milestone finished
-**Status:** v1.0 milestone complete
+**Phase:** 12 — Room Walls + Kanban Notes
+**Current Plan:** 03
+**Status:** In Progress
 
 ## Decisions Log
 
@@ -71,6 +70,15 @@ All 8 phases of the v1.0 milestone are **COMPLETE**. Isometric room rendering, a
 | 2026-03-01 | Full 11-layer Nitro figure composition | cortex-assets provides all body parts; simplified sprites unnecessary |
 | 2026-03-01 | Figure offset X negation in renderer | Cortex figure offset convention has inverted X vs furniture; negate in drawNitroAvatarFrame |
 | 2026-03-02 | AVATAR_GROUND_Y = 12px offset | Avatar shoe bottoms sat 12px above furniture ground plane; constant shifts sprites down to align |
+| 2026-03-05 | Chair backrest depth bias +0.8 (vs avatar +0.6) | Guarantees backrest renders in front of sitting avatar's torso; seat at base depth renders behind |
+| 2026-03-05 | Split threshold z>0 strict positive | Matches hc_chr metadata convention; z=-100 for dir2 backrest correctly skips split |
+| 2026-03-05 | Wall panels draw before floor tiles on OffscreenCanvas | Painter's algorithm keeps walls behind all floor geometry without extra z-sorting |
+| 2026-03-05 | Shared baseline per wall side as max(sy+TILE_H+WALL_HEIGHT) | Eliminates height-gap artifacts when tiles sit at different elevations |
+| 2026-03-05 | execFileSync args array (not execSync shell string) for gh CLI graphql | Avoids shell quoting issues with multi-line GraphQL strings |
+| 2026-03-05 | Temp file with --input flag for complex items GraphQL query | Fully avoids shell quoting for the larger two-query GitHub Projects flow |
+| 2026-03-05 | Silent fallback pattern for fetchKanbanCards: catch all errors, return [] | Consistent with Phase 8 audio pattern; extension stays operational when gh uninstalled/unauthenticated |
+| 2026-03-05 | Kanban notes drawn as topmost overlay after speech bubbles in rAF loop | Always visible on top of room geometry; no depth sort needed for screen-space overlays |
+| 2026-03-05 | drawKanbanNotes no-op when cards.length === 0 | Zero draw cost for rooms without GitHub Projects settings configured |
 
 ## Blockers
 
@@ -102,6 +110,10 @@ None.
 | 08-audio | 08-01 | 4min | 2 | 3 |
 | 08-audio | 08-02 | 3min | 2 | 2 |
 | 08-audio | 08-03 | 5min | 3 | 4 |
+| 11-chair-layer-splitting | 11-01 | 3min | 2 | 3 |
+| 12-room-walls-kanban-notes | 12-01 | 3min | 2 | 4 |
+| 12-room-walls-kanban-notes | 12-02 | 5min | 2 | 5 |
+| Phase 12-room-walls-kanban-notes P12-03 | 2min | 2 tasks | 3 files |
 
 ## Phase History
 
@@ -129,3 +141,12 @@ None.
 | 08-audio | 08-01 | AudioManager module with graceful codec failure handling and silent fallback |
 | 08-audio | 08-02 | OGG Vorbis audio conversion for all Habbo sound effects |
 | 08-audio | 08-03 | Extension integration with CSP media-src, user gesture initialization, empirical testing complete |
+| 11-chair-layer-splitting | 11-01 | Chair seat and backrest split into separate renderables with depth bias for correct avatar occlusion |
+| 12-room-walls-kanban-notes | 12-01 | Full-height room perimeter wall panels with shared baseline replacing per-tile wall strips (14 new tests, 263 total passing) |
+| 12-room-walls-kanban-notes | 12-02 | GitHub Projects v2 kanban fetch via gh CLI graphql with VS Code settings, polling interval, and silent error fallback returning KanbanCard[] to webview (268 tests passing) |
+| 12-room-walls-kanban-notes | 12-03 | Sticky note renderer for kanban cards on isometric room walls — color-coded by status, distributed across left/right wall tile slots (279 tests passing) |
+
+## Accumulated Context
+
+### Roadmap Evolution
+- Phase 16 added: Agent factory workflow with team sections and orchestration UI

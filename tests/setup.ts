@@ -26,6 +26,7 @@ beforeAll(() => {
           lineTo: () => {},
           closePath: () => {},
           fill: () => {},
+          fillRect: () => {},
           stroke: () => {},
           fillStyle: '',
           strokeStyle: '',

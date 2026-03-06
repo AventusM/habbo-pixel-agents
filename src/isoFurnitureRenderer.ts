@@ -516,6 +516,98 @@ export function createNitroMultiTileFurnitureRenderable(
 }
 
 /**
+ * Create renderables for a single-tile chair by splitting layers into seat
+ * and backrest groups based on per-direction z-values.
+ *
+ * Chairs have two meaningful layer groups:
+ *   - Seat layers (z <= 0): rendered at base depth (behind the avatar)
+ *   - Backrest layers (z > 0): rendered at depth + 0.8 (in front of the avatar)
+ *
+ * The avatar uses a +0.6 depth bias, so a backrest at +0.8 correctly renders
+ * on top of the sitting avatar's torso. When there are no backrest layers
+ * (e.g. direction 2 where backrest z=-100), falls back to a single renderable
+ * via createNitroFurnitureRenderable.
+ *
+ * Returns [] if the asset is not loaded.
+ */
+export function createNitroChairRenderables(
+  spec: FurnitureSpec,
+  spriteCache: SpriteCache,
+  nitroAssetName: string,
+): Renderable[] {
+  if (!spriteCache.hasNitroAsset(nitroAssetName)) {
+    return [];
+  }
+
+  const metadata = spriteCache.getNitroMetadata(nitroAssetName);
+  if (!metadata) return [];
+
+  const needsFlip = shouldMirrorSprite(spec.direction);
+  const baseDir = getBaseDirection(spec.direction);
+  // CRITICAL: pass spec.direction (not baseDir) to get correct z-values for this direction
+  const layerZValues = getLayerZValues(metadata, spec.direction);
+
+  const layerCount = metadata.visualization.layerCount || 1;
+
+  type LayerEntry = { frame: NitroSpriteFrame; z: number };
+  const seatLayers: LayerEntry[] = [];
+  const backrestLayers: LayerEntry[] = [];
+
+  for (let i = 0; i < layerCount; i++) {
+    const layerLetter = String.fromCharCode(97 + i); // 'a', 'b', 'c', ...
+    const frameName = `${nitroAssetName}_64_${layerLetter}_${baseDir}_0`;
+    const frame = resolveNitroFrame(spriteCache, nitroAssetName, frameName);
+    if (!frame) continue;
+    const z = layerZValues.get(i) ?? 0;
+    if (z > 0) {
+      backrestLayers.push({ frame, z });
+    } else {
+      seatLayers.push({ frame, z });
+    }
+  }
+
+  // Fallback: no backrest layers → delegate to standard single renderable
+  if (backrestLayers.length === 0) {
+    const r = createNitroFurnitureRenderable(spec, spriteCache, nitroAssetName);
+    return r ? [r] : [];
+  }
+
+  const results: Renderable[] = [];
+
+  // Seat renderable: draw seat layers at base depth
+  if (seatLayers.length > 0) {
+    const seatLayersCopy = [...seatLayers].sort((a, b) => a.z - b.z);
+    results.push({
+      tileX: spec.tileX,
+      tileY: spec.tileY,
+      tileZ: spec.tileZ,
+      draw: (ctx) => {
+        const screen = tileToScreen(spec.tileX, spec.tileY, spec.tileZ);
+        for (const layer of seatLayersCopy) {
+          drawNitroFrame(ctx, layer.frame, screen.x, screen.y, needsFlip);
+        }
+      },
+    });
+  }
+
+  // Backrest renderable: draw backrest layers at depth + 0.8 (past avatar's +0.6 bias)
+  const backrestLayersCopy = [...backrestLayers].sort((a, b) => a.z - b.z);
+  results.push({
+    tileX: spec.tileX + 0.8,
+    tileY: spec.tileY,
+    tileZ: spec.tileZ,
+    draw: (ctx) => {
+      const screen = tileToScreen(spec.tileX, spec.tileY, spec.tileZ);
+      for (const layer of backrestLayersCopy) {
+        drawNitroFrame(ctx, layer.frame, screen.x, screen.y, needsFlip);
+      }
+    },
+  });
+
+  return results;
+}
+
+/**
  * Split a multi-tile furniture renderable into per-depth-row renderables.
  * Each depth row gets two clip-based renderables:
  *   1. A ground strip (full-width horizontal band at ground level)
