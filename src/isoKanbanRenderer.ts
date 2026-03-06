@@ -4,8 +4,7 @@
 
 import type { TileGrid } from './isoTypes.js';
 import type { KanbanCard } from './agentTypes.js';
-import { tileToScreen, TILE_W_HALF, TILE_H_HALF } from './isometricMath.js';
-import { WALL_HEIGHT } from './isoTileRenderer.js';
+import { tileToScreen, TILE_W_HALF, TILE_H_HALF, WALL_HEIGHT } from './isometricMath.js';
 
 // Status column → sticky note background color
 const KANBAN_COLORS: Record<string, string> = {

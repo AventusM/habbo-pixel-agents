@@ -1,36 +1,26 @@
 // src/isoWallRenderer.ts
-// Full-height room perimeter wall panel renderer.
-// Replaces per-tile wall strips with continuous panels that extend to a shared baseline,
-// eliminating gaps between tiles at different heights.
+// Room perimeter wall renderer.
+// Draws continuous wall panels rising ABOVE the floor along left and right edges,
+// plus a back corner post where the two walls meet.
+// Walls are drawn BEFORE floor tiles so they appear behind the floor.
 
 import {
   TILE_W_HALF,
   TILE_H_HALF,
-  TILE_H,
+  WALL_HEIGHT,
   tileToScreen,
 } from './isometricMath.js';
 import type { TileGrid, HsbColor } from './isoTypes.js';
 import { tileColors } from './isoTypes.js';
-import { WALL_HEIGHT } from './isoTileRenderer.js';
 
 /**
- * Draw full-height wall panels along the left and right room perimeter edges,
+ * Draw continuous wall panels rising above the floor along left and right edges,
  * plus a back corner post at tile (0,0).
  *
- * Wall drawing order: must be called BEFORE drawing floor tiles so walls appear
- * behind all floor tiles in the depth sort.
+ * Each wall traces the outer edge of the floor, then extends WALL_HEIGHT
+ * UPWARD (negative Y) to form the room enclosure behind the floor.
  *
- * Left wall panels: tiles where tx === 0 or left neighbor (tx-1) is void.
- * Right wall panels: tiles where ty === 0 or top neighbor (ty-1) is void.
- *
- * All strips for each wall side share a common baseline (the lowest strip bottom)
- * so there are no gaps between tiles at different heights.
- *
- * @param ctx - Canvas rendering context (OffscreenCanvas or regular)
- * @param grid - TileGrid to scan for wall edges
- * @param cameraOrigin - Camera offset to apply to all coordinates
- * @param hsb - Default HSB color for wall faces
- * @param tileColorMap - Optional per-tile color overrides keyed as "tx,ty"
+ * Must be called BEFORE drawing floor tiles so walls appear behind.
  */
 export function drawWallPanels(
   ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D,
@@ -39,138 +29,115 @@ export function drawWallPanels(
   hsb: HsbColor,
   tileColorMap?: Map<string, HsbColor>,
 ): void {
-  // --- Collect left-edge tiles (left wall) ---
-  // Left wall: tiles where tx === 0 OR the tile to the left (tx-1) is void.
-  const leftEdgeTiles: Array<{ tx: number; ty: number; tileZ: number; hsb: HsbColor }> = [];
+  const tileHsb = (tileColorMap && tileColorMap.get('0,0')) || hsb;
 
+  // --- LEFT WALL (rises above the left edge of the floor) ---
+  const leftEdge: Array<{ tx: number; ty: number; height: number }> = [];
   for (let ty = 0; ty < grid.height; ty++) {
     for (let tx = 0; tx < grid.width; tx++) {
       const tile = grid.tiles[ty][tx];
       if (tile == null) continue;
-
-      const isLeftEdge = tx === 0 || grid.tiles[ty][tx - 1] == null;
-      if (!isLeftEdge) continue;
-
-      const tileKey = `${tx},${ty}`;
-      const tileHsb = (tileColorMap && tileColorMap.get(tileKey)) || hsb;
-      leftEdgeTiles.push({ tx, ty, tileZ: tile.height, hsb: tileHsb });
+      if (tx === 0 || grid.tiles[ty][tx - 1] == null) {
+        leftEdge.push({ tx, ty, height: tile.height });
+        break;
+      }
     }
   }
 
-  // --- Collect right-edge tiles (right wall) ---
-  // Right wall: tiles where ty === 0 OR the tile above (ty-1) is void.
-  const rightEdgeTiles: Array<{ tx: number; ty: number; tileZ: number; hsb: HsbColor }> = [];
-
-  for (let ty = 0; ty < grid.height; ty++) {
-    for (let tx = 0; tx < grid.width; tx++) {
-      const tile = grid.tiles[ty][tx];
-      if (tile == null) continue;
-
-      const isRightEdge = ty === 0 || grid.tiles[ty - 1]?.[tx] == null;
-      if (!isRightEdge) continue;
-
-      const tileKey = `${tx},${ty}`;
-      const tileHsb = (tileColorMap && tileColorMap.get(tileKey)) || hsb;
-      rightEdgeTiles.push({ tx, ty, tileZ: tile.height, hsb: tileHsb });
-    }
-  }
-
-  // --- Compute shared baseline for left wall ---
-  // The baseline is the maximum (sy + TILE_H) across all left-edge tiles,
-  // then extended downward by WALL_HEIGHT so every strip reaches it.
-  let leftBaseline = -Infinity;
-  for (const { tx, ty, tileZ } of leftEdgeTiles) {
-    const { y: sy } = tileToScreen(tx, ty, tileZ);
-    const screenY = sy + cameraOrigin.y;
-    const stripBottom = screenY + TILE_H + WALL_HEIGHT;
-    if (stripBottom > leftBaseline) {
-      leftBaseline = stripBottom;
-    }
-  }
-
-  // --- Compute shared baseline for right wall ---
-  let rightBaseline = -Infinity;
-  for (const { tx, ty, tileZ } of rightEdgeTiles) {
-    const { y: sy } = tileToScreen(tx, ty, tileZ);
-    const screenY = sy + cameraOrigin.y;
-    const stripBottom = screenY + TILE_H + WALL_HEIGHT;
-    if (stripBottom > rightBaseline) {
-      rightBaseline = stripBottom;
-    }
-  }
-
-  // --- Draw left wall strips ---
-  // Each strip is a parallelogram from the tile's left edge down to the shared baseline.
-  // The parallelogram maintains the isometric shear angle (30-deg slant).
-  //
-  // Vertices (screen coordinates):
-  //   Top-left:    (sx - TILE_W_HALF, sy + TILE_H_HALF)   — left vertex of floor rhombus
-  //   Top-right:   (sx,               sy + TILE_H)         — bottom vertex of floor rhombus
-  //   Bottom-right:(sx,               leftBaseline)
-  //   Bottom-left: (sx - TILE_W_HALF, leftBaseline - TILE_H_HALF)
-  for (const { tx, ty, tileZ, hsb: tileHsb } of leftEdgeTiles) {
-    const { x: sx, y: sy } = tileToScreen(tx, ty, tileZ);
-    const screenX = sx + cameraOrigin.x;
-    const screenY = sy + cameraOrigin.y;
-
+  if (leftEdge.length > 0) {
     const { left } = tileColors(tileHsb);
+    const bottomPoints: Array<{ x: number; y: number }> = [];
 
+    // Start at back corner: top vertex of first left-edge tile
+    const first = leftEdge[0];
+    const { x: fsx, y: fsy } = tileToScreen(first.tx, first.ty, first.height);
+    bottomPoints.push({
+      x: fsx + cameraOrigin.x,
+      y: fsy + cameraOrigin.y,
+    });
+
+    // Left vertex of each tile along the left edge
+    for (const { tx, ty, height } of leftEdge) {
+      const { x: sx, y: sy } = tileToScreen(tx, ty, height);
+      bottomPoints.push({
+        x: sx + cameraOrigin.x - TILE_W_HALF,
+        y: sy + cameraOrigin.y + TILE_H_HALF,
+      });
+    }
+
+    // Draw polygon: bottom edge forward, top edge (shifted up) backward
     ctx.beginPath();
-    ctx.moveTo(screenX - TILE_W_HALF, screenY + TILE_H_HALF);        // top-left
-    ctx.lineTo(screenX, screenY + TILE_H);                            // top-right
-    ctx.lineTo(screenX, leftBaseline);                                // bottom-right
-    ctx.lineTo(screenX - TILE_W_HALF, leftBaseline - TILE_H_HALF);   // bottom-left
+    ctx.moveTo(bottomPoints[0].x, bottomPoints[0].y);
+    for (let i = 1; i < bottomPoints.length; i++) {
+      ctx.lineTo(bottomPoints[i].x, bottomPoints[i].y);
+    }
+    for (let i = bottomPoints.length - 1; i >= 0; i--) {
+      ctx.lineTo(bottomPoints[i].x, bottomPoints[i].y - WALL_HEIGHT);
+    }
     ctx.closePath();
-
     ctx.fillStyle = left;
     ctx.fill();
   }
 
-  // --- Draw right wall strips ---
-  // Each strip is a parallelogram from the tile's right edge down to the shared baseline.
-  //
-  // Vertices (screen coordinates):
-  //   Top-left:    (sx,               sy + TILE_H)         — bottom vertex of floor rhombus
-  //   Top-right:   (sx + TILE_W_HALF, sy + TILE_H_HALF)   — right vertex of floor rhombus
-  //   Bottom-right:(sx + TILE_W_HALF, rightBaseline - TILE_H_HALF)
-  //   Bottom-left: (sx,               rightBaseline)
-  for (const { tx, ty, tileZ, hsb: tileHsb } of rightEdgeTiles) {
-    const { x: sx, y: sy } = tileToScreen(tx, ty, tileZ);
-    const screenX = sx + cameraOrigin.x;
-    const screenY = sy + cameraOrigin.y;
+  // --- RIGHT WALL (rises above the right/top edge of the floor) ---
+  const rightEdge: Array<{ tx: number; ty: number; height: number }> = [];
+  for (let tx = 0; tx < grid.width; tx++) {
+    for (let ty = 0; ty < grid.height; ty++) {
+      const tile = grid.tiles[ty][tx];
+      if (tile == null) continue;
+      if (ty === 0 || grid.tiles[ty - 1]?.[tx] == null) {
+        rightEdge.push({ tx, ty, height: tile.height });
+        break;
+      }
+    }
+  }
 
+  if (rightEdge.length > 0) {
     const { right } = tileColors(tileHsb);
+    const bottomPoints: Array<{ x: number; y: number }> = [];
+
+    // Start at back corner: top vertex of first right-edge tile
+    const first = rightEdge[0];
+    const { x: fsx, y: fsy } = tileToScreen(first.tx, first.ty, first.height);
+    bottomPoints.push({
+      x: fsx + cameraOrigin.x,
+      y: fsy + cameraOrigin.y,
+    });
+
+    // Right vertex of each tile along the right edge
+    for (const { tx, ty, height } of rightEdge) {
+      const { x: sx, y: sy } = tileToScreen(tx, ty, height);
+      bottomPoints.push({
+        x: sx + cameraOrigin.x + TILE_W_HALF,
+        y: sy + cameraOrigin.y + TILE_H_HALF,
+      });
+    }
 
     ctx.beginPath();
-    ctx.moveTo(screenX, screenY + TILE_H);                             // top-left
-    ctx.lineTo(screenX + TILE_W_HALF, screenY + TILE_H_HALF);         // top-right
-    ctx.lineTo(screenX + TILE_W_HALF, rightBaseline - TILE_H_HALF);   // bottom-right
-    ctx.lineTo(screenX, rightBaseline);                                // bottom-left
+    ctx.moveTo(bottomPoints[0].x, bottomPoints[0].y);
+    for (let i = 1; i < bottomPoints.length; i++) {
+      ctx.lineTo(bottomPoints[i].x, bottomPoints[i].y);
+    }
+    for (let i = bottomPoints.length - 1; i >= 0; i--) {
+      ctx.lineTo(bottomPoints[i].x, bottomPoints[i].y - WALL_HEIGHT);
+    }
     ctx.closePath();
-
     ctx.fillStyle = right;
     ctx.fill();
   }
 
-  // --- Draw back corner post at tile (0,0) ---
-  // Thin vertical rectangle (4px wide) filling the junction between left and right walls.
+  // --- BACK CORNER POST ---
   const cornerTile = grid.tiles[0]?.[0];
   if (cornerTile != null) {
-    const tileZ = cornerTile.height;
-    const { x: sx, y: sy } = tileToScreen(0, 0, tileZ);
+    const { x: sx, y: sy } = tileToScreen(0, 0, cornerTile.height);
     const screenX = sx + cameraOrigin.x;
     const screenY = sy + cameraOrigin.y;
 
-    const tileKey = '0,0';
-    const tileHsb = (tileColorMap && tileColorMap.get(tileKey)) || hsb;
-    const { left } = tileColors(tileHsb);
+    const cornerHsb = (tileColorMap && tileColorMap.get('0,0')) || hsb;
+    const { left } = tileColors(cornerHsb);
 
-    // Post starts at top of tile (sy) and extends down WALL_HEIGHT pixels
-    const postTop = screenY;
-    const postBottom = screenY + WALL_HEIGHT;
-    const postX = screenX - 2; // 4px wide centered at tile top vertex
-
+    // Post rises UPWARD from tile top vertex
     ctx.fillStyle = left;
-    ctx.fillRect(postX, postTop, 4, postBottom - postTop);
+    ctx.fillRect(screenX - 2, screenY - WALL_HEIGHT, 4, WALL_HEIGHT);
   }
 }
