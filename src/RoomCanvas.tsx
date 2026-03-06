@@ -68,15 +68,8 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
   const agentToolTextRef = useRef<Map<string, string>>(new Map());
 
   // Kanban cards from GitHub Projects (Phase 12-03)
-  // Demo cards shown until real kanban data arrives
-  const kanbanCardsRef = useRef<KanbanCard[]>([
-    { id: 'demo-1', title: 'Setup CI', status: 'Done' },
-    { id: 'demo-2', title: 'Auth flow', status: 'In Progress' },
-    { id: 'demo-3', title: 'Dark mode', status: 'Todo' },
-    { id: 'demo-4', title: 'Unit tests', status: 'In Progress' },
-    { id: 'demo-5', title: 'API docs', status: 'Todo' },
-    { id: 'demo-6', title: 'Deploy v2', status: 'No Status' },
-  ]);
+  // Starts empty; populated when extension sends kanbanCards message
+  const kanbanCardsRef = useRef<KanbanCard[]>([]);
 
   // Expanded sticky note (click-to-open)
   const expandedNoteRef = useRef<string | null>(null);

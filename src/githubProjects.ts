@@ -91,9 +91,9 @@ export function fetchKanbanCards(
       }
     `;
 
-    const tmpFile = join(tmpdir(), `gh-kanban-query-${Date.now()}.graphql`);
+    const tmpFile = join(tmpdir(), `gh-kanban-query-${Date.now()}.json`);
     try {
-      writeFileSync(tmpFile, `query=${itemsQuery}`);
+      writeFileSync(tmpFile, JSON.stringify({ query: itemsQuery }));
       const itemsResult = execFileSync(
         'gh',
         ['api', 'graphql', '--input', tmpFile],
