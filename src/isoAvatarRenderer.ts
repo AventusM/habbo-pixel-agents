@@ -9,7 +9,8 @@ import type { OutfitConfig, PartType } from "./avatarOutfitConfig.js";
 import { outfitToFigureParts } from "./avatarOutfitConfig.js";
 
 /** Set to true to draw colored debug borders around each body part */
-const DEBUG_AVATAR_PARTS = false;
+export let DEBUG_AVATAR_PARTS = false;
+export function setDebugAvatarParts(v: boolean) { DEBUG_AVATAR_PARTS = v; }
 
 /**
  * Vertical pixel offset to position avatar on tile.
@@ -216,12 +217,16 @@ export function createAvatarRenderable(
 /**
  * Direction-dependent render layer order (back to front).
  *
- * Which arm is "behind" the body depends on facing direction:
- * - Dirs 2,3 (and mirrors 4,5): left arm is far side → lh/ls behind, rh/rs in front
- * - Dirs 0,1,7 (and mirrors 6): right arm is far side → rh/rs behind, lh/ls in front
+ * Back views (mapped dirs 0, 1, 7): both arms drawn after chest so
+ * they're fully visible at the sides.
+ *
+ * Side/front views (mapped dirs 2, 3): far arm drawn before body
+ * (hidden behind torso), near arm drawn after chest (fully visible).
+ * - Dirs 2,3: left arm is far side
  *
  * We use the MAPPED direction (after mapBodyDirection) to determine order.
  */
+/** Side/front views: far arm drawn before body, near arm after chest */
 const RENDER_ORDER_LEFT_BEHIND: PartType[] = [
   "hrb",
   "bd",
@@ -253,11 +258,28 @@ const RENDER_ORDER_RIGHT_BEHIND: PartType[] = [
   "hr",
 ];
 
+/** Back views (dirs 0, 1, 7): both arms drawn after chest — fully visible */
+const RENDER_ORDER_BACK_VIEW: PartType[] = [
+  "hrb",
+  "bd",
+  "lg",
+  "sh",
+  "ch",
+  "rh",
+  "rs",
+  "lh",
+  "ls",
+  "hd",
+  "ey",
+  "fc",
+  "hr",
+];
+
 function getRenderOrder(mappedDir: number): PartType[] {
-  // Dirs 2,3: left arm is far → lh/ls drawn behind body
-  // Dirs 0,1,7: right arm is far → rh/rs drawn behind body
-  // Flip does NOT affect this: when sprites flip, both position and visual
-  // content mirror together, so the behind/front relationship stays the same.
+  // Back views (dirs 0, 1, 7): both arms after chest, fully visible at sides
+  if (mappedDir === 0 || mappedDir === 1 || mappedDir === 7) return RENDER_ORDER_BACK_VIEW;
+  // Side/front views: far arm behind body, near arm in front
+  // Dirs 2,3: left arm is far
   const leftIsFar = mappedDir === 2 || mappedDir === 3;
   return leftIsFar ? RENDER_ORDER_LEFT_BEHIND : RENDER_ORDER_RIGHT_BEHIND;
 }
@@ -406,6 +428,7 @@ function getTintCanvas(
 /**
  * Draw a body sprite part with color tinting.
  * Uses multiply blend + destination-in to preserve shading while applying color.
+ *
  */
 function drawTintedBodyPart(
   ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D,
@@ -626,6 +649,8 @@ export function createNitroAvatarRenderable(
       }
 
       let firstFrameDrawn = false;
+      // Track arm frame offsets so sleeves can follow arm position
+      const armOffsets: Record<string, { offsetX: number; offsetY: number }> = {};
 
       for (const part of renderOrder) {
         // Face parts: special asset, direction filtering, blink action
@@ -695,6 +720,37 @@ export function createNitroAvatarRenderable(
           ctx.rect(screen.x - 64, clipY, 128, clipHeight);
           ctx.clip();
           firstFrameDrawn = true;
+        }
+
+        // Record arm offsets for sleeve alignment
+        if (part === "rh" || part === "lh") {
+          armOffsets[part] = { offsetX: frame.offsetX, offsetY: frame.offsetY };
+        }
+
+        // Sleeve parts: when the sleeve position has zero overlap with
+        // its arm, the offset data is broken (e.g. dir 1 wlk_1 ls).
+        // Skip drawing the sleeve — the chest layer covers the shoulder.
+        if (part === "rs" || part === "ls") {
+          const armKey = part === "rs" ? "rh" : "lh";
+          const armOff = armOffsets[armKey];
+          if (armOff) {
+            // Compute both positions (before flip/TILE_W_HALF — only relative diff matters)
+            const armX = -armOff.offsetX;
+            const slvX = -frame.offsetX;
+            const armY = -armOff.offsetY;
+            const slvY = -frame.offsetY;
+            // Look up arm frame dimensions
+            const armFrameKey = buildFrameKey(
+              armKey as PartType, stateForFrame, spec.direction,
+              spec.frame, spec.variant, figureParts,
+            );
+            const armFrame = spriteCache.getNitroFrame(figureParts[armKey as PartType].asset, armFrameKey);
+            if (armFrame) {
+              const overlapX = Math.min(armX + armFrame.w, slvX + frame.w) - Math.max(armX, slvX);
+              const overlapY = Math.min(armY + armFrame.h, slvY + frame.h) - Math.max(armY, slvY);
+              if (overlapX <= 0 || overlapY <= 0) continue; // no overlap → skip sleeve
+            }
+          }
         }
 
         const color = getPartColor(part, outfitColors);

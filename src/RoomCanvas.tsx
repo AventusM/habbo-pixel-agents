@@ -35,6 +35,7 @@ import { drawKanbanNotes, drawExpandedNote, drawExpandedAggregateNote, getNoteHi
 import type { OutfitConfig } from './avatarOutfitConfig.js';
 import { getDefaultPreset } from './avatarOutfitConfig.js';
 import { AvatarBuilderPanel } from './AvatarBuilderModal.js';
+import { AvatarDebugGrid } from './AvatarDebugGrid.js';
 
 interface RoomCanvasProps {
   heightmap: string;
@@ -86,6 +87,7 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
   // Avatar builder modal state (Phase 14-03)
   const [isBuilderOpen, setIsBuilderOpen] = useState(false);
   const [builderAvatarId, setBuilderAvatarId] = useState<string | null>(null);
+  const [showDebugGrid, setShowDebugGrid] = useState(false);
   // Editor UI state
   const [editorMode, setEditorMode] = useState<EditorMode>(editorModeProp);
   const [selectedColor, setSelectedColor] = useState<HsbColor>({ h: 200, s: 50, b: 50 });
@@ -832,6 +834,7 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
         furnitureDirection={furnitureDirection}
         devMode={devMode}
         onDevCapture={handleDevCapture}
+        onDebugGrid={() => setShowDebugGrid(true)}
         onPlaySound={handlePlaySound}
         availableSounds={availableSounds}
         onRotate={() => {
@@ -852,6 +855,9 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
         onContextMenu={handleContextMenu}
         onMouseLeave={handleMouseLeave}
       />
+      {showDebugGrid && (
+        <AvatarDebugGrid onClose={() => setShowDebugGrid(false)} />
+      )}
       {isBuilderOpen && builderAvatarId && (() => {
         const avatar = avatarManagerRef.current.getAvatar(builderAvatarId);
         if (!avatar) return null;

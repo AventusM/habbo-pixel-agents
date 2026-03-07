@@ -19,6 +19,7 @@ interface LayoutEditorPanelProps {
   onLoad: (file: File) => void;
   devMode?: boolean;
   onDevCapture?: () => void;
+  onDebugGrid?: () => void;
   onPlaySound?: (soundName: string) => void;
   availableSounds?: string[];
 }
@@ -38,6 +39,7 @@ export function LayoutEditorPanel({
   onLoad,
   devMode,
   onDevCapture,
+  onDebugGrid,
   onPlaySound,
   availableSounds,
 }: LayoutEditorPanelProps) {
@@ -214,6 +216,11 @@ export function LayoutEditorPanel({
           <button onClick={onDevCapture} style={buttonStyle}>
             Dev Capture
           </button>
+          {onDebugGrid && (
+            <button onClick={onDebugGrid} style={buttonStyle}>
+              Debug Walk Grid
+            </button>
+          )}
         </div>
       )}
 
