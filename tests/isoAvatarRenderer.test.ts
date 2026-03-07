@@ -2,9 +2,11 @@
 // Smoke tests for avatar renderer with 8-direction support
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { createAvatarRenderable, updateAvatarAnimation, WALK_FRAME_DURATION_MS, BLINK_INTERVAL_MIN_MS, BLINK_INTERVAL_MAX_MS, BLINK_FRAME_DURATION_MS } from '../src/isoAvatarRenderer.js';
+import { createAvatarRenderable, createNitroAvatarRenderable, buildFrameKey, updateAvatarAnimation, WALK_FRAME_DURATION_MS, BLINK_INTERVAL_MIN_MS, BLINK_INTERVAL_MAX_MS, BLINK_FRAME_DURATION_MS } from '../src/isoAvatarRenderer.js';
 import type { AvatarSpec } from '../src/isoAvatarRenderer.js';
 import { SpriteCache } from '../src/isoSpriteCache.js';
+import type { OutfitConfig, PartType } from '../src/avatarOutfitConfig.js';
+import { outfitToFigureParts, getDefaultPreset } from '../src/avatarOutfitConfig.js';
 
 describe('isoAvatarRenderer', () => {
   let spriteCache: SpriteCache;
@@ -402,5 +404,115 @@ describe('isoAvatarRenderer', () => {
     expect(idleKey.includes('idle')).toBe(true);
     expect(walkKey.includes('walk')).toBe(true);
     expect(idleKey).not.toBe(walkKey);
+  });
+
+  // --- Dynamic OutfitConfig tests ---
+
+  it('createNitroAvatarRenderable returns null when sprite cache has no body asset', () => {
+    const spec: AvatarSpec = {
+      id: 'av-no-asset',
+      tileX: 0,
+      tileY: 0,
+      tileZ: 0,
+      direction: 2,
+      variant: 0,
+      state: 'idle',
+      frame: 0,
+      lastUpdateMs: 0,
+      nextBlinkMs: 5000,
+      blinkFrame: 0,
+      spawnProgress: 0,
+    };
+
+    // Sprite cache is empty - no Nitro assets loaded
+    const result = createNitroAvatarRenderable(spec, spriteCache);
+    expect(result).toBeNull();
+  });
+
+  it('AvatarSpec without outfit field compiles and works (backward compatible)', () => {
+    const spec: AvatarSpec = {
+      id: 'av-no-outfit',
+      tileX: 5,
+      tileY: 5,
+      tileZ: 0,
+      direction: 2,
+      variant: 3,
+      state: 'idle',
+      frame: 0,
+      lastUpdateMs: 0,
+      nextBlinkMs: 5000,
+      blinkFrame: 0,
+      spawnProgress: 0,
+      // No outfit field - should fall back to variant-based defaults
+    };
+
+    expect(spec.outfit).toBeUndefined();
+    // Verify it still creates a renderable (placeholder path)
+    const renderable = createAvatarRenderable(spec, spriteCache, 'avatar');
+    expect(renderable).toBeDefined();
+    expect(renderable.tileX).toBe(5.6);
+  });
+
+  it('AvatarSpec with outfit field uses OutfitConfig', () => {
+    const outfit: OutfitConfig = getDefaultPreset(6); // Female pink outfit
+    const spec: AvatarSpec = {
+      id: 'av-with-outfit',
+      tileX: 5,
+      tileY: 5,
+      tileZ: 0,
+      direction: 2,
+      variant: 0,
+      state: 'idle',
+      frame: 0,
+      lastUpdateMs: 0,
+      nextBlinkMs: 5000,
+      blinkFrame: 0,
+      spawnProgress: 0,
+      outfit,
+    };
+
+    expect(spec.outfit).toBeDefined();
+    expect(spec.outfit!.gender).toBe('F');
+    expect(spec.outfit!.parts.hair.asset).toBe('Hair_F_Bob');
+    expect(spec.outfit!.colors.skin).toBe('#FCEBD6');
+  });
+
+  it('buildFrameKey with default figureParts produces expected key format', () => {
+    // Default figureParts uses hh_human_body for body (setId 1)
+    const key = buildFrameKey('bd', 'idle', 2, 0, 0);
+    expect(key).toBe('h_std_bd_1_2_0');
+  });
+
+  it('buildFrameKey with custom figureParts uses custom setIds', () => {
+    const customParts = outfitToFigureParts(getDefaultPreset(6));
+    // Preset 6 uses Hair_F_Bob setId 2073
+    const hairKey = buildFrameKey('hr', 'idle', 2, 0, 0, customParts);
+    expect(hairKey).toBe('h_std_hr_2073_2_0');
+
+    // Preset 6 uses Shirt_F_Schoolshirt setId 2110
+    const shirtKey = buildFrameKey('ch', 'idle', 0, 0, 0, customParts);
+    expect(shirtKey).toBe('h_std_ch_2110_0_0');
+  });
+
+  it('buildFrameKey walk action for walk-capable parts', () => {
+    const key = buildFrameKey('bd', 'walk', 2, 3, 0);
+    expect(key).toBe('h_wlk_bd_1_2_3');
+  });
+
+  it('buildFrameKey sit action for sit-capable parts', () => {
+    const key = buildFrameKey('bd', 'sit', 0, 0, 0);
+    expect(key).toBe('h_sit_bd_1_0_0');
+  });
+
+  it('buildFrameKey head uses variant-mapped setId', () => {
+    // hd setId = (variant % 4) + 1
+    const keyV0 = buildFrameKey('hd', 'idle', 0, 0, 0);
+    expect(keyV0).toBe('h_std_hd_1_0_0');
+
+    const keyV3 = buildFrameKey('hd', 'idle', 0, 0, 3);
+    expect(keyV3).toBe('h_std_hd_4_0_0');
+
+    const keyV5 = buildFrameKey('hd', 'idle', 0, 0, 5);
+    expect(keyV5).toBe('h_std_hd_2_0_0'); // 5 % 4 + 1 = 2
   });
 });

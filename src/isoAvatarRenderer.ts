@@ -5,6 +5,8 @@
 import { tileToScreen, TILE_W_HALF, TILE_H_HALF } from "./isometricMath.js";
 import type { SpriteCache, NitroSpriteFrame } from "./isoSpriteCache.js";
 import type { Renderable } from "./isoTypes.js";
+import type { OutfitConfig, PartType } from "./avatarOutfitConfig.js";
+import { outfitToFigureParts } from "./avatarOutfitConfig.js";
 
 /** Set to true to draw colored debug borders around each body part */
 const DEBUG_AVATAR_PARTS = false;
@@ -77,6 +79,8 @@ export interface AvatarSpec {
   displayName?: string;
   /** Key of the chair tile the avatar is sitting on (e.g. "3,5") */
   sittingChairKey?: string;
+  /** Dynamic outfit configuration (overrides variant-based fallback) */
+  outfit?: OutfitConfig;
 }
 
 /**
@@ -252,21 +256,8 @@ function getRenderOrder(mappedDir: number): PartType[] {
   return leftIsFar ? RENDER_ORDER_LEFT_BEHIND : RENDER_ORDER_RIGHT_BEHIND;
 }
 
-type PartType =
-  | "hrb"
-  | "bd"
-  | "lh"
-  | "lg"
-  | "sh"
-  | "ch"
-  | "ls"
-  | "rh"
-  | "rs"
-  | "hd"
-  | "hr";
-
-/** Part registry: maps part type → asset name + setId */
-const FIGURE_PARTS: Record<PartType, { asset: string; setId: number }> = {
+/** Fallback part registry: maps part type → asset name + setId (used when no OutfitConfig) */
+const DEFAULT_FIGURE_PARTS: Record<PartType, { asset: string; setId: number }> = {
   bd: { asset: "hh_human_body", setId: 1 },
   lh: { asset: "hh_human_body", setId: 1 },
   rh: { asset: "hh_human_body", setId: 1 },
@@ -313,7 +304,7 @@ interface OutfitColors {
   shoes: string;
 }
 
-const VARIANT_OUTFITS: OutfitColors[] = [
+const DEFAULT_VARIANT_OUTFITS: OutfitColors[] = [
   {
     skin: "#EFCFB1",
     hair: "#4A3728",
@@ -552,15 +543,16 @@ function mapBodyDirection(direction: number): { dir: number; flip: boolean } {
  * Parts with walk animation use h_wlk when walking, others always use h_std.
  * Head setId is variant-mapped: (variant % 4) + 1 for 4 head shapes.
  */
-function buildFrameKey(
+export function buildFrameKey(
   part: PartType,
   state: string,
   direction: number,
   frame: number,
   variant: number,
+  figureParts: Record<PartType, { asset: string; setId: number }> = DEFAULT_FIGURE_PARTS,
 ): string {
   const { dir } = mapBodyDirection(direction);
-  const partDef = FIGURE_PARTS[part];
+  const partDef = figureParts[part];
   let setId = partDef.setId;
 
   // Head uses variant-mapped setId for 4 head shapes
@@ -605,7 +597,13 @@ export function createNitroAvatarRenderable(
       screen.x += spec.screenOffsetX || 0;
       screen.y += spec.screenOffsetY || 0;
       const { dir: mappedDir, flip } = mapBodyDirection(spec.direction);
-      const outfit = VARIANT_OUTFITS[spec.variant] || VARIANT_OUTFITS[0];
+      // Use dynamic outfit when present, fall back to variant-based defaults
+      const figureParts = spec.outfit
+        ? outfitToFigureParts(spec.outfit)
+        : DEFAULT_FIGURE_PARTS;
+      const outfitColors: OutfitColors = spec.outfit
+        ? spec.outfit.colors
+        : (DEFAULT_VARIANT_OUTFITS[spec.variant] || DEFAULT_VARIANT_OUTFITS[0]);
       // Apply seated Y offset to lower avatar onto chair
       if (spec.state === "sit") {
         screen.y += 4;
@@ -620,7 +618,7 @@ export function createNitroAvatarRenderable(
       let firstFrameDrawn = false;
 
       for (const part of renderOrder) {
-        const partDef = FIGURE_PARTS[part];
+        const partDef = figureParts[part];
 
         // Skip if asset not loaded (graceful degradation)
         if (!spriteCache.hasNitroAsset(partDef.asset)) continue;
@@ -631,13 +629,14 @@ export function createNitroAvatarRenderable(
           spec.direction,
           spec.frame,
           spec.variant,
+          figureParts,
         );
         let frame = spriteCache.getNitroFrame(partDef.asset, frameKey);
         // Fallback: if walk/sit frame missing, try std
         if (!frame && (stateForFrame === "walk" || stateForFrame === "sit")) {
           frame = spriteCache.getNitroFrame(
             partDef.asset,
-            buildFrameKey(part, "idle", spec.direction, 0, spec.variant),
+            buildFrameKey(part, "idle", spec.direction, 0, spec.variant, figureParts),
           );
         }
         if (!frame) continue;
@@ -663,7 +662,7 @@ export function createNitroAvatarRenderable(
           firstFrameDrawn = true;
         }
 
-        const color = getPartColor(part, outfit);
+        const color = getPartColor(part, outfitColors);
         drawTintedBodyPart(
           ctx,
           frame,
