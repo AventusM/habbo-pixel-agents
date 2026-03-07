@@ -183,11 +183,11 @@ describe('avatarOutfitConfig', () => {
 
   // ---- outfitToFigureParts tests ----
 
-  it('outfitToFigureParts produces all 11 PartType entries', () => {
+  it('outfitToFigureParts produces all 13 PartType entries', () => {
     const preset = getDefaultPreset(0);
     const parts = outfitToFigureParts(preset);
 
-    const allPartTypes: PartType[] = ['hrb', 'bd', 'lh', 'lg', 'sh', 'ch', 'ls', 'rh', 'rs', 'hd', 'hr'];
+    const allPartTypes: PartType[] = ['hrb', 'bd', 'lh', 'lg', 'sh', 'ch', 'ls', 'rh', 'rs', 'hd', 'ey', 'fc', 'hr'];
     for (const pt of allPartTypes) {
       expect(parts[pt]).toBeDefined();
       expect(parts[pt].asset).toBeTruthy();
@@ -277,7 +277,7 @@ describe('avatarOutfitConfig', () => {
     };
 
     const assets = getRequiredAssets(outfit);
-    // hh_human_body, Hair_M_yo, Shirt_M_Tshirt_Plain (deduped), Shoes_U_Slipons = 4
-    expect(assets).toHaveLength(4);
+    // hh_human_body, hh_human_face, Hair_M_yo, Shirt_M_Tshirt_Plain (deduped), Shoes_U_Slipons = 5
+    expect(assets).toHaveLength(5);
   });
 });

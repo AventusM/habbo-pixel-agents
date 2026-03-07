@@ -139,6 +139,24 @@ export function renderAvatarPreview(
   const screenY = PREVIEW_HEIGHT - 50; // leave space at bottom for feet
 
   for (const part of RENDER_ORDER) {
+    // Face parts: use hh_human_face asset, not the outfit part
+    if (part === 'ey' || part === 'fc') {
+      const faceAsset = 'hh_human_face';
+      if (!spriteCache.hasNitroAsset(faceAsset)) continue;
+
+      // Direction 2 is always front-facing in preview (always visible)
+      const eyeSetId = (variant % 11) + 1;
+      const faceSetId = part === 'ey' ? eyeSetId : 1;
+      const faceKey = `h_std_${part}_${faceSetId}_${direction}_${frame}`;
+      const faceFrame = spriteCache.getNitroFrame(faceAsset, faceKey);
+      if (!faceFrame) continue;
+
+      const effectiveFlip = faceFrame.flipH;
+      const color = getPartColor(part, outfit.colors);
+      drawTintedPart(ctx, faceFrame, screenX, screenY, effectiveFlip, color);
+      continue;
+    }
+
     const partDef = figureParts[part];
 
     if (!spriteCache.hasNitroAsset(partDef.asset)) continue;

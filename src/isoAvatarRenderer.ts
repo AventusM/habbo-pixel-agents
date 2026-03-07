@@ -630,6 +630,31 @@ export function createNitroAvatarRenderable(
       let firstFrameDrawn = false;
 
       for (const part of renderOrder) {
+        // Face parts: special asset, direction filtering, blink action
+        if (part === "ey" || part === "fc") {
+          // Face only visible from front/side (mapped dirs 1, 2, 3)
+          // Directions 0 and 7 show back of head -- no face
+          if (mappedDir === 0 || mappedDir === 7) continue;
+
+          const faceAsset = "hh_human_face";
+          if (!spriteCache.hasNitroAsset(faceAsset)) continue;
+
+          // Eyes: setId mapped from variant (11 styles), Mouth: always setId 1
+          const setId = part === "ey" ? ((spec.variant % 11) + 1) : 1;
+
+          // Eyes use eyb (eye blink) action when blinkFrame > 0, else std
+          const action = (part === "ey" && spec.blinkFrame > 0) ? "eyb" : "std";
+          const faceKey = `h_${action}_${part}_${setId}_${mappedDir}_0`;
+
+          const faceFrame = spriteCache.getNitroFrame(faceAsset, faceKey);
+          if (!faceFrame) continue;
+
+          const effectiveFlip = flip !== faceFrame.flipH;
+          const color = getPartColor(part, outfitColors);
+          drawTintedBodyPart(ctx, faceFrame, screen.x, screen.y, effectiveFlip, color, part);
+          continue;
+        }
+
         const partDef = figureParts[part];
 
         // Skip if asset not loaded (graceful degradation)
