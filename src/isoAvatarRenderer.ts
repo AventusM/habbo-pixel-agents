@@ -2,7 +2,7 @@
 // Avatar sprite rendering for isometric rooms
 // Implements 8-direction support with multi-layer composition (body, clothing, head, hair)
 
-import { tileToScreen, TILE_H_HALF } from "./isometricMath.js";
+import { tileToScreen, TILE_W_HALF, TILE_H_HALF } from "./isometricMath.js";
 import type { SpriteCache, NitroSpriteFrame } from "./isoSpriteCache.js";
 import type { Renderable } from "./isoTypes.js";
 import type { OutfitConfig, PartType } from "./avatarOutfitConfig.js";
@@ -417,12 +417,9 @@ function drawTintedBodyPart(
   partName?: string,
 ): void {
   // Registration point: tile center at (screenX, screenY + TILE_H_HALF)
-  // Cortex figure X offsets are negative displacements from reg point to sprite origin.
-  // sprite_x = regX + offsetX (addition — negative offset moves sprite left of reg).
-  // sprite_y = regY - offsetY (subtraction — positive offset means sprite top above reg).
   const regX = screenX;
   const regY = screenY + TILE_H_HALF;
-  const dx = Math.floor(regX + frame.offsetX);
+  const dx = Math.floor(regX - frame.offsetX);
   const dy = Math.floor(regY - frame.offsetY);
 
   const tCtx = getTintCanvas(frame.w, frame.h);
@@ -506,6 +503,8 @@ function drawTintedBodyPart(
   } else {
     drawX = dx;
   }
+
+  drawX += flip ? TILE_W_HALF : -TILE_W_HALF;
 
   ctx.drawImage(
     _tintCanvas!,
