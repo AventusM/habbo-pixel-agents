@@ -16,7 +16,7 @@ export const PREVIEW_HEIGHT = 180;
  * Same as RENDER_ORDER_LEFT_BEHIND in isoAvatarRenderer.ts.
  */
 const RENDER_ORDER: PartType[] = [
-  'hrb', 'bd', 'lh', 'ls', 'lg', 'sh', 'ch', 'rh', 'rs', 'hd', 'hr',
+  'hrb', 'bd', 'lh', 'ls', 'lg', 'sh', 'ch', 'rh', 'rs', 'hd', 'ey', 'fc', 'hr',
 ];
 
 /** Map part type to outfit color category */
@@ -24,6 +24,10 @@ function getPartColor(part: PartType, colors: OutfitConfig['colors']): string {
   switch (part) {
     case 'bd': case 'lh': case 'rh': case 'hd':
       return colors.skin;
+    case 'ey':
+      return '#FFFFFF'; // No tint -- white is multiply identity, preserves eye pixel detail
+    case 'fc':
+      return colors.skin; // Mouth tinted to match skin tone
     case 'hr': case 'hrb':
       return colors.hair;
     case 'ch': case 'ls': case 'rs':

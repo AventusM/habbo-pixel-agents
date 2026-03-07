@@ -29,6 +29,8 @@ const DEBUG_PART_COLORS: Record<string, string> = {
   rh: "#8000FF",
   rs: "#FF0080",
   hd: "#80FF00",
+  ey: "#FFD700",
+  fc: "#FF4500",
   hr: "#0080FF",
 };
 
@@ -231,6 +233,8 @@ const RENDER_ORDER_LEFT_BEHIND: PartType[] = [
   "rh",
   "rs",
   "hd",
+  "ey",
+  "fc",
   "hr",
 ];
 const RENDER_ORDER_RIGHT_BEHIND: PartType[] = [
@@ -244,6 +248,8 @@ const RENDER_ORDER_RIGHT_BEHIND: PartType[] = [
   "lh",
   "ls",
   "hd",
+  "ey",
+  "fc",
   "hr",
 ];
 
@@ -262,6 +268,8 @@ const DEFAULT_FIGURE_PARTS: Record<PartType, { asset: string; setId: number }> =
   lh: { asset: "hh_human_body", setId: 1 },
   rh: { asset: "hh_human_body", setId: 1 },
   hd: { asset: "hh_human_body", setId: 1 },
+  ey: { asset: "hh_human_face", setId: 1 },
+  fc: { asset: "hh_human_face", setId: 1 },
   hr: { asset: "Hair_M_yo", setId: 2096 },
   hrb: { asset: "Hair_M_yo", setId: 2096 },
   ch: { asset: "Shirt_M_Tshirt_Plain", setId: 2050 },
@@ -357,6 +365,10 @@ function getPartColor(part: PartType, outfit: OutfitColors): string {
     case "rh":
     case "hd":
       return outfit.skin;
+    case "ey":
+      return "#FFFFFF"; // No tint -- white is multiply identity, preserves eye pixel detail
+    case "fc":
+      return outfit.skin; // Mouth tinted to match skin tone
     case "hr":
     case "hrb":
       return outfit.hair;

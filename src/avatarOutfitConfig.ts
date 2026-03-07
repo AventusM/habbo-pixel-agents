@@ -5,8 +5,8 @@
 
 // ---- Types ----
 
-/** Body part types matching the 11-layer figure composition system */
-export type PartType = "hrb" | "bd" | "lh" | "lg" | "sh" | "ch" | "ls" | "rh" | "rs" | "hd" | "hr";
+/** Body part types matching the 13-layer figure composition system (includes face) */
+export type PartType = "hrb" | "bd" | "lh" | "lg" | "sh" | "ch" | "ls" | "rh" | "rs" | "hd" | "ey" | "fc" | "hr";
 
 /** Per-avatar outfit definition */
 export interface OutfitConfig {
@@ -243,6 +243,8 @@ export function outfitToFigureParts(outfit: OutfitConfig): Record<PartType, { as
     lh:  { asset: 'hh_human_body', setId: 1 },
     rh:  { asset: 'hh_human_body', setId: 1 },
     hd:  { asset: 'hh_human_body', setId: 1 },
+    ey:  { asset: 'hh_human_face', setId: 1 },
+    fc:  { asset: 'hh_human_face', setId: 1 },
     hr:  { asset: outfit.parts.hair.asset, setId: outfit.parts.hair.setId },
     hrb: { asset: outfit.parts.hair.asset, setId: outfit.parts.hair.setId },
     ch:  { asset: outfit.parts.shirt.asset, setId: outfit.parts.shirt.setId },
@@ -260,6 +262,7 @@ export function outfitToFigureParts(outfit: OutfitConfig): Record<PartType, { as
 export function getRequiredAssets(outfit: OutfitConfig): string[] {
   const assets = new Set<string>();
   assets.add('hh_human_body'); // always needed
+  assets.add('hh_human_face'); // face sprites (eyes + mouth)
   assets.add(outfit.parts.hair.asset);
   assets.add(outfit.parts.shirt.asset);
   assets.add(outfit.parts.pants.asset);

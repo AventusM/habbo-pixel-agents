@@ -44,6 +44,7 @@ const FURNITURE_ITEMS = [
 const FIGURE_ITEMS = [
   // Existing
   'hh_human_body',
+  'hh_human_face',
   'Hair_M_yo',
   'Hair_U_Messy',
   'Shirt_M_Tshirt_Plain',
