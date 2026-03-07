@@ -291,6 +291,8 @@ const WALK_PARTS = new Set<PartType>([
 ]);
 // Note: ch (chest) has NO walk frames — always uses std
 // hd, hr, hrb also always use std
+// During walk state, these parts receive a delta correction from getBodyWalkDelta
+// so they track the body's walk-frame bounce
 
 /** Parts that have sit animation frames */
 const SIT_PARTS = new Set<PartType>([
@@ -553,6 +555,38 @@ function mapBodyDirection(direction: number): { dir: number; flip: boolean } {
 }
 
 /**
+ * Compute the offset delta between the current walk-frame body sprite
+ * and the standing body sprite. This represents the body "bounce" during
+ * each walk frame, used to make non-walk parts (ch, hd, hr, hrb, ey, fc)
+ * track the body movement.
+ */
+export function getBodyWalkDelta(
+  spriteCache: SpriteCache,
+  direction: number,
+  frame: number,
+  figureParts: Record<PartType, { asset: string; setId: number }>,
+): { dx: number; dy: number } {
+  const { dir } = mapBodyDirection(direction);
+  const bdDef = figureParts["bd"];
+  const setId = bdDef.setId;
+
+  const stdKey = `h_std_bd_${setId}_${dir}_0`;
+  const wlkKey = `h_wlk_bd_${setId}_${dir}_${frame}`;
+
+  const stdFrame = spriteCache.getNitroFrame(bdDef.asset, stdKey);
+  const wlkFrame = spriteCache.getNitroFrame(bdDef.asset, wlkKey);
+
+  if (!stdFrame || !wlkFrame) {
+    return { dx: 0, dy: 0 };
+  }
+
+  return {
+    dx: wlkFrame.offsetX - stdFrame.offsetX,
+    dy: wlkFrame.offsetY - stdFrame.offsetY,
+  };
+}
+
+/**
  * Build a Nitro frame key for a given part.
  *
  * Key format: h_{action}_{partType}_{setId}_{direction}_{frame}
@@ -654,9 +688,16 @@ export function createNitroAvatarRenderable(
           const faceFrame = spriteCache.getNitroFrame(faceAsset, faceKey);
           if (!faceFrame) continue;
 
-          const effectiveFlip = flip !== faceFrame.flipH;
+          // During walk state, adjust face parts to track body bounce
+          let adjustedFaceFrame = faceFrame;
+          if (stateForFrame === 'walk') {
+            const delta = getBodyWalkDelta(spriteCache, spec.direction, spec.frame, figureParts);
+            adjustedFaceFrame = { ...faceFrame, offsetX: faceFrame.offsetX + delta.dx, offsetY: faceFrame.offsetY + delta.dy };
+          }
+
+          const effectiveFlip = flip !== adjustedFaceFrame.flipH;
           const color = getPartColor(part, outfitColors);
-          drawTintedBodyPart(ctx, faceFrame, screen.x, screen.y, effectiveFlip, color, part);
+          drawTintedBodyPart(ctx, adjustedFaceFrame, screen.x, screen.y, effectiveFlip, color, part);
           continue;
         }
 
@@ -682,6 +723,13 @@ export function createNitroAvatarRenderable(
           );
         }
         if (!frame) continue;
+
+        // During walk state, non-walk parts (ch, hd, hr, hrb) need delta
+        // correction to track the body's walk-frame bounce
+        if (stateForFrame === 'walk' && !WALK_PARTS.has(part)) {
+          const delta = getBodyWalkDelta(spriteCache, spec.direction, spec.frame, figureParts);
+          frame = { ...frame, offsetX: frame.offsetX + delta.dx, offsetY: frame.offsetY + delta.dy };
+        }
 
         // XOR flip: combine direction mirror with frame's flipH
         const effectiveFlip = flip !== frame.flipH;
