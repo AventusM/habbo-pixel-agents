@@ -335,7 +335,7 @@ Plans:
 | 12. Room Walls & Kanban Notes | Complete | 2026-03-05 |
 | 13. Volter Font as Default | Pending | — |
 | 14. Avatar Builder UI | Complete | 2026-03-07 |
-| 14.1 Avatar Facial Features | 1/1 | Complete   | 2026-03-07 | 15. Performance Optimisation | Pending | — |
+| 14.1 Avatar Facial Features | 1/1 | Complete    | 2026-03-07 | 15. Performance Optimisation | Pending | — |
 
 ### Phase 16: Agent factory workflow with team sections and orchestration UI
 
