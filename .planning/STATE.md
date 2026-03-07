@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_plan: Plan 02 of 2
+current_plan: Plan 01 of 1
 status: phase-complete
-last_updated: "2026-03-07T16:53:30Z"
+last_updated: "2026-03-07T21:29:01Z"
 progress:
-  total_phases: 16
-  completed_phases: 13
-  total_plans: 36
-  completed_plans: 35
+  total_phases: 17
+  completed_phases: 14
+  total_plans: 37
+  completed_plans: 36
 ---
 
 # STATE.md
@@ -19,19 +19,19 @@ progress:
 See: .planning/PROJECT.md (updated 2026-02-28)
 
 **Core value:** Claude Code agents should feel like they're working together in a recognisable Habbo Hotel room — the isometric 2.5D aesthetic must be faithful to the classic v14 era.
-**Current focus:** v2 in progress — Phase 17.1 complete (stray pixel fix + right-click movement)
+**Current focus:** v2 in progress — Phase 17.2 complete (walking animation clipping fix)
 
 ## Current Status
 
 v1.0 (phases 1-8) complete. v2 work in progress: Phase 9 (furniture catalog + rendering fixes) and Phase 10a/10b (avatar polish + chair sitting) are complete. Phase 11 plan 01 (chair layer splitting) is complete. Phase 12 plans 01-03 complete (wall panels + kanban). Phase 14 plans 01-03 complete (outfit config, renderer integration, builder modal UI). Phase 14.1 plan 01 complete (avatar facial features with eyes, mouth, blink animation).
 
-**Last session:** 2026-03-07T16:53:30Z
+**Last session:** 2026-03-07T21:29:01Z
 **Milestone status:** v2 in progress
 
 ## Current Phase
 
-**Phase:** 17.1 — Stray Pixel Diagnostic Fix and Right-Click Movement
-**Current Plan:** Plan 02 of 2
+**Phase:** 17.2 — Fix Walking Animation Clipping and Layer Artifacts
+**Current Plan:** Plan 01 of 1
 **Status:** Complete
 
 ## Decisions Log
@@ -97,6 +97,8 @@ v1.0 (phases 1-8) complete. v2 work in progress: Phase 9 (furniture catalog + re
 | 2026-03-07 | Tint offscreen canvas imageSmoothingEnabled=false | drawImage interpolation generates fractional alpha at sprite edges that survives multiply+destination-in compositing |
 | 2026-03-07 | PNG spritesheets verified clean (0 stray pixels across 21 figure assets) | Scanner confirms compositing is root cause, not source art |
 | 2026-03-07 | Right-click for movement, left-click for selection/builder only | Separates select and move into different click types; eliminates confusing dual-purpose left-click |
+| 2026-03-07 | Walk delta computed in pre-flip space | Flip handled by drawTintedBodyPart; no negation needed for flipped directions |
+| 2026-03-07 | Delta computation guarded by stateForFrame === walk | Skip entirely for idle/sit states for clarity over relying on fallback zero |
 
 ## Blockers
 
@@ -141,6 +143,7 @@ None.
 | Phase 17-bugfixes-and-wishlist P17-03 | 2min | 2 tasks | 3 files |
 | Phase 17.1-stray-pixel-diagnostic-fix-and-right-click-movement P17.1-01 | 16min | 1 task | 4 files |
 | Phase 17.1-stray-pixel-diagnostic-fix-and-right-click-movement P17.1-02 | 1min | 1 task | 1 file |
+| Phase 17.2-fix-walking-animation-clipping-and-layer-artifacts P17.2-01 | 2min | 2 tasks | 2 files |
 
 ## Phase History
 
@@ -181,10 +184,11 @@ None.
 | 17-bugfixes-and-wishlist | 17-03 | Converted avatar builder from full-screen blocking modal to compact inline panel at bottom-left, enabling simultaneous canvas interaction (321 tests passing) |
 | 17.1-stray-pixel-diagnostic-fix-and-right-click-movement | 17.1-01 | Spritesheet scanner confirms clean PNGs; tint canvas imageSmoothingEnabled=false eliminates compositing ghost pixels (321 tests passing) |
 | 17.1-stray-pixel-diagnostic-fix-and-right-click-movement | 17.1-02 | Right-click avatar movement via onContextMenu handler; left-click simplified to selection and builder panel only (321 tests passing) |
+| 17.2-fix-walking-animation-clipping-and-layer-artifacts | 17.2-01 | Walk-frame offset delta correction for chest/head/hair/face parts tracking body bounce during walk animation (325 tests passing) |
 
 ### Pending Todos
 
-1. Fix walking animation clipping and layer artifacts (rendering) — `src/isoAvatarRenderer.ts`
+None.
 
 ## Accumulated Context
 
@@ -193,3 +197,4 @@ None.
 - Phase 17 added: Bugfixes & Wishlist — ongoing phase for incremental fixes and polish
 - Phase 14.1 inserted after Phase 14: Avatar facial features - add eyes and mouth to avatar head rendering (URGENT)
 - Phase 17.1 inserted after Phase 17: Stray pixel diagnostic fix and right-click movement (URGENT)
+- Phase 17.2 inserted after Phase 17: Fix walking animation clipping and layer artifacts (URGENT)

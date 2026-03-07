@@ -367,7 +367,7 @@ Plans:
 **Goal:** Fix body-chest offset mismatch during walk animation (skin pixels bleeding through clothing) and doubled-hand artifact in flipped directions by computing walk-frame offset deltas and applying them to non-walk parts.
 **Requirements**: BUG-17.2-01, BUG-17.2-02, BUG-17.2-03
 **Depends on:** Phase 17
-**Plans:** 1 plan
+**Plans:** 1/1 plans complete
 
 Plans:
 - [ ] 17.2-01-PLAN.md — Walk-frame offset delta correction for non-walk parts with regression tests
