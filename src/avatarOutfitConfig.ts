@@ -40,35 +40,41 @@ export interface CatalogItem {
 // ---- Curated Catalog ----
 
 export const FIGURE_CATALOG: CatalogItem[] = [
-  // Hair (5+ styles)
+  // Hair (6 styles)
   { id: 'hair-m-yo',              asset: 'Hair_M_yo',             setId: 2096, partType: 'hr', category: 'hair', gender: 'M', displayName: 'Classic' },
   { id: 'hair-u-messy-1',         asset: 'Hair_U_Messy',          setId: 2071, partType: 'hr', category: 'hair', gender: 'U', displayName: 'Messy' },
   { id: 'hair-u-messy-2',         asset: 'Hair_U_Messy',          setId: 2072, partType: 'hr', category: 'hair', gender: 'U', displayName: 'Messy Alt' },
   { id: 'hair-f-bob',             asset: 'Hair_F_Bob',            setId: 2073, partType: 'hr', category: 'hair', gender: 'F', displayName: 'Bob' },
-  { id: 'hair-u-multi-colour',    asset: 'Hair_U_Multi_Colour',   setId: 2074, partType: 'hr', category: 'hair', gender: 'U', displayName: 'Multi Colour' },
+  { id: 'hair-u-multi-colour-1',  asset: 'Hair_U_Multi_Colour',   setId: 2068, partType: 'hr', category: 'hair', gender: 'U', displayName: 'Multi Colour' },
+  { id: 'hair-u-multi-colour-2',  asset: 'Hair_U_Multi_Colour',   setId: 2069, partType: 'hr', category: 'hair', gender: 'U', displayName: 'Multi Colour Alt' },
 
-  // Tops (7+ items)
+  // Tops (9 items)
   { id: 'shirt-m-tshirt-plain',   asset: 'Shirt_M_Tshirt_Plain',  setId: 2050, partType: 'ch', category: 'tops', gender: 'M', displayName: 'T-Shirt' },
-  { id: 'shirt-f-tshirt-plain',   asset: 'Shirt_F_Tshirt_Plain',  setId: 2051, partType: 'ch', category: 'tops', gender: 'F', displayName: 'T-Shirt' },
-  { id: 'shirt-f-tshirt-sleeved', asset: 'Shirt_F_Tshirt_Sleeved', setId: 2052, partType: 'ch', category: 'tops', gender: 'F', displayName: 'Sleeved Tee' },
-  { id: 'shirt-m-tshirt-sleeved', asset: 'Shirt_M_Tshirt_Sleeved', setId: 2053, partType: 'ch', category: 'tops', gender: 'M', displayName: 'Sleeved Tee' },
-  { id: 'shirt-f-cardigan',       asset: 'Shirt_F_Cardigan',      setId: 2054, partType: 'ch', category: 'tops', gender: 'F', displayName: 'Cardigan' },
-  { id: 'shirt-m-cardigan',       asset: 'Shirt_M_Cardigan',      setId: 2055, partType: 'ch', category: 'tops', gender: 'M', displayName: 'Cardigan' },
-  { id: 'shirt-f-punk-shirt',     asset: 'Shirt_F_Punk_Shirt',    setId: 2056, partType: 'ch', category: 'tops', gender: 'F', displayName: 'Punk Shirt' },
+  { id: 'shirt-f-schoolshirt',    asset: 'Shirt_F_Schoolshirt',   setId: 2110, partType: 'ch', category: 'tops', gender: 'F', displayName: 'School Shirt' },
+  { id: 'shirt-f-tshirt-sleeved', asset: 'Shirt_F_Tshirt_Sleeved', setId: 2054, partType: 'ch', category: 'tops', gender: 'F', displayName: 'Sleeved Tee' },
+  { id: 'shirt-m-tshirt-sleeved', asset: 'Shirt_M_Tshirt_Sleeved', setId: 2052, partType: 'ch', category: 'tops', gender: 'M', displayName: 'Sleeved Tee' },
+  { id: 'shirt-f-cardigan',       asset: 'Shirt_F_Cardigan',      setId: 2123, partType: 'ch', category: 'tops', gender: 'F', displayName: 'Cardigan' },
+  { id: 'shirt-m-cardigan',       asset: 'Shirt_M_Cardigan',      setId: 2126, partType: 'ch', category: 'tops', gender: 'M', displayName: 'Cardigan' },
+  { id: 'shirt-f-punk-shirt',     asset: 'Shirt_F_Punk_Shirt',    setId: 2076, partType: 'ch', category: 'tops', gender: 'F', displayName: 'Punk Shirt' },
+  { id: 'shirt-f-tshirt-sleeved-2', asset: 'Shirt_F_Tshirt_Sleeved', setId: 2055, partType: 'ch', category: 'tops', gender: 'F', displayName: 'Sleeved Tee Alt' },
+  { id: 'shirt-m-tshirt-sleeved-2', asset: 'Shirt_M_Tshirt_Sleeved', setId: 2053, partType: 'ch', category: 'tops', gender: 'M', displayName: 'Sleeved Tee Alt' },
 
-  // Bottoms (4+ items)
+  // Bottoms (5 items)
   { id: 'trousers-u-skinny-jeans', asset: 'Trousers_U_Skinny_Jeans', setId: 2097, partType: 'lg', category: 'bottoms', gender: 'U', displayName: 'Skinny Jeans' },
   { id: 'trousers-u-straight',     asset: 'Trousers_U_Sraight',     setId: 2098, partType: 'lg', category: 'bottoms', gender: 'U', displayName: 'Straight Jeans' },
-  { id: 'trousers-u-runway',       asset: 'Trousers_U_runway',      setId: 2099, partType: 'lg', category: 'bottoms', gender: 'U', displayName: 'Runway Pants' },
-  { id: 'trousers-f-leather-skirt', asset: 'Trousers_F_Leather_skirt', setId: 2100, partType: 'lg', category: 'bottoms', gender: 'F', displayName: 'Leather Skirt' },
+  { id: 'trousers-u-runway-1',     asset: 'Trousers_U_runway',      setId: 2149, partType: 'lg', category: 'bottoms', gender: 'U', displayName: 'Runway Pants' },
+  { id: 'trousers-u-runway-2',     asset: 'Trousers_U_runway',      setId: 2150, partType: 'lg', category: 'bottoms', gender: 'U', displayName: 'Runway Pants Alt' },
+  { id: 'trousers-f-leather-skirt', asset: 'Trousers_F_Leather_skirt', setId: 2078, partType: 'lg', category: 'bottoms', gender: 'F', displayName: 'Leather Skirt' },
 
-  // Shoes (2+ items)
+  // Shoes (2 items)
   { id: 'shoes-u-slipons',        asset: 'Shoes_U_Slipons',       setId: 2044, partType: 'sh', category: 'shoes', gender: 'U', displayName: 'Slip-ons' },
-  { id: 'shoes-f-schoolshoes',    asset: 'Shoes_F_Schoolshoes',   setId: 2101, partType: 'sh', category: 'shoes', gender: 'F', displayName: 'School Shoes' },
+  { id: 'shoes-f-schoolshoes',    asset: 'Shoes_F_Schoolshoes',   setId: 2107, partType: 'sh', category: 'shoes', gender: 'F', displayName: 'School Shoes' },
 
-  // Accessories (2+ items — optional slots)
-  { id: 'hat-u-sombrero',         asset: 'Hat_U_sombrero',        setId: 2102, partType: 'hr', category: 'accessories', gender: 'U', displayName: 'Sombrero' },
-  { id: 'hat-u-urban',            asset: 'Hat_U_urban',           setId: 2103, partType: 'hr', category: 'accessories', gender: 'U', displayName: 'Urban Hat' },
+  // Accessories (4 items — optional slots)
+  { id: 'hat-u-sombrero-1',       asset: 'Hat_U_sombrero',        setId: 2143, partType: 'hr', category: 'accessories', gender: 'U', displayName: 'Sombrero' },
+  { id: 'hat-u-sombrero-2',       asset: 'Hat_U_sombrero',        setId: 2144, partType: 'hr', category: 'accessories', gender: 'U', displayName: 'Sombrero Alt' },
+  { id: 'hat-u-urban-1',          asset: 'Hat_U_urban',           setId: 2093, partType: 'hr', category: 'accessories', gender: 'U', displayName: 'Urban Hat' },
+  { id: 'hat-u-urban-2',          asset: 'Hat_U_urban',           setId: 2094, partType: 'hr', category: 'accessories', gender: 'U', displayName: 'Urban Hat Alt' },
 ];
 
 // ---- Color Palettes ----
@@ -139,7 +145,7 @@ export const DEFAULT_PRESETS: OutfitConfig[] = [
     gender: 'M',
     parts: {
       hair:  { asset: 'Hair_M_yo', setId: 2096 },
-      shirt: { asset: 'Shirt_M_Cardigan', setId: 2055 },
+      shirt: { asset: 'Shirt_M_Cardigan', setId: 2126 },
       pants: { asset: 'Trousers_U_Skinny_Jeans', setId: 2097 },
       shoes: { asset: 'Shoes_U_Slipons', setId: 2044 },
     },
@@ -150,7 +156,7 @@ export const DEFAULT_PRESETS: OutfitConfig[] = [
     gender: 'M',
     parts: {
       hair:  { asset: 'Hair_U_Messy', setId: 2071 },
-      shirt: { asset: 'Shirt_M_Tshirt_Sleeved', setId: 2053 },
+      shirt: { asset: 'Shirt_M_Tshirt_Sleeved', setId: 2052 },
       pants: { asset: 'Trousers_U_Skinny_Jeans', setId: 2097 },
       shoes: { asset: 'Shoes_U_Slipons', setId: 2044 },
     },
@@ -172,9 +178,9 @@ export const DEFAULT_PRESETS: OutfitConfig[] = [
     gender: 'F',
     parts: {
       hair:  { asset: 'Hair_F_Bob', setId: 2073 },
-      shirt: { asset: 'Shirt_F_Tshirt_Plain', setId: 2051 },
+      shirt: { asset: 'Shirt_F_Schoolshirt', setId: 2110 },
       pants: { asset: 'Trousers_U_Skinny_Jeans', setId: 2097 },
-      shoes: { asset: 'Shoes_F_Schoolshoes', setId: 2101 },
+      shoes: { asset: 'Shoes_F_Schoolshoes', setId: 2107 },
     },
     colors: { skin: '#FCEBD6', hair: '#FF69B4', shirt: '#D55B5B', pants: '#333333', shoes: '#2C2C2C' },
   },
@@ -182,8 +188,8 @@ export const DEFAULT_PRESETS: OutfitConfig[] = [
   {
     gender: 'F',
     parts: {
-      hair:  { asset: 'Hair_U_Multi_Colour', setId: 2074 },
-      shirt: { asset: 'Shirt_F_Cardigan', setId: 2054 },
+      hair:  { asset: 'Hair_U_Multi_Colour', setId: 2068 },
+      shirt: { asset: 'Shirt_F_Cardigan', setId: 2123 },
       pants: { asset: 'Trousers_U_Skinny_Jeans', setId: 2097 },
       shoes: { asset: 'Shoes_U_Slipons', setId: 2044 },
     },

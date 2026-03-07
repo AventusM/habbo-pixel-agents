@@ -42,12 +42,28 @@ const FURNITURE_ITEMS = [
 
 // Avatar body + clothing
 const FIGURE_ITEMS = [
+  // Existing
   'hh_human_body',
   'Hair_M_yo',
   'Hair_U_Messy',
   'Shirt_M_Tshirt_Plain',
   'Trousers_U_Skinny_Jeans',
   'Shoes_U_Slipons',
+  // New for Phase 14 (avatar builder catalog)
+  'Hair_F_Bob',
+  'Hair_U_Multi_Colour',
+  'Shirt_F_Schoolshirt',
+  'Shirt_F_Tshirt_Sleeved',
+  'Shirt_M_Tshirt_Sleeved',
+  'Shirt_F_Cardigan',
+  'Shirt_M_Cardigan',
+  'Shirt_F_Punk_Shirt',
+  'Trousers_U_Sraight',
+  'Trousers_U_runway',
+  'Trousers_F_Leather_skirt',
+  'Shoes_F_Schoolshoes',
+  'Hat_U_sombrero',
+  'Hat_U_urban',
 ];
 
 function download(url) {
