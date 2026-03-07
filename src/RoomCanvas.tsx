@@ -189,6 +189,11 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
           kanbanCardsRef.current = msg.cards;
           break;
         }
+        case 'avatarOutfits': {
+          const outfitsMsg = msg as any;
+          avatarManagerRef.current.loadAvatarOutfits(outfitsMsg.outfits);
+          break;
+        }
         case 'devMode': {
           setDevMode(msg.enabled);
           break;

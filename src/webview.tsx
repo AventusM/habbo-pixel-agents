@@ -177,6 +177,8 @@ const spriteCache = new SpriteCache();
     // Notify extension that webview is ready (triggers agent discovery)
     if (vscodeApi) {
       vscodeApi.postMessage({ type: 'ready' });
+      // Load saved avatar outfits from .habbo-agents/avatars.json
+      vscodeApi.postMessage({ type: 'loadAvatars' });
     }
   } catch (error) {
     console.error('Asset loading failed:', error);

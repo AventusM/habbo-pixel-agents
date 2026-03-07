@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { readFileSync, writeFileSync, existsSync } from 'fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
 import { join } from 'path';
 import * as os from 'os';
 import { AgentManager } from './agentManager.js';
@@ -179,6 +179,42 @@ export function activate(context: vscode.ExtensionContext) {
           const clipboardText = `Screenshot: ${pngPath}${logSection}`;
           vscode.env.clipboard.writeText(clipboardText);
           vscode.window.showInformationMessage(`Dev capture saved: ${pngPath}`);
+          break;
+        }
+        case 'saveAvatar': {
+          const { agentId, outfit } = msg as any;
+          if (workspaceDir) {
+            const avatarsDir = join(workspaceDir, '.habbo-agents');
+            const avatarsPath = join(avatarsDir, 'avatars.json');
+            // Read existing data
+            let data: Record<string, any> = {};
+            try {
+              if (existsSync(avatarsPath)) {
+                data = JSON.parse(readFileSync(avatarsPath, 'utf8'));
+              }
+            } catch { /* fresh file */ }
+            // Merge
+            if (!data[agentId]) data[agentId] = {};
+            data[agentId].outfit = outfit;
+            // Write
+            if (!existsSync(avatarsDir)) {
+              mkdirSync(avatarsDir, { recursive: true });
+            }
+            writeFileSync(avatarsPath, JSON.stringify(data, null, 2));
+          }
+          break;
+        }
+        case 'loadAvatars': {
+          if (workspaceDir) {
+            const avatarsPath = join(workspaceDir, '.habbo-agents', 'avatars.json');
+            let data: Record<string, any> = {};
+            try {
+              if (existsSync(avatarsPath)) {
+                data = JSON.parse(readFileSync(avatarsPath, 'utf8'));
+              }
+            } catch { /* no file yet */ }
+            panel.webview.postMessage({ type: 'avatarOutfits', outfits: data } as ExtensionMessage);
+          }
           break;
         }
       }
