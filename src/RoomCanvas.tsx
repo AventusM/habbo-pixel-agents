@@ -32,6 +32,9 @@ import type { ExtensionMessage } from './agentTypes.js';
 import type { KanbanCard } from './agentTypes.js';
 import { computeBlockedTiles } from './isoPathfinding.js';
 import { drawKanbanNotes, drawExpandedNote, drawExpandedAggregateNote, getNoteHitAreas, pointInQuad } from './isoKanbanRenderer.js';
+import type { OutfitConfig } from './avatarOutfitConfig.js';
+import { getDefaultPreset } from './avatarOutfitConfig.js';
+import { AvatarBuilderModal } from './AvatarBuilderModal.js';
 
 interface RoomCanvasProps {
   heightmap: string;
@@ -79,6 +82,12 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
 
   // Expanded aggregate note (backlog / done)
   const expandedAggregateRef = useRef<'backlog' | 'done' | null>(null);
+
+  // Avatar builder modal state (Phase 14-03)
+  const [isBuilderOpen, setIsBuilderOpen] = useState(false);
+  const [builderAvatarId, setBuilderAvatarId] = useState<string | null>(null);
+  const isBuilderOpenRef = useRef(false);
+  useEffect(() => { isBuilderOpenRef.current = isBuilderOpen; }, [isBuilderOpen]);
 
   // Editor UI state
   const [editorMode, setEditorMode] = useState<EditorMode>(editorModeProp);
@@ -463,6 +472,9 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
   const handleClick = async (event: React.MouseEvent<HTMLCanvasElement>) => {
     if (!renderState.current.grid || !canvasRef.current) return;
 
+    // Block canvas interaction while avatar builder modal is open
+    if (isBuilderOpenRef.current) return;
+
     // --- Sticky note click detection (before tile logic) ---
     const canvas = canvasRef.current;
     const dpr = window.devicePixelRatio || 1;
@@ -547,16 +559,9 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
         idleWanderRef.current.startWandering(clickedAvatar.id);
         return;
       }
-      // Toggle selection
-      if (selectionMgr.isSelected(clickedAvatar.id)) {
-        selectionMgr.deselectAvatar();
-      } else {
-        selectionMgr.selectAvatar(clickedAvatar.id);
-      }
-      // Update isSelected on all avatars
-      for (const avatar of avatarManager.getAvatars()) {
-        avatar.isSelected = selectionMgr.isSelected(avatar.id);
-      }
+      // Open avatar builder (replaces selection toggle)
+      setIsBuilderOpen(true);
+      setBuilderAvatarId(clickedAvatar.id);
       return;
     }
 
@@ -782,6 +787,26 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
     }
   };
 
+  // Avatar builder save handler — updates avatar and persists to extension host
+  const handleBuilderSave = (outfit: OutfitConfig) => {
+    if (!builderAvatarId) return;
+    // Update avatar spec in place (rAF loop picks up changes)
+    avatarManagerRef.current.setAvatarOutfit(builderAvatarId, outfit);
+    // Persist via extension host
+    const vscodeApi = (window as any).vscodeApi;
+    if (vscodeApi) {
+      vscodeApi.postMessage({ type: 'saveAvatar', agentId: builderAvatarId, outfit });
+    }
+    setIsBuilderOpen(false);
+    setBuilderAvatarId(null);
+  };
+
+  // Avatar builder close handler (cancel)
+  const handleBuilderClose = () => {
+    setIsBuilderOpen(false);
+    setBuilderAvatarId(null);
+  };
+
   return (
     <>
       <LayoutEditorPanel
@@ -813,6 +838,19 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
         onClick={handleClick}
         onMouseLeave={handleMouseLeave}
       />
+      {isBuilderOpen && builderAvatarId && (() => {
+        const avatar = avatarManagerRef.current.getAvatar(builderAvatarId);
+        if (!avatar) return null;
+        return (
+          <AvatarBuilderModal
+            avatarId={builderAvatarId}
+            initialOutfit={avatar.outfit || getDefaultPreset(avatar.variant)}
+            variant={avatar.variant}
+            onSave={handleBuilderSave}
+            onClose={handleBuilderClose}
+          />
+        );
+      })()}
     </>
   );
 }
