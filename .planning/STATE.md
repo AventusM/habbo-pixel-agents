@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_plan: Plan 02 of 3
+current_plan: Plan 03 of 3
 status: executing
-last_updated: "2026-03-07T10:15:00.252Z"
+last_updated: "2026-03-07T10:19:54.000Z"
 progress:
   total_phases: 14
   completed_phases: 10
   total_plans: 31
-  completed_plans: 28
+  completed_plans: 29
 ---
 
 # STATE.md
@@ -23,15 +23,15 @@ See: .planning/PROJECT.md (updated 2026-02-28)
 
 ## Current Status
 
-v1.0 (phases 1-8) complete. v2 work in progress: Phase 9 (furniture catalog + rendering fixes) and Phase 10a/10b (avatar polish + chair sitting) are complete. Phase 11 plan 01 (chair layer splitting) is complete. Phase 12 plans 01-03 complete (wall panels + kanban). Phase 14 plan 01 complete (outfit config types, catalog, presets, figure asset downloads).
+v1.0 (phases 1-8) complete. v2 work in progress: Phase 9 (furniture catalog + rendering fixes) and Phase 10a/10b (avatar polish + chair sitting) are complete. Phase 11 plan 01 (chair layer splitting) is complete. Phase 12 plans 01-03 complete (wall panels + kanban). Phase 14 plans 01-02 complete (outfit config types, catalog, presets, figure asset downloads, renderer integration, persistence).
 
-**Last session:** 2026-03-07T10:15:00.249Z
+**Last session:** 2026-03-07T10:19:54.000Z
 **Milestone status:** v2 in progress
 
 ## Current Phase
 
 **Phase:** 14 — Avatar Builder UI
-**Current Plan:** Plan 02 of 3
+**Current Plan:** Plan 03 of 3
 **Status:** In progress
 
 ## Decisions Log
@@ -82,6 +82,8 @@ v1.0 (phases 1-8) complete. v2 work in progress: Phase 9 (furniture catalog + re
 | 2026-03-06 | In Progress notes confined to left wall only | Right wall reserved exclusively for Done aggregate note — cross-wall overflow broke spatial metaphor |
 | 2026-03-07 | Replaced Shirt_F_Tshirt_Plain with Shirt_F_Schoolshirt | Tshirt_Plain directory in cortex-assets has no JSON metadata — only PNG |
 | 2026-03-07 | Validate all catalog setIds against actual cortex-assets frame keys | Plan-estimated setIds were placeholders; real values differ significantly |
+| 2026-03-07 | Import PartType from avatarOutfitConfig.ts, remove renderer duplicate | Single source of truth for body part type definitions |
+| 2026-03-07 | AvatarManager savedOutfits map for late-spawning avatars | Outfits loaded before agent spawn applied when agent eventually spawns |
 
 ## Blockers
 
@@ -119,6 +121,7 @@ None.
 | Phase 12-room-walls-kanban-notes P12-03 | 2min | 2 tasks | 3 files |
 | Phase 17-bugfixes-and-wishlist P17-01 | 3min | 2 tasks | 2 files |
 | Phase 14-avatar-builder-ui P14-01 | 8min | 2 tasks | 3 files |
+| Phase 14-avatar-builder-ui P14-02 | 3min | 2 tasks | 7 files |
 
 ## Phase History
 
@@ -152,6 +155,7 @@ None.
 | 12-room-walls-kanban-notes | 12-03 | Sticky note renderer for kanban cards on isometric room walls — color-coded by status, distributed across left/right wall tile slots (279 tests passing) |
 | 17-bugfixes-and-wishlist | 17-01 | In Progress notes constrained to left wall only — removed rightSmallTiles loop, updated capacity formula, added single-wall assertion test (277 tests passing) |
 | 14-avatar-builder-ui | 14-01 | OutfitConfig type system with 28 curated clothing items, color palettes, 8 default presets, and 14 new cortex-assets figure downloads (301 tests passing) |
+| 14-avatar-builder-ui | 14-02 | Dynamic OutfitConfig wired into avatar renderer with per-agent outfit persistence via .habbo-agents/avatars.json (309 tests passing) |
 
 ## Accumulated Context
 
