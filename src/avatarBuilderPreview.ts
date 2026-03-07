@@ -47,6 +47,9 @@ function getTintCanvas(w: number, h: number): OffscreenCanvasRenderingContext2D 
   if (!_tintCanvas || _tintCanvas.width < w || _tintCanvas.height < h) {
     _tintCanvas = new OffscreenCanvas(Math.max(w, 128), Math.max(h, 128));
     _tintCtx = _tintCanvas.getContext('2d')!;
+    // Disable image smoothing to prevent subpixel interpolation artifacts
+    // that survive the multiply + destination-in compositing pipeline.
+    _tintCtx.imageSmoothingEnabled = false;
   }
   return _tintCtx!;
 }

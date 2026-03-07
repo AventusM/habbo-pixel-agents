@@ -26,7 +26,10 @@
         },
         "habboPixelAgents.githubProject.ownerType": {
           "type": "string",
-          "enum": ["org", "user"],
+          "enum": [
+            "org",
+            "user"
+          ],
           "default": "org",
           "description": "Whether the owner is an organization or user"
         },
@@ -59,6 +62,7 @@
     "@types/vscode": "^1.109.0",
     "esbuild": "^0.27.3",
     "happy-dom": "^20.7.0",
+    "pngjs": "^7.0.0",
     "typescript": "^5.7.0",
     "vitest": "^3.0.0"
   },

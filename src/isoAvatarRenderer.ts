@@ -394,6 +394,11 @@ function getTintCanvas(
   if (!_tintCanvas || _tintCanvas.width < w || _tintCanvas.height < h) {
     _tintCanvas = new OffscreenCanvas(Math.max(w, 128), Math.max(h, 128));
     _tintCtx = _tintCanvas.getContext("2d")!;
+    // Disable image smoothing to prevent subpixel interpolation artifacts.
+    // Without this, drawImage can generate fractional alpha pixels at sprite
+    // edges that survive the multiply + destination-in compositing pipeline,
+    // producing faint ghost pixels on the main canvas.
+    _tintCtx.imageSmoothingEnabled = false;
   }
   return _tintCtx!;
 }
