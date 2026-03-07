@@ -1,0 +1,350 @@
+# Phase 14.1: Avatar Facial Features - Research
+
+**Researched:** 2026-03-07
+**Domain:** Habbo avatar face rendering (eyes + mouth layers)
+**Confidence:** HIGH
+
+## Summary
+
+The classic Habbo avatar system renders faces as two separate layers -- `ey` (eyes) and `fc` (face/mouth) -- drawn on top of the head (`hd`) sprite. The cortex-assets repository (`CakeChloe/cortex-assets`) provides a complete `hh_human_face` asset containing 264 eye sprites and 31 mouth sprites across multiple directions (1, 2, 3), expressions (std, sml, agr, srp, sad, spk), and 11 eye style variants. The mouth has only 1 setId (universal) while eyes have setIds 1-11.
+
+The current project renders avatars with 11 body layers but NO face features -- the head (`hd`) sprites are blank ovals. The existing `blinkFrame` animation system on `AvatarSpec` already tracks timing for a 3-frame blink cycle (0-3 at 100ms per frame), but the renderer never actually draws blink overlays because no face sprites existed. The `hh_human_face` asset includes an `eyb` (eye blink) action with sprites for all directions and eye variants, making the blink system trivially completable.
+
+**Primary recommendation:** Download, convert, and integrate `hh_human_face` as two new part types (`ey`, `fc`) in the render order, drawn after `hd` (head) and before `hr` (hair). Map the existing `blinkFrame` system to the `eyb` eye action for real visible blinks. Face sprites only exist for directions 1, 2, 3 -- directions 0 and 7 show the back of the head (no face visible), which is correct Habbo behavior.
+
+## Standard Stack
+
+### Core
+| Library | Version | Purpose | Why Standard |
+|---------|---------|---------|--------------|
+| hh_human_face | cortex-assets | Eyes + mouth sprites | Only face sprite source in cortex-assets |
+| Canvas 2D multiply blend | Browser API | Face color tinting | Same technique used for all body parts |
+
+### Supporting
+| Library | Version | Purpose | When to Use |
+|---------|---------|---------|-------------|
+| existing SpriteCache | project | Nitro asset loading | Load hh_human_face same as hh_human_body |
+| existing convert script | project | cortex-to-nitro conversion | Convert face JSON same as body |
+
+### Alternatives Considered
+| Instead of | Could Use | Tradeoff |
+|------------|-----------|----------|
+| hh_human_face from cortex-assets | Hand-drawn pixel face sprites | No -- cortex-assets provides authentic Habbo sprites |
+| Two face layers (ey + fc) | Single combined face layer | Two layers enables independent eye animation and mouth expressions |
+
+**Installation:**
+No new npm packages needed. Just download + convert + integrate.
+
+## Architecture Patterns
+
+### Cortex Face Data Structure
+
+The `hh_human_face.json` from cortex-assets is a flat JSON (same format as `hh_human_body`):
+```
+{
+  "h_std_ey_1_2_0": { "offset": "-33,62", "left": "104", "top": "62", "width": "10", "height": "9" },
+  "h_std_fc_1_2_0": { "offset": "-36,57", "left": "75", "top": "72", "width": "6", "height": "10" },
+  "h_eyb_ey_1_2_0": { "offset": "-33,62", "left": "130", "top": "53", "width": "11", "height": "9" },
+  ...
+  "manifest": {},
+  "hh_human_face": {}
+}
+```
+
+### Frame Key Convention
+```
+h_{action}_{partType}_{setId}_{direction}_{frame}
+```
+
+**Part types in hh_human_face:**
+- `ey` (eyes): setIds 1-11, directions 1/2/3, actions: std, sml, agr, srp, sad, eyb
+- `fc` (face/mouth): setId 1 only, directions 1/2/3, actions: std, sml, agr, srp, sad, spk, blw
+
+**Available actions (expressions):**
+| Action | Meaning | Used For |
+|--------|---------|----------|
+| `std` | Standard (neutral) | Default idle face |
+| `sml` | Smile | Happy expression |
+| `agr` | Angry | Angry expression |
+| `srp` | Surprised | Surprised expression |
+| `sad` | Sad | Sad expression |
+| `eyb` | Eye blink | Blink animation (eyes only, no fc equivalent) |
+| `spk` | Speaking | Mouth animation during speech (fc only, frames 0-1) |
+| `blw` | Blow | Blowing expression (fc only) |
+
+**Available directions:** 1, 2, 3 only
+- Direction 0 = back of head (no face visible)
+- Direction 7 = near-back (no face visible)
+- Directions 4, 5, 6 = mirrors of 2, 1, 0 (flip)
+
+### Recommended Render Order Update
+
+Current (11 layers):
+```
+hrb, bd, lh/rh, ls/rs, lg, sh, ch, hd, hr
+```
+
+New (13 layers -- add ey and fc between hd and hr):
+```
+hrb, bd, lh/rh, ls/rs, lg, sh, ch, hd, ey, fc, hr
+```
+
+Hair (`hr`) renders LAST to cover the top/back of the head, which is correct -- face features must be under hair.
+
+### Direction Mapping for Face
+
+```typescript
+// Face directions available: 1, 2, 3
+// Body directions available: 0, 1, 2, 3, 7 (4,5,6 are flipped 2,1,0)
+function getFaceDirection(bodyDir: number): { dir: number; flip: boolean; visible: boolean } {
+  // Face is NOT visible from behind (dirs 0, 7)
+  if (bodyDir === 0 || bodyDir === 7) return { dir: 0, flip: false, visible: false };
+  // Front-facing directions: use directly
+  if (bodyDir <= 3) return { dir: bodyDir, flip: false, visible: true };
+  // Mirror directions
+  if (bodyDir === 4) return { dir: 2, flip: true, visible: true };
+  if (bodyDir === 5) return { dir: 1, flip: true, visible: true };
+  if (bodyDir === 6) return { dir: 0, flip: false, visible: false }; // dir 6 mirrors 0 = back
+  return { dir: 0, flip: false, visible: false };
+}
+```
+
+### Eye Blink Integration
+
+The existing `blinkFrame` system (0=no blink, 1-3=blink frames) maps directly to eye actions:
+- `blinkFrame === 0`: Use `h_std_ey_{setId}_{dir}_0` (normal eyes)
+- `blinkFrame >= 1`: Use `h_eyb_ey_{setId}_{dir}_0` (closed/half-closed eyes)
+
+Note: The `eyb` action only has frame 0 (single blink sprite = fully closed), so all blinkFrame values 1-3 map to the same closed-eye sprite. This is standard Habbo behavior -- the blink is just open->closed->open with timing.
+
+### Eye SetId Mapping
+
+Eyes have 11 style variants (setIds 1-11). Map these from avatar variant:
+```typescript
+// Map variant to eye setId (1-11)
+function getEyeSetId(variant: number): number {
+  return (variant % 11) + 1;
+}
+```
+
+Or keep it simple and use setId 1 for all variants initially, adding eye style selection to the builder later.
+
+### Offset Convention
+
+Face sprite offsets follow the same cortex figure convention as body parts:
+- Offsets in cortex format: `"-33,62"` (string "x,y")
+- After convert-cortex-to-nitro: `{ x: -33, y: 62 }` (parsed directly, NOT negated)
+- Rendering: `dx = regX - offsetX`, `dy = regY - offsetY` (same as all body parts)
+
+### Pattern: Face Tinting
+
+Eyes should NOT be tinted (they are pre-colored black/dark pixels). Mouth (`fc`) should be tinted with skin color to match the face.
+
+```typescript
+function getPartColor(part: PartType, outfit: OutfitColors): string {
+  switch (part) {
+    // ... existing cases ...
+    case 'ey': return '#FFFFFF'; // No tint (white = identity in multiply blend)
+    case 'fc': return outfit.skin; // Mouth matches skin tone
+  }
+}
+```
+
+### Anti-Patterns to Avoid
+- **Tinting eyes with skin color:** Eyes are pre-drawn pixels (black pupils, white sclera). Multiplying with skin color would make them skin-toned blobs.
+- **Drawing face for direction 0/7:** These are back-of-head views. No face sprites exist for these directions and none should be drawn.
+- **Using separate face direction mapping from body:** Face direction mapping is the SAME as body (mapBodyDirection) but filtered to exclude dirs 0 and 7.
+
+## Don't Hand-Roll
+
+| Problem | Don't Build | Use Instead | Why |
+|---------|-------------|-------------|-----|
+| Face sprite loading | Custom loader | Existing loadNitroAsset pipeline | Same format as hh_human_body |
+| Face tinting | New tinting code | Existing drawTintedBodyPart | Same multiply-blend algorithm |
+| Direction mirroring | New flip logic | Existing mapBodyDirection + flipH XOR | Same logic, just skip dirs 0/7 |
+| Blink animation | New timer system | Existing blinkFrame on AvatarSpec | Already ticks correctly, just needs rendering |
+
+**Key insight:** The face layer integration reuses 100% of the existing rendering pipeline. The only new logic is: (1) skipping face for back-facing directions, (2) choosing eye action based on blinkFrame, and (3) not tinting eye sprites.
+
+## Common Pitfalls
+
+### Pitfall 1: Drawing face sprites on back-facing avatars
+**What goes wrong:** Face sprites only exist for directions 1, 2, 3. Attempting to draw them for direction 0 or 7 produces frame lookup failures.
+**Why it happens:** Body parts have sprites for all directions including 0 and 7; face does not.
+**How to avoid:** Skip ey/fc rendering when mapped direction is 0 or 7.
+**Warning signs:** `getNitroFrame` returns null for face parts at certain directions.
+
+### Pitfall 2: Eye tinting destroying facial detail
+**What goes wrong:** Multiplying eye sprites with skin color turns them into skin-colored blobs, losing pupil/sclera detail.
+**Why it happens:** Other body parts are white/gray sprites designed for tinting; eyes have pre-colored detail pixels.
+**How to avoid:** Use white (`#FFFFFF`) as the multiply color for eyes, which is the identity (no change).
+**Warning signs:** Eyes appear as a single colored blob instead of showing pupils.
+
+### Pitfall 3: Face sprites misaligned after flip
+**What goes wrong:** Flipped face sprites (dirs 4, 5, 6 mirror of 2, 1, 0) don't align with the head.
+**Why it happens:** The flip calculation and offset correction must match the existing body part pipeline exactly.
+**How to avoid:** Use the exact same drawTintedBodyPart function for face parts -- do NOT create a separate drawing path.
+**Warning signs:** Face features appear offset from head on mirrored directions.
+
+### Pitfall 4: Forgetting to add hh_human_face to getRequiredAssets
+**What goes wrong:** Face asset not loaded when avatar builder changes outfit, causing face to disappear.
+**Why it happens:** The avatar builder's lazy loading only loads assets returned by `getRequiredAssets()`.
+**How to avoid:** Add `hh_human_face` to the required assets list alongside `hh_human_body`.
+**Warning signs:** Face appears in room but disappears in builder preview.
+
+### Pitfall 5: Cortex face format has link references
+**What goes wrong:** Some face sprites reference other sprites via `link` field instead of having their own sprite data.
+**Why it happens:** Cortex-assets uses links for shared sprites between eye variants.
+**How to avoid:** The existing `convertFigure` function already handles `link` references correctly. Just ensure the converted Nitro JSON preserves them.
+**Warning signs:** Some eye variants render but others are missing.
+
+## Code Examples
+
+### Adding face parts to render order
+```typescript
+// In isoAvatarRenderer.ts
+const RENDER_ORDER_LEFT_BEHIND: PartType[] = [
+  "hrb", "bd", "lh", "ls", "lg", "sh", "ch", "rh", "rs",
+  "hd", "ey", "fc",  // face parts between head and hair
+  "hr",
+];
+const RENDER_ORDER_RIGHT_BEHIND: PartType[] = [
+  "hrb", "bd", "rh", "rs", "lg", "sh", "ch", "lh", "ls",
+  "hd", "ey", "fc",  // face parts between head and hair
+  "hr",
+];
+```
+
+### Building face frame key
+```typescript
+// Face parts use the same key format but different actions for expressions
+function buildFaceFrameKey(
+  part: 'ey' | 'fc',
+  direction: number,
+  blinkFrame: number,
+  eyeSetId: number,
+): string {
+  const { dir, flip } = mapBodyDirection(direction);
+
+  // Face not visible from back
+  if (dir === 0 || dir === 7) return '';
+
+  if (part === 'ey') {
+    const action = blinkFrame > 0 ? 'eyb' : 'std';
+    return `h_${action}_ey_${eyeSetId}_${dir}_0`;
+  } else {
+    return `h_std_fc_1_${dir}_0`;
+  }
+}
+```
+
+### Integration into createNitroAvatarRenderable
+```typescript
+// Inside the render loop, after drawing hd, before hr:
+if (part === 'ey' || part === 'fc') {
+  // Face only visible from front/side (dirs 1, 2, 3)
+  if (mappedDir === 0 || mappedDir === 7) continue;
+
+  // Use hh_human_face asset, not the part's configured asset
+  const faceAsset = 'hh_human_face';
+  if (!spriteCache.hasNitroAsset(faceAsset)) continue;
+
+  const setId = part === 'ey' ? getEyeSetId(spec.variant) : 1;
+  const action = (part === 'ey' && spec.blinkFrame > 0) ? 'eyb' : 'std';
+  const faceKey = `h_${action}_${part}_${setId}_${mappedDir}_0`;
+
+  let frame = spriteCache.getNitroFrame(faceAsset, faceKey);
+  if (!frame) continue;
+
+  // Eyes: no tint (white identity). Mouth: skin color.
+  const color = part === 'ey' ? '#FFFFFF' : outfitColors.skin;
+  drawTintedBodyPart(ctx, frame, screen.x, screen.y, effectiveFlip, color, part);
+  continue;
+}
+```
+
+## State of the Art
+
+| Old Approach | Current Approach | When Changed | Impact |
+|--------------|------------------|--------------|--------|
+| Blank oval heads (no face) | Face layers with ey + fc sprites | This phase | Avatars gain personality and visual distinction |
+| blinkFrame tracked but unused | blinkFrame drives eyb action | This phase | Visible blink animation completes AVAT-03 |
+
+**What's already working (no changes needed):**
+- blinkFrame timing in updateAvatarAnimation -- already correct
+- Direction mapping in mapBodyDirection -- face uses same mapping
+- drawTintedBodyPart -- works for face sprites too
+- convert-cortex-to-nitro.mjs -- handles face JSON format (flat cortex, link refs)
+
+## Open Questions
+
+1. **Eye style selection in avatar builder**
+   - What we know: 11 eye variants exist (setIds 1-11) with visually distinct styles
+   - What's unclear: Should the builder allow choosing eye style, or just map from variant?
+   - Recommendation: Phase 14.1 maps eyes from variant (`(variant % 11) + 1`). Eye style selection can be added to the builder later if desired. Keep it simple for now.
+
+2. **Expression system**
+   - What we know: Face has 7 actions for mouth (std, sml, agr, srp, sad, spk, blw) and 6 for eyes
+   - What's unclear: Should agent states map to expressions? (e.g., typing = focused, error = agr)
+   - Recommendation: Out of scope for this phase. Default to `std` expression for both eyes and mouth. Expression system can be a separate phase.
+
+3. **Mouth color for non-skin-tone looks**
+   - What we know: fc (mouth) sprites are grayscale, designed for multiply tinting
+   - What's unclear: Some expressions show teeth/lips that might look odd when tinted with dark skin
+   - Recommendation: Use skin color for fc tinting -- this is the standard Habbo approach. If results are unacceptable for specific skin tones, a mouth-specific color palette can be added later.
+
+## Validation Architecture
+
+### Test Framework
+| Property | Value |
+|----------|-------|
+| Framework | Vitest 3.0 |
+| Config file | vitest.config.ts |
+| Quick run command | `npx vitest run tests/isoAvatarRenderer.test.ts` |
+| Full suite command | `npx vitest run` |
+
+### Phase Requirements -> Test Map
+| Req ID | Behavior | Test Type | Automated Command | File Exists? |
+|--------|----------|-----------|-------------------|-------------|
+| N/A-01 | hh_human_face asset downloads and converts | smoke | `node scripts/download-habbo-assets.mjs && node scripts/convert-cortex-to-nitro.mjs` | N/A (scripts exist) |
+| N/A-02 | Face parts added to PartType and render order | unit | `npx vitest run tests/isoAvatarRenderer.test.ts -x` | Exists, needs new tests |
+| N/A-03 | buildFrameKey produces correct ey/fc keys | unit | `npx vitest run tests/isoAvatarRenderer.test.ts -x` | Exists, needs new tests |
+| N/A-04 | Face skipped for back-facing directions (0, 7) | unit | `npx vitest run tests/isoAvatarRenderer.test.ts -x` | Exists, needs new tests |
+| N/A-05 | Eye blink uses eyb action when blinkFrame > 0 | unit | `npx vitest run tests/isoAvatarRenderer.test.ts -x` | Exists, needs new tests |
+| N/A-06 | Eyes use white tint (no color change) | unit | `npx vitest run tests/isoAvatarRenderer.test.ts -x` | Exists, needs new tests |
+| N/A-07 | Preview renderer includes face layers | unit | `npx vitest run tests/isoAvatarRenderer.test.ts -x` | New tests needed |
+
+### Sampling Rate
+- **Per task commit:** `npx vitest run tests/isoAvatarRenderer.test.ts tests/avatarOutfitConfig.test.ts`
+- **Per wave merge:** `npx vitest run`
+- **Phase gate:** Full suite green before verify
+
+### Wave 0 Gaps
+- [ ] New test cases in `tests/isoAvatarRenderer.test.ts` for face frame key construction
+- [ ] New test cases for face direction filtering (dirs 0, 7 skipped)
+- [ ] New test case for eye blink action mapping
+
+## Sources
+
+### Primary (HIGH confidence)
+- CakeChloe/cortex-assets `figures/hh_human_face/` - Downloaded and analyzed JSON + PNG directly
+- Existing project source code: `isoAvatarRenderer.ts`, `avatarOutfitConfig.ts`, `isoSpriteCache.ts`, `convert-cortex-to-nitro.mjs`
+- Habbo figuremap.xml (Izzxt/habbo-resource) - Confirmed hh_human_face contains ey (setIds 1-11) and fc (setId 1) parts
+
+### Secondary (MEDIUM confidence)
+- [Habbo Avatar Rendering Basics](https://dev.to/trickstival/habbo-avatar-rendering-basics-4cg6) - General avatar rendering architecture
+- [Habbo figuremap.xml](https://github.com/Izzxt/habbo-resource/blob/master/gamedata/figuremap.xml) - Part type to library mapping
+- [Havana figuredata.xml](https://github.com/Quackster/Havana/blob/master/figuredata.xml) - SetType definitions for ey and fc
+
+### Tertiary (LOW confidence)
+- None -- all findings verified against primary sources
+
+## Metadata
+
+**Confidence breakdown:**
+- Standard stack: HIGH - Verified against actual cortex-assets data and existing project code
+- Architecture: HIGH - Face parts follow identical pattern to existing body parts; conversion and rendering pipelines already support the format
+- Pitfalls: HIGH - Identified from direct analysis of face sprite data (direction limits, tinting behavior, link references)
+
+**Research date:** 2026-03-07
+**Valid until:** 2026-04-07 (stable -- cortex-assets and project architecture are not changing)
