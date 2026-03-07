@@ -277,9 +277,17 @@ Notes:
 
 ## Phase 14: Avatar Builder UI
 
-**Goal:** Add avatar builder UI, clothing selection, and wardrobe customisation — building on the existing 11-layer Nitro figure composition.
-**Status:** Pending
+**Goal:** Add avatar builder UI with modal overlay, clothing selection, color palette swatches, and wardrobe customisation — building on the existing 11-layer Nitro figure composition.
+**Status:** Planning complete
 **Depends on:** Phase 11
+**Requirements:** P14-01, P14-02, P14-03, P14-04, P14-05, P14-06, P14-07, P14-08
+
+**Plans:** 3 plans
+
+Plans:
+- [ ] 14-01-PLAN.md — Outfit config types, curated clothing catalog, color palettes, default presets, new asset downloads
+- [ ] 14-02-PLAN.md — Dynamic outfit in renderer, per-avatar OutfitConfig, extension host persistence
+- [ ] 14-03-PLAN.md — Avatar builder modal UI, preview canvas, click-to-open integration, wardrobe
 
 ---
 
@@ -314,8 +322,9 @@ Notes:
 | 10a. Avatar Polish | Complete | 2026-03-05 |
 | 10b. Chair Sitting | Complete | 2026-03-05 |
 | 11. Chair Layer Splitting | Complete | 2026-03-05 |
-| 12. Room Walls & Kanban Notes | 3/3 | Complete   | 2026-03-05 | 13. Volter Font as Default | Pending | — |
-| 14. Avatar Builder UI | Pending | — |
+| 12. Room Walls & Kanban Notes | Complete | 2026-03-05 |
+| 13. Volter Font as Default | Pending | — |
+| 14. Avatar Builder UI | Planning complete | — |
 | 15. Performance Optimisation | Pending | — |
 
 ### Phase 16: Agent factory workflow with team sections and orchestration UI
@@ -341,4 +350,4 @@ Plans:
 ---
 
 *Created: 2026-02-28*
-*Last updated: 2026-03-05*
+*Last updated: 2026-03-07*
