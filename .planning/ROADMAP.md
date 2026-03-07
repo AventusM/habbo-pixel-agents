@@ -278,18 +278,28 @@ Notes:
 ## Phase 14: Avatar Builder UI
 
 **Goal:** Add avatar builder UI with modal overlay, clothing selection, color palette swatches, and wardrobe customisation — building on the existing 11-layer Nitro figure composition.
-**Status:** Planning complete
+**Status:** Complete
 **Depends on:** Phase 11
 **Requirements:** P14-01, P14-02, P14-03, P14-04, P14-05, P14-06, P14-07, P14-08
 
 **Plans:** 3/3 plans complete
 
 Plans:
-- [ ] 14-01-PLAN.md — Outfit config types, curated clothing catalog, color palettes, default presets, new asset downloads
-- [ ] 14-02-PLAN.md — Dynamic outfit in renderer, per-avatar OutfitConfig, extension host persistence
-- [ ] 14-03-PLAN.md — Avatar builder modal UI, preview canvas, click-to-open integration, wardrobe
+- [x] 14-01-PLAN.md — Outfit config types, curated clothing catalog, color palettes, default presets, new asset downloads
+- [x] 14-02-PLAN.md — Dynamic outfit in renderer, per-avatar OutfitConfig, extension host persistence
+- [x] 14-03-PLAN.md — Avatar builder modal UI, preview canvas, click-to-open integration, wardrobe
 
 ---
+
+### Phase 14.1: Avatar facial features - add eyes and mouth to avatar head rendering (INSERTED)
+
+**Goal:** Integrate hh_human_face cortex-asset as two new render layers (ey, fc) between head and hair, with direction-aware visibility, eye blink animation via existing blinkFrame system, and correct tinting (eyes untinted, mouth skin-toned).
+**Requirements:** FACE-01, FACE-02, FACE-03, FACE-04, FACE-05, FACE-06, FACE-07
+**Depends on:** Phase 14
+**Plans:** 1 plan
+
+Plans:
+- [ ] 14.1-01-PLAN.md — Asset pipeline + PartType extension + renderer face integration + preview + tests
 
 ## Phase 15: Performance Optimisation
 
@@ -324,7 +334,9 @@ Plans:
 | 11. Chair Layer Splitting | Complete | 2026-03-05 |
 | 12. Room Walls & Kanban Notes | Complete | 2026-03-05 |
 | 13. Volter Font as Default | Pending | — |
-| 14. Avatar Builder UI | 3/3 | Complete    | 2026-03-07 | 15. Performance Optimisation | Pending | — |
+| 14. Avatar Builder UI | Complete | 2026-03-07 |
+| 14.1 Avatar Facial Features | Planning | — |
+| 15. Performance Optimisation | Pending | — |
 
 ### Phase 16: Agent factory workflow with team sections and orchestration UI
 
