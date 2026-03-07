@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_plan: Not started
-status: planning
-last_updated: "2026-03-07T11:07:34.246Z"
+current_plan: 03
+status: executing
+last_updated: "2026-03-07T11:45:11.216Z"
 progress:
   total_phases: 15
-  completed_phases: 12
-  total_plans: 32
-  completed_plans: 31
+  completed_phases: 11
+  total_plans: 34
+  completed_plans: 32
 ---
 
 # STATE.md
@@ -19,20 +19,20 @@ progress:
 See: .planning/PROJECT.md (updated 2026-02-28)
 
 **Core value:** Claude Code agents should feel like they're working together in a recognisable Habbo Hotel room — the isometric 2.5D aesthetic must be faithful to the classic v14 era.
-**Current focus:** v2 in progress — Phase 14.1 (avatar facial features) complete with eyes and mouth rendering
+**Current focus:** v2 in progress — Phase 17 (bugfixes and wishlist) plan 02 complete, fixing stray pixel leak in face rendering
 
 ## Current Status
 
 v1.0 (phases 1-8) complete. v2 work in progress: Phase 9 (furniture catalog + rendering fixes) and Phase 10a/10b (avatar polish + chair sitting) are complete. Phase 11 plan 01 (chair layer splitting) is complete. Phase 12 plans 01-03 complete (wall panels + kanban). Phase 14 plans 01-03 complete (outfit config, renderer integration, builder modal UI). Phase 14.1 plan 01 complete (avatar facial features with eyes, mouth, blink animation).
 
-**Last session:** 2026-03-07T11:04:00.110Z
+**Last session:** 2026-03-07T11:45:11.214Z
 **Milestone status:** v2 in progress
 
 ## Current Phase
 
-**Phase:** 14.1 — Avatar Facial Features
-**Current Plan:** Not started
-**Status:** Ready to plan
+**Phase:** 17 — Bugfixes and Wishlist
+**Current Plan:** 03
+**Status:** In progress
 
 ## Decisions Log
 
@@ -90,6 +90,7 @@ v1.0 (phases 1-8) complete. v2 work in progress: Phase 9 (furniture catalog + re
 | 2026-03-07 | Eye setId mapped from variant via modulo 11 | 11 eye styles available in hh_human_face; variant cycling provides visual variety |
 | 2026-03-07 | Face direction filtering: skip ey/fc for dirs 0 and 7 | Back of head has no face sprites; correct Habbo behavior |
 | 2026-03-07 | Mouth (fc) tinted with skin color | Standard Habbo convention; fc sprites are grayscale designed for multiply blend |
+| 2026-03-07 | clearRect must use full tint canvas dimensions | Shared tint canvas (min 128x128) retained residual pixels from prior large sprites when small face sprites were drawn |
 
 ## Blockers
 
@@ -130,6 +131,7 @@ None.
 | Phase 14-avatar-builder-ui P14-02 | 3min | 2 tasks | 7 files |
 | Phase 14-avatar-builder-ui P14-03 | 3min | 2 tasks | 3 files |
 | Phase 14.1-avatar-facial-features P14.1-01 | 4min | 2 tasks | 6 files |
+| Phase 17-bugfixes-and-wishlist P17-02 | 2min | 2 tasks | 3 files |
 
 ## Phase History
 
@@ -166,6 +168,7 @@ None.
 | 14-avatar-builder-ui | 14-02 | Dynamic OutfitConfig wired into avatar renderer with per-agent outfit persistence via .habbo-agents/avatars.json (309 tests passing) |
 | 14-avatar-builder-ui | 14-03 | Avatar builder modal with live preview, clothing/color customization, gender toggle, wardrobe presets, and click-to-open/save flow (309 tests passing) |
 | 14.1-avatar-facial-features | 14.1-01 | Eyes and mouth added to 13-layer avatar composition using hh_human_face cortex-asset with blink via eyb action and direction-filtered rendering (317 tests passing) |
+| 17-bugfixes-and-wishlist | 17-02 | Fixed tint canvas residual pixel leak by clearing full canvas dimensions; added direction mapping and face rendering tests (321 tests passing) |
 
 ## Accumulated Context
 
