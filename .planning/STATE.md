@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_plan: Not started
-status: completed
-last_updated: "2026-03-07T11:55:23.398Z"
+current_plan: Plan 02 of 2
+status: executing
+last_updated: "2026-03-07T16:50:38.405Z"
 progress:
-  total_phases: 15
+  total_phases: 16
   completed_phases: 12
-  total_plans: 34
-  completed_plans: 33
+  total_plans: 36
+  completed_plans: 34
 ---
 
 # STATE.md
@@ -19,20 +19,20 @@ progress:
 See: .planning/PROJECT.md (updated 2026-02-28)
 
 **Core value:** Claude Code agents should feel like they're working together in a recognisable Habbo Hotel room — the isometric 2.5D aesthetic must be faithful to the classic v14 era.
-**Current focus:** v2 in progress — Phase 17 (bugfixes and wishlist) plan 03 complete, converted avatar builder from modal to inline panel
+**Current focus:** v2 in progress — Phase 17.1 (stray pixel diagnostic fix + right-click movement) plan 01 complete, tint canvas smoothing fix applied
 
 ## Current Status
 
 v1.0 (phases 1-8) complete. v2 work in progress: Phase 9 (furniture catalog + rendering fixes) and Phase 10a/10b (avatar polish + chair sitting) are complete. Phase 11 plan 01 (chair layer splitting) is complete. Phase 12 plans 01-03 complete (wall panels + kanban). Phase 14 plans 01-03 complete (outfit config, renderer integration, builder modal UI). Phase 14.1 plan 01 complete (avatar facial features with eyes, mouth, blink animation).
 
-**Last session:** 2026-03-07T11:50:12.737Z
+**Last session:** 2026-03-07T16:50:13.217Z
 **Milestone status:** v2 in progress
 
 ## Current Phase
 
-**Phase:** 17 — Bugfixes and Wishlist
-**Current Plan:** Not started
-**Status:** Milestone complete
+**Phase:** 17.1 — Stray Pixel Diagnostic Fix and Right-Click Movement
+**Current Plan:** Plan 02 of 2
+**Status:** In progress
 
 ## Decisions Log
 
@@ -94,6 +94,8 @@ v1.0 (phases 1-8) complete. v2 work in progress: Phase 9 (furniture catalog + re
 | 2026-03-07 | Inline panel at bottom-left instead of full-screen modal overlay | Non-blocking avatar builder allows simultaneous canvas interaction (click-to-move, sit) |
 | 2026-03-07 | Removed isBuilderOpenRef click-blocking guard | Only usage was early-return in handleClick; removal enables canvas interaction while editor open |
 | 2026-03-07 | Preview canvas 80x120 (reduced from 120x180) | Compact form factor fits 220px-wide inline panel |
+| 2026-03-07 | Tint offscreen canvas imageSmoothingEnabled=false | drawImage interpolation generates fractional alpha at sprite edges that survives multiply+destination-in compositing |
+| 2026-03-07 | PNG spritesheets verified clean (0 stray pixels across 21 figure assets) | Scanner confirms compositing is root cause, not source art |
 
 ## Blockers
 
@@ -135,7 +137,8 @@ None.
 | Phase 14-avatar-builder-ui P14-03 | 3min | 2 tasks | 3 files |
 | Phase 14.1-avatar-facial-features P14.1-01 | 4min | 2 tasks | 6 files |
 | Phase 17-bugfixes-and-wishlist P17-02 | 2min | 2 tasks | 3 files |
-| Phase 17-bugfixes-and-wishlist P17-03 | 2min | 2 tasks tasks | 3 files files |
+| Phase 17-bugfixes-and-wishlist P17-03 | 2min | 2 tasks | 3 files |
+| Phase 17.1-stray-pixel-diagnostic-fix-and-right-click-movement P17.1-01 | 16min | 1 task | 4 files |
 
 ## Phase History
 
@@ -174,6 +177,7 @@ None.
 | 14.1-avatar-facial-features | 14.1-01 | Eyes and mouth added to 13-layer avatar composition using hh_human_face cortex-asset with blink via eyb action and direction-filtered rendering (317 tests passing) |
 | 17-bugfixes-and-wishlist | 17-02 | Fixed tint canvas residual pixel leak by clearing full canvas dimensions; added direction mapping and face rendering tests (321 tests passing) |
 | 17-bugfixes-and-wishlist | 17-03 | Converted avatar builder from full-screen blocking modal to compact inline panel at bottom-left, enabling simultaneous canvas interaction (321 tests passing) |
+| 17.1-stray-pixel-diagnostic-fix-and-right-click-movement | 17.1-01 | Spritesheet scanner confirms clean PNGs; tint canvas imageSmoothingEnabled=false eliminates compositing ghost pixels (321 tests passing) |
 
 ## Accumulated Context
 
