@@ -2,7 +2,7 @@
 // Smoke tests for avatar renderer with 8-direction support
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { createAvatarRenderable, createNitroAvatarRenderable, buildFrameKey, updateAvatarAnimation, WALK_FRAME_DURATION_MS, BLINK_INTERVAL_MIN_MS, BLINK_INTERVAL_MAX_MS, BLINK_FRAME_DURATION_MS } from '../src/isoAvatarRenderer.js';
+import { createAvatarRenderable, createNitroAvatarRenderable, buildFrameKey, updateAvatarAnimation, getBodyWalkDelta, WALK_FRAME_DURATION_MS, BLINK_INTERVAL_MIN_MS, BLINK_INTERVAL_MAX_MS, BLINK_FRAME_DURATION_MS } from '../src/isoAvatarRenderer.js';
 import type { AvatarSpec } from '../src/isoAvatarRenderer.js';
 import { SpriteCache } from '../src/isoSpriteCache.js';
 import type { OutfitConfig, PartType } from '../src/avatarOutfitConfig.js';
@@ -633,5 +633,111 @@ describe('isoAvatarRenderer', () => {
     // hd (head) is NOT walk-capable
     const hdKey = buildFrameKey('hd', 'walk', 2, 1, 0);
     expect(hdKey).toBe('h_std_hd_1_2_0');
+  });
+
+  // --- Walk delta correction tests (Phase 17.2) ---
+
+  /**
+   * Helper: create a mock SpriteCache that returns known offsets for specific frame keys.
+   * Uses vi.fn() to mock getNitroFrame on a real SpriteCache instance.
+   */
+  function createMockSpriteCacheWithFrames(
+    frameMap: Record<string, { offsetX: number; offsetY: number }>
+  ): SpriteCache {
+    const cache = new SpriteCache();
+    const mockGetNitroFrame = vi.fn((assetName: string, frameName: string) => {
+      const entry = frameMap[frameName];
+      if (!entry) return null;
+      return {
+        bitmap: {} as ImageBitmap,
+        x: 0, y: 0, w: 32, h: 64,
+        offsetX: entry.offsetX,
+        offsetY: entry.offsetY,
+        flipH: false,
+      };
+    });
+    // Override getNitroFrame on the instance
+    (cache as any).getNitroFrame = mockGetNitroFrame;
+    return cache;
+  }
+
+  it('getBodyWalkDelta returns offset differences for walk frames', () => {
+    const mockCache = createMockSpriteCacheWithFrames({
+      'h_std_bd_1_2_0': { offsetX: -22, offsetY: -60 },
+      'h_wlk_bd_1_2_0': { offsetX: -22, offsetY: -62 }, // 2px bounce up
+      'h_wlk_bd_1_2_1': { offsetX: -21, offsetY: -59 }, // 1px right, 1px down
+      'h_wlk_bd_1_2_2': { offsetX: -22, offsetY: -60 }, // same as std
+      'h_wlk_bd_1_2_3': { offsetX: -23, offsetY: -61 }, // 1px left, 1px up
+    });
+
+    const figureParts = { bd: { asset: 'hh_human_body', setId: 1 } } as any;
+
+    // Frame 0: wlk(-22,-62) - std(-22,-60) = (0, -2)
+    const d0 = getBodyWalkDelta(mockCache, 2, 0, figureParts);
+    expect(d0.dx).toBe(0);
+    expect(d0.dy).toBe(-2);
+
+    // Frame 1: wlk(-21,-59) - std(-22,-60) = (1, 1)
+    const d1 = getBodyWalkDelta(mockCache, 2, 1, figureParts);
+    expect(d1.dx).toBe(1);
+    expect(d1.dy).toBe(1);
+
+    // Frame 2: wlk(-22,-60) - std(-22,-60) = (0, 0)
+    const d2 = getBodyWalkDelta(mockCache, 2, 2, figureParts);
+    expect(d2.dx).toBe(0);
+    expect(d2.dy).toBe(0);
+
+    // Frame 3: wlk(-23,-61) - std(-22,-60) = (-1, -1)
+    const d3 = getBodyWalkDelta(mockCache, 2, 3, figureParts);
+    expect(d3.dx).toBe(-1);
+    expect(d3.dy).toBe(-1);
+  });
+
+  it('getBodyWalkDelta returns zero when frames are missing', () => {
+    const mockCache = createMockSpriteCacheWithFrames({});
+    const figureParts = { bd: { asset: 'hh_human_body', setId: 1 } } as any;
+
+    const delta = getBodyWalkDelta(mockCache, 2, 0, figureParts);
+    expect(delta.dx).toBe(0);
+    expect(delta.dy).toBe(0);
+  });
+
+  it('non-walk parts receive zero delta in idle state (buildFrameKey produces std keys)', () => {
+    // In idle state, all parts use h_std action — no walk delta is computed
+    const nonWalkParts: PartType[] = ['ch', 'hd', 'hr', 'hrb'];
+    for (const part of nonWalkParts) {
+      const key = buildFrameKey(part, 'idle', 2, 0, 0);
+      expect(key).toMatch(/^h_std_/);
+      // No walk frame reference means delta path is never entered
+    }
+  });
+
+  it('flipped directions use same mapped direction for delta computation', () => {
+    const mockCache = createMockSpriteCacheWithFrames({
+      // Dir 2 frames (used by both direction 2 and direction 4)
+      'h_std_bd_1_2_0': { offsetX: -22, offsetY: -60 },
+      'h_wlk_bd_1_2_1': { offsetX: -20, offsetY: -58 },
+      // Dir 0 frames (used by both direction 0 and direction 6)
+      'h_std_bd_1_0_0': { offsetX: -22, offsetY: -60 },
+      'h_wlk_bd_1_0_1': { offsetX: -24, offsetY: -62 },
+    });
+
+    const figureParts = { bd: { asset: 'hh_human_body', setId: 1 } } as any;
+
+    // Direction 2 (no flip) and direction 4 (flip of dir 2) should get same delta
+    const deltaDir2 = getBodyWalkDelta(mockCache, 2, 1, figureParts);
+    const deltaDir4 = getBodyWalkDelta(mockCache, 4, 1, figureParts);
+    expect(deltaDir2.dx).toBe(deltaDir4.dx);
+    expect(deltaDir2.dy).toBe(deltaDir4.dy);
+    expect(deltaDir2.dx).toBe(2); // -20 - (-22) = 2
+    expect(deltaDir2.dy).toBe(2); // -58 - (-60) = 2
+
+    // Direction 0 (no flip) and direction 6 (flip of dir 0) should get same delta
+    const deltaDir0 = getBodyWalkDelta(mockCache, 0, 1, figureParts);
+    const deltaDir6 = getBodyWalkDelta(mockCache, 6, 1, figureParts);
+    expect(deltaDir0.dx).toBe(deltaDir6.dx);
+    expect(deltaDir0.dy).toBe(deltaDir6.dy);
+    expect(deltaDir0.dx).toBe(-2); // -24 - (-22) = -2
+    expect(deltaDir0.dy).toBe(-2); // -62 - (-60) = -2
   });
 });
