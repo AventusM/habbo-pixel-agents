@@ -324,7 +324,7 @@ Plans:
 | 11. Chair Layer Splitting | Complete | 2026-03-05 |
 | 12. Room Walls & Kanban Notes | Complete | 2026-03-05 |
 | 13. Volter Font as Default | Pending | — |
-| 14. Avatar Builder UI | 3/3 | Complete   | 2026-03-07 | 15. Performance Optimisation | Pending | — |
+| 14. Avatar Builder UI | 3/3 | Complete    | 2026-03-07 | 15. Performance Optimisation | Pending | — |
 
 ### Phase 16: Agent factory workflow with team sections and orchestration UI
 
