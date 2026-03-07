@@ -34,7 +34,7 @@ import { computeBlockedTiles } from './isoPathfinding.js';
 import { drawKanbanNotes, drawExpandedNote, drawExpandedAggregateNote, getNoteHitAreas, pointInQuad } from './isoKanbanRenderer.js';
 import type { OutfitConfig } from './avatarOutfitConfig.js';
 import { getDefaultPreset } from './avatarOutfitConfig.js';
-import { AvatarBuilderModal } from './AvatarBuilderModal.js';
+import { AvatarBuilderPanel } from './AvatarBuilderModal.js';
 
 interface RoomCanvasProps {
   heightmap: string;
@@ -86,9 +86,6 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
   // Avatar builder modal state (Phase 14-03)
   const [isBuilderOpen, setIsBuilderOpen] = useState(false);
   const [builderAvatarId, setBuilderAvatarId] = useState<string | null>(null);
-  const isBuilderOpenRef = useRef(false);
-  useEffect(() => { isBuilderOpenRef.current = isBuilderOpen; }, [isBuilderOpen]);
-
   // Editor UI state
   const [editorMode, setEditorMode] = useState<EditorMode>(editorModeProp);
   const [selectedColor, setSelectedColor] = useState<HsbColor>({ h: 200, s: 50, b: 50 });
@@ -472,9 +469,6 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
   const handleClick = async (event: React.MouseEvent<HTMLCanvasElement>) => {
     if (!renderState.current.grid || !canvasRef.current) return;
 
-    // Block canvas interaction while avatar builder modal is open
-    if (isBuilderOpenRef.current) return;
-
     // --- Sticky note click detection (before tile logic) ---
     const canvas = canvasRef.current;
     const dpr = window.devicePixelRatio || 1;
@@ -842,7 +836,7 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
         const avatar = avatarManagerRef.current.getAvatar(builderAvatarId);
         if (!avatar) return null;
         return (
-          <AvatarBuilderModal
+          <AvatarBuilderPanel
             avatarId={builderAvatarId}
             initialOutfit={avatar.outfit || getDefaultPreset(avatar.variant)}
             variant={avatar.variant}
