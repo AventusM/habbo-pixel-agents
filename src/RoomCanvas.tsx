@@ -536,11 +536,7 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
       return;
     }
 
-    // Simulate server round-trip lag (75-175ms) for movement/sit actions
-    await new Promise(r => setTimeout(r, 75 + Math.random() * 100));
-
-    // View mode: avatar selection + click-to-move + click-to-sit
-    const selectionMgr = selectionManagerRef.current;
+    // View mode: avatar selection only (movement handled by right-click)
     const avatarManager = avatarManagerRef.current;
 
     // Check if clicked tile has an avatar standing on it
@@ -559,7 +555,37 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
       return;
     }
 
-    // Check if clicked tile has a chair — find nearest idle avatar and send to sit
+    // Click on empty space — deselect
+    selectionManagerRef.current.deselectAvatar();
+    for (const avatar of avatarManager.getAvatars()) {
+      avatar.isSelected = false;
+    }
+  };
+
+  const handleContextMenu = async (event: React.MouseEvent<HTMLCanvasElement>) => {
+    event.preventDefault(); // Suppress browser context menu
+
+    if (!renderState.current.grid || !canvasRef.current) return;
+
+    // Editor modes don't use right-click
+    if (renderState.current.editorState.mode !== 'view') return;
+
+    const clickedCoords = getHoveredTile(event, renderState.current.cameraOrigin);
+    if (!clickedCoords) return;
+
+    const { tileX, tileY } = clickedCoords;
+
+    // Initialize audio on first interaction
+    if (!audioInitialized && !audioManagerRef.current) {
+      await initAudio();
+    }
+
+    // Simulated server round-trip lag
+    await new Promise(r => setTimeout(r, 75 + Math.random() * 100));
+
+    const avatarManager = avatarManagerRef.current;
+
+    // Check if right-clicked tile has a chair — move nearest avatar to sit
     const chairFurniture = renderState.current.furniture.find(
       f => f.tileX === tileX && f.tileY === tileY && isChairType(f.name)
     );
@@ -567,15 +593,15 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
       const occupied = avatarManager.getOccupiedChairs();
       const chairKey = `${tileX},${tileY}`;
       if (!occupied.has(chairKey)) {
-        // Find nearest idle avatar (prefer selected, then closest)
         const candidates = avatarManager.getAvatars().filter(
           a => a.state === 'idle' || a.state === 'walk'
         );
+        // Prefer selected avatar, then closest
+        const selectionMgr = selectionManagerRef.current;
         let target = selectionMgr.selectedAvatarId
           ? avatarManager.getAvatar(selectionMgr.selectedAvatarId)
           : undefined;
         if (!target || (target.state !== 'idle' && target.state !== 'walk')) {
-          // Find closest idle avatar
           target = candidates.sort((a, b) => {
             const distA = Math.abs(a.tileX - tileX) + Math.abs(a.tileY - tileY);
             const distB = Math.abs(b.tileX - tileX) + Math.abs(b.tileY - tileY);
@@ -587,7 +613,6 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
             renderState.current.furniture,
             renderState.current.multiTileFurniture,
           );
-          // If already on the chair tile, sit immediately
           if (target.tileX === tileX && target.tileY === tileY) {
             avatarManager.sitAvatar(target.id, tileX, tileY, chairFurniture.direction);
           } else {
@@ -596,8 +621,6 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
             );
             if (moved) {
               idleWanderRef.current.stopWandering(target.id);
-              // Set up arrival callback via a pending sit check in wander manager
-              // We'll use a simple interval check instead
               const checkSitArrival = () => {
                 const av = avatarManager.getAvatar(target!.id);
                 if (!av) return;
@@ -608,7 +631,6 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
                   }
                   return;
                 }
-                // Still walking, check again next frame
                 if (av.state === 'walk') {
                   requestAnimationFrame(checkSitArrival);
                 }
@@ -616,47 +638,44 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
               requestAnimationFrame(checkSitArrival);
             }
           }
-          selectionMgr.deselectAvatar();
-          for (const avatar of avatarManager.getAvatars()) {
-            avatar.isSelected = false;
-          }
-          return;
-        }
-      }
-    }
-
-    // If an avatar is selected and clicked a walkable tile, move there
-    if (selectionMgr.selectedAvatarId && renderState.current.grid) {
-      const tile = renderState.current.grid.tiles[tileY]?.[tileX];
-      if (tile !== null && tile !== undefined) {
-        const blocked = computeBlockedTiles(
-          renderState.current.furniture,
-          renderState.current.multiTileFurniture,
-        );
-        const selectedAvatar = avatarManager.getAvatar(selectionMgr.selectedAvatarId);
-        // Stand up if sitting before moving
-        if (selectedAvatar?.state === 'sit') {
-          avatarManager.standAvatar(selectionMgr.selectedAvatarId);
-        }
-        const moved = avatarManager.moveAvatarTo(
-          selectionMgr.selectedAvatarId, tileX, tileY, renderState.current.grid, undefined, blocked
-        );
-        if (moved) {
-          // Stop idle wandering for this avatar while it walks to clicked tile
-          idleWanderRef.current.stopWandering(selectionMgr.selectedAvatarId);
-        }
-        selectionMgr.deselectAvatar();
-        for (const avatar of avatarManager.getAvatars()) {
-          avatar.isSelected = false;
         }
       }
       return;
     }
 
-    // Click on empty space — deselect
-    selectionMgr.deselectAvatar();
-    for (const avatar of avatarManager.getAvatars()) {
-      avatar.isSelected = false;
+    // Right-click on walkable tile — move nearest idle avatar there
+    const tile = renderState.current.grid.tiles[tileY]?.[tileX];
+    if (tile !== null && tile !== undefined) {
+      const blocked = computeBlockedTiles(
+        renderState.current.furniture,
+        renderState.current.multiTileFurniture,
+      );
+      // Find nearest idle/walk avatar (prefer selected)
+      const selectionMgr = selectionManagerRef.current;
+      let target = selectionMgr.selectedAvatarId
+        ? avatarManager.getAvatar(selectionMgr.selectedAvatarId)
+        : undefined;
+      if (!target || (target.state !== 'idle' && target.state !== 'walk')) {
+        const candidates = avatarManager.getAvatars().filter(
+          a => a.state === 'idle' || a.state === 'walk'
+        );
+        target = candidates.sort((a, b) => {
+          const distA = Math.abs(a.tileX - tileX) + Math.abs(a.tileY - tileY);
+          const distB = Math.abs(b.tileX - tileX) + Math.abs(b.tileY - tileY);
+          return distA - distB;
+        })[0];
+      }
+      if (target) {
+        if (target.state === 'sit') {
+          avatarManager.standAvatar(target.id);
+        }
+        const moved = avatarManager.moveAvatarTo(
+          target.id, tileX, tileY, renderState.current.grid, undefined, blocked
+        );
+        if (moved) {
+          idleWanderRef.current.stopWandering(target.id);
+        }
+      }
     }
   };
 
@@ -830,6 +849,7 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
         style={{ width: '100%', height: '100%', display: 'block' }}
         onMouseMove={handleMouseMove}
         onClick={handleClick}
+        onContextMenu={handleContextMenu}
         onMouseLeave={handleMouseLeave}
       />
       {isBuilderOpen && builderAvatarId && (() => {
