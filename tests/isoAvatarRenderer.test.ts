@@ -582,4 +582,56 @@ describe('isoAvatarRenderer', () => {
     expect(assets).toContain('hh_human_face');
     expect(assets).toContain('hh_human_body');
   });
+
+  // --- Direction mapping and mirroring tests ---
+
+  it('buildFrameKey maps direction 4 to dir 2 (mirrored) and direction 5 to dir 1 (mirrored)', () => {
+    // mapBodyDirection(4) -> dir 2, mapBodyDirection(5) -> dir 1
+    // buildFrameKey uses mapBodyDirection internally
+    const keyDir4 = buildFrameKey('bd', 'idle', 4, 0, 0);
+    expect(keyDir4).toBe('h_std_bd_1_2_0'); // dir 4 maps to dir 2
+
+    const keyDir5 = buildFrameKey('bd', 'idle', 5, 0, 0);
+    expect(keyDir5).toBe('h_std_bd_1_1_0'); // dir 5 maps to dir 1
+
+    const keyDir6 = buildFrameKey('bd', 'idle', 6, 0, 0);
+    expect(keyDir6).toBe('h_std_bd_1_0_0'); // dir 6 maps to dir 0
+  });
+
+  it('buildFrameKey for all 8 directions only produces mapped dirs 0, 1, 2, 3, or 7', () => {
+    const validDirs = new Set([0, 1, 2, 3, 7]);
+    for (let dir = 0; dir <= 7; dir++) {
+      const key = buildFrameKey('bd', 'idle', dir, 0, 0);
+      // Extract dir from key format: h_std_bd_1_{dir}_0
+      const parts = key.split('_');
+      const mappedDir = parseInt(parts[4], 10);
+      expect(validDirs.has(mappedDir)).toBe(true);
+    }
+  });
+
+  it('buildFrameKey head setId cycles through 4 shapes across variants 0-5', () => {
+    const headSetIds = [];
+    for (let v = 0; v < 6; v++) {
+      const key = buildFrameKey('hd', 'idle', 2, 0, v);
+      // Extract setId from key format: h_std_hd_{setId}_2_0
+      const setId = parseInt(key.split('_')[3], 10);
+      headSetIds.push(setId);
+    }
+    // (v%4)+1 => [1, 2, 3, 4, 1, 2]
+    expect(headSetIds).toEqual([1, 2, 3, 4, 1, 2]);
+  });
+
+  it('buildFrameKey uses wlk action for walk-capable parts and std for others during walk state', () => {
+    // bd is walk-capable
+    const bdKey = buildFrameKey('bd', 'walk', 2, 1, 0);
+    expect(bdKey).toBe('h_wlk_bd_1_2_1');
+
+    // ch (chest) is NOT walk-capable -- always std
+    const chKey = buildFrameKey('ch', 'walk', 2, 1, 0);
+    expect(chKey).toBe('h_std_ch_2050_2_0');
+
+    // hd (head) is NOT walk-capable
+    const hdKey = buildFrameKey('hd', 'walk', 2, 1, 0);
+    expect(hdKey).toBe('h_std_hd_1_2_0');
+  });
 });
