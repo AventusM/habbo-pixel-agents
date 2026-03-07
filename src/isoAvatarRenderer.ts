@@ -420,7 +420,7 @@ function drawTintedBodyPart(
   const dy = Math.floor(regY - frame.offsetY);
 
   const tCtx = getTintCanvas(frame.w, frame.h);
-  tCtx.clearRect(0, 0, frame.w, frame.h);
+  tCtx.clearRect(0, 0, _tintCanvas!.width, _tintCanvas!.height);
 
   // Step 1: Draw original sprite (optionally flipped on the offscreen canvas)
   tCtx.globalCompositeOperation = "source-over";
