@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_plan: Not started
-status: completed
-last_updated: "2026-03-07T09:42:03.113Z"
+current_plan: Plan 02 of 3
+status: executing
+last_updated: "2026-03-07T10:15:00.252Z"
 progress:
   total_phases: 14
   completed_phases: 10
-  total_plans: 28
-  completed_plans: 27
+  total_plans: 31
+  completed_plans: 28
 ---
 
 # STATE.md
@@ -23,16 +23,16 @@ See: .planning/PROJECT.md (updated 2026-02-28)
 
 ## Current Status
 
-v1.0 (phases 1-8) complete. v2 work in progress: Phase 9 (furniture catalog + rendering fixes) and Phase 10a/10b (avatar polish + chair sitting) are complete. Phase 11 plan 01 (chair layer splitting) is complete. Phase 12 plans 01-03 implementation complete (wall panels + GitHub Projects kanban data pipeline + sticky note renderer); awaiting human visual verification.
+v1.0 (phases 1-8) complete. v2 work in progress: Phase 9 (furniture catalog + rendering fixes) and Phase 10a/10b (avatar polish + chair sitting) are complete. Phase 11 plan 01 (chair layer splitting) is complete. Phase 12 plans 01-03 complete (wall panels + kanban). Phase 14 plan 01 complete (outfit config types, catalog, presets, figure asset downloads).
 
-**Last session:** 2026-03-07T09:42:03.106Z
+**Last session:** 2026-03-07T10:15:00.249Z
 **Milestone status:** v2 in progress
 
 ## Current Phase
 
-**Phase:** 12 — Room Walls + Kanban Notes
-**Current Plan:** Not started
-**Status:** Milestone complete
+**Phase:** 14 — Avatar Builder UI
+**Current Plan:** Plan 02 of 3
+**Status:** In progress
 
 ## Decisions Log
 
@@ -80,6 +80,8 @@ v1.0 (phases 1-8) complete. v2 work in progress: Phase 9 (furniture catalog + re
 | 2026-03-05 | Kanban notes drawn as topmost overlay after speech bubbles in rAF loop | Always visible on top of room geometry; no depth sort needed for screen-space overlays |
 | 2026-03-05 | drawKanbanNotes no-op when cards.length === 0 | Zero draw cost for rooms without GitHub Projects settings configured |
 | 2026-03-06 | In Progress notes confined to left wall only | Right wall reserved exclusively for Done aggregate note — cross-wall overflow broke spatial metaphor |
+| 2026-03-07 | Replaced Shirt_F_Tshirt_Plain with Shirt_F_Schoolshirt | Tshirt_Plain directory in cortex-assets has no JSON metadata — only PNG |
+| 2026-03-07 | Validate all catalog setIds against actual cortex-assets frame keys | Plan-estimated setIds were placeholders; real values differ significantly |
 
 ## Blockers
 
@@ -116,6 +118,7 @@ None.
 | 12-room-walls-kanban-notes | 12-02 | 5min | 2 | 5 |
 | Phase 12-room-walls-kanban-notes P12-03 | 2min | 2 tasks | 3 files |
 | Phase 17-bugfixes-and-wishlist P17-01 | 3min | 2 tasks | 2 files |
+| Phase 14-avatar-builder-ui P14-01 | 8min | 2 tasks | 3 files |
 
 ## Phase History
 
@@ -148,6 +151,7 @@ None.
 | 12-room-walls-kanban-notes | 12-02 | GitHub Projects v2 kanban fetch via gh CLI graphql with VS Code settings, polling interval, and silent error fallback returning KanbanCard[] to webview (268 tests passing) |
 | 12-room-walls-kanban-notes | 12-03 | Sticky note renderer for kanban cards on isometric room walls — color-coded by status, distributed across left/right wall tile slots (279 tests passing) |
 | 17-bugfixes-and-wishlist | 17-01 | In Progress notes constrained to left wall only — removed rightSmallTiles loop, updated capacity formula, added single-wall assertion test (277 tests passing) |
+| 14-avatar-builder-ui | 14-01 | OutfitConfig type system with 28 curated clothing items, color palettes, 8 default presets, and 14 new cortex-assets figure downloads (301 tests passing) |
 
 ## Accumulated Context
 
