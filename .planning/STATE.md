@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 current_plan: Plan 03 of 3
-status: executing
-last_updated: "2026-03-07T10:19:54.000Z"
+status: phase-complete
+last_updated: "2026-03-07T10:25:53.000Z"
 progress:
   total_phases: 14
-  completed_phases: 10
+  completed_phases: 11
   total_plans: 31
-  completed_plans: 29
+  completed_plans: 30
 ---
 
 # STATE.md
@@ -19,20 +19,20 @@ progress:
 See: .planning/PROJECT.md (updated 2026-02-28)
 
 **Core value:** Claude Code agents should feel like they're working together in a recognisable Habbo Hotel room — the isometric 2.5D aesthetic must be faithful to the classic v14 era.
-**Current focus:** v2 in progress — Phase 12 (room walls + kanban notes) plan 03 tasks 1-2 complete, awaiting visual checkpoint
+**Current focus:** v2 in progress — Phase 14 (avatar builder UI) complete with all 3 plans delivered
 
 ## Current Status
 
-v1.0 (phases 1-8) complete. v2 work in progress: Phase 9 (furniture catalog + rendering fixes) and Phase 10a/10b (avatar polish + chair sitting) are complete. Phase 11 plan 01 (chair layer splitting) is complete. Phase 12 plans 01-03 complete (wall panels + kanban). Phase 14 plans 01-02 complete (outfit config types, catalog, presets, figure asset downloads, renderer integration, persistence).
+v1.0 (phases 1-8) complete. v2 work in progress: Phase 9 (furniture catalog + rendering fixes) and Phase 10a/10b (avatar polish + chair sitting) are complete. Phase 11 plan 01 (chair layer splitting) is complete. Phase 12 plans 01-03 complete (wall panels + kanban). Phase 14 plans 01-03 complete (outfit config, renderer integration, builder modal UI).
 
-**Last session:** 2026-03-07T10:19:54.000Z
+**Last session:** 2026-03-07T10:25:53.000Z
 **Milestone status:** v2 in progress
 
 ## Current Phase
 
 **Phase:** 14 — Avatar Builder UI
 **Current Plan:** Plan 03 of 3
-**Status:** In progress
+**Status:** Phase complete
 
 ## Decisions Log
 
@@ -84,6 +84,8 @@ v1.0 (phases 1-8) complete. v2 work in progress: Phase 9 (furniture catalog + re
 | 2026-03-07 | Validate all catalog setIds against actual cortex-assets frame keys | Plan-estimated setIds were placeholders; real values differ significantly |
 | 2026-03-07 | Import PartType from avatarOutfitConfig.ts, remove renderer duplicate | Single source of truth for body part type definitions |
 | 2026-03-07 | AvatarManager savedOutfits map for late-spawning avatars | Outfits loaded before agent spawn applied when agent eventually spawns |
+| 2026-03-07 | Standalone preview renderer duplicates tinting logic | Intentional decoupling from room render loop per research — preview is simpler (no spawn/walk) |
+| 2026-03-07 | Avatar click opens builder instead of toggling selection | Builder replaces selection as primary click action; selection manager preserved for click-to-move |
 
 ## Blockers
 
@@ -122,6 +124,7 @@ None.
 | Phase 17-bugfixes-and-wishlist P17-01 | 3min | 2 tasks | 2 files |
 | Phase 14-avatar-builder-ui P14-01 | 8min | 2 tasks | 3 files |
 | Phase 14-avatar-builder-ui P14-02 | 3min | 2 tasks | 7 files |
+| Phase 14-avatar-builder-ui P14-03 | 3min | 2 tasks | 3 files |
 
 ## Phase History
 
@@ -156,6 +159,7 @@ None.
 | 17-bugfixes-and-wishlist | 17-01 | In Progress notes constrained to left wall only — removed rightSmallTiles loop, updated capacity formula, added single-wall assertion test (277 tests passing) |
 | 14-avatar-builder-ui | 14-01 | OutfitConfig type system with 28 curated clothing items, color palettes, 8 default presets, and 14 new cortex-assets figure downloads (301 tests passing) |
 | 14-avatar-builder-ui | 14-02 | Dynamic OutfitConfig wired into avatar renderer with per-agent outfit persistence via .habbo-agents/avatars.json (309 tests passing) |
+| 14-avatar-builder-ui | 14-03 | Avatar builder modal with live preview, clothing/color customization, gender toggle, wardrobe presets, and click-to-open/save flow (309 tests passing) |
 
 ## Accumulated Context
 
