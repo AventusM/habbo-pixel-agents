@@ -182,6 +182,10 @@ None.
 | 17.1-stray-pixel-diagnostic-fix-and-right-click-movement | 17.1-01 | Spritesheet scanner confirms clean PNGs; tint canvas imageSmoothingEnabled=false eliminates compositing ghost pixels (321 tests passing) |
 | 17.1-stray-pixel-diagnostic-fix-and-right-click-movement | 17.1-02 | Right-click avatar movement via onContextMenu handler; left-click simplified to selection and builder panel only (321 tests passing) |
 
+### Pending Todos
+
+1. Fix walking animation clipping and layer artifacts (rendering) — `src/isoAvatarRenderer.ts`
+
 ## Accumulated Context
 
 ### Roadmap Evolution
