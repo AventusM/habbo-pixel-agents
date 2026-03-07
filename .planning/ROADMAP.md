@@ -296,7 +296,7 @@ Plans:
 **Goal:** Integrate hh_human_face cortex-asset as two new render layers (ey, fc) between head and hair, with direction-aware visibility, eye blink animation via existing blinkFrame system, and correct tinting (eyes untinted, mouth skin-toned).
 **Requirements:** FACE-01, FACE-02, FACE-03, FACE-04, FACE-05, FACE-06, FACE-07
 **Depends on:** Phase 14
-**Plans:** 1 plan
+**Plans:** 1/1 plans complete
 
 Plans:
 - [ ] 14.1-01-PLAN.md — Asset pipeline + PartType extension + renderer face integration + preview + tests
@@ -335,8 +335,7 @@ Plans:
 | 12. Room Walls & Kanban Notes | Complete | 2026-03-05 |
 | 13. Volter Font as Default | Pending | — |
 | 14. Avatar Builder UI | Complete | 2026-03-07 |
-| 14.1 Avatar Facial Features | Planning | — |
-| 15. Performance Optimisation | Pending | — |
+| 14.1 Avatar Facial Features | 1/1 | Complete   | 2026-03-07 | 15. Performance Optimisation | Pending | — |
 
 ### Phase 16: Agent factory workflow with team sections and orchestration UI
 

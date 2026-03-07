@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_plan: Not started
-status: planning
-last_updated: "2026-03-07T10:37:19.366Z"
+current_plan: Complete (1/1)
+status: completed
+last_updated: "2026-03-07T11:04:00.113Z"
 progress:
-  total_phases: 14
-  completed_phases: 11
-  total_plans: 31
-  completed_plans: 30
+  total_phases: 15
+  completed_phases: 12
+  total_plans: 32
+  completed_plans: 31
 ---
 
 # STATE.md
@@ -19,20 +19,20 @@ progress:
 See: .planning/PROJECT.md (updated 2026-02-28)
 
 **Core value:** Claude Code agents should feel like they're working together in a recognisable Habbo Hotel room — the isometric 2.5D aesthetic must be faithful to the classic v14 era.
-**Current focus:** v2 in progress — Phase 14 (avatar builder UI) complete with all 3 plans delivered
+**Current focus:** v2 in progress — Phase 14.1 (avatar facial features) complete with eyes and mouth rendering
 
 ## Current Status
 
-v1.0 (phases 1-8) complete. v2 work in progress: Phase 9 (furniture catalog + rendering fixes) and Phase 10a/10b (avatar polish + chair sitting) are complete. Phase 11 plan 01 (chair layer splitting) is complete. Phase 12 plans 01-03 complete (wall panels + kanban). Phase 14 plans 01-03 complete (outfit config, renderer integration, builder modal UI).
+v1.0 (phases 1-8) complete. v2 work in progress: Phase 9 (furniture catalog + rendering fixes) and Phase 10a/10b (avatar polish + chair sitting) are complete. Phase 11 plan 01 (chair layer splitting) is complete. Phase 12 plans 01-03 complete (wall panels + kanban). Phase 14 plans 01-03 complete (outfit config, renderer integration, builder modal UI). Phase 14.1 plan 01 complete (avatar facial features with eyes, mouth, blink animation).
 
-**Last session:** 2026-03-07T10:25:53.000Z
+**Last session:** 2026-03-07T11:04:00.110Z
 **Milestone status:** v2 in progress
 
 ## Current Phase
 
-**Phase:** 14 — Avatar Builder UI
-**Current Plan:** Not started
-**Status:** Ready to plan
+**Phase:** 14.1 — Avatar Facial Features
+**Current Plan:** Complete (1/1)
+**Status:** Phase complete
 
 ## Decisions Log
 
@@ -86,6 +86,10 @@ v1.0 (phases 1-8) complete. v2 work in progress: Phase 9 (furniture catalog + re
 | 2026-03-07 | AvatarManager savedOutfits map for late-spawning avatars | Outfits loaded before agent spawn applied when agent eventually spawns |
 | 2026-03-07 | Standalone preview renderer duplicates tinting logic | Intentional decoupling from room render loop per research — preview is simpler (no spawn/walk) |
 | 2026-03-07 | Avatar click opens builder instead of toggling selection | Builder replaces selection as primary click action; selection manager preserved for click-to-move |
+| 2026-03-07 | Eyes use white multiply identity (#FFFFFF) for tinting | Preserves pre-colored pupil/sclera pixel detail; other tint colors destroy eye contrast |
+| 2026-03-07 | Eye setId mapped from variant via modulo 11 | 11 eye styles available in hh_human_face; variant cycling provides visual variety |
+| 2026-03-07 | Face direction filtering: skip ey/fc for dirs 0 and 7 | Back of head has no face sprites; correct Habbo behavior |
+| 2026-03-07 | Mouth (fc) tinted with skin color | Standard Habbo convention; fc sprites are grayscale designed for multiply blend |
 
 ## Blockers
 
@@ -125,6 +129,7 @@ None.
 | Phase 14-avatar-builder-ui P14-01 | 8min | 2 tasks | 3 files |
 | Phase 14-avatar-builder-ui P14-02 | 3min | 2 tasks | 7 files |
 | Phase 14-avatar-builder-ui P14-03 | 3min | 2 tasks | 3 files |
+| Phase 14.1-avatar-facial-features P14.1-01 | 4min | 2 tasks | 6 files |
 
 ## Phase History
 
@@ -160,9 +165,11 @@ None.
 | 14-avatar-builder-ui | 14-01 | OutfitConfig type system with 28 curated clothing items, color palettes, 8 default presets, and 14 new cortex-assets figure downloads (301 tests passing) |
 | 14-avatar-builder-ui | 14-02 | Dynamic OutfitConfig wired into avatar renderer with per-agent outfit persistence via .habbo-agents/avatars.json (309 tests passing) |
 | 14-avatar-builder-ui | 14-03 | Avatar builder modal with live preview, clothing/color customization, gender toggle, wardrobe presets, and click-to-open/save flow (309 tests passing) |
+| 14.1-avatar-facial-features | 14.1-01 | Eyes and mouth added to 13-layer avatar composition using hh_human_face cortex-asset with blink via eyb action and direction-filtered rendering (317 tests passing) |
 
 ## Accumulated Context
 
 ### Roadmap Evolution
 - Phase 16 added: Agent factory workflow with team sections and orchestration UI
 - Phase 17 added: Bugfixes & Wishlist — ongoing phase for incremental fixes and polish
+- Phase 14.1 inserted after Phase 14: Avatar facial features - add eyes and mouth to avatar head rendering (URGENT)
