@@ -181,3 +181,4 @@ None.
 - Phase 16 added: Agent factory workflow with team sections and orchestration UI
 - Phase 17 added: Bugfixes & Wishlist — ongoing phase for incremental fixes and polish
 - Phase 14.1 inserted after Phase 14: Avatar facial features - add eyes and mouth to avatar head rendering (URGENT)
+- Phase 17.1 inserted after Phase 17: Stray pixel diagnostic fix and right-click movement (URGENT)

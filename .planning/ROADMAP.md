@@ -361,3 +361,13 @@ Plans:
 
 *Created: 2026-02-28*
 *Last updated: 2026-03-07*
+
+### Phase 17.1: Stray pixel diagnostic fix and right-click movement (INSERTED)
+
+**Goal:** [Urgent work - to be planned]
+**Requirements**: TBD
+**Depends on:** Phase 17
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 17.1 to break down)
