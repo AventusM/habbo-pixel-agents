@@ -1,6 +1,6 @@
 // src/AvatarBuilderModal.tsx
-// React modal component for customizing avatar clothing, colors, and wardrobe presets.
-// Rendered as an overlay above the room canvas.
+// React inline panel component for customizing avatar clothing, colors, and wardrobe presets.
+// Rendered as a compact panel at bottom-left of the room canvas (not a modal overlay).
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import type { OutfitConfig, CatalogItem } from './avatarOutfitConfig.js';
@@ -15,7 +15,7 @@ import {
 import type { SpriteCache } from './isoSpriteCache.js';
 import { renderAvatarPreview, PREVIEW_WIDTH, PREVIEW_HEIGHT } from './avatarBuilderPreview.js';
 
-interface AvatarBuilderModalProps {
+interface AvatarBuilderPanelProps {
   avatarId: string;
   initialOutfit: OutfitConfig;
   variant: number;
@@ -57,7 +57,7 @@ const CATEGORY_COLOR_KEY: Record<Category, keyof OutfitConfig['colors']> = {
 
 const MAX_WARDROBE_SLOTS = 4;
 
-export function AvatarBuilderModal({
+export function AvatarBuilderPanel({
   avatarId,
   initialOutfit,
   variant,
@@ -65,7 +65,7 @@ export function AvatarBuilderModal({
   onClose,
   wardrobePresets: initialWardrobe,
   onSaveWardrobe,
-}: AvatarBuilderModalProps) {
+}: AvatarBuilderPanelProps) {
   const [currentOutfit, setCurrentOutfit] = useState<OutfitConfig>(() =>
     JSON.parse(JSON.stringify(initialOutfit))
   );
@@ -209,351 +209,311 @@ export function AvatarBuilderModal({
   return (
     <div
       style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        width: '100%',
-        height: '100%',
-        backgroundColor: 'rgba(0, 0, 0, 0.7)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
+        position: 'absolute',
+        left: '10px',
+        bottom: '10px',
+        backgroundColor: 'rgba(0, 0, 0, 0.9)',
+        color: '#e0e0e0',
+        borderRadius: 4,
+        border: '1px solid #333',
+        fontFamily: '"Press Start 2P", monospace',
+        fontSize: 8,
+        width: 220,
+        maxHeight: 500,
+        overflowY: 'auto',
         zIndex: 1000,
       }}
-      onClick={(e) => {
-        e.stopPropagation();
-        // Click on backdrop closes modal
-        if (e.target === e.currentTarget) onClose();
-      }}
     >
-      <div
-        style={{
-          width: 500,
-          maxHeight: 480,
-          backgroundColor: '#1a1a2e',
-          borderRadius: 8,
-          border: '1px solid #333',
-          color: '#e0e0e0',
-          display: 'flex',
-          flexDirection: 'column',
-          overflow: 'hidden',
-          fontFamily: '"Press Start 2P", monospace',
-          fontSize: 8,
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header */}
+      {/* Header */}
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        padding: '6px 8px',
+        borderBottom: '1px solid #333',
+        backgroundColor: '#16213e',
+        borderRadius: '4px 4px 0 0',
+      }}>
+        <span style={{ fontSize: 8, fontWeight: 'bold' }}>Avatar Builder</span>
+        <button
+          onClick={onClose}
+          style={{
+            background: 'none',
+            border: 'none',
+            color: '#e0e0e0',
+            cursor: 'pointer',
+            fontSize: 10,
+            padding: '2px 4px',
+          }}
+        >
+          X
+        </button>
+      </div>
+
+      {/* Preview */}
+      <div style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        padding: '6px 8px',
+        position: 'relative',
+      }}>
+        <canvas
+          ref={canvasRef}
+          width={PREVIEW_WIDTH}
+          height={PREVIEW_HEIGHT}
+          style={{
+            width: PREVIEW_WIDTH,
+            height: PREVIEW_HEIGHT,
+            imageRendering: 'pixelated',
+            backgroundColor: '#0a1628',
+            borderRadius: 4,
+          }}
+        />
+        {loading && (
+          <div style={{
+            position: 'absolute',
+            bottom: 10,
+            fontSize: 7,
+            color: '#aaa',
+          }}>
+            Loading...
+          </div>
+        )}
+      </div>
+
+      {/* Controls */}
+      <div style={{
+        display: 'flex',
+        flexDirection: 'column',
+        padding: '4px 8px',
+        gap: 6,
+      }}>
+        {/* Gender toggle */}
+        <div style={{ display: 'flex', gap: 4 }}>
+          {(['M', 'F'] as const).map(g => (
+            <button
+              key={g}
+              onClick={() => handleGenderChange(g)}
+              style={{
+                padding: '3px 10px',
+                fontSize: 8,
+                fontFamily: '"Press Start 2P", monospace',
+                backgroundColor: gender === g ? '#0066cc' : '#2a2a4a',
+                color: '#e0e0e0',
+                border: gender === g ? '1px solid #4488ee' : '1px solid #444',
+                borderRadius: 3,
+                cursor: 'pointer',
+              }}
+            >
+              {g}
+            </button>
+          ))}
+        </div>
+
+        {/* Category tabs */}
+        <div style={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+          {CATEGORIES.map(cat => (
+            <button
+              key={cat}
+              onClick={() => setSelectedCategory(cat)}
+              style={{
+                padding: '3px 5px',
+                fontSize: 6,
+                fontFamily: '"Press Start 2P", monospace',
+                backgroundColor: selectedCategory === cat ? '#0066cc' : '#2a2a4a',
+                color: '#e0e0e0',
+                border: selectedCategory === cat ? '1px solid #4488ee' : '1px solid #444',
+                borderRadius: 3,
+                cursor: 'pointer',
+              }}
+            >
+              {CATEGORY_LABELS[cat]}
+            </button>
+          ))}
+        </div>
+
+        {/* Icon grid */}
         <div style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          padding: '10px 14px',
-          borderBottom: '1px solid #333',
-          backgroundColor: '#16213e',
+          display: 'grid',
+          gridTemplateColumns: 'repeat(4, 1fr)',
+          gap: 2,
+          maxHeight: 100,
+          overflowY: 'auto',
         }}>
-          <span style={{ fontSize: 10, fontWeight: 'bold' }}>Avatar Builder</span>
+          {categoryItems.map(item => {
+            const isSelected = currentPart
+              && item.asset === currentPart.asset
+              && item.setId === currentPart.setId;
+            return (
+              <button
+                key={item.id}
+                onClick={() => handleItemSelect(item)}
+                title={item.displayName}
+                style={{
+                  width: '100%',
+                  aspectRatio: '1',
+                  fontSize: 5,
+                  fontFamily: '"Press Start 2P", monospace',
+                  backgroundColor: isSelected ? '#0066cc' : '#2a2a4a',
+                  color: '#e0e0e0',
+                  border: isSelected ? '2px solid #4488ee' : '1px solid #444',
+                  borderRadius: 3,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  textAlign: 'center',
+                  padding: 1,
+                  lineHeight: '1.2',
+                  wordBreak: 'break-word',
+                }}
+              >
+                {item.displayName}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Skin color palette */}
+        <div>
+          <div style={{ marginBottom: 2, fontSize: 6, color: '#aaa' }}>Skin</div>
+          <div style={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+            {SKIN_PALETTE.map(color => (
+              <button
+                key={`skin-${color}`}
+                onClick={() => handleColorChange('skin', color)}
+                style={{
+                  width: 16,
+                  height: 16,
+                  backgroundColor: color,
+                  border: currentOutfit.colors.skin === color
+                    ? '2px solid #fff'
+                    : '1px solid #555',
+                  borderRadius: 2,
+                  cursor: 'pointer',
+                  padding: 0,
+                }}
+              />
+            ))}
+          </div>
+        </div>
+
+        {/* Category color palette */}
+        <div>
+          <div style={{ marginBottom: 2, fontSize: 6, color: '#aaa' }}>
+            {CATEGORY_LABELS[selectedCategory]} Color
+          </div>
+          <div style={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+            {categoryPalette.map(color => (
+              <button
+                key={`${selectedCategory}-${color}`}
+                onClick={() => handleColorChange(colorKey, color)}
+                style={{
+                  width: 16,
+                  height: 16,
+                  backgroundColor: color,
+                  border: currentOutfit.colors[colorKey] === color
+                    ? '2px solid #fff'
+                    : '1px solid #555',
+                  borderRadius: 2,
+                  cursor: 'pointer',
+                  padding: 0,
+                }}
+              />
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Footer: Wardrobe + Save/Cancel */}
+      <div style={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 4,
+        padding: '6px 8px',
+        borderTop: '1px solid #333',
+        backgroundColor: '#16213e',
+        borderRadius: '0 0 4px 4px',
+      }}>
+        {/* Wardrobe slots */}
+        <div style={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
+          <span style={{ fontSize: 6, color: '#aaa', marginRight: 2 }}>Wardrobe:</span>
+          {wardrobeSlots.map((_, index) => (
+            <button
+              key={`wardrobe-${index}`}
+              onClick={() => handleWardrobeLoad(index)}
+              style={{
+                width: 20,
+                height: 20,
+                fontSize: 6,
+                fontFamily: '"Press Start 2P", monospace',
+                backgroundColor: '#2a2a4a',
+                color: '#e0e0e0',
+                border: '1px solid #444',
+                borderRadius: 3,
+                cursor: 'pointer',
+              }}
+            >
+              {index + 1}
+            </button>
+          ))}
           <button
-            onClick={onClose}
+            onClick={handleWardrobeSave}
             style={{
-              background: 'none',
-              border: 'none',
+              padding: '3px 6px',
+              fontSize: 6,
+              fontFamily: '"Press Start 2P", monospace',
+              backgroundColor: '#2a2a4a',
               color: '#e0e0e0',
+              border: '1px solid #444',
+              borderRadius: 3,
               cursor: 'pointer',
-              fontSize: 12,
-              padding: '2px 6px',
             }}
           >
-            X
+            {wardrobeSlots.length >= MAX_WARDROBE_SLOTS ? 'Save' : '+Save'}
           </button>
         </div>
 
-        {/* Main content area */}
-        <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
-          {/* Left: Preview */}
-          <div style={{
-            width: PREVIEW_WIDTH + 20,
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: 10,
-            borderRight: '1px solid #333',
-            backgroundColor: '#0f3460',
-            position: 'relative',
-          }}>
-            <canvas
-              ref={canvasRef}
-              width={PREVIEW_WIDTH}
-              height={PREVIEW_HEIGHT}
-              style={{
-                width: PREVIEW_WIDTH,
-                height: PREVIEW_HEIGHT,
-                imageRendering: 'pixelated',
-                backgroundColor: '#0a1628',
-                borderRadius: 4,
-              }}
-            />
-            {loading && (
-              <div style={{
-                position: 'absolute',
-                bottom: 16,
-                fontSize: 7,
-                color: '#aaa',
-              }}>
-                Loading...
-              </div>
-            )}
-          </div>
-
-          {/* Right: Controls */}
-          <div style={{
-            flex: 1,
-            display: 'flex',
-            flexDirection: 'column',
-            padding: 10,
-            gap: 8,
-            overflowY: 'auto',
-          }}>
-            {/* Gender toggle */}
-            <div style={{ display: 'flex', gap: 4 }}>
-              {(['M', 'F'] as const).map(g => (
-                <button
-                  key={g}
-                  onClick={() => handleGenderChange(g)}
-                  style={{
-                    padding: '4px 12px',
-                    fontSize: 8,
-                    fontFamily: '"Press Start 2P", monospace',
-                    backgroundColor: gender === g ? '#0066cc' : '#2a2a4a',
-                    color: '#e0e0e0',
-                    border: gender === g ? '1px solid #4488ee' : '1px solid #444',
-                    borderRadius: 3,
-                    cursor: 'pointer',
-                  }}
-                >
-                  {g}
-                </button>
-              ))}
-            </div>
-
-            {/* Category tabs */}
-            <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
-              {CATEGORIES.map(cat => (
-                <button
-                  key={cat}
-                  onClick={() => setSelectedCategory(cat)}
-                  style={{
-                    padding: '4px 8px',
-                    fontSize: 7,
-                    fontFamily: '"Press Start 2P", monospace',
-                    backgroundColor: selectedCategory === cat ? '#0066cc' : '#2a2a4a',
-                    color: '#e0e0e0',
-                    border: selectedCategory === cat ? '1px solid #4488ee' : '1px solid #444',
-                    borderRadius: 3,
-                    cursor: 'pointer',
-                  }}
-                >
-                  {CATEGORY_LABELS[cat]}
-                </button>
-              ))}
-            </div>
-
-            {/* Icon grid */}
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(4, 1fr)',
-              gap: 3,
-              maxHeight: 120,
-              overflowY: 'auto',
-            }}>
-              {categoryItems.map(item => {
-                const isSelected = currentPart
-                  && item.asset === currentPart.asset
-                  && item.setId === currentPart.setId;
-                return (
-                  <button
-                    key={item.id}
-                    onClick={() => handleItemSelect(item)}
-                    title={item.displayName}
-                    style={{
-                      width: '100%',
-                      aspectRatio: '1',
-                      fontSize: 6,
-                      fontFamily: '"Press Start 2P", monospace',
-                      backgroundColor: isSelected ? '#0066cc' : '#2a2a4a',
-                      color: '#e0e0e0',
-                      border: isSelected ? '2px solid #4488ee' : '1px solid #444',
-                      borderRadius: 3,
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      textAlign: 'center',
-                      padding: 2,
-                      lineHeight: '1.2',
-                      wordBreak: 'break-word',
-                    }}
-                  >
-                    {item.displayName}
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Skin color palette */}
-            <div>
-              <div style={{ marginBottom: 3, fontSize: 7, color: '#aaa' }}>Skin</div>
-              <div style={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-                {SKIN_PALETTE.map(color => (
-                  <button
-                    key={`skin-${color}`}
-                    onClick={() => handleColorChange('skin', color)}
-                    style={{
-                      width: 20,
-                      height: 20,
-                      backgroundColor: color,
-                      border: currentOutfit.colors.skin === color
-                        ? '2px solid #fff'
-                        : '1px solid #555',
-                      borderRadius: 2,
-                      cursor: 'pointer',
-                      padding: 0,
-                    }}
-                  />
-                ))}
-              </div>
-            </div>
-
-            {/* Category color palette */}
-            <div>
-              <div style={{ marginBottom: 3, fontSize: 7, color: '#aaa' }}>
-                {CATEGORY_LABELS[selectedCategory]} Color
-              </div>
-              <div style={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-                {categoryPalette.map(color => (
-                  <button
-                    key={`${selectedCategory}-${color}`}
-                    onClick={() => handleColorChange(colorKey, color)}
-                    style={{
-                      width: 20,
-                      height: 20,
-                      backgroundColor: color,
-                      border: currentOutfit.colors[colorKey] === color
-                        ? '2px solid #fff'
-                        : '1px solid #555',
-                      borderRadius: 2,
-                      cursor: 'pointer',
-                      padding: 0,
-                    }}
-                  />
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Footer: Wardrobe + Save/Cancel */}
-        <div style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          padding: '8px 14px',
-          borderTop: '1px solid #333',
-          backgroundColor: '#16213e',
-        }}>
-          {/* Wardrobe slots */}
-          <div style={{ display: 'flex', gap: 3, alignItems: 'center' }}>
-            <span style={{ fontSize: 7, color: '#aaa', marginRight: 4 }}>Wardrobe:</span>
-            {wardrobeSlots.map((_, index) => (
-              <button
-                key={`wardrobe-${index}`}
-                onClick={() => handleWardrobeLoad(index)}
-                style={{
-                  width: 24,
-                  height: 24,
-                  fontSize: 7,
-                  fontFamily: '"Press Start 2P", monospace',
-                  backgroundColor: '#2a2a4a',
-                  color: '#e0e0e0',
-                  border: '1px solid #444',
-                  borderRadius: 3,
-                  cursor: 'pointer',
-                }}
-              >
-                {index + 1}
-              </button>
-            ))}
-            {wardrobeSlots.length < MAX_WARDROBE_SLOTS && (
-              <button
-                onClick={handleWardrobeSave}
-                style={{
-                  padding: '4px 8px',
-                  fontSize: 7,
-                  fontFamily: '"Press Start 2P", monospace',
-                  backgroundColor: '#2a2a4a',
-                  color: '#e0e0e0',
-                  border: '1px solid #444',
-                  borderRadius: 3,
-                  cursor: 'pointer',
-                }}
-              >
-                +Save
-              </button>
-            )}
-            {wardrobeSlots.length >= MAX_WARDROBE_SLOTS && (
-              <button
-                onClick={handleWardrobeSave}
-                style={{
-                  padding: '4px 8px',
-                  fontSize: 7,
-                  fontFamily: '"Press Start 2P", monospace',
-                  backgroundColor: '#2a2a4a',
-                  color: '#e0e0e0',
-                  border: '1px solid #444',
-                  borderRadius: 3,
-                  cursor: 'pointer',
-                }}
-              >
-                Save
-              </button>
-            )}
-          </div>
-
-          {/* Save/Cancel buttons */}
-          <div style={{ display: 'flex', gap: 6 }}>
-            <button
-              onClick={() => onSave(currentOutfit)}
-              style={{
-                padding: '6px 16px',
-                fontSize: 8,
-                fontFamily: '"Press Start 2P", monospace',
-                backgroundColor: '#0066cc',
-                color: '#fff',
-                border: '1px solid #4488ee',
-                borderRadius: 4,
-                cursor: 'pointer',
-              }}
-            >
-              Save
-            </button>
-            <button
-              onClick={onClose}
-              style={{
-                padding: '6px 16px',
-                fontSize: 8,
-                fontFamily: '"Press Start 2P", monospace',
-                backgroundColor: '#333',
-                color: '#e0e0e0',
-                border: '1px solid #555',
-                borderRadius: 4,
-                cursor: 'pointer',
-              }}
-            >
-              Cancel
-            </button>
-          </div>
+        {/* Save/Cancel buttons */}
+        <div style={{ display: 'flex', gap: 4 }}>
+          <button
+            onClick={() => onSave(currentOutfit)}
+            style={{
+              flex: 1,
+              padding: '4px 8px',
+              fontSize: 7,
+              fontFamily: '"Press Start 2P", monospace',
+              backgroundColor: '#0066cc',
+              color: '#fff',
+              border: '1px solid #4488ee',
+              borderRadius: 3,
+              cursor: 'pointer',
+            }}
+          >
+            Save
+          </button>
+          <button
+            onClick={onClose}
+            style={{
+              flex: 1,
+              padding: '4px 8px',
+              fontSize: 7,
+              fontFamily: '"Press Start 2P", monospace',
+              backgroundColor: '#333',
+              color: '#e0e0e0',
+              border: '1px solid #555',
+              borderRadius: 3,
+              cursor: 'pointer',
+            }}
+          >
+            Cancel
+          </button>
         </div>
       </div>
     </div>
   );
 }
+
+// Re-export under old name for backward compatibility
+export { AvatarBuilderPanel as AvatarBuilderModal };

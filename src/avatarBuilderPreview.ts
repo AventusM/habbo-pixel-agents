@@ -8,8 +8,8 @@ import type { SpriteCache, NitroSpriteFrame } from './isoSpriteCache.js';
 import { outfitToFigureParts } from './avatarOutfitConfig.js';
 import { TILE_H_HALF, TILE_W_HALF } from './isometricMath.js';
 
-export const PREVIEW_WIDTH = 120;
-export const PREVIEW_HEIGHT = 180;
+export const PREVIEW_WIDTH = 80;
+export const PREVIEW_HEIGHT = 120;
 
 /**
  * Render order for direction 2 (front-facing): left arm is far side.
@@ -136,7 +136,7 @@ export function renderAvatarPreview(
 
   // Center avatar in the preview canvas
   const screenX = PREVIEW_WIDTH / 2;
-  const screenY = PREVIEW_HEIGHT - 50; // leave space at bottom for feet
+  const screenY = PREVIEW_HEIGHT - 35; // leave space at bottom for feet
 
   for (const part of RENDER_ORDER) {
     // Face parts: use hh_human_face asset, not the outfit part
