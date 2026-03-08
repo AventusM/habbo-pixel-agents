@@ -68,19 +68,68 @@ export class AgentManager {
           }
         } catch {}
       }
+
+      // Scan session directories for subagents/*.jsonl
+      for (const file of files) {
+        const sessionDirPath = path.join(claudeDir, file);
+        try {
+          const stat = fs.statSync(sessionDirPath);
+          if (!stat.isDirectory()) continue;
+
+          const subagentsPath = path.join(sessionDirPath, 'subagents');
+          if (fs.existsSync(subagentsPath) && fs.statSync(subagentsPath).isDirectory()) {
+            // Scan existing sub-agent JSONL files
+            try {
+              const subFiles = fs.readdirSync(subagentsPath);
+              for (const subFile of subFiles) {
+                if (!subFile.endsWith('.jsonl')) continue;
+                const subFilePath = path.join(subagentsPath, subFile);
+                try {
+                  const subStat = fs.statSync(subFilePath);
+                  if (now - subStat.mtimeMs < RECENT_THRESHOLD_MS) {
+                    console.log(`[AgentManager] Tracking sub-agent: ${file}/subagents/${subFile} (modified ${Math.round((now - subStat.mtimeMs) / 1000)}s ago)`);
+                    this.trackAgent(subFilePath);
+                  }
+                } catch {}
+              }
+            } catch {}
+            // Watch for new sub-agent JSONL files in this subagents dir
+            this.watchSubagentsDir(subagentsPath);
+          } else {
+            // No subagents dir yet — watch session dir for it to appear
+            this.watchSessionDirForSubagents(sessionDirPath);
+          }
+        } catch {}
+      }
     } catch (err) {
       console.warn('[AgentManager] Error scanning directory:', err);
     }
 
-    // Watch for new JSONL files appearing in the directory
+    // Watch for new JSONL files and session directories appearing
     try {
       const dirWatcher = fs.watch(claudeDir, (eventType, filename) => {
-        if (filename && filename.endsWith('.jsonl')) {
+        if (!filename) return;
+
+        if (filename.endsWith('.jsonl')) {
           const filePath = path.join(claudeDir, filename);
           if (fs.existsSync(filePath) && !this.agents.has(filePath)) {
             console.log(`[AgentManager] New JSONL detected: ${filename}`);
             this.trackAgent(filePath);
           }
+        } else {
+          // Check if a new session directory appeared
+          const dirPath = path.join(claudeDir, filename);
+          try {
+            if (fs.existsSync(dirPath) && fs.statSync(dirPath).isDirectory()) {
+              // Only watch if we aren't already watching this session dir
+              const sessionKey = `__sessiondir__${dirPath}`;
+              const subagentsKey = `__subagentsdir__${path.join(dirPath, 'subagents')}`;
+              if (!this.watchers.has(sessionKey) && !this.watchers.has(subagentsKey)) {
+                console.log(`[AgentManager] New session directory detected: ${filename}`);
+                this.watchSessionDirForSubagents(dirPath);
+              }
+            }
+          } catch {}
         }
       });
 
@@ -210,6 +259,74 @@ export class AgentManager {
 
     this.watchers.set(jsonlPath, watcher);
     console.log(`[AgentManager] Tracking agent: ${agentId} (variant ${variant})`);
+  }
+
+  /**
+   * Watch a session directory for a 'subagents' subdirectory to appear.
+   * Once it appears, switches to watching the subagents dir for JSONL files.
+   */
+  private watchSessionDirForSubagents(sessionDirPath: string): void {
+    const watcherKey = `__sessiondir__${sessionDirPath}`;
+    if (this.watchers.has(watcherKey)) return;
+
+    try {
+      const watcher = fs.watch(sessionDirPath, (eventType, filename) => {
+        if (filename !== 'subagents') return;
+        const subagentsPath = path.join(sessionDirPath, 'subagents');
+        try {
+          if (fs.existsSync(subagentsPath) && fs.statSync(subagentsPath).isDirectory()) {
+            console.log(`[AgentManager] Subagents dir appeared in: ${path.basename(sessionDirPath)}`);
+            // Scan existing files in the new subagents dir
+            try {
+              const subFiles = fs.readdirSync(subagentsPath);
+              for (const subFile of subFiles) {
+                if (!subFile.endsWith('.jsonl')) continue;
+                const subFilePath = path.join(subagentsPath, subFile);
+                if (!this.agents.has(subFilePath)) {
+                  this.trackAgent(subFilePath);
+                }
+              }
+            } catch {}
+            this.watchSubagentsDir(subagentsPath);
+            // Close this session-level watcher — no longer needed
+            const existing = this.watchers.get(watcherKey);
+            if (existing) {
+              existing.dispose();
+              this.watchers.delete(watcherKey);
+            }
+          }
+        } catch {}
+      });
+
+      this.watchers.set(watcherKey, { dispose: () => watcher.close() });
+    } catch (err) {
+      console.warn(`[AgentManager] Cannot watch session dir ${sessionDirPath}:`, err);
+    }
+  }
+
+  /**
+   * Watch a subagents directory for new JSONL files appearing.
+   */
+  private watchSubagentsDir(subagentsDirPath: string): void {
+    const watcherKey = `__subagentsdir__${subagentsDirPath}`;
+    if (this.watchers.has(watcherKey)) return;
+
+    try {
+      const watcher = fs.watch(subagentsDirPath, (eventType, filename) => {
+        if (!filename || !filename.endsWith('.jsonl')) return;
+        const filePath = path.join(subagentsDirPath, filename);
+        try {
+          if (fs.existsSync(filePath) && !this.agents.has(filePath)) {
+            console.log(`[AgentManager] New sub-agent JSONL detected: ${filename}`);
+            this.trackAgent(filePath);
+          }
+        } catch {}
+      });
+
+      this.watchers.set(watcherKey, { dispose: () => watcher.close() });
+    } catch (err) {
+      console.warn(`[AgentManager] Cannot watch subagents dir ${subagentsDirPath}:`, err);
+    }
   }
 
   /**
