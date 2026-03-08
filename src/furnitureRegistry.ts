@@ -7,7 +7,9 @@ import type { SpriteCache } from './isoSpriteCache.js';
 /** Category for grouping furniture in the UI */
 export type FurnitureCategory =
   | 'habboclub'
-  | 'fun';
+  | 'fun'
+  | 'office'
+  | 'section';
 
 /** Single entry in the furniture catalog */
 export interface FurnitureEntry {
@@ -41,6 +43,11 @@ export const FURNITURE_CATALOG: FurnitureEntry[] = [
   { id: 'CF_1_coin_bronze', displayName: 'Bronze Coin',  category: 'fun' },
   { id: 'CF_5_coin_silver', displayName: 'Silver Coin',  category: 'fun' },
   { id: 'CF_10_coin_gold',  displayName: 'Gold Coin',    category: 'fun' },
+
+  // Section-themed furniture
+  { id: 'country_gate',     displayName: 'Teleport Booth',   category: 'section' },
+  { id: 'tv_flat',          displayName: 'Flat Screen TV',    category: 'section' },
+  { id: 'shelves_armas',    displayName: 'Server Rack',       category: 'section' },
 ];
 
 /**
@@ -100,7 +107,19 @@ export function getCatalogByCategory(): Map<FurnitureCategory, FurnitureEntry[]>
 export const CATEGORY_LABELS: Record<FurnitureCategory, string> = {
   habboclub: 'Habbo Club',
   fun: 'Fun & Games',
+  office: 'Office',
+  section: 'Section Furniture',
 };
+
+/** Furniture IDs that act as teleport booths */
+const TELEPORT_IDS = new Set(['country_gate']);
+
+/**
+ * Check if a furniture ID is a teleport booth.
+ */
+export function isTeleportBooth(furnitureId: string): boolean {
+  return TELEPORT_IDS.has(resolveAssetName(furnitureId));
+}
 
 /**
  * Get furniture tile dimensions from Nitro metadata at runtime.

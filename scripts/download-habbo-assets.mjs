@@ -38,6 +38,11 @@ const FURNITURE_ITEMS = [
   'CF_1_coin_bronze',   // Bronze coin
   'CF_5_coin_silver',   // Silver coin
   'CF_10_coin_gold',    // Gold coin
+
+  // Section-themed furniture (Phase 16)
+  'country_gate',       // Teleport booth
+  'tv_flat',            // Flat screen TV
+  'shelves_armas',      // Server rack / shelves
 ];
 
 // Avatar body + clothing
