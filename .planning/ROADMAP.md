@@ -339,13 +339,21 @@ Plans:
 
 ### Phase 16: Agent factory workflow with team sections and orchestration UI
 
-**Goal:** [To be planned]
-**Requirements**: TBD
-**Depends on:** Phase 15
-**Plans:** 0 plans
+**Goal:** Transform the single-room Habbo experience into a structured office floor with 4 team sections (Planning, Core Dev, Infrastructure, Support), add intelligent agent classification from JSONL transcripts, introduce teleport booth spawn/despawn with flash effects, role-based outfits and idle behaviors, camera pan/zoom navigation, and a VS Code Activity Bar orchestration sidebar panel with agent list, section overview, activity log, and quick actions.
+**Requirements**: AF-01, AF-02, AF-03, AF-04, AF-05, AF-06, AF-07, AF-08, AF-09, AF-10, AF-11, AF-12, AF-13, AF-14, AF-15, AF-16, AF-17, AF-18, AF-19, AF-20, AF-21, AF-22, AF-23, AF-24, AF-25, AF-26, AF-27, AF-28
+**Depends on:** Phase 14
+**Plans:** 9 plans
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 16 to break down)
+- [ ] 16-01-PLAN.md — Agent classification types, role taxonomy, team mapping, and display name logic
+- [ ] 16-02-PLAN.md — Room layout engine with 2x2 section grid templates (small/medium/large)
+- [ ] 16-03-PLAN.md — Camera pan/zoom controller with click-drag and scroll-wheel
+- [ ] 16-04-PLAN.md — Furniture catalog expansion, teleport booth (country_gate), and flash effect
+- [ ] 16-05-PLAN.md — Agent classification integration into AgentManager and extension host
+- [ ] 16-06-PLAN.md — Section manager, template layout wiring, and teleport spawn integration
+- [ ] 16-07-PLAN.md — Role-based outfit presets and role-specific idle behaviors
+- [ ] 16-08-PLAN.md — Orchestration sidebar panel (WebviewViewProvider) with message bridge
+- [ ] 16-09-PLAN.md — Agent popup cards, activity-linked furniture, role outfits tab, and visual checkpoint
 
 ### Phase 17: Bugfixes & Wishlist
 
@@ -380,7 +388,7 @@ Plans:
 ---
 
 *Created: 2026-02-28*
-*Last updated: 2026-03-07*
+*Last updated: 2026-03-08*
 
 ### Phase 17.2: Fix walking animation clipping and layer artifacts (INSERTED)
 
