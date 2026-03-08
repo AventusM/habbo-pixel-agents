@@ -63,6 +63,35 @@ export function parseTranscriptLine(line: string): AgentEvent | null {
 }
 
 /**
+ * Extract subagent_type from a single JSONL line containing an Agent tool_use block.
+ * Lighter version of agentClassifier's extractSubagentType, working on individual lines
+ * for the watcher (streaming line-by-line processing).
+ *
+ * @param line - Raw JSONL line string
+ * @returns subagent_type string or null if not found
+ */
+export function extractSubagentTypeFromLine(line: string): string | null {
+  if (!line.trim()) return null;
+  try {
+    const entry = JSON.parse(line);
+    if (entry.role === 'assistant' && Array.isArray(entry.content)) {
+      for (const block of entry.content) {
+        if (
+          block.type === 'tool_use' &&
+          block.name === 'Agent' &&
+          block.input?.subagent_type
+        ) {
+          return block.input.subagent_type as string;
+        }
+      }
+    }
+  } catch {
+    // Invalid JSON
+  }
+  return null;
+}
+
+/**
  * Format a tool invocation into a human-readable status string.
  *
  * @param toolName - Name of the tool being used

@@ -7,7 +7,8 @@ import * as path from 'path';
 import * as os from 'os';
 import { watchJsonlFile, type Disposable } from './fileWatcher.js';
 import { parseTranscriptLine } from './transcriptParser.js';
-import type { AgentState, AgentEvent, ExtensionMessage } from './agentTypes.js';
+import { extractSubagentType, classifyAgent } from './agentClassifier.js';
+import type { AgentState, AgentEvent, ExtensionMessage, TeamSection } from './agentTypes.js';
 
 /** How long without activity before an agent is considered idle (ms) */
 const IDLE_TIMEOUT_MS = 10_000;
@@ -25,10 +26,16 @@ export class AgentManager {
   private idleTimer: ReturnType<typeof setInterval> | null = null;
   private onMessage: (msg: ExtensionMessage) => void;
   private projectDir: string;
+  private onClassificationNeeded?: (agentId: string) => void;
 
-  constructor(projectDir: string, onMessage: (msg: ExtensionMessage) => void) {
+  constructor(
+    projectDir: string,
+    onMessage: (msg: ExtensionMessage) => void,
+    onClassificationNeeded?: (agentId: string) => void,
+  ) {
     this.projectDir = projectDir;
     this.onMessage = onMessage;
+    this.onClassificationNeeded = onClassificationNeeded;
   }
 
   /**
@@ -140,7 +147,22 @@ export class AgentManager {
 
     const agentId = path.basename(jsonlPath, '.jsonl');
     const variant = (this.nextVariant++ % 6) as 0 | 1 | 2 | 3 | 4 | 5;
-    const terminalName = `Claude ${this.agents.size + 1}`;
+
+    // Read first ~50 lines for classification
+    let initialContent = '';
+    try {
+      const raw = fs.readFileSync(jsonlPath, 'utf8');
+      const lines = raw.split('\n');
+      initialContent = lines.slice(0, 50).join('\n');
+    } catch {
+      // File may not be readable yet
+    }
+
+    // Classify agent based on JSONL content
+    const subagentType = extractSubagentType(initialContent);
+    const classification = classifyAgent(subagentType, initialContent);
+
+    const terminalName = classification.displayName;
 
     const state: AgentState = {
       agentId,
@@ -149,17 +171,32 @@ export class AgentManager {
       status: 'idle',
       lastActivityMs: Date.now(),
       jsonlPath,
+      role: classification.role,
+      team: classification.team,
+      taskArea: classification.taskArea,
+      displayName: classification.displayName,
     };
 
     this.agents.set(jsonlPath, state);
 
-    // Notify webview
+    // Notify webview with classification data
     this.onMessage({
       type: 'agentCreated',
       agentId,
       terminalName,
       variant,
+      role: classification.role,
+      team: classification.team,
+      taskArea: classification.taskArea,
     });
+
+    // If subagent_type couldn't be determined, request manual classification
+    if (!subagentType) {
+      this.onMessage({ type: 'requestClassification', agentId });
+      if (this.onClassificationNeeded) {
+        this.onClassificationNeeded(agentId);
+      }
+    }
 
     // Watch for new events
     const watcher = watchJsonlFile(jsonlPath, (lines) => {
@@ -218,6 +255,28 @@ export class AgentManager {
           agentId: agent.agentId,
           status: 'idle',
         });
+      }
+    }
+  }
+
+  /**
+   * Reassign an agent to a different team section.
+   * Updates agent state and re-sends agentCreated to webview.
+   */
+  reassignAgent(agentId: string, team: TeamSection): void {
+    for (const [, agent] of this.agents) {
+      if (agent.agentId === agentId) {
+        agent.team = team;
+        this.onMessage({
+          type: 'agentCreated',
+          agentId: agent.agentId,
+          terminalName: agent.terminalName,
+          variant: agent.variant,
+          role: agent.role,
+          team: agent.team,
+          taskArea: agent.taskArea,
+        });
+        break;
       }
     }
   }

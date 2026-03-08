@@ -41,14 +41,14 @@ export interface KanbanCard {
 
 /** Messages from extension host → webview */
 export type ExtensionMessage =
-  | { type: 'agentCreated'; agentId: string; terminalName: string; variant: 0 | 1 | 2 | 3 | 4 | 5 }
+  | { type: 'agentCreated'; agentId: string; terminalName: string; variant: 0 | 1 | 2 | 3 | 4 | 5; role?: string; team?: TeamSection; taskArea?: string }
   | { type: 'agentRemoved'; agentId: string }
   | { type: 'agentStatus'; agentId: string; status: AgentStatus }
   | { type: 'agentTool'; agentId: string; toolName: string; displayText: string }
   | { type: 'kanbanCards'; cards: KanbanCard[] }
   | { type: 'devMode'; enabled: boolean }
   | { type: 'avatarOutfits'; outfits: Record<string, { outfit: OutfitConfig; wardrobePresets?: OutfitConfig[] }> }
-  | { type: 'classifyAgent'; agentId: string; jsonlPath: string };
+  | { type: 'requestClassification'; agentId: string };
 
 /** Messages from webview → extension host */
 export type WebviewMessage =
