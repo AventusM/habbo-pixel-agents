@@ -298,9 +298,10 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
               avatar = avatarManager.spawnAvatar(msg.agentId, msg.variant, grid, msg.terminalName, blocked);
             }
 
-            // Assign agent to section
+            // Assign agent to section and record initial activity
             if (sectionManager) {
               sectionManager.assignAgent(msg.agentId, team);
+              sectionManager.updateActivity(team, Date.now());
             }
 
             // Track in orchestration overlay
@@ -386,8 +387,9 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
             if (activeAvatar?.state === 'sit') {
               avatarManager.standAvatar(msg.agentId);
             }
-            // Look up desk tile from section manager
+            // Record section activity for furniture glow overlays
             const agentTeam = sectionManager?.getAgentTeam(msg.agentId) || 'core-dev';
+            sectionManager?.updateActivity(agentTeam, Date.now());
             const occupiedDesks = new Set<string>();
             for (const a of avatarManager.getAvatars()) {
               if (a.id !== msg.agentId && a.state !== 'idle' && a.state !== 'spawning' && a.state !== 'despawning') {
@@ -817,19 +819,20 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
         r.draw(ctx);
       }
 
-      // Draw furniture activity overlays (monitors glow, lamps warm)
+      // Draw furniture activity overlays (lamp glow, monitor screen glow)
+      // Uses canvas overlay effects since native Habbo frames require additive blending
+      // which our sprite renderer doesn't support yet
       if (sectionManagerRef.current) {
         for (const f of renderState.current.furniture) {
           if (f.name === 'tv_flat' || f.name === 'hc_lmp') {
-            // Check if any agents are active in this furniture's section
+            // Active when the section has any agents present
             let isActive = false;
             for (const section of sectionManagerRef.current.getAllSections()) {
-              if (section.agentIds.length > 0 && section.lastActivityMs > 0) {
-                // Check if this furniture belongs to this section
+              if (section.agentIds.length > 0) {
                 const sectionLayout = sectionManagerRef.current.getTemplate().sections.find(s => s.team === section.team);
                 if (sectionLayout) {
                   const inSection = sectionLayout.furniture.some(sf => sf.tileX === f.tileX && sf.tileY === f.tileY);
-                  if (inSection && (currentTimeMs - section.lastActivityMs) < 10000) {
+                  if (inSection) {
                     isActive = true;
                     break;
                   }

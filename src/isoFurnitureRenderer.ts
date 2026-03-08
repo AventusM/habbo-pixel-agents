@@ -37,27 +37,40 @@ export function drawFurnitureActiveOverlay(
     // Blue-white glow rectangle on monitor screen area
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
-    ctx.fillStyle = 'rgba(180, 220, 255, 0.15)';
+    ctx.fillStyle = 'rgba(180, 220, 255, 0.32)';
     ctx.fillRect(
       Math.floor(screenX - 20),
-      Math.floor(screenY - 30),
+      Math.floor(screenY - 34),
       40,
-      24,
+      28,
     );
+    // Outer glow halo
+    const tvGrad = ctx.createRadialGradient(
+      screenX, screenY - 20, 8,
+      screenX, screenY - 20, 40,
+    );
+    tvGrad.addColorStop(0, 'rgba(140, 200, 255, 0.2)');
+    tvGrad.addColorStop(1, 'rgba(100, 160, 255, 0)');
+    ctx.fillStyle = tvGrad;
+    ctx.beginPath();
+    ctx.arc(screenX, screenY - 20, 40, 0, Math.PI * 2);
+    ctx.fill();
     ctx.restore();
   } else if (furnitureName === 'hc_lmp') {
-    // Warm yellow radial gradient glow around lamp base
+    // Warm yellow radial gradient glow from lamp top (shade area)
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
+    const glowY = screenY - 55; // lamp shade area
     const grad = ctx.createRadialGradient(
-      screenX, screenY, 0,
-      screenX, screenY, 28,
+      screenX, glowY, 6,
+      screenX, glowY, 64,
     );
-    grad.addColorStop(0, 'rgba(255, 220, 120, 0.18)');
-    grad.addColorStop(1, 'rgba(255, 180, 60, 0)');
+    grad.addColorStop(0, 'rgba(255, 220, 120, 0.32)');
+    grad.addColorStop(0.4, 'rgba(255, 190, 80, 0.14)');
+    grad.addColorStop(1, 'rgba(255, 160, 40, 0)');
     ctx.fillStyle = grad;
     ctx.beginPath();
-    ctx.arc(screenX, screenY, 28, 0, Math.PI * 2);
+    ctx.arc(screenX, glowY, 64, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
   }
@@ -513,7 +526,11 @@ export function createNitroFurnitureRenderable(
       for (let i = 0; i < layerCount; i++) {
         const layerLetter = String.fromCharCode(97 + i); // 'a', 'b', 'c', ...
         const frameName = `${nitroAssetName}_64_${layerLetter}_${baseDir}_${fi}`;
-        const frame = resolveNitroFrame(spriteCache, nitroAssetName, frameName);
+        let frame = resolveNitroFrame(spriteCache, nitroAssetName, frameName);
+        // Fall back to frame 0 if requested frame doesn't exist for this layer
+        if (!frame && fi !== 0) {
+          frame = resolveNitroFrame(spriteCache, nitroAssetName, `${nitroAssetName}_64_${layerLetter}_${baseDir}_0`);
+        }
         if (!frame) continue;
         layers.push({ frame, z: layerZValues.get(i) ?? 0 });
       }
