@@ -9,7 +9,7 @@ progress:
   total_phases: 18
   completed_phases: 14
   total_plans: 47
-  completed_plans: 43
+  completed_plans: 44
 ---
 
 # STATE.md
@@ -25,14 +25,14 @@ See: .planning/PROJECT.md (updated 2026-02-28)
 
 v1.0 (phases 1-8) complete. v2 work in progress: Phase 9 (furniture catalog + rendering fixes) and Phase 10a/10b (avatar polish + chair sitting) are complete. Phase 11 plan 01 (chair layer splitting) is complete. Phase 12 plans 01-03 complete (wall panels + kanban). Phase 14 plans 01-03 complete (outfit config, renderer integration, builder modal UI). Phase 14.1 plan 01 complete (avatar facial features with eyes, mouth, blink animation).
 
-**Last session:** 2026-03-08T13:20:38Z
+**Last session:** 2026-03-08T13:27:00Z
 **Milestone status:** v2 in progress
 
 ## Current Phase
 
 **Phase:** 16 — Agent Factory Workflow with Team Sections and Orchestration UI
-**Current Plan:** Plan 08 of 9
-**Status:** Executing (Plans 01-07 complete)
+**Current Plan:** Plan 09 of 9
+**Status:** Executing (Plans 01-08 complete)
 
 ## Decisions Log
 
@@ -109,6 +109,8 @@ v1.0 (phases 1-8) complete. v2 work in progress: Phase 9 (furniture catalog + re
 | 2026-03-08 | 600ms teleport effect duration with sin-curve alpha peak | Smooth peak at progress=0.5, natural fade-in/fade-out |
 | 2026-03-08 | Radial gradient with lighter composite for teleport glow | White center fading to light blue; additive blending for luminous effect |
 | 2026-03-08 | Read first 50 JSONL lines for initial classification | Balances speed vs accuracy for agent display on spawn |
+| 2026-03-08 | EventEmitter on OrchestrationPanelProvider for extension-level actions | Decouples sidebar message handling from provider class |
+| 2026-03-08 | MessageBridge broadcastAgentEvent replaces direct postMessage | Both room and sidebar receive agent updates uniformly |
 | 2026-03-08 | ROLE_OUTFIT_PRESETS uses existing catalog setIds with distinct color schemes per team | No new cortex-assets needed; visual differentiation via color palette and clothing type |
 | 2026-03-08 | Core Dev idle: sit-at-desk, Planning idle: pace with 8-12s pauses | Role-appropriate behaviors make agents visually recognizable by team |
 | 2026-03-08 | onClassificationNeeded callback pattern for VS Code UI | Separates extension host UI concerns from agent manager logic |
@@ -168,6 +170,7 @@ None.
 | Phase 16-agent-factory-workflow P16-05 | 2min | 2 tasks | 4 files |
 | Phase 16-agent-factory-workflow P16-06 | 3min | 2 tasks | 4 files |
 | Phase 16-agent-factory-workflow P16-07 | 3min | 2 tasks | 3 files |
+| Phase 16-agent-factory-workflow P16-08 | 4min | 2 tasks | 7 files |
 
 ## Phase History
 
@@ -216,6 +219,7 @@ None.
 | 16-agent-factory-workflow | 16-05 | Classification pipeline wired into agent discovery with auto-classify on spawn, VS Code quickpick for unknowns, and webview team reassignment (390 tests passing) |
 | 16-agent-factory-workflow | 16-06 | SectionManager wiring template layout into live rendering with section-aware agent spawning at teleport booths, walk-to-booth despawn flow, and teleport flash effects (390 tests passing) |
 | 16-agent-factory-workflow | 16-07 | Role-based outfit presets and team-specific idle behaviors: coders sit at desks, planners pace, others wander within section bounds (390 tests passing) |
+| 16-agent-factory-workflow | 16-08 | Orchestration sidebar panel with agent list, section overview, activity log, MessageBridge relay, and quick actions (399 tests passing) |
 
 ### Pending Todos
 
