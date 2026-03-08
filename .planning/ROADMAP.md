@@ -365,6 +365,16 @@ Plans:
 Plans:
 - [ ] 17-01-PLAN.md — Constrain In Progress sticky notes to left wall only (remove right-wall overflow)
 
+### Phase 17.4: Fix agent discovery pipeline - deduplicate spawns, filter parent conversations, classify sub-agents properly (INSERTED)
+
+**Goal:** [Urgent work - to be planned]
+**Requirements**: TBD
+**Depends on:** Phase 17
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 17.4 to break down)
+
 ### Phase 17.3: Fix move logic to respect selected avatar (INSERTED)
 
 **Goal:** Wire selectAvatar() into the left-click avatar handler so right-click movement targets the user-selected avatar instead of always falling back to the nearest idle avatar.

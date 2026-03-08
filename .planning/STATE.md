@@ -249,3 +249,4 @@ None.
 - Phase 17.1 inserted after Phase 17: Stray pixel diagnostic fix and right-click movement (URGENT)
 - Phase 17.2 inserted after Phase 17: Fix walking animation clipping and layer artifacts (URGENT)
 - Phase 17.3 inserted after Phase 17: Fix move logic to respect selected avatar (URGENT)
+- Phase 17.4 inserted after Phase 17: Fix agent discovery pipeline - deduplicate spawns, filter parent conversations, classify sub-agents properly (URGENT)
