@@ -16,6 +16,24 @@
         "title": "Open Habbo Room"
       }
     ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "habbo-orchestration",
+          "title": "Habbo Agents",
+          "icon": "media/habbo-icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "habbo-orchestration": [
+        {
+          "type": "webview",
+          "id": "habboPixelAgents.orchestrationPanel",
+          "name": "Orchestration"
+        }
+      ]
+    },
     "configuration": {
       "title": "Habbo Pixel Agents",
       "properties": {
