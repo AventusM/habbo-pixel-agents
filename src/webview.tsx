@@ -2,6 +2,7 @@ import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { RoomCanvas } from './RoomCanvas.js';
 import { SpriteCache } from './isoSpriteCache.js';
+import { generateFloorTemplate } from './roomLayoutEngine.js';
 
 // Console log interceptor — capture last 200 lines for dev capture
 const LOG_BUFFER_MAX = 200;
@@ -26,28 +27,10 @@ console.error = (...args: unknown[]) => { pushLog('ERR', args); origConsole.erro
 // Expose log buffer globally for RoomCanvas capture button
 (window as any).__devLogBuffer = logBuffer;
 
-const DEMO_HEIGHTMAP = [
-  'xxxxxxxxxxxxxxxxxxxx',
-  'x000000000000000000x',
-  'x000000000000000000x',
-  'x000000000000000000x',
-  'x000000000000000000x',
-  'x000000000000000000x',
-  'x000000000000000000x',
-  'x000000000000000000x',
-  'x000000000000000000x',
-  'x000000000000000000x',
-  'x000000000000000000x',
-  'x000000000000000000x',
-  'x000000000000000000x',
-  'x000000000000000000x',
-  'x000000000000000000x',
-  'x000000000000000000x',
-  'x000000000000000000x',
-  'x000000000000000000x',
-  'x000000000000000000x',
-  'xxxxxxxxxxxxxxxxxxxx',
-].join('\n');
+// Generate floor template (replaces DEMO_HEIGHTMAP)
+let currentTemplate = generateFloorTemplate('small');
+let FLOOR_HEIGHTMAP = currentTemplate.heightmap;
+(window as any).floorTemplate = currentTemplate;
 
 // Acquire VS Code API immediately (can only be called once per webview)
 const vscodeApi = (window as any).acquireVsCodeApi?.();
@@ -171,7 +154,23 @@ const spriteCache = new SpriteCache();
     const root = document.getElementById('root');
     if (root) {
       console.log('✓ Rendering RoomCanvas with loaded assets');
-      createRoot(root).render(React.createElement(RoomCanvas, { heightmap: DEMO_HEIGHTMAP }));
+      const rootElement = createRoot(root);
+      rootElement.render(React.createElement(RoomCanvas, { heightmap: FLOOR_HEIGHTMAP }));
+
+      // Listen for template size changes from extension settings
+      window.addEventListener('extensionMessage', (event: Event) => {
+        const msg = (event as CustomEvent).detail;
+        if (msg && msg.type === 'templateSize' && msg.size) {
+          const validSizes = ['small', 'medium', 'large'] as const;
+          if (validSizes.includes(msg.size)) {
+            currentTemplate = generateFloorTemplate(msg.size as 'small' | 'medium' | 'large');
+            FLOOR_HEIGHTMAP = currentTemplate.heightmap;
+            (window as any).floorTemplate = currentTemplate;
+            rootElement.render(React.createElement(RoomCanvas, { heightmap: FLOOR_HEIGHTMAP }));
+            console.log(`Template size changed to: ${msg.size}`);
+          }
+        }
+      });
     }
 
     // Notify extension that webview is ready (triggers agent discovery)
