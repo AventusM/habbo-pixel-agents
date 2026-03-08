@@ -3,7 +3,7 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
 import { join } from 'path';
 import * as os from 'os';
 import { AgentManager } from './agentManager.js';
-import type { WebviewMessage, ExtensionMessage } from './agentTypes.js';
+import type { WebviewMessage, ExtensionMessage, TeamSection } from './agentTypes.js';
 import { fetchKanbanCards } from './githubProjects.js';
 
 interface KanbanConfig {
@@ -125,6 +125,20 @@ export function activate(context: vscode.ExtensionContext) {
     console.log('[Extension] Workspace dir for AgentManager:', workspaceDir);
     const agentManager = new AgentManager(workspaceDir, (msg: ExtensionMessage) => {
       panel.webview.postMessage(msg);
+    }, async (agentId: string) => {
+      // Show VS Code quickpick for manual agent classification
+      const teamOptions: Array<{ label: string; value: TeamSection }> = [
+        { label: 'Planning', value: 'planning' },
+        { label: 'Core Dev', value: 'core-dev' },
+        { label: 'Infrastructure', value: 'infrastructure' },
+        { label: 'Support', value: 'support' },
+      ];
+      const picked = await vscode.window.showQuickPick(
+        teamOptions.map(o => o.label),
+        { placeHolder: `Classify agent ${agentId}: select team` },
+      );
+      const selectedTeam = teamOptions.find(o => o.label === picked)?.value ?? 'core-dev';
+      agentManager.reassignAgent(agentId, selectedTeam);
     });
 
     // Listen for messages from webview
@@ -148,13 +162,16 @@ export function activate(context: vscode.ExtensionContext) {
           break;
         }
         case 'requestAgents':
-          // Send current agents to webview
+          // Send current agents to webview (including classification data)
           for (const agent of agentManager.getAgents()) {
             panel.webview.postMessage({
               type: 'agentCreated',
               agentId: agent.agentId,
               terminalName: agent.terminalName,
               variant: agent.variant,
+              role: agent.role,
+              team: agent.team,
+              taskArea: agent.taskArea,
             } as ExtensionMessage);
             panel.webview.postMessage({
               type: 'agentStatus',
@@ -163,6 +180,11 @@ export function activate(context: vscode.ExtensionContext) {
             } as ExtensionMessage);
           }
           break;
+        case 'reassignAgent': {
+          const { agentId: reassignId, team: reassignTeam } = msg as { type: 'reassignAgent'; agentId: string; team: TeamSection };
+          agentManager.reassignAgent(reassignId, reassignTeam);
+          break;
+        }
         case 'devCapture': {
           const { screenshot, logs } = msg as { type: 'devCapture'; screenshot: string; logs: string[] };
           const timestamp = Date.now();
