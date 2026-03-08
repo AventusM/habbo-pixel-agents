@@ -203,52 +203,44 @@ import type { TeamSection } from './agentTypes.js';
 
 /**
  * Role-based outfit presets keyed by TeamSection.
- * Each team has a visually distinct look at Habbo sprite scale:
- * - Planning: Formal/business (cardigan, darker pants, navy/charcoal)
- * - Core Dev: Casual/tech (t-shirt, jeans, brighter green/blue)
- * - Infrastructure: Utility/ops (sleeved tee, straight pants, earth tones)
- * - Support: Clean/diagnostic (school shirt, runway pants, neutral gray/white)
+ * Same simple outfit (plain tee, skinny jeans, slip-ons) with a distinct
+ * shirt color per team for easy visual identification:
+ * - Planning: Navy blue
+ * - Core Dev: Green
+ * - Infrastructure: Orange
+ * - Support: Purple
  */
+const ROLE_BASE_PARTS = {
+  hair:  { asset: 'Hair_M_yo', setId: 2096 },
+  shirt: { asset: 'Shirt_M_Tshirt_Plain', setId: 2050 },
+  pants: { asset: 'Trousers_U_Skinny_Jeans', setId: 2097 },
+  shoes: { asset: 'Shoes_U_Slipons', setId: 2044 },
+} as const;
+
+const ROLE_BASE_COLORS = {
+  skin: '#EFCFB1', hair: '#4A3728', pants: '#333333', shoes: '#2C2C2C',
+};
+
 export const ROLE_OUTFIT_PRESETS: Record<TeamSection, OutfitConfig> = {
   'planning': {
     gender: 'M',
-    parts: {
-      hair:  { asset: 'Hair_M_yo', setId: 2096 },
-      shirt: { asset: 'Shirt_M_Cardigan', setId: 2126 },
-      pants: { asset: 'Trousers_U_Sraight', setId: 2098 },
-      shoes: { asset: 'Shoes_U_Slipons', setId: 2044 },
-    },
-    colors: { skin: '#EFCFB1', hair: '#4A3728', shirt: '#3B5998', pants: '#333333', shoes: '#2C2C2C' },
+    parts: { ...ROLE_BASE_PARTS },
+    colors: { ...ROLE_BASE_COLORS, shirt: '#3B5998' },
   },
   'core-dev': {
     gender: 'M',
-    parts: {
-      hair:  { asset: 'Hair_U_Messy', setId: 2071 },
-      shirt: { asset: 'Shirt_M_Tshirt_Plain', setId: 2050 },
-      pants: { asset: 'Trousers_U_Skinny_Jeans', setId: 2097 },
-      shoes: { asset: 'Shoes_U_Slipons', setId: 2044 },
-    },
-    colors: { skin: '#D4A574', hair: '#1A1A1A', shirt: '#5BD55B', pants: '#3B5998', shoes: '#333333' },
+    parts: { ...ROLE_BASE_PARTS },
+    colors: { ...ROLE_BASE_COLORS, shirt: '#5BD55B' },
   },
   'infrastructure': {
     gender: 'M',
-    parts: {
-      hair:  { asset: 'Hair_U_Messy', setId: 2072 },
-      shirt: { asset: 'Shirt_M_Tshirt_Sleeved', setId: 2052 },
-      pants: { asset: 'Trousers_U_Sraight', setId: 2098 },
-      shoes: { asset: 'Shoes_U_Slipons', setId: 2044 },
-    },
-    colors: { skin: '#F5D6C3', hair: '#C4651A', shirt: '#556B2F', pants: '#8B4513', shoes: '#5C3A1E' },
+    parts: { ...ROLE_BASE_PARTS },
+    colors: { ...ROLE_BASE_COLORS, shirt: '#FF8C00' },
   },
   'support': {
-    gender: 'F',
-    parts: {
-      hair:  { asset: 'Hair_F_Bob', setId: 2073 },
-      shirt: { asset: 'Shirt_F_Schoolshirt', setId: 2110 },
-      pants: { asset: 'Trousers_U_runway', setId: 2149 },
-      shoes: { asset: 'Shoes_F_Schoolshoes', setId: 2107 },
-    },
-    colors: { skin: '#FCEBD6', hair: '#4A3728', shirt: '#CCCCCC', pants: '#666666', shoes: '#2C2C2C' },
+    gender: 'M',
+    parts: { ...ROLE_BASE_PARTS },
+    colors: { ...ROLE_BASE_COLORS, shirt: '#9B5BD5' },
   },
 };
 

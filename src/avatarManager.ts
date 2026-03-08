@@ -10,7 +10,8 @@ import { findPath, getRandomWalkableTile, isTileOccupied } from './isoPathfindin
 import { tileToScreen } from './isometricMath.js';
 import { TILE_STEP_DURATION_MS } from './isoAvatarRenderer.js';
 import type { OutfitConfig } from './avatarOutfitConfig.js';
-import { getDefaultPreset } from './avatarOutfitConfig.js';
+import { getDefaultPreset, getRolePreset } from './avatarOutfitConfig.js';
+import type { TeamSection } from './agentTypes.js';
 
 /** Path state for an avatar in motion */
 interface PathState {
@@ -30,7 +31,7 @@ export class AvatarManager {
   /**
    * Spawn a new avatar at a random walkable tile.
    */
-  spawnAvatar(agentId: string, variant: 0 | 1 | 2 | 3 | 4 | 5, grid: TileGrid, displayName?: string, blockedTiles?: Set<string>): AvatarSpec | null {
+  spawnAvatar(agentId: string, variant: 0 | 1 | 2 | 3 | 4 | 5, grid: TileGrid, displayName?: string, blockedTiles?: Set<string>, team?: TeamSection): AvatarSpec | null {
     if (this.avatars.has(agentId)) return this.avatars.get(agentId)!;
 
     // Find a walkable tile not occupied by another avatar or furniture
@@ -46,9 +47,9 @@ export class AvatarManager {
     if (!tile) return null;
 
     const now = Date.now();
-    // Use saved outfit if available, otherwise get default preset for this variant
+    // Use saved outfit if available, then role preset, then default variant preset
     const savedData = this.savedOutfits.get(agentId);
-    const outfit = savedData ? savedData.outfit : getDefaultPreset(variant);
+    const outfit = savedData ? savedData.outfit : team ? getRolePreset(team, variant) : getDefaultPreset(variant);
 
     const spec: AvatarSpec = {
       id: agentId,
@@ -78,7 +79,7 @@ export class AvatarManager {
    * Spawn a new avatar at a specific tile (e.g., teleport booth position).
    * Used for section-aware spawning where the tile is predetermined.
    */
-  spawnAvatarAt(agentId: string, variant: 0 | 1 | 2 | 3 | 4 | 5, tileX: number, tileY: number, tileZ: number, grid: TileGrid, displayName?: string): AvatarSpec | null {
+  spawnAvatarAt(agentId: string, variant: 0 | 1 | 2 | 3 | 4 | 5, tileX: number, tileY: number, tileZ: number, grid: TileGrid, displayName?: string, team?: TeamSection): AvatarSpec | null {
     if (this.avatars.has(agentId)) return this.avatars.get(agentId)!;
 
     // Validate the tile is within grid bounds
@@ -86,7 +87,7 @@ export class AvatarManager {
 
     const now = Date.now();
     const savedData = this.savedOutfits.get(agentId);
-    const outfit = savedData ? savedData.outfit : getDefaultPreset(variant);
+    const outfit = savedData ? savedData.outfit : team ? getRolePreset(team, variant) : getDefaultPreset(variant);
 
     const spec: AvatarSpec = {
       id: agentId,

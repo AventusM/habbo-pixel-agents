@@ -54,9 +54,22 @@ This phase addresses three issues identified during visual testing of Phase 14.1
 </specifics>
 
 <deferred>
-## Deferred Ideas
+## Deferred Ideas / Backlog
 
-None — all three items are in scope for this planning round.
+### Avatar Builder fixes (from Phase 16 verification)
+- Avatar Builder Role Outfits tab needs polish — currently "ok" but needs further work
+- Role outfit presets use simple color-differentiated shirts; consider adding more visual variety per team
+- Avatar Builder modal UX needs review (tab switching, outfit preview rendering quality)
+
+### Furniture rendering improvements
+- Native Habbo furniture frame states (on/off) require additive blending (`globalCompositeOperation: 'lighter'`) in the sprite renderer — currently using canvas overlay glow as workaround
+- Lamp glow layers (hc_lmp b/c frames 1+) and TV screen layers (tv_flat b/e) have dark pixel data meant for additive compositing
+- Section furniture layout is simplified (1 lamp per section) — restore full themed furniture (desks, chairs, bookshelves, server racks) when room size supports it without overcrowding
+- Room "small" template is too cramped for full furniture sets — consider making "medium" the default or improving furniture placement spacing
+
+### Layout editor
+- Old in-webview LayoutEditorPanel is hidden (`{false && ...}`) but not removed — clean up when sidebar controls are stable
+- Sidebar furniture preview rotation works but some items with complex source chains may not preview perfectly
 
 </deferred>
 

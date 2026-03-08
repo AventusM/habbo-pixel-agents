@@ -276,7 +276,7 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
               const boothKey = `${spawnTile.x},${spawnTile.y}`;
               walkableBoothsRef.current.add(boothKey);
               setBoothFrame(spawnTile.x, spawnTile.y, 1);
-              avatar = avatarManager.spawnAvatarAt(msg.agentId, msg.variant, spawnTile.x, spawnTile.y, 0, grid, msg.terminalName);
+              avatar = avatarManager.spawnAvatarAt(msg.agentId, msg.variant, spawnTile.x, spawnTile.y, 0, grid, msg.terminalName, team);
               console.log(`[Room] spawnAvatarAt result:`, avatar ? 'ok' : 'null');
               // Create teleport flash effect at spawn position
               if (avatar) {
@@ -295,7 +295,7 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
               }
             } else {
               // Fallback: random tile
-              avatar = avatarManager.spawnAvatar(msg.agentId, msg.variant, grid, msg.terminalName, blocked);
+              avatar = avatarManager.spawnAvatar(msg.agentId, msg.variant, grid, msg.terminalName, blocked, team);
             }
 
             // Assign agent to section and record initial activity
