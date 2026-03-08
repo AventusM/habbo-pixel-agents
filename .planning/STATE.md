@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_plan: Not started
-status: planning
-last_updated: "2026-03-08T08:57:50.900Z"
+current_plan: Plan 02 of 9
+status: executing
+last_updated: "2026-03-08T12:51:40Z"
 progress:
   total_phases: 17
   completed_phases: 14
-  total_plans: 37
-  completed_plans: 36
+  total_plans: 46
+  completed_plans: 37
 ---
 
 # STATE.md
@@ -19,20 +19,20 @@ progress:
 See: .planning/PROJECT.md (updated 2026-02-28)
 
 **Core value:** Claude Code agents should feel like they're working together in a recognisable Habbo Hotel room — the isometric 2.5D aesthetic must be faithful to the classic v14 era.
-**Current focus:** v2 in progress — Phase 17.2 complete (walking animation clipping fix)
+**Current focus:** v2 in progress — Phase 16 plan 01 complete (agent classification system)
 
 ## Current Status
 
 v1.0 (phases 1-8) complete. v2 work in progress: Phase 9 (furniture catalog + rendering fixes) and Phase 10a/10b (avatar polish + chair sitting) are complete. Phase 11 plan 01 (chair layer splitting) is complete. Phase 12 plans 01-03 complete (wall panels + kanban). Phase 14 plans 01-03 complete (outfit config, renderer integration, builder modal UI). Phase 14.1 plan 01 complete (avatar facial features with eyes, mouth, blink animation).
 
-**Last session:** 2026-03-08T08:57:50.890Z
+**Last session:** 2026-03-08T12:51:40Z
 **Milestone status:** v2 in progress
 
 ## Current Phase
 
-**Phase:** 17.2 — Fix Walking Animation Clipping and Layer Artifacts
-**Current Plan:** Plan 01 of 1
-**Status:** Complete
+**Phase:** 16 — Agent Factory Workflow with Team Sections and Orchestration UI
+**Current Plan:** Plan 02 of 9
+**Status:** Executing (Plan 01 complete)
 
 ## Decisions Log
 
@@ -99,6 +99,8 @@ v1.0 (phases 1-8) complete. v2 work in progress: Phase 9 (furniture catalog + re
 | 2026-03-07 | Right-click for movement, left-click for selection/builder only | Separates select and move into different click types; eliminates confusing dual-purpose left-click |
 | 2026-03-07 | Walk delta computed in pre-flip space | Flip handled by drawTintedBodyPart; no negation needed for flipped directions |
 | 2026-03-07 | Delta computation guarded by stateForFrame === walk | Skip entirely for idle/sit states for clarity over relying on fallback zero |
+| 2026-03-08 | Default unmapped agent roles to core-dev team | Most agents are implementers; safe default for unknown subagent_types |
+| 2026-03-08 | Task area inferred by counting file path category hits | Most frequent category wins; provides meaningful display name suffix |
 
 ## Blockers
 
@@ -144,6 +146,7 @@ None.
 | Phase 17.1-stray-pixel-diagnostic-fix-and-right-click-movement P17.1-01 | 16min | 1 task | 4 files |
 | Phase 17.1-stray-pixel-diagnostic-fix-and-right-click-movement P17.1-02 | 1min | 1 task | 1 file |
 | Phase 17.2-fix-walking-animation-clipping-and-layer-artifacts P17.2-01 | 2min | 2 tasks | 2 files |
+| Phase 16-agent-factory-workflow P16-01 | 3min | 2 tasks | 3 files |
 
 ## Phase History
 
@@ -185,6 +188,7 @@ None.
 | 17.1-stray-pixel-diagnostic-fix-and-right-click-movement | 17.1-01 | Spritesheet scanner confirms clean PNGs; tint canvas imageSmoothingEnabled=false eliminates compositing ghost pixels (321 tests passing) |
 | 17.1-stray-pixel-diagnostic-fix-and-right-click-movement | 17.1-02 | Right-click avatar movement via onContextMenu handler; left-click simplified to selection and builder panel only (321 tests passing) |
 | 17.2-fix-walking-animation-clipping-and-layer-artifacts | 17.2-01 | Walk-frame offset delta correction for chest/head/hair/face parts tracking body bounce during walk animation (325 tests passing) |
+| 16-agent-factory-workflow | 16-01 | Agent classification pipeline mapping JSONL subagent_type to roles, teams, and display names with 26 tests (351 tests passing) |
 
 ### Pending Todos
 
