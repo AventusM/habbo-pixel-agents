@@ -25,7 +25,7 @@ See: .planning/PROJECT.md (updated 2026-02-28)
 
 v1.0 (phases 1-8) complete. v2 work in progress: Phase 9 (furniture catalog + rendering fixes) and Phase 10a/10b (avatar polish + chair sitting) are complete. Phase 11 plan 01 (chair layer splitting) is complete. Phase 12 plans 01-03 complete (wall panels + kanban). Phase 14 plans 01-03 complete (outfit config, renderer integration, builder modal UI). Phase 14.1 plan 01 complete (avatar facial features with eyes, mouth, blink animation).
 
-**Last session:** 2026-03-08T19:19:04.934Z
+**Last session:** 2026-03-08T19:58:08.933Z
 **Milestone status:** v2 in progress
 
 ## Current Phase
@@ -122,6 +122,12 @@ v1.0 (phases 1-8) complete. v2 work in progress: Phase 9 (furniture catalog + re
 | 2026-03-08 | Lazy SectionManager initialization from global floorTemplate | Set in webview.tsx, consumed in RoomCanvas via window global |
 | 2026-03-08 | Walk-to-booth despawn with 500ms delay for teleport flash | Smooth animation before avatar removal |
 | 2026-03-08 | Section furniture populated from template on canvas init | All 4 zone furniture arrays merged into render state |
+
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 1 | Fix invisible teleport booths - change country_gate direction from 2 to 0 | 2026-03-08 | e19fae2 | [1-fix-invisible-teleport-booths-change-cou](./quick/1-fix-invisible-teleport-booths-change-cou/) |
 
 ## Blockers
 
