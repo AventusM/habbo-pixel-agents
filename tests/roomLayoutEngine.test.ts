@@ -10,32 +10,32 @@ import { parseHeightmap } from '../src/isoTypes.js';
 
 describe('roomLayoutEngine', () => {
   describe('template generation', () => {
-    it('small template produces a 20x20 heightmap', () => {
+    it('small template produces a 9x9 heightmap', () => {
       const t = generateFloorTemplate('small');
       const rows = t.heightmap.split('\n');
-      expect(rows.length).toBe(20);
+      expect(rows.length).toBe(9);
       for (const row of rows) {
-        expect(row.length).toBe(20);
+        expect(row.length).toBe(9);
       }
-      expect(t.totalWidth).toBe(20);
-      expect(t.totalHeight).toBe(20);
+      expect(t.totalWidth).toBe(9);
+      expect(t.totalHeight).toBe(9);
     });
 
-    it('medium template produces a 28x28 heightmap', () => {
+    it('medium template produces an 11x11 heightmap', () => {
       const t = generateFloorTemplate('medium');
       const rows = t.heightmap.split('\n');
-      expect(rows.length).toBe(28);
+      expect(rows.length).toBe(11);
       for (const row of rows) {
-        expect(row.length).toBe(28);
+        expect(row.length).toBe(11);
       }
     });
 
-    it('large template produces a 36x36 heightmap', () => {
+    it('large template produces a 13x13 heightmap', () => {
       const t = generateFloorTemplate('large');
       const rows = t.heightmap.split('\n');
-      expect(rows.length).toBe(36);
+      expect(rows.length).toBe(13);
       for (const row of rows) {
-        expect(row.length).toBe(36);
+        expect(row.length).toBe(13);
       }
     });
 
@@ -97,11 +97,11 @@ describe('roomLayoutEngine', () => {
   });
 
   describe('dividers and doorways', () => {
-    it('divider tiles are void in the heightmap', () => {
+    it('divider tiles are walkable in the heightmap (no void gaps)', () => {
       const t = generateFloorTemplate('small');
       const rows = t.heightmap.split('\n');
       for (const d of t.dividerTiles) {
-        expect(rows[d.y][d.x]).toBe('x');
+        expect(rows[d.y][d.x]).toBe('0');
       }
     });
 
@@ -113,24 +113,24 @@ describe('roomLayoutEngine', () => {
       }
     });
 
-    it('has at least 1 doorway per divider line', () => {
+    it('divider zone is continuous floor (no void gaps between sections)', () => {
       for (const size of ['small', 'medium', 'large'] as const) {
         const t = generateFloorTemplate(size);
-        // At least doorways on both vertical and horizontal dividers
-        const verticalDoorways = t.doorwayTiles.filter(d => {
-          const cfg = TEMPLATE_SIZES[size];
-          const divStart = cfg.border + cfg.usable;
-          const divEnd = divStart + cfg.divider - 1;
-          return d.x >= divStart && d.x <= divEnd;
-        });
-        const horizontalDoorways = t.doorwayTiles.filter(d => {
-          const cfg = TEMPLATE_SIZES[size];
-          const divStart = cfg.border + cfg.usable;
-          const divEnd = divStart + cfg.divider - 1;
-          return d.y >= divStart && d.y <= divEnd;
-        });
-        expect(verticalDoorways.length).toBeGreaterThanOrEqual(1);
-        expect(horizontalDoorways.length).toBeGreaterThanOrEqual(1);
+        const rows = t.heightmap.split('\n');
+        const cfg = TEMPLATE_SIZES[size];
+        const divStart = cfg.border + cfg.usable;
+        const divEnd = divStart + cfg.divider - 1;
+        // All tiles in the divider zone should be walkable
+        for (let y = cfg.border; y < cfg.total - cfg.border; y++) {
+          for (let x = divStart; x <= divEnd; x++) {
+            expect(rows[y][x]).toBe('0');
+          }
+        }
+        for (let x = cfg.border; x < cfg.total - cfg.border; x++) {
+          for (let y = divStart; y <= divEnd; y++) {
+            expect(rows[y][x]).toBe('0');
+          }
+        }
       }
     });
   });
@@ -157,18 +157,18 @@ describe('roomLayoutEngine', () => {
       }
     });
 
-    it('border tiles are void (x perimeter)', () => {
+    it('all edge tiles are walkable (no void border)', () => {
       const t = generateFloorTemplate('small');
       const rows = t.heightmap.split('\n');
-      // Top and bottom rows
+      // Top and bottom rows are walkable
       for (let x = 0; x < t.totalWidth; x++) {
-        expect(rows[0][x]).toBe('x');
-        expect(rows[t.totalHeight - 1][x]).toBe('x');
+        expect(rows[0][x]).toBe('0');
+        expect(rows[t.totalHeight - 1][x]).toBe('0');
       }
-      // Left and right columns
+      // Left and right columns are walkable
       for (let y = 0; y < t.totalHeight; y++) {
-        expect(rows[y][0]).toBe('x');
-        expect(rows[y][t.totalWidth - 1]).toBe('x');
+        expect(rows[y][0]).toBe('0');
+        expect(rows[y][t.totalWidth - 1]).toBe('0');
       }
     });
   });

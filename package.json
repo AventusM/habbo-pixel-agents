@@ -14,6 +14,14 @@
       {
         "command": "habbo-pixel-agents.openRoom",
         "title": "Open Habbo Room"
+      },
+      {
+        "command": "habbo-pixel-agents.debugSpawn",
+        "title": "Habbo Debug: Spawn Agent"
+      },
+      {
+        "command": "habbo-pixel-agents.debugDespawn",
+        "title": "Habbo Debug: Despawn Last Agent"
       }
     ],
     "viewsContainers": {

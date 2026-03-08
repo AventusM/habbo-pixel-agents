@@ -40,9 +40,10 @@ const FURNITURE_ITEMS = [
   'CF_10_coin_gold',    // Gold coin
 
   // Section-themed furniture (Phase 16)
-  'country_gate',       // Teleport booth
+  'country_gate',       // Country gate
   'tv_flat',            // Flat screen TV
   'shelves_armas',      // Server rack / shelves
+  'ads_cltele',         // Habbo Club teleport booth (1x1, dirs 2/4)
 ];
 
 // Avatar body + clothing

@@ -11,6 +11,7 @@ import { drawNameTag } from './isoNameTagRenderer.js';
 import { tileToScreen, TILE_W_HALF, TILE_H_HALF } from './isometricMath.js';
 import {
   drawHoverHighlight,
+  drawFurnitureFootprint,
   toggleTileWalkability,
   setTileColor,
   placeFurniture,
@@ -21,7 +22,7 @@ import {
   type EditorState,
 } from './isoLayoutEditor.js';
 import type { HsbColor } from './isoTypes.js';
-import { getSupportedDirections, isChairType } from './furnitureRegistry.js';
+import { getSupportedDirections, isChairType, isTeleportBooth, getFurnitureDimensions } from './furnitureRegistry.js';
 import { LayoutEditorPanel } from './LayoutEditorPanel.js';
 import { AudioManager } from './isoAudioManager.js';
 import { AvatarManager } from './avatarManager.js';
@@ -39,12 +40,17 @@ import type { CameraState } from './cameraController.js';
 import { createCameraState, applyPan, applyZoom, applyCameraTransform, screenToWorld } from './cameraController.js';
 import { screenToTile } from './isometricMath.js';
 import { SectionManager } from './sectionManager.js';
-import type { FloorTemplate } from './roomLayoutEngine.js';
+import { type FloorTemplate, buildSectionColorMap } from './roomLayoutEngine.js';
 import { createTeleportEffect, drawTeleportFlash } from './teleportEffect.js';
 import type { TeleportEffect } from './teleportEffect.js';
 import type { TeamSection } from './agentTypes.js';
 import { drawFurnitureActiveOverlay } from './isoFurnitureRenderer.js';
 import { jumpToSection } from './cameraController.js';
+import {
+  createOrchestrationState, drawOrchestrationOverlay,
+  orchestrationAddAgent, orchestrationRemoveAgent,
+  orchestrationSetStatus, orchestrationSetTool,
+} from './isoOrchestrationOverlay.js';
 
 interface RoomCanvasProps {
   heightmap: string;
@@ -78,6 +84,13 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
   // Agents mid-despawn (walking to booth before removal)
   const despawningAgentsRef = useRef<Set<string>>(new Set());
 
+  // Booth tiles temporarily made walkable during spawn/despawn
+  const walkableBoothsRef = useRef<Set<string>>(new Set());
+
+  // Agents waiting to step out of booth after spawn animation completes
+  // Maps agentId → booth tile {x, y}
+  const pendingStepOutRef = useRef<Map<string, { x: number; y: number }>>(new Map());
+
   // Agent popup card (shows role/team info on click)
   const popupAgentRef = useRef<string | null>(null);
   const popupTimeRef = useRef<number>(0);
@@ -89,6 +102,9 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
 
   // Track agent speech bubble text
   const agentToolTextRef = useRef<Map<string, string>>(new Map());
+
+  // In-canvas orchestration overlay state
+  const orchStateRef = useRef(createOrchestrationState());
 
   // Dev mode flag (set by extension in Development mode)
   const [devMode, setDevMode] = useState(false);
@@ -199,6 +215,27 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
     renderState.current.editorState.furnitureDirection = furnitureDirection;
   }, [editorMode, selectedColor, selectedFurniture, furnitureDirection]);
 
+  /**
+   * Set a teleport booth's frame index (0=closed, 1=open) and rebuild renderables.
+   */
+  function setBoothFrame(tileX: number, tileY: number, frameIndex: number) {
+    const furniture = renderState.current.furniture;
+    const booth = furniture.find(
+      f => f.tileX === tileX && f.tileY === tileY && isTeleportBooth(f.name)
+    );
+    if (!booth) return;
+    booth.frameIndex = frameIndex;
+    const spriteCache: SpriteCache | undefined = (window as any).spriteCache;
+    if (spriteCache) {
+      renderState.current.furnitureRenderables = createFurnitureRenderables(
+        furniture,
+        renderState.current.multiTileFurniture,
+        spriteCache,
+        renderState.current.cameraOrigin,
+      );
+    }
+  }
+
   // Listen for extension messages (agent events)
   useEffect(() => {
     function handleExtensionMessage(event: Event) {
@@ -212,6 +249,7 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
       const blocked = computeBlockedTiles(
         renderState.current.furniture,
         renderState.current.multiTileFurniture,
+        walkableBoothsRef.current,
       );
 
       // Initialize section manager lazily from global template
@@ -227,19 +265,33 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
         case 'agentCreated': {
           if (grid) {
             const team: TeamSection = (msg as any).team || 'core-dev';
+            console.log(`[Room] agentCreated: ${msg.agentId} team=${team}`);
 
             // Try to spawn at section teleport booth
             const spawnTile = sectionManager?.getSpawnTile(team);
+            console.log(`[Room] spawnTile for ${team}:`, spawnTile);
             let avatar;
             if (spawnTile) {
+              // Temporarily make booth tile walkable and open door
+              const boothKey = `${spawnTile.x},${spawnTile.y}`;
+              walkableBoothsRef.current.add(boothKey);
+              setBoothFrame(spawnTile.x, spawnTile.y, 1);
               avatar = avatarManager.spawnAvatarAt(msg.agentId, msg.variant, spawnTile.x, spawnTile.y, 0, grid, msg.terminalName);
+              console.log(`[Room] spawnAvatarAt result:`, avatar ? 'ok' : 'null');
               // Create teleport flash effect at spawn position
               if (avatar) {
                 const { x: sx, y: sy } = tileToScreen(spawnTile.x, spawnTile.y, 0);
                 const ox = renderState.current.cameraOrigin;
+                console.log(`[Room] Creating teleport flash at sx=${sx + ox.x}, sy=${sy + TILE_H_HALF + ox.y}`);
                 teleportEffectsRef.current.push(
                   createTeleportEffect(sx + ox.x, sy + TILE_H_HALF + ox.y, 'spawn')
                 );
+                // Register pending step-out (handled in render loop when spawn animation ends)
+                pendingStepOutRef.current.set(msg.agentId, { ...spawnTile });
+              } else {
+                // Spawn failed, revert walkability
+                walkableBoothsRef.current.delete(boothKey);
+                setBoothFrame(spawnTile.x, spawnTile.y, 0);
               }
             } else {
               // Fallback: random tile
@@ -251,6 +303,9 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
               sectionManager.assignAgent(msg.agentId, team);
             }
 
+            // Track in orchestration overlay
+            orchestrationAddAgent(orchStateRef.current, msg.agentId, msg.terminalName || msg.agentId, team);
+
             // Set role-specific idle behavior before starting wander
             idleWander.setAgentRole(msg.agentId, team);
 
@@ -260,12 +315,17 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
           break;
         }
         case 'agentRemoved': {
+          console.log(`[Room] agentRemoved: ${msg.agentId}`);
+          orchestrationRemoveAgent(orchStateRef.current, msg.agentId);
           const agentTeam = sectionManager?.getAgentTeam(msg.agentId);
           const boothTile = agentTeam ? sectionManager?.getSpawnTile(agentTeam) : null;
           const avatar = avatarManager.getAvatar(msg.agentId);
+          console.log(`[Room] despawn: team=${agentTeam}, boothTile=`, boothTile, `avatar=`, avatar ? `at(${avatar.tileX},${avatar.tileY})` : 'null');
 
           if (boothTile && avatar && grid) {
-            // Walk-to-booth despawn flow
+            // Walk-to-booth despawn flow — temporarily make booth walkable
+            const despawnBoothKeyOuter = `${boothTile.x},${boothTile.y}`;
+            walkableBoothsRef.current.add(despawnBoothKeyOuter);
             despawningAgentsRef.current.add(msg.agentId);
             idleWander.stopWandering(msg.agentId);
 
@@ -276,20 +336,33 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
 
             // If already at booth tile, trigger despawn immediately
             if (avatar.tileX === boothTile.x && avatar.tileY === boothTile.y) {
+              // Open booth door for despawn
+              const despawnBoothKey = `${boothTile.x},${boothTile.y}`;
+              walkableBoothsRef.current.add(despawnBoothKey);
+              setBoothFrame(boothTile.x, boothTile.y, 1);
               const { x: sx, y: sy } = tileToScreen(boothTile.x, boothTile.y, 0);
               const ox = renderState.current.cameraOrigin;
               teleportEffectsRef.current.push(
                 createTeleportEffect(sx + ox.x, sy + TILE_H_HALF + ox.y, 'despawn')
               );
-              // Schedule removal after effect duration
+              // Schedule removal after effect duration, then close booth and re-block
+              const capturedBooth = { ...boothTile };
+              const capturedKey = despawnBoothKey;
               setTimeout(() => {
                 avatarManager.removeAvatar(msg.agentId);
                 sectionManager?.removeAgent(msg.agentId);
                 despawningAgentsRef.current.delete(msg.agentId);
+                setBoothFrame(capturedBooth.x, capturedBooth.y, 0);
+                walkableBoothsRef.current.delete(capturedKey);
               }, 500);
             } else {
-              // Pathfind to booth
-              avatarManager.moveAvatarTo(msg.agentId, boothTile.x, boothTile.y, grid, undefined, blocked);
+              // Pathfind to booth — recompute blocked with booth tile now walkable
+              const despawnBlocked = computeBlockedTiles(
+                renderState.current.furniture,
+                renderState.current.multiTileFurniture,
+                walkableBoothsRef.current,
+              );
+              avatarManager.moveAvatarTo(msg.agentId, boothTile.x, boothTile.y, grid, undefined, despawnBlocked);
             }
           } else {
             // No team or no booth: immediate despawn
@@ -303,6 +376,8 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
         case 'agentStatus': {
           // Skip status updates for despawning agents
           if (despawningAgentsRef.current.has(msg.agentId)) break;
+
+          orchestrationSetStatus(orchStateRef.current, msg.agentId, msg.status as 'active' | 'idle');
 
           if (msg.status === 'active' && grid) {
             idleWander.stopWandering(msg.agentId);
@@ -331,6 +406,7 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
         }
         case 'agentTool': {
           agentToolTextRef.current.set(msg.agentId, msg.displayText);
+          orchestrationSetTool(orchStateRef.current, msg.agentId, msg.displayText);
           // Track activity for auto-follow
           if (sectionManager) {
             const agentTeam = sectionManager.getAgentTeam(msg.agentId);
@@ -360,6 +436,10 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
           }
           break;
         }
+        case 'toggleOverlay': {
+          orchStateRef.current.visible = !orchStateRef.current.visible;
+          break;
+        }
         case 'autoFollow': {
           autoFollowRef.current = (msg as any).enabled ?? !autoFollowRef.current;
           if (!autoFollowRef.current) {
@@ -378,6 +458,57 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
         }
         case 'devMode': {
           setDevMode(msg.enabled);
+          break;
+        }
+        // Layout editor commands from sidebar control panel
+        case 'editorMode': {
+          const mode = (msg as any).mode as EditorMode;
+          setEditorMode(mode);
+          break;
+        }
+        case 'editorColor': {
+          const { h, s, b } = msg as any;
+          setSelectedColor({ h, s, b });
+          break;
+        }
+        case 'editorFurniture': {
+          setSelectedFurniture((msg as any).furniture);
+          break;
+        }
+        case 'editorRotate': {
+          const sc: SpriteCache | undefined = (window as any).spriteCache;
+          const curFurn = renderState.current.editorState.selectedFurniture || 'hc_chr';
+          const curDir = renderState.current.editorState.furnitureDirection ?? 0;
+          const sup = sc ? getSupportedDirections(curFurn, sc) : undefined;
+          setFurnitureDirection(rotateFurniture(curDir, sup));
+          break;
+        }
+        case 'editorSave': {
+          handleSave();
+          break;
+        }
+        case 'editorLoad': {
+          // Trigger file input click programmatically
+          const input = document.createElement('input');
+          input.type = 'file';
+          input.accept = '.json';
+          input.onchange = () => {
+            const file = input.files?.[0];
+            if (file) handleLoad(file);
+          };
+          input.click();
+          break;
+        }
+        case 'devCapture': {
+          handleDevCapture();
+          break;
+        }
+        case 'playSound': {
+          handlePlaySound((msg as any).sound || 'notification');
+          break;
+        }
+        case 'debugGrid': {
+          setShowDebugGrid(prev => !prev);
           break;
         }
       }
@@ -405,10 +536,11 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
 
     const furniture: FurnitureSpec[] = [];
 
-    // Populate section furniture from template
+    // Initialize section manager, apply section floor colors, and place teleport booths
     const tmpl = (window as any).floorTemplate as FloorTemplate | undefined;
     if (tmpl) {
       sectionManagerRef.current = new SectionManager(tmpl);
+      renderState.current.tileColorMap = buildSectionColorMap(tmpl);
       for (const section of tmpl.sections) {
         for (const f of section.furniture) {
           furniture.push(f);
@@ -466,6 +598,7 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
         const blocked = computeBlockedTiles(
           renderState.current.furniture,
           renderState.current.multiTileFurniture,
+          walkableBoothsRef.current,
         );
         idleWanderRef.current.tick(
           currentTimeMs,
@@ -491,18 +624,24 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
             const team = sectionManagerRef.current.getAgentTeam(agentId);
             const boothTile = team ? sectionManagerRef.current.getSpawnTile(team) : null;
             if (boothTile && avatar.tileX === boothTile.x && avatar.tileY === boothTile.y) {
+              // Open booth door for despawn
+              setBoothFrame(boothTile.x, boothTile.y, 1);
               // Create despawn teleport effect
               const { x: sx, y: sy } = tileToScreen(boothTile.x, boothTile.y, 0);
               const ox = renderState.current.cameraOrigin;
               teleportEffectsRef.current.push(
                 createTeleportEffect(sx + ox.x, sy + TILE_H_HALF + ox.y, 'despawn')
               );
-              // Schedule removal after effect
+              // Schedule removal after effect, then close booth and re-block tile
               const capturedAgentId = agentId;
+              const capturedBooth = { ...boothTile };
+              const capturedBoothKey = `${boothTile.x},${boothTile.y}`;
               setTimeout(() => {
                 avatarManagerRef.current.removeAvatar(capturedAgentId);
                 sectionManagerRef.current?.removeAgent(capturedAgentId);
                 despawningAgentsRef.current.delete(capturedAgentId);
+                setBoothFrame(capturedBooth.x, capturedBooth.y, 0);
+                walkableBoothsRef.current.delete(capturedBoothKey);
               }, 500);
               // Remove from despawning set immediately to prevent re-triggering
               despawningAgentsRef.current.delete(agentId);
@@ -517,6 +656,47 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
         updateAvatarAnimation(avatar, currentTimeMs);
       }
       renderState.current.lastFrameTimeMs = currentTimeMs;
+
+      // Check pending step-outs: move agent out of booth once spawn animation ends
+      if (pendingStepOutRef.current.size > 0 && renderState.current.grid) {
+        for (const [agentId, boothPos] of pendingStepOutRef.current) {
+          const av = avatarManagerRef.current.getAvatar(agentId);
+          if (!av) {
+            pendingStepOutRef.current.delete(agentId);
+            continue;
+          }
+          if (av.state === 'idle') {
+            pendingStepOutRef.current.delete(agentId);
+            const g = renderState.current.grid;
+            const stepBlocked = computeBlockedTiles(
+              renderState.current.furniture,
+              renderState.current.multiTileFurniture,
+              walkableBoothsRef.current,
+            );
+            // Prefer stepping out in booth facing direction (dir 2 = +x, bottom-right)
+            const offsets = [
+              { dx: 1, dy: 0 }, { dx: 0, dy: 1 },
+              { dx: -1, dy: 0 }, { dx: 0, dy: -1 },
+            ];
+            for (const off of offsets) {
+              const nx = boothPos.x + off.dx;
+              const ny = boothPos.y + off.dy;
+              if (nx >= 0 && ny >= 0 && nx < g.width && ny < g.height
+                  && g.tiles[ny][nx] !== null && !stepBlocked.has(`${nx},${ny}`)) {
+                avatarManagerRef.current.moveAvatarTo(agentId, nx, ny, g, undefined, stepBlocked);
+                break;
+              }
+            }
+            // Close booth door and re-block after agent steps out
+            const capturedPos = { ...boothPos };
+            const capturedKey = `${boothPos.x},${boothPos.y}`;
+            setTimeout(() => {
+              setBoothFrame(capturedPos.x, capturedPos.y, 0);
+              walkableBoothsRef.current.delete(capturedKey);
+            }, 800);
+          }
+        }
+      }
 
       // Auto-follow camera: every 3 seconds check most active section
       if (autoFollowRef.current && sectionManagerRef.current && canvas) {
@@ -575,15 +755,29 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
       // Draw hover highlight if tile is hovered (editor mode)
       if (renderState.current.editorState.hoveredTile) {
         const { x, y, z } = renderState.current.editorState.hoveredTile;
-        drawHoverHighlight(ctx, x, y, z, renderState.current.cameraOrigin);
 
-        // Show direction arrow when in furniture mode
-        if (renderState.current.editorState.mode === 'furniture') {
+        if (renderState.current.editorState.mode === 'furniture' && renderState.current.grid) {
+          // Show multi-tile footprint preview for furniture placement
+          const furnitureType = renderState.current.editorState.selectedFurniture || 'hc_chr';
           const dir = renderState.current.editorState.furnitureDirection ?? 0;
+          const sc: SpriteCache | undefined = (window as any).spriteCache;
+          const { widthTiles, heightTiles } = sc
+            ? getFurnitureDimensions(furnitureType, sc, dir)
+            : { widthTiles: 1, heightTiles: 1 };
+
+          drawFurnitureFootprint(
+            ctx, x, y, z,
+            widthTiles, heightTiles,
+            renderState.current.grid,
+            renderState.current.furniture,
+            renderState.current.multiTileFurniture,
+            renderState.current.cameraOrigin,
+          );
+
+          // Direction arrow at origin tile
           const { x: sx, y: sy } = tileToScreen(x, y, z);
           const arrowCx = sx + renderState.current.cameraOrigin.x;
           const arrowCy = sy + TILE_H_HALF + renderState.current.cameraOrigin.y;
-          // Direction arrows: 0=NE, 2=SE, 4=SW, 6=NW
           const arrows: Record<number, string> = { 0: '\u2197', 2: '\u2198', 4: '\u2199', 6: '\u2196' };
           ctx.save();
           ctx.font = '14px sans-serif';
@@ -591,6 +785,9 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
           ctx.textAlign = 'center';
           ctx.fillText(arrows[dir] || '?', arrowCx, arrowCy - 4);
           ctx.restore();
+        } else {
+          // Single tile highlight for paint/color modes
+          drawHoverHighlight(ctx, x, y, z, renderState.current.cameraOrigin);
         }
       }
 
@@ -745,6 +942,11 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
         }
       }
 
+      // Orchestration overlay (right-side HUD)
+      if (canvas) {
+        drawOrchestrationOverlay(ctx, orchStateRef.current, canvas.width, canvas.height);
+      }
+
       rafIdRef.current = requestAnimationFrame(frame);
     }
 
@@ -814,9 +1016,13 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
     }
   };
 
-  const handleWheel = (event: React.WheelEvent<HTMLCanvasElement>) => {
+  // Wheel handler is attached as a native event listener (non-passive)
+  // to allow preventDefault() — React's onWheel is passive by default.
+  const wheelHandlerRef = useRef<((e: WheelEvent) => void) | null>(null);
+  wheelHandlerRef.current = (event: WheelEvent) => {
     event.preventDefault();
-    const canvas = event.currentTarget;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
     const scaleX = canvas.width / rect.width;
     const scaleY = canvas.height / rect.height;
@@ -824,6 +1030,14 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
     const pivotY = (event.clientY - rect.top) * scaleY;
     applyZoom(renderState.current.cameraState, event.deltaY, pivotX, pivotY, canvas.width, canvas.height);
   };
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const handler = (e: WheelEvent) => wheelHandlerRef.current?.(e);
+    canvas.addEventListener('wheel', handler, { passive: false });
+    return () => canvas.removeEventListener('wheel', handler);
+  }, []);
 
   const handleClick = async (event: React.MouseEvent<HTMLCanvasElement>) => {
     // Skip click if user was dragging the camera
@@ -992,6 +1206,7 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
           const blocked = computeBlockedTiles(
             renderState.current.furniture,
             renderState.current.multiTileFurniture,
+            walkableBoothsRef.current,
           );
           if (target.tileX === tileX && target.tileY === tileY) {
             avatarManager.sitAvatar(target.id, tileX, tileY, chairFurniture.direction);
@@ -1029,6 +1244,7 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
       const blocked = computeBlockedTiles(
         renderState.current.furniture,
         renderState.current.multiTileFurniture,
+        walkableBoothsRef.current,
       );
       // Find nearest idle/walk avatar (prefer selected)
       const selectionMgr = selectionManagerRef.current;
@@ -1162,7 +1378,20 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
     if (!audioManagerRef.current) {
       await initAudio();
     }
-    const buf = soundBuffersRef.current.get(soundName);
+    // Retry once after init — buffer may have just been loaded
+    let buf = soundBuffersRef.current.get(soundName);
+    if (!buf && audioManagerRef.current) {
+      // Try loading the specific sound if not yet loaded
+      const uris = (window as any).ASSET_URIS;
+      const uriKey = soundName + 'Sound';
+      if (uris?.[uriKey]) {
+        const loaded = await audioManagerRef.current.loadSound(uris[uriKey]);
+        if (loaded) {
+          soundBuffersRef.current.set(soundName, loaded);
+          buf = loaded;
+        }
+      }
+    }
     if (buf && audioManagerRef.current) {
       audioManagerRef.current.play(buf);
     } else {
@@ -1203,7 +1432,9 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
 
   return (
     <>
-      <LayoutEditorPanel
+      {/* Layout editor panel hidden — controls moved to orchestration sidebar.
+          Kept in codebase for reference; will be removed in a future cleanup phase. */}
+      {false && <LayoutEditorPanel
         editorMode={editorMode}
         onModeChange={setEditorMode}
         selectedColor={selectedColor}
@@ -1225,14 +1456,14 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
         }}
         onSave={handleSave}
         onLoad={handleLoad}
-      />
+      />}
       <canvas
         ref={canvasRef}
         style={{ width: '100%', height: '100%', display: 'block' }}
         onMouseDown={handleMouseDown}
         onMouseUp={handleMouseUp}
         onMouseMove={handleMouseMove}
-        onWheel={handleWheel}
+        /* wheel handled via native listener (non-passive) in useEffect */
         onClick={handleClick}
         onContextMenu={handleContextMenu}
         onMouseLeave={handleMouseLeave}

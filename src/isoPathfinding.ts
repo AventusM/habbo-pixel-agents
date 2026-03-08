@@ -21,18 +21,25 @@ const NEIGHBORS: [number, number][] = [
 export function computeBlockedTiles(
   furniture: FurnitureSpec[],
   multiTileFurniture: MultiTileFurnitureSpec[],
+  overrideWalkable?: Set<string>,
 ): Set<string> {
   const blocked = new Set<string>();
   for (const f of furniture) {
     if (!isWalkableFurniture(f.name)) {
-      blocked.add(`${f.tileX},${f.tileY}`);
+      const key = `${f.tileX},${f.tileY}`;
+      if (!overrideWalkable?.has(key)) {
+        blocked.add(key);
+      }
     }
   }
   for (const f of multiTileFurniture) {
     if (!isWalkableFurniture(f.name)) {
       for (let dy = 0; dy < f.heightTiles; dy++) {
         for (let dx = 0; dx < f.widthTiles; dx++) {
-          blocked.add(`${f.tileX + dx},${f.tileY + dy}`);
+          const key = `${f.tileX + dx},${f.tileY + dy}`;
+          if (!overrideWalkable?.has(key)) {
+            blocked.add(key);
+          }
         }
       }
     }

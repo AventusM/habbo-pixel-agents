@@ -48,7 +48,20 @@ export type ExtensionMessage =
   | { type: 'kanbanCards'; cards: KanbanCard[] }
   | { type: 'devMode'; enabled: boolean }
   | { type: 'avatarOutfits'; outfits: Record<string, { outfit: OutfitConfig; wardrobePresets?: OutfitConfig[] }> }
-  | { type: 'requestClassification'; agentId: string };
+  | { type: 'requestClassification'; agentId: string }
+  // Sidebar control panel → room webview (relayed via extension host)
+  | { type: 'jumpToSection'; team: string }
+  | { type: 'toggleOverlay' }
+  | { type: 'autoFollow'; enabled?: boolean }
+  | { type: 'editorMode'; mode: string }
+  | { type: 'editorColor'; h: number; s: number; b: number }
+  | { type: 'editorFurniture'; furniture: string }
+  | { type: 'editorRotate' }
+  | { type: 'editorSave' }
+  | { type: 'editorLoad' }
+  | { type: 'devCapture' }
+  | { type: 'playSound'; sound: string }
+  | { type: 'debugGrid' };
 
 /** Messages from webview → extension host */
 export type WebviewMessage =

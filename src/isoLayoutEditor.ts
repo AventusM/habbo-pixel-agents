@@ -115,6 +115,73 @@ export function drawHoverHighlight(
 }
 
 /**
+ * Draw a multi-tile footprint highlight for furniture placement preview.
+ * Green tiles = valid, red tiles = blocked/void/occupied.
+ */
+export function drawFurnitureFootprint(
+  ctx: CanvasRenderingContext2D,
+  tileX: number,
+  tileY: number,
+  tileZ: number,
+  widthTiles: number,
+  heightTiles: number,
+  grid: TileGrid,
+  furnitureList: FurnitureSpec[],
+  multiTileFurnitureList: MultiTileFurnitureSpec[],
+  cameraOrigin: { x: number; y: number },
+): void {
+  // Build occupied set
+  const occupied = new Set<string>();
+  for (const f of furnitureList) {
+    occupied.add(`${f.tileX},${f.tileY}`);
+  }
+  for (const f of multiTileFurnitureList) {
+    for (let fy = 0; fy < f.heightTiles; fy++) {
+      for (let fx = 0; fx < f.widthTiles; fx++) {
+        occupied.add(`${f.tileX + fx},${f.tileY + fy}`);
+      }
+    }
+  }
+
+  ctx.save();
+  ctx.translate(cameraOrigin.x, cameraOrigin.y);
+  ctx.lineWidth = 2;
+
+  for (let dy = 0; dy < heightTiles; dy++) {
+    for (let dx = 0; dx < widthTiles; dx++) {
+      const tx = tileX + dx;
+      const ty = tileY + dy;
+
+      // Determine if this tile is valid for placement
+      const inBounds = tx >= 0 && tx < grid.width && ty >= 0 && ty < grid.height;
+      const tile = inBounds ? grid.tiles[ty][tx] : null;
+      const isOccupied = occupied.has(`${tx},${ty}`);
+      const valid = inBounds && tile !== null && !isOccupied;
+
+      const { x: sx, y: sy } = tileToScreen(tx, ty, tileZ);
+
+      ctx.strokeStyle = valid
+        ? 'rgba(100, 255, 100, 0.8)'
+        : 'rgba(255, 80, 80, 0.8)';
+      ctx.fillStyle = valid
+        ? 'rgba(100, 255, 100, 0.15)'
+        : 'rgba(255, 80, 80, 0.15)';
+
+      ctx.beginPath();
+      ctx.moveTo(sx, sy);
+      ctx.lineTo(sx + TILE_W_HALF, sy + TILE_H_HALF);
+      ctx.lineTo(sx, sy + TILE_H_HALF * 2);
+      ctx.lineTo(sx - TILE_W_HALF, sy + TILE_H_HALF);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+    }
+  }
+
+  ctx.restore();
+}
+
+/**
  * Toggle tile walkability (void ↔ walkable).
  * Mutates grid in place.
  *

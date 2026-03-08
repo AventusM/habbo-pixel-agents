@@ -4,6 +4,7 @@
 
 import type { TeamSection } from './agentTypes.js';
 import type { FurnitureSpec } from './isoFurnitureRenderer.js';
+import type { HsbColor } from './isoTypes.js';
 
 /** Layout info for a single team section within the floor template */
 export interface SectionLayout {
@@ -30,9 +31,9 @@ export interface FloorTemplate {
 
 /** Template size definitions */
 export const TEMPLATE_SIZES = {
-  small: { total: 20, usable: 8, border: 1, divider: 2 },
-  medium: { total: 28, usable: 12, border: 1, divider: 2 },
-  large: { total: 36, usable: 16, border: 1, divider: 2 },
+  small: { total: 9, usable: 4, border: 0, divider: 1 },
+  medium: { total: 11, usable: 5, border: 0, divider: 1 },
+  large: { total: 13, usable: 6, border: 0, divider: 1 },
 } as const;
 
 /** Section assignments in 2x2 grid order */
@@ -84,70 +85,24 @@ export function generateFloorTemplate(size: 'small' | 'medium' | 'large'): Floor
     }
   }
 
-  // Carve divider strips (void)
+  // Divider tiles are walkable but mark section boundaries (no void gaps)
   const dividerTiles: { x: number; y: number }[] = [];
   for (let y = walkStart; y <= walkEnd; y++) {
     for (let x = divStart; x <= divEnd; x++) {
-      grid[y][x] = 'x'; // vertical divider
-      dividerTiles.push({ x, y });
+      dividerTiles.push({ x, y }); // vertical divider zone
     }
   }
   for (let x = walkStart; x <= walkEnd; x++) {
     for (let y = divStart; y <= divEnd; y++) {
-      // Avoid double-counting intersection tiles
       if (x < divStart || x > divEnd) {
-        grid[y][x] = 'x'; // horizontal divider
-        dividerTiles.push({ x, y });
+        dividerTiles.push({ x, y }); // horizontal divider zone
       }
     }
   }
 
-  // Doorway openings at midpoints of each divider segment
+  // Doorway tiles sit on the divider zone (all walkable, no void to bridge)
   const doorwayTiles: { x: number; y: number }[] = [];
-
-  // Vertical divider doorways (one in top half, one in bottom half)
-  const topMidY = walkStart + Math.floor(usable / 2);
-  const bottomMidY = divEnd + 1 + Math.floor(usable / 2);
-
-  for (let dx = divStart; dx <= divEnd; dx++) {
-    // Top doorway (between planning and core-dev)
-    grid[topMidY][dx] = '0';
-    grid[topMidY + 1][dx] = '0';
-    doorwayTiles.push({ x: dx, y: topMidY });
-    doorwayTiles.push({ x: dx, y: topMidY + 1 });
-
-    // Bottom doorway (between infrastructure and support)
-    if (bottomMidY + 1 <= walkEnd) {
-      grid[bottomMidY][dx] = '0';
-      grid[bottomMidY + 1][dx] = '0';
-      doorwayTiles.push({ x: dx, y: bottomMidY });
-      doorwayTiles.push({ x: dx, y: bottomMidY + 1 });
-    }
-  }
-
-  // Horizontal divider doorways (one in left half, one in right half)
-  const leftMidX = walkStart + Math.floor(usable / 2);
-  const rightMidX = divEnd + 1 + Math.floor(usable / 2);
-
-  for (let dy = divStart; dy <= divEnd; dy++) {
-    // Left doorway (between planning and infrastructure)
-    grid[dy][leftMidX] = '0';
-    grid[dy][leftMidX + 1] = '0';
-    doorwayTiles.push({ x: leftMidX, y: dy });
-    doorwayTiles.push({ x: leftMidX + 1, y: dy });
-
-    // Right doorway (between core-dev and support)
-    if (rightMidX + 1 <= walkEnd) {
-      grid[dy][rightMidX] = '0';
-      grid[dy][rightMidX + 1] = '0';
-      doorwayTiles.push({ x: rightMidX, y: dy });
-      doorwayTiles.push({ x: rightMidX + 1, y: dy });
-    }
-  }
-
-  // Remove doorway tiles from divider list (they overlap)
-  const doorwaySet = new Set(doorwayTiles.map(t => `${t.x},${t.y}`));
-  const filteredDividers = dividerTiles.filter(t => !doorwaySet.has(`${t.x},${t.y}`));
+  const filteredDividers = dividerTiles;
 
   // Section origins (top-left corner of each usable area)
   const sectionOrigins = [
@@ -183,8 +138,14 @@ export function generateFloorTemplate(size: 'small' | 'medium' | 'large'): Floor
       deskTiles,
       idleTiles,
     };
-    // Populate section-themed furniture
-    sectionLayout.furniture = getSectionFurniture(team, sectionLayout);
+    // Only place teleport booth at each section's spawn point
+    sectionLayout.furniture = [{
+      name: 'ads_cltele',
+      tileX: teleportTile.x,
+      tileY: teleportTile.y,
+      tileZ: 0,
+      direction: 2,
+    }];
 
     return sectionLayout;
   });
@@ -410,4 +371,42 @@ export function getTemplateSize(agentCount: number): 'small' | 'medium' | 'large
   if (agentCount <= 12) return 'small';
   if (agentCount <= 24) return 'medium';
   return 'large';
+}
+
+/** HSB colors for each team section (soft pastels that look good as floor tiles) */
+const SECTION_COLORS: Record<TeamSection, HsbColor> = {
+  'planning':       { h: 220, s: 30, b: 85 },  // soft blue
+  'core-dev':       { h: 145, s: 30, b: 80 },  // soft green
+  'infrastructure': { h: 35,  s: 30, b: 85 },  // soft amber
+  'support':        { h: 280, s: 25, b: 85 },  // soft purple
+};
+
+/** Divider strip color (neutral grey, slightly darker) */
+const DIVIDER_COLOR: HsbColor = { h: 0, s: 0, b: 70 };
+
+/**
+ * Build a tileColorMap that colors each section's tiles differently.
+ * Divider tiles get a neutral color to visually separate sections.
+ */
+export function buildSectionColorMap(template: FloorTemplate): Map<string, HsbColor> {
+  const map = new Map<string, HsbColor>();
+
+  // Color each section's tiles
+  for (const section of template.sections) {
+    const color = SECTION_COLORS[section.team];
+    for (let dy = 0; dy < section.heightTiles; dy++) {
+      for (let dx = 0; dx < section.widthTiles; dx++) {
+        const key = `${section.originTile.x + dx},${section.originTile.y + dy}`;
+        map.set(key, color);
+      }
+    }
+  }
+
+  // Color divider tiles
+  for (const d of template.dividerTiles) {
+    const key = `${d.x},${d.y}`;
+    map.set(key, DIVIDER_COLOR);
+  }
+
+  return map;
 }

@@ -78,6 +78,8 @@ export interface FurnitureSpec {
   tileZ: number;
   /** Habbo direction (0, 2, 4, 6) */
   direction: 0 | 2 | 4 | 6;
+  /** Animation frame index (0 = default/closed, 1 = open, etc.) */
+  frameIndex?: number;
 }
 
 /**
@@ -505,11 +507,12 @@ export function createNitroFurnitureRenderable(
       const layerZValues = getLayerZValues(metadata, spec.direction);
 
       // Resolve all layers and sort by per-direction z value
+      const fi = spec.frameIndex ?? 0;
       const layerCount = metadata.visualization.layerCount || 1;
       const layers: { frame: NitroSpriteFrame; z: number }[] = [];
       for (let i = 0; i < layerCount; i++) {
         const layerLetter = String.fromCharCode(97 + i); // 'a', 'b', 'c', ...
-        const frameName = `${nitroAssetName}_64_${layerLetter}_${baseDir}_0`;
+        const frameName = `${nitroAssetName}_64_${layerLetter}_${baseDir}_${fi}`;
         const frame = resolveNitroFrame(spriteCache, nitroAssetName, frameName);
         if (!frame) continue;
         layers.push({ frame, z: layerZValues.get(i) ?? 0 });

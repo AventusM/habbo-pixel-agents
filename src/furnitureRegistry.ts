@@ -112,7 +112,7 @@ export const CATEGORY_LABELS: Record<FurnitureCategory, string> = {
 };
 
 /** Furniture IDs that act as teleport booths */
-const TELEPORT_IDS = new Set(['country_gate']);
+const TELEPORT_IDS = new Set(['country_gate', 'ads_cltele']);
 
 /**
  * Check if a furniture ID is a teleport booth.

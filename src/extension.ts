@@ -70,9 +70,58 @@ export function activate(context: vscode.ExtensionContext) {
   // Shared agentManager reference (set inside openRoom command)
   let sharedAgentManager: AgentManager | null = null;
 
-  // Handle sidebar messages that need extension host action
+  // Handle sidebar messages — execute VS Code commands and relay to room
   orchestrationProvider.onDidReceiveMessage(async (msg: any) => {
     switch (msg.type) {
+      case 'debugSpawn':
+        vscode.commands.executeCommand('habbo-pixel-agents.debugSpawn');
+        break;
+      case 'debugDespawn':
+        vscode.commands.executeCommand('habbo-pixel-agents.debugDespawn');
+        break;
+      case 'debugDespawnAll':
+        vscode.commands.executeCommand('habbo-pixel-agents.debugDespawnAll');
+        break;
+      case 'openRoom':
+        vscode.commands.executeCommand('habbo-pixel-agents.openRoom');
+        break;
+      case 'toggleOverlay':
+        bridge.sendToRoom({ type: 'toggleOverlay' });
+        break;
+      case 'autoFollow':
+        bridge.sendToRoom({ type: 'autoFollow' });
+        break;
+      case 'jumpToSection':
+        bridge.sendToRoom({ type: 'jumpToSection', team: msg.team });
+        break;
+      // Layout editor commands — relay to room webview
+      case 'editorMode':
+        bridge.sendToRoom({ type: 'editorMode', mode: msg.mode });
+        break;
+      case 'editorColor':
+        bridge.sendToRoom({ type: 'editorColor', h: msg.h, s: msg.s, b: msg.b });
+        break;
+      case 'editorFurniture':
+        bridge.sendToRoom({ type: 'editorFurniture', furniture: msg.furniture });
+        break;
+      case 'editorRotate':
+        bridge.sendToRoom({ type: 'editorRotate' });
+        break;
+      case 'editorSave':
+        bridge.sendToRoom({ type: 'editorSave' });
+        break;
+      case 'editorLoad':
+        bridge.sendToRoom({ type: 'editorLoad' });
+        break;
+      case 'playSound':
+        bridge.sendToRoom({ type: 'playSound', sound: msg.sound });
+        break;
+      case 'devCapture':
+        bridge.sendToRoom({ type: 'devCapture' });
+        break;
+      case 'debugGrid':
+        bridge.sendToRoom({ type: 'debugGrid' });
+        break;
       case 'viewTranscript': {
         if (!sharedAgentManager) break;
         const agents = sharedAgentManager.getAgents();
@@ -352,6 +401,69 @@ export function activate(context: vscode.ExtensionContext) {
   });
 
   context.subscriptions.push(disposable);
+
+  // --- Debug commands for testing spawn/despawn ---
+  const debugAgents = new Map<string, number>(); // agentId → variant
+  let debugVariant = 0;
+  const teams: TeamSection[] = ['planning', 'core-dev', 'infrastructure', 'support'];
+  const debugRoles: Record<TeamSection, string[]> = {
+    'planning': ['Architect', 'Planner', 'Designer'],
+    'core-dev': ['Coder', 'Developer', 'Engineer'],
+    'infrastructure': ['DevOps', 'SRE', 'Builder'],
+    'support': ['Reviewer', 'Tester', 'QA'],
+  };
+  const debugTasks: Record<TeamSection, string[]> = {
+    'planning': ['Roadmap', 'API Design', 'Schema'],
+    'core-dev': ['Frontend', 'Backend', 'Renderer'],
+    'infrastructure': ['CI/CD', 'Deploy', 'Pipeline'],
+    'support': ['Bug Triage', 'Docs', 'Tests'],
+  };
+  const debugTeamCounters: Record<TeamSection, number> = {
+    'planning': 0, 'core-dev': 0, 'infrastructure': 0, 'support': 0,
+  };
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand('habbo-pixel-agents.debugSpawn', () => {
+      const id = `debug-${Date.now()}`;
+      const variant = (debugVariant++ % 6) as 0 | 1 | 2 | 3 | 4 | 5;
+      const team = teams[debugVariant % teams.length];
+      const teamNum = ++debugTeamCounters[team];
+      const role = debugRoles[team][teamNum % debugRoles[team].length];
+      const task = debugTasks[team][teamNum % debugTasks[team].length];
+      debugAgents.set(id, variant);
+      bridge.broadcastAgentEvent({
+        type: 'agentCreated',
+        agentId: id,
+        terminalName: `${role}`,
+        variant,
+        team,
+        role,
+        taskArea: `${task} #${teamNum}`,
+      });
+      vscode.window.showInformationMessage(`Spawned ${id} → ${team}: ${role} (${task} #${teamNum})`);
+    }),
+    vscode.commands.registerCommand('habbo-pixel-agents.debugDespawn', () => {
+      const lastId = Array.from(debugAgents.keys()).pop();
+      if (!lastId) {
+        vscode.window.showWarningMessage('No debug agents to despawn');
+        return;
+      }
+      bridge.broadcastAgentEvent({
+        type: 'agentRemoved',
+        agentId: lastId,
+      });
+      debugAgents.delete(lastId);
+      vscode.window.showInformationMessage(`Despawning ${lastId}`);
+    }),
+    vscode.commands.registerCommand('habbo-pixel-agents.debugDespawnAll', () => {
+      for (const id of debugAgents.keys()) {
+        bridge.broadcastAgentEvent({ type: 'agentRemoved', agentId: id });
+      }
+      const count = debugAgents.size;
+      debugAgents.clear();
+      vscode.window.showInformationMessage(`Despawned all ${count} debug agents`);
+    }),
+  );
 
   // Auto-open room and devtools when running in Extension Development Host
   if (context.extensionMode === vscode.ExtensionMode.Development) {

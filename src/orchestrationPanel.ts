@@ -7,7 +7,7 @@ import { getOrchestrationPanelHtml } from './orchestrationPanelHtml.js';
 
 /**
  * Provides the Habbo Agents orchestration sidebar panel.
- * Shows agent list grouped by section, activity log, and quick actions.
+ * Unified command panel: agents, layout editor, navigation.
  */
 export class OrchestrationPanelProvider implements vscode.WebviewViewProvider {
   public static readonly viewType = 'habboPixelAgents.orchestrationPanel';
@@ -31,9 +31,18 @@ export class OrchestrationPanelProvider implements vscode.WebviewViewProvider {
       localResourceRoots: [this.extensionUri],
     };
 
+    // Generate asset URIs for furniture preview
+    const furnitureBaseUri = webviewView.webview.asWebviewUri(
+      vscode.Uri.joinPath(this.extensionUri, 'dist', 'webview-assets', 'furniture'),
+    ).toString();
+    const manifestUri = webviewView.webview.asWebviewUri(
+      vscode.Uri.joinPath(this.extensionUri, 'dist', 'webview-assets', 'manifest.json'),
+    ).toString();
+
     webviewView.webview.html = getOrchestrationPanelHtml(
       webviewView.webview,
       this.extensionUri,
+      { furnitureBaseUri, manifestUri },
     );
 
     // Register sidebar with message bridge

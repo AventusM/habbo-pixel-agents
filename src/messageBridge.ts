@@ -20,6 +20,7 @@ export class MessageBridge {
 
   /** Register the sidebar orchestration webview view */
   setSidePanel(view: vscode.WebviewView): void {
+    console.log(`[Bridge] setSidePanel called, view visible=${view.visible}`);
     this.sidePanel = view;
   }
 
@@ -30,6 +31,7 @@ export class MessageBridge {
 
   /** Send a message to the sidebar webview */
   sendToSidebar(msg: any): void {
+    console.log(`[Bridge] sendToSidebar ${msg.type} sidebar=${!!this.sidePanel} visible=${this.sidePanel?.visible}`);
     this.sidePanel?.webview.postMessage(msg);
   }
 
@@ -38,6 +40,7 @@ export class MessageBridge {
    * Used for agentCreated, agentStatus, agentTool, agentRemoved etc.
    */
   broadcastAgentEvent(msg: ExtensionMessage): void {
+    console.log(`[Bridge] broadcast ${msg.type} → room=${!!this.roomPanel} sidebar=${!!this.sidePanel}`);
     this.roomPanel?.webview.postMessage(msg);
     this.sidePanel?.webview.postMessage(msg);
   }
