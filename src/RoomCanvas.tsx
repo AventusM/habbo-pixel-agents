@@ -38,6 +38,11 @@ import { AvatarDebugGrid } from './AvatarDebugGrid.js';
 import type { CameraState } from './cameraController.js';
 import { createCameraState, applyPan, applyZoom, applyCameraTransform, screenToWorld } from './cameraController.js';
 import { screenToTile } from './isometricMath.js';
+import { SectionManager } from './sectionManager.js';
+import type { FloorTemplate } from './roomLayoutEngine.js';
+import { createTeleportEffect, drawTeleportFlash } from './teleportEffect.js';
+import type { TeleportEffect } from './teleportEffect.js';
+import type { TeamSection } from './agentTypes.js';
 
 interface RoomCanvasProps {
   heightmap: string;
@@ -46,14 +51,6 @@ interface RoomCanvasProps {
 
 // Avatar sprite height for name tag positioning (Nitro figure sprites)
 const AVATAR_HEIGHT = 65;
-
-/** Tiles where active agents walk to when working */
-const DESK_TILES = [
-  { x: 9, y: 5, dir: 0 as const },
-  { x: 10, y: 5, dir: 0 as const },
-  { x: 9, y: 6, dir: 0 as const },
-  { x: 10, y: 6, dir: 0 as const },
-];
 
 export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: RoomCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -69,6 +66,15 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
   const avatarManagerRef = useRef<AvatarManager>(new AvatarManager());
   const idleWanderRef = useRef<IdleWanderManager>(new IdleWanderManager());
   const selectionManagerRef = useRef<AvatarSelectionManager>(new AvatarSelectionManager());
+
+  // Section manager for team-based agent placement
+  const sectionManagerRef = useRef<SectionManager | null>(null);
+
+  // Active teleport effects (spawn/despawn flash)
+  const teleportEffectsRef = useRef<TeleportEffect[]>([]);
+
+  // Agents mid-despawn (walking to booth before removal)
+  const despawningAgentsRef = useRef<Set<string>>(new Set());
 
   // Track agent speech bubble text
   const agentToolTextRef = useRef<Map<string, string>>(new Map());
@@ -197,22 +203,93 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
         renderState.current.multiTileFurniture,
       );
 
+      // Initialize section manager lazily from global template
+      if (!sectionManagerRef.current) {
+        const tmpl = (window as any).floorTemplate as FloorTemplate | undefined;
+        if (tmpl) {
+          sectionManagerRef.current = new SectionManager(tmpl);
+        }
+      }
+      const sectionManager = sectionManagerRef.current;
+
       switch (msg.type) {
         case 'agentCreated': {
           if (grid) {
-            avatarManager.spawnAvatar(msg.agentId, msg.variant, grid, msg.terminalName, blocked);
+            const team: TeamSection = (msg as any).team || 'core-dev';
+
+            // Try to spawn at section teleport booth
+            const spawnTile = sectionManager?.getSpawnTile(team);
+            let avatar;
+            if (spawnTile) {
+              avatar = avatarManager.spawnAvatarAt(msg.agentId, msg.variant, spawnTile.x, spawnTile.y, 0, grid, msg.terminalName);
+              // Create teleport flash effect at spawn position
+              if (avatar) {
+                const { x: sx, y: sy } = tileToScreen(spawnTile.x, spawnTile.y, 0);
+                const ox = renderState.current.cameraOrigin;
+                teleportEffectsRef.current.push(
+                  createTeleportEffect(sx + ox.x, sy + TILE_H_HALF + ox.y, 'spawn')
+                );
+              }
+            } else {
+              // Fallback: random tile
+              avatar = avatarManager.spawnAvatar(msg.agentId, msg.variant, grid, msg.terminalName, blocked);
+            }
+
+            // Assign agent to section
+            if (sectionManager) {
+              sectionManager.assignAgent(msg.agentId, team);
+            }
+
             // New agents start wandering until they become active
             idleWander.startWandering(msg.agentId);
           }
           break;
         }
         case 'agentRemoved': {
-          avatarManager.despawnAvatar(msg.agentId);
-          idleWander.stopWandering(msg.agentId);
+          const agentTeam = sectionManager?.getAgentTeam(msg.agentId);
+          const boothTile = agentTeam ? sectionManager?.getSpawnTile(agentTeam) : null;
+          const avatar = avatarManager.getAvatar(msg.agentId);
+
+          if (boothTile && avatar && grid) {
+            // Walk-to-booth despawn flow
+            despawningAgentsRef.current.add(msg.agentId);
+            idleWander.stopWandering(msg.agentId);
+
+            // Stand up if sitting
+            if (avatar.state === 'sit') {
+              avatarManager.standAvatar(msg.agentId);
+            }
+
+            // If already at booth tile, trigger despawn immediately
+            if (avatar.tileX === boothTile.x && avatar.tileY === boothTile.y) {
+              const { x: sx, y: sy } = tileToScreen(boothTile.x, boothTile.y, 0);
+              const ox = renderState.current.cameraOrigin;
+              teleportEffectsRef.current.push(
+                createTeleportEffect(sx + ox.x, sy + TILE_H_HALF + ox.y, 'despawn')
+              );
+              // Schedule removal after effect duration
+              setTimeout(() => {
+                avatarManager.removeAvatar(msg.agentId);
+                sectionManager?.removeAgent(msg.agentId);
+                despawningAgentsRef.current.delete(msg.agentId);
+              }, 500);
+            } else {
+              // Pathfind to booth
+              avatarManager.moveAvatarTo(msg.agentId, boothTile.x, boothTile.y, grid, undefined, blocked);
+            }
+          } else {
+            // No team or no booth: immediate despawn
+            avatarManager.despawnAvatar(msg.agentId);
+            idleWander.stopWandering(msg.agentId);
+            sectionManager?.removeAgent(msg.agentId);
+          }
           selectionManagerRef.current.deselectAvatar();
           break;
         }
         case 'agentStatus': {
+          // Skip status updates for despawning agents
+          if (despawningAgentsRef.current.has(msg.agentId)) break;
+
           if (msg.status === 'active' && grid) {
             idleWander.stopWandering(msg.agentId);
             // Stand up if sitting before moving to desk
@@ -220,11 +297,18 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
             if (activeAvatar?.state === 'sit') {
               avatarManager.standAvatar(msg.agentId);
             }
-            // Move to a desk tile
-            const deskTile = DESK_TILES.find(
-              t => !avatarManager.getAvatarAtTile(t.x, t.y)
-            ) || DESK_TILES[0];
-            avatarManager.moveAvatarTo(msg.agentId, deskTile.x, deskTile.y, grid, deskTile.dir, blocked);
+            // Look up desk tile from section manager
+            const agentTeam = sectionManager?.getAgentTeam(msg.agentId) || 'core-dev';
+            const occupiedDesks = new Set<string>();
+            for (const a of avatarManager.getAvatars()) {
+              if (a.id !== msg.agentId && a.state !== 'idle' && a.state !== 'spawning' && a.state !== 'despawning') {
+                occupiedDesks.add(`${a.tileX},${a.tileY}`);
+              }
+            }
+            const deskTile = sectionManager?.getDeskTile(agentTeam, occupiedDesks);
+            if (deskTile) {
+              avatarManager.moveAvatarTo(msg.agentId, deskTile.x, deskTile.y, grid, deskTile.dir as 0 | 2 | 4 | 6, blocked);
+            }
           } else if (msg.status === 'idle') {
             agentToolTextRef.current.delete(msg.agentId);
             idleWander.startWandering(msg.agentId);
@@ -272,6 +356,17 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
     );
 
     const furniture: FurnitureSpec[] = [];
+
+    // Populate section furniture from template
+    const tmpl = (window as any).floorTemplate as FloorTemplate | undefined;
+    if (tmpl) {
+      sectionManagerRef.current = new SectionManager(tmpl);
+      for (const section of tmpl.sections) {
+        for (const f of section.furniture) {
+          furniture.push(f);
+        }
+      }
+    }
 
     const multiTileFurniture: MultiTileFurnitureSpec[] = [];
 
@@ -332,6 +427,39 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
           renderState.current.furniture,
           renderState.current.multiTileFurniture,
         );
+      }
+
+      // Check despawning agents: if they've reached the booth tile, trigger despawn effect
+      if (despawningAgentsRef.current.size > 0 && sectionManagerRef.current) {
+        for (const agentId of despawningAgentsRef.current) {
+          const avatar = avatarManagerRef.current.getAvatar(agentId);
+          if (!avatar) {
+            despawningAgentsRef.current.delete(agentId);
+            continue;
+          }
+          // Check if avatar has arrived at booth (idle and not moving)
+          if (avatar.state === 'idle' && !avatarManagerRef.current.isMoving(agentId)) {
+            const team = sectionManagerRef.current.getAgentTeam(agentId);
+            const boothTile = team ? sectionManagerRef.current.getSpawnTile(team) : null;
+            if (boothTile && avatar.tileX === boothTile.x && avatar.tileY === boothTile.y) {
+              // Create despawn teleport effect
+              const { x: sx, y: sy } = tileToScreen(boothTile.x, boothTile.y, 0);
+              const ox = renderState.current.cameraOrigin;
+              teleportEffectsRef.current.push(
+                createTeleportEffect(sx + ox.x, sy + TILE_H_HALF + ox.y, 'despawn')
+              );
+              // Schedule removal after effect
+              const capturedAgentId = agentId;
+              setTimeout(() => {
+                avatarManagerRef.current.removeAvatar(capturedAgentId);
+                sectionManagerRef.current?.removeAgent(capturedAgentId);
+                despawningAgentsRef.current.delete(capturedAgentId);
+              }, 500);
+              // Remove from despawning set immediately to prevent re-triggering
+              despawningAgentsRef.current.delete(agentId);
+            }
+          }
+        }
       }
 
       // Update animation state for all avatars
@@ -410,6 +538,11 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
       for (const r of sorted) {
         r.draw(ctx);
       }
+
+      // Draw active teleport effects (after avatars, before UI overlays)
+      teleportEffectsRef.current = teleportEffectsRef.current.filter(
+        effect => drawTeleportFlash(ctx, effect, performance.now())
+      );
 
       if (spriteCache && avatars.length > 0) {
         // Draw selection highlight

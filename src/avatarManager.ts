@@ -75,6 +75,44 @@ export class AvatarManager {
   }
 
   /**
+   * Spawn a new avatar at a specific tile (e.g., teleport booth position).
+   * Used for section-aware spawning where the tile is predetermined.
+   */
+  spawnAvatarAt(agentId: string, variant: 0 | 1 | 2 | 3 | 4 | 5, tileX: number, tileY: number, tileZ: number, grid: TileGrid, displayName?: string): AvatarSpec | null {
+    if (this.avatars.has(agentId)) return this.avatars.get(agentId)!;
+
+    // Validate the tile is within grid bounds
+    if (tileY < 0 || tileY >= grid.height || tileX < 0 || tileX >= grid.width) return null;
+
+    const now = Date.now();
+    const savedData = this.savedOutfits.get(agentId);
+    const outfit = savedData ? savedData.outfit : getDefaultPreset(variant);
+
+    const spec: AvatarSpec = {
+      id: agentId,
+      tileX,
+      tileY,
+      tileZ,
+      direction: 2,
+      variant,
+      state: 'spawning',
+      frame: 0,
+      lastUpdateMs: now,
+      nextBlinkMs: now + 5000,
+      blinkFrame: 0,
+      spawnProgress: 0,
+      screenOffsetX: 0,
+      screenOffsetY: 0,
+      isSelected: false,
+      displayName,
+      outfit,
+    };
+
+    this.avatars.set(agentId, spec);
+    return spec;
+  }
+
+  /**
    * Despawn an avatar with despawning animation.
    */
   despawnAvatar(agentId: string): void {
