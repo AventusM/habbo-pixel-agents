@@ -175,7 +175,7 @@ export function getSectionFurniture(
     tileX: teleportTile.x,
     tileY: teleportTile.y,
     tileZ: 0,
-    direction: 2,
+    direction: 0,
   });
 
   // Every section gets one lamp — glows when agents are present
