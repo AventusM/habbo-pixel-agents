@@ -7,6 +7,64 @@ import type { SpriteCache, NitroSpriteFrame, NitroAssetData } from './isoSpriteC
 import type { Renderable } from './isoTypes.js';
 
 /**
+ * Furniture active/inactive state for activity-linked overlays.
+ */
+export interface FurnitureState {
+  furnitureId: string;
+  tileX: number;
+  tileY: number;
+  isActive: boolean;
+}
+
+/**
+ * Draw an activity overlay on top of rendered furniture based on type.
+ * - tv_flat (monitors): blue-white glow rectangle when active
+ * - hc_lmp (lamps): warm yellow radial gradient glow when active
+ * - Other furniture types: no overlay
+ *
+ * Called AFTER the furniture sprite is drawn in the render loop.
+ */
+export function drawFurnitureActiveOverlay(
+  ctx: CanvasRenderingContext2D,
+  furnitureName: string,
+  screenX: number,
+  screenY: number,
+  isActive: boolean,
+): void {
+  if (!isActive) return;
+
+  if (furnitureName === 'tv_flat') {
+    // Blue-white glow rectangle on monitor screen area
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.fillStyle = 'rgba(180, 220, 255, 0.15)';
+    ctx.fillRect(
+      Math.floor(screenX - 20),
+      Math.floor(screenY - 30),
+      40,
+      24,
+    );
+    ctx.restore();
+  } else if (furnitureName === 'hc_lmp') {
+    // Warm yellow radial gradient glow around lamp base
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    const grad = ctx.createRadialGradient(
+      screenX, screenY, 0,
+      screenX, screenY, 28,
+    );
+    grad.addColorStop(0, 'rgba(255, 220, 120, 0.18)');
+    grad.addColorStop(1, 'rgba(255, 180, 60, 0)');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(screenX, screenY, 28, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+  // Other furniture types: no overlay
+}
+
+/**
  * Specification for single-tile furniture (chair, lamp, etc.)
  */
 export interface FurnitureSpec {

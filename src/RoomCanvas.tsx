@@ -43,6 +43,8 @@ import type { FloorTemplate } from './roomLayoutEngine.js';
 import { createTeleportEffect, drawTeleportFlash } from './teleportEffect.js';
 import type { TeleportEffect } from './teleportEffect.js';
 import type { TeamSection } from './agentTypes.js';
+import { drawFurnitureActiveOverlay } from './isoFurnitureRenderer.js';
+import { jumpToSection } from './cameraController.js';
 
 interface RoomCanvasProps {
   heightmap: string;
@@ -75,6 +77,15 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
 
   // Agents mid-despawn (walking to booth before removal)
   const despawningAgentsRef = useRef<Set<string>>(new Set());
+
+  // Agent popup card (shows role/team info on click)
+  const popupAgentRef = useRef<string | null>(null);
+  const popupTimeRef = useRef<number>(0);
+
+  // Auto-follow camera toggle and state
+  const autoFollowRef = useRef(false);
+  const lastAutoFollowCheckRef = useRef<number>(0);
+  const autoFollowTargetRef = useRef<{ panX: number; panY: number } | null>(null);
 
   // Track agent speech bubble text
   const agentToolTextRef = useRef<Map<string, string>>(new Map());
@@ -320,6 +331,40 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
         }
         case 'agentTool': {
           agentToolTextRef.current.set(msg.agentId, msg.displayText);
+          // Track activity for auto-follow
+          if (sectionManager) {
+            const agentTeam = sectionManager.getAgentTeam(msg.agentId);
+            if (agentTeam) {
+              sectionManager.updateActivity(agentTeam, Date.now());
+            }
+          }
+          break;
+        }
+        case 'jumpToSection': {
+          const jumpMsg = msg as any;
+          const team = jumpMsg.team as TeamSection;
+          if (sectionManager && canvasRef.current) {
+            const center = sectionManager.getSectionCenter(team);
+            if (center) {
+              const { x: sx, y: sy } = tileToScreen(center.x, center.y, 0);
+              const ox = renderState.current.cameraOrigin;
+              const canvas = canvasRef.current;
+              jumpToSection(
+                renderState.current.cameraState,
+                sx + ox.x,
+                sy + ox.y,
+                canvas.width,
+                canvas.height,
+              );
+            }
+          }
+          break;
+        }
+        case 'autoFollow': {
+          autoFollowRef.current = (msg as any).enabled ?? !autoFollowRef.current;
+          if (!autoFollowRef.current) {
+            autoFollowTargetRef.current = null;
+          }
           break;
         }
         case 'kanbanCards': {
@@ -473,6 +518,38 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
       }
       renderState.current.lastFrameTimeMs = currentTimeMs;
 
+      // Auto-follow camera: every 3 seconds check most active section
+      if (autoFollowRef.current && sectionManagerRef.current && canvas) {
+        if (currentTimeMs - lastAutoFollowCheckRef.current > 3000) {
+          lastAutoFollowCheckRef.current = currentTimeMs;
+          const activeTeam = sectionManagerRef.current.getMostActiveSection();
+          if (activeTeam) {
+            const center = sectionManagerRef.current.getSectionCenter(activeTeam);
+            if (center) {
+              const { x: sx, y: sy } = tileToScreen(center.x, center.y, 0);
+              const ox = renderState.current.cameraOrigin;
+              // Compute target pan values
+              const targetPanX = canvas.width / 2 - (sx + ox.x);
+              const targetPanY = canvas.height / 2 - (sy + ox.y);
+              autoFollowTargetRef.current = { panX: targetPanX, panY: targetPanY };
+            }
+          }
+        }
+        // Lerp camera toward target (10% per frame for smooth pan)
+        if (autoFollowTargetRef.current) {
+          const cam = renderState.current.cameraState;
+          const target = autoFollowTargetRef.current;
+          cam.panX += (target.panX - cam.panX) * 0.1;
+          cam.panY += (target.panY - cam.panY) * 0.1;
+          // Stop lerping when close enough
+          if (Math.abs(target.panX - cam.panX) < 0.5 && Math.abs(target.panY - cam.panY) < 0.5) {
+            cam.panX = target.panX;
+            cam.panY = target.panY;
+            autoFollowTargetRef.current = null;
+          }
+        }
+      }
+
       const cam = renderState.current.cameraState;
 
       ctx.clearRect(0, 0, canvas.offsetWidth, canvas.offsetHeight);
@@ -543,6 +620,32 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
         r.draw(ctx);
       }
 
+      // Draw furniture activity overlays (monitors glow, lamps warm)
+      if (sectionManagerRef.current) {
+        for (const f of renderState.current.furniture) {
+          if (f.name === 'tv_flat' || f.name === 'hc_lmp') {
+            // Check if any agents are active in this furniture's section
+            let isActive = false;
+            for (const section of sectionManagerRef.current.getAllSections()) {
+              if (section.agentIds.length > 0 && section.lastActivityMs > 0) {
+                // Check if this furniture belongs to this section
+                const sectionLayout = sectionManagerRef.current.getTemplate().sections.find(s => s.team === section.team);
+                if (sectionLayout) {
+                  const inSection = sectionLayout.furniture.some(sf => sf.tileX === f.tileX && sf.tileY === f.tileY);
+                  if (inSection && (currentTimeMs - section.lastActivityMs) < 10000) {
+                    isActive = true;
+                    break;
+                  }
+                }
+              }
+            }
+            const { x: sx, y: sy } = tileToScreen(f.tileX, f.tileY, f.tileZ);
+            const ox = renderState.current.cameraOrigin;
+            drawFurnitureActiveOverlay(ctx, f.name, sx + ox.x, sy + ox.y + TILE_H_HALF, isActive);
+          }
+        }
+      }
+
       // Draw active teleport effects (after avatars, before UI overlays)
       teleportEffectsRef.current = teleportEffectsRef.current.filter(
         effect => drawTeleportFlash(ctx, effect, performance.now())
@@ -599,6 +702,22 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
             isWaiting: !toolText,
           }, currentTimeMs);
           ctx.restore();
+        }
+
+        // Draw agent popup card (if any)
+        if (popupAgentRef.current) {
+          // Auto-dismiss after 5 seconds
+          if (Date.now() - popupTimeRef.current > 5000) {
+            popupAgentRef.current = null;
+          } else {
+            const popupAvatar = avatarManagerRef.current.getAvatar(popupAgentRef.current);
+            if (popupAvatar) {
+              ctx.save();
+              ctx.translate(renderState.current.cameraOrigin.x, renderState.current.cameraOrigin.y);
+              drawAgentPopup(ctx, popupAvatar, sectionManagerRef.current);
+              ctx.restore();
+            }
+          }
         }
       }
 
@@ -795,13 +914,28 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
         idleWanderRef.current.startWandering(clickedAvatar.id);
         return;
       }
-      // Open avatar builder (replaces selection toggle)
-      setIsBuilderOpen(true);
-      setBuilderAvatarId(clickedAvatar.id);
+
+      // Toggle popup card for this agent
+      if (popupAgentRef.current === clickedAvatar.id) {
+        // Clicking same agent closes popup and opens builder
+        popupAgentRef.current = null;
+        setIsBuilderOpen(true);
+        setBuilderAvatarId(clickedAvatar.id);
+      } else {
+        // First click shows popup card
+        popupAgentRef.current = clickedAvatar.id;
+        popupTimeRef.current = Date.now();
+        // Notify extension for sidebar scroll-to
+        const vscodeApi = (window as any).vscodeApi;
+        if (vscodeApi) {
+          vscodeApi.postMessage({ type: 'agentClicked', agentId: clickedAvatar.id });
+        }
+      }
       return;
     }
 
-    // Click on empty space — deselect
+    // Click on empty space — deselect + close popup
+    popupAgentRef.current = null;
     selectionManagerRef.current.deselectAvatar();
     for (const avatar of avatarManager.getAvatars()) {
       avatar.isSelected = false;
@@ -1121,6 +1255,82 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
       })()}
     </>
   );
+}
+
+/** Team section display colors */
+const TEAM_COLORS: Record<string, string> = {
+  'planning': '#3B5998',
+  'core-dev': '#5BD55B',
+  'infrastructure': '#D4A017',
+  'support': '#9B5BD5',
+};
+
+/**
+ * Draw an agent popup card near the avatar showing role, team, and status info.
+ * Appears above the name tag as a dark rounded rectangle with team-colored header.
+ */
+function drawAgentPopup(
+  ctx: CanvasRenderingContext2D,
+  avatar: AvatarSpec,
+  sectionManager: SectionManager | null,
+): void {
+  const { x: screenX, y: screenY } = tileToScreen(avatar.tileX, avatar.tileY, avatar.tileZ);
+  const offsetX = avatar.screenOffsetX || 0;
+  const offsetY = avatar.screenOffsetY || 0;
+  const headY = screenY + AVATAR_GROUND_Y - AVATAR_HEIGHT + offsetY;
+
+  const cardW = 120;
+  const cardH = 48;
+  const cardX = screenX + offsetX - cardW / 2;
+  const cardY = headY - cardH - 20; // Above name tag
+
+  const team = sectionManager?.getAgentTeam(avatar.id) || 'core-dev';
+  const teamColor = TEAM_COLORS[team] || '#666';
+  const status = avatar.state === 'idle' || avatar.state === 'sit' ? 'Idle' : 'Active';
+  const displayName = avatar.displayName || avatar.id;
+
+  // Card background
+  ctx.save();
+  ctx.fillStyle = 'rgba(16, 20, 36, 0.92)';
+  ctx.beginPath();
+  ctx.roundRect(cardX, cardY, cardW, cardH, 4);
+  ctx.fill();
+
+  // Team-colored header bar
+  ctx.fillStyle = teamColor;
+  ctx.beginPath();
+  ctx.roundRect(cardX, cardY, cardW, 12, [4, 4, 0, 0]);
+  ctx.fill();
+
+  // Team name in header
+  ctx.font = '6px "Press Start 2P"';
+  ctx.fillStyle = '#fff';
+  ctx.textAlign = 'center';
+  ctx.fillText(team.replace('-', ' ').toUpperCase(), cardX + cardW / 2, cardY + 9);
+
+  // Agent name
+  ctx.font = '6px "Press Start 2P"';
+  ctx.fillStyle = '#e0e0e0';
+  ctx.textAlign = 'left';
+  const nameText = displayName.length > 16 ? displayName.slice(0, 14) + '..' : displayName;
+  ctx.fillText(nameText, cardX + 4, cardY + 24);
+
+  // Status indicator
+  ctx.fillStyle = status === 'Active' ? '#5BD55B' : '#888';
+  ctx.beginPath();
+  ctx.arc(cardX + 4 + 3, cardY + 34, 3, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#aaa';
+  ctx.font = '5px "Press Start 2P"';
+  ctx.fillText(status, cardX + 12, cardY + 36);
+
+  // Dismiss hint
+  ctx.fillStyle = '#555';
+  ctx.textAlign = 'right';
+  ctx.font = '5px "Press Start 2P"';
+  ctx.fillText('x', cardX + cardW - 4, cardY + 10);
+
+  ctx.restore();
 }
 
 /**
