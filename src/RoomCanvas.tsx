@@ -240,6 +240,9 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
               sectionManager.assignAgent(msg.agentId, team);
             }
 
+            // Set role-specific idle behavior before starting wander
+            idleWander.setAgentRole(msg.agentId, team);
+
             // New agents start wandering until they become active
             idleWander.startWandering(msg.agentId);
           }
@@ -426,6 +429,7 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
           blocked,
           renderState.current.furniture,
           renderState.current.multiTileFurniture,
+          sectionManagerRef.current,
         );
       }
 
