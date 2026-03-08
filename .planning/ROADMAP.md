@@ -365,6 +365,16 @@ Plans:
 Plans:
 - [ ] 17-01-PLAN.md — Constrain In Progress sticky notes to left wall only (remove right-wall overflow)
 
+### Phase 17.3: Fix move logic to respect selected avatar (INSERTED)
+
+**Goal:** Wire selectAvatar() into the left-click avatar handler so right-click movement targets the user-selected avatar instead of always falling back to the nearest idle avatar.
+**Requirements**: BUG-17.3-01
+**Depends on:** Phase 17
+**Plans:** 1 plan
+
+Plans:
+- [ ] 17.3-01-PLAN.md — Wire selectAvatar() call into left-click handler for right-click movement targeting
+
 ### Phase 18: Architecture Documentation Lite — code-linked diagrams of current codebase state for human review
 
 **Goal:** Create a top-level ARCHITECTURE.md with Mermaid diagrams documenting the current codebase state (system overview, module dependencies, render pipeline, agent data flow, asset pipeline, module index) for human review — accurate as-is documentation, not aspirational.
@@ -378,9 +388,9 @@ Plans:
 ### Phase 19: Architecture Refactor Full — deep codebase restructuring with comprehensive architecture docs and code-linked diagrams
 
 **Goal:** [To be planned]
-**Requirements**: TBD
+**Requirements**: BUG-17.3-01
 **Depends on:** Phase 18
-**Plans:** 0 plans
+**Plans:** 1 plan
 
 Plans:
 - [ ] TBD (run /gsd:plan-phase 19 to break down)
@@ -402,8 +412,8 @@ Plans:
 
 ### Phase 17.1: Stray pixel diagnostic fix and right-click movement (INSERTED)
 
-**Goal:** [Urgent work - to be planned]
-**Requirements**: TBD
+**Goal:** Wire selectAvatar() into the left-click avatar handler so right-click movement targets the user-selected avatar instead of always falling back to the nearest idle avatar.
+**Requirements**: BUG-17.3-01
 **Depends on:** Phase 17
 **Plans:** 2/2 plans complete
 
