@@ -128,6 +128,7 @@ v1.0 (phases 1-8) complete. v2 work in progress: Phase 9 (furniture catalog + re
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
 | 1 | Fix invisible teleport booths - change country_gate direction from 2 to 0 | 2026-03-08 | e19fae2 | [1-fix-invisible-teleport-booths-change-cou](./quick/1-fix-invisible-teleport-booths-change-cou/) |
+| 2 | Watch subagents subdirectories for sub-agent JSONL files in AgentManager | 2026-03-08 | 3df25a6 | [2-watch-subagents-subdirectories-for-sub-a](./quick/2-watch-subagents-subdirectories-for-sub-a/) |
 
 ## Blockers
 
