@@ -229,7 +229,7 @@ None.
 
 ### Pending Todos
 
-2 pending todos.
+1 pending todo.
 
 ## Accumulated Context
 
