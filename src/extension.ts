@@ -5,6 +5,8 @@ import * as os from 'os';
 import { AgentManager } from './agentManager.js';
 import type { WebviewMessage, ExtensionMessage, TeamSection } from './agentTypes.js';
 import { fetchKanbanCards } from './githubProjects.js';
+import { MessageBridge } from './messageBridge.js';
+import { OrchestrationPanelProvider } from './orchestrationPanel.js';
 
 interface KanbanConfig {
   owner: string;
@@ -55,6 +57,45 @@ const DEMO_HEIGHTMAP = [
 ].join('\n');
 
 export function activate(context: vscode.ExtensionContext) {
+  // --- Message Bridge & Orchestration Sidebar ---
+  const bridge = new MessageBridge();
+  const orchestrationProvider = new OrchestrationPanelProvider(context.extensionUri, bridge);
+  context.subscriptions.push(
+    vscode.window.registerWebviewViewProvider(
+      OrchestrationPanelProvider.viewType,
+      orchestrationProvider,
+    ),
+  );
+
+  // Shared agentManager reference (set inside openRoom command)
+  let sharedAgentManager: AgentManager | null = null;
+
+  // Handle sidebar messages that need extension host action
+  orchestrationProvider.onDidReceiveMessage(async (msg: any) => {
+    switch (msg.type) {
+      case 'viewTranscript': {
+        if (!sharedAgentManager) break;
+        const agents = sharedAgentManager.getAgents();
+        const agent = agents.find(a => a.agentId === msg.agentId);
+        if (agent?.jsonlPath) {
+          try {
+            const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(agent.jsonlPath));
+            await vscode.window.showTextDocument(doc, { preview: true });
+          } catch (err) {
+            console.warn('[Orchestration] Failed to open transcript:', err);
+          }
+        }
+        break;
+      }
+      case 'reassignAgent': {
+        if (sharedAgentManager) {
+          sharedAgentManager.reassignAgent(msg.agentId, msg.team || 'core-dev');
+        }
+        break;
+      }
+    }
+  });
+
   const disposable = vscode.commands.registerCommand('habbo-pixel-agents.openRoom', () => {
     // Create webview panel
     const panel = vscode.window.createWebviewPanel(
@@ -118,13 +159,16 @@ export function activate(context: vscode.ExtensionContext) {
       vscode.Uri.joinPath(context.extensionUri, 'dist', 'webview-assets', 'figures')
     );
 
+    // --- Message Bridge: register room panel ---
+    bridge.setRoomPanel(panel);
+
     // --- Agent Manager ---
     const workspaceDir = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath
       || vscode.workspace.rootPath
       || '';
     console.log('[Extension] Workspace dir for AgentManager:', workspaceDir);
     const agentManager = new AgentManager(workspaceDir, (msg: ExtensionMessage) => {
-      panel.webview.postMessage(msg);
+      bridge.broadcastAgentEvent(msg);
     }, async (agentId: string) => {
       // Show VS Code quickpick for manual agent classification
       const teamOptions: Array<{ label: string; value: TeamSection }> = [
@@ -140,6 +184,7 @@ export function activate(context: vscode.ExtensionContext) {
       const selectedTeam = teamOptions.find(o => o.label === picked)?.value ?? 'core-dev';
       agentManager.reassignAgent(agentId, selectedTeam);
     });
+    sharedAgentManager = agentManager;
 
     // Listen for messages from webview
     panel.webview.onDidReceiveMessage((msg: WebviewMessage) => {
@@ -162,9 +207,9 @@ export function activate(context: vscode.ExtensionContext) {
           break;
         }
         case 'requestAgents':
-          // Send current agents to webview (including classification data)
+          // Send current agents to both room and sidebar (including classification data)
           for (const agent of agentManager.getAgents()) {
-            panel.webview.postMessage({
+            bridge.broadcastAgentEvent({
               type: 'agentCreated',
               agentId: agent.agentId,
               terminalName: agent.terminalName,
@@ -172,12 +217,12 @@ export function activate(context: vscode.ExtensionContext) {
               role: agent.role,
               team: agent.team,
               taskArea: agent.taskArea,
-            } as ExtensionMessage);
-            panel.webview.postMessage({
+            });
+            bridge.broadcastAgentEvent({
               type: 'agentStatus',
               agentId: agent.agentId,
               status: agent.status,
-            } as ExtensionMessage);
+            });
           }
           break;
         case 'reassignAgent': {
@@ -239,6 +284,10 @@ export function activate(context: vscode.ExtensionContext) {
           }
           break;
         }
+        default:
+          // Relay unhandled room messages through bridge (e.g., agentClicked)
+          bridge.handleRoomMessage(msg);
+          break;
       }
     });
 
