@@ -3,6 +3,7 @@
 // Produces heightmap strings compatible with parseHeightmap from isoTypes.ts
 
 import type { TeamSection } from './agentTypes.js';
+import type { FurnitureSpec } from './isoFurnitureRenderer.js';
 
 /** Layout info for a single team section within the floor template */
 export interface SectionLayout {
@@ -11,6 +12,7 @@ export interface SectionLayout {
   widthTiles: number;
   heightTiles: number;
   teleportTile: { x: number; y: number };
+  furniture: FurnitureSpec[];
   deskTiles: { x: number; y: number; dir: number }[];
   idleTiles: { x: number; y: number }[];
 }
@@ -171,15 +173,20 @@ export function generateFloorTemplate(size: 'small' | 'medium' | 'large'): Floor
     // Idle/wander tiles: remaining interior positions
     const idleTiles = generateIdleTiles(origin, usable, teleportTile, deskTiles);
 
-    return {
+    const sectionLayout: SectionLayout = {
       team,
       originTile: origin,
       widthTiles: usable,
       heightTiles: usable,
       teleportTile,
+      furniture: [],
       deskTiles,
       idleTiles,
     };
+    // Populate section-themed furniture
+    sectionLayout.furniture = getSectionFurniture(team, sectionLayout);
+
+    return sectionLayout;
   });
 
   // Build heightmap string
@@ -194,6 +201,152 @@ export function generateFloorTemplate(size: 'small' | 'medium' | 'large'): Floor
     dividerTiles: filteredDividers,
     doorwayTiles,
   };
+}
+
+/**
+ * Generate section-themed furniture specs for a team section.
+ * Each section gets a teleport booth plus team-appropriate items.
+ */
+export function getSectionFurniture(
+  team: TeamSection,
+  section: SectionLayout,
+): FurnitureSpec[] {
+  const specs: FurnitureSpec[] = [];
+  const { originTile, widthTiles: w, heightTiles: h, teleportTile, deskTiles } = section;
+
+  // Every section gets a teleport booth at the teleport tile
+  specs.push({
+    name: 'country_gate',
+    tileX: teleportTile.x,
+    tileY: teleportTile.y,
+    tileZ: 0,
+    direction: 2,
+  });
+
+  switch (team) {
+    case 'planning':
+      // Conference table at center area
+      specs.push({
+        name: 'hc_tbl',
+        tileX: originTile.x + Math.floor(w / 2),
+        tileY: originTile.y + Math.floor(h / 2),
+        tileZ: 0,
+        direction: 0,
+      });
+      // Bookshelf along one wall
+      specs.push({
+        name: 'hc_bkshlf',
+        tileX: originTile.x + 1,
+        tileY: originTile.y,
+        tileZ: 0,
+        direction: 2,
+      });
+      // Chairs around table
+      for (let i = 0; i < Math.min(deskTiles.length, 3); i++) {
+        specs.push({
+          name: 'hc_chr',
+          tileX: deskTiles[i].x,
+          tileY: deskTiles[i].y,
+          tileZ: 0,
+          direction: (deskTiles[i].dir as 0 | 2 | 4 | 6),
+        });
+      }
+      break;
+
+    case 'core-dev':
+      // Workstations at desk positions
+      for (const desk of deskTiles) {
+        specs.push({
+          name: 'hc_dsk',
+          tileX: desk.x,
+          tileY: desk.y,
+          tileZ: 0,
+          direction: (desk.dir as 0 | 2 | 4 | 6),
+        });
+      }
+      // TV monitor on first desk
+      if (deskTiles.length > 0) {
+        specs.push({
+          name: 'tv_flat',
+          tileX: deskTiles[0].x,
+          tileY: deskTiles[0].y + 1,
+          tileZ: 0,
+          direction: 2,
+        });
+      }
+      // Lamp at corner
+      specs.push({
+        name: 'hc_lmp',
+        tileX: originTile.x + w - 1,
+        tileY: originTile.y + h - 1,
+        tileZ: 0,
+        direction: 0,
+      });
+      break;
+
+    case 'infrastructure':
+      // Server racks along walls
+      specs.push({
+        name: 'shelves_armas',
+        tileX: originTile.x + 1,
+        tileY: originTile.y,
+        tileZ: 0,
+        direction: 2,
+      });
+      specs.push({
+        name: 'shelves_armas',
+        tileX: originTile.x + 3 < originTile.x + w ? originTile.x + 3 : originTile.x + 2,
+        tileY: originTile.y,
+        tileZ: 0,
+        direction: 2,
+      });
+      // Status lamps at corners
+      specs.push({
+        name: 'hc_lmp',
+        tileX: originTile.x,
+        tileY: originTile.y + h - 1,
+        tileZ: 0,
+        direction: 0,
+      });
+      specs.push({
+        name: 'hc_lmp',
+        tileX: originTile.x + w - 1,
+        tileY: originTile.y + h - 1,
+        tileZ: 0,
+        direction: 0,
+      });
+      break;
+
+    case 'support':
+      // Reference bookshelves along walls
+      specs.push({
+        name: 'hc_bkshlf',
+        tileX: originTile.x + 1,
+        tileY: originTile.y,
+        tileZ: 0,
+        direction: 2,
+      });
+      specs.push({
+        name: 'hc_bkshlf',
+        tileX: originTile.x + 3 < originTile.x + w ? originTile.x + 3 : originTile.x + 2,
+        tileY: originTile.y,
+        tileZ: 0,
+        direction: 2,
+      });
+      // Diagnostic station chairs at desk positions
+      for (const desk of deskTiles) {
+        specs.push({
+          name: 'hc_chr',
+          tileX: desk.x,
+          tileY: desk.y,
+          tileZ: 0,
+          direction: (desk.dir as 0 | 2 | 4 | 6),
+        });
+      }
+      break;
+  }
+
+  return specs;
 }
 
 /** Generate desk tile positions in the interior of a section */
