@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_plan: Plan 05 of 9
+current_plan: Plan 06 of 9
 status: executing
-last_updated: "2026-03-08T13:06:46.456Z"
+last_updated: "2026-03-08T13:09:51.000Z"
 progress:
   total_phases: 18
   completed_phases: 14
   total_plans: 47
-  completed_plans: 40
+  completed_plans: 41
 ---
 
 # STATE.md
@@ -19,20 +19,20 @@ progress:
 See: .planning/PROJECT.md (updated 2026-02-28)
 
 **Core value:** Claude Code agents should feel like they're working together in a recognisable Habbo Hotel room — the isometric 2.5D aesthetic must be faithful to the classic v14 era.
-**Current focus:** v2 in progress — Phase 16 plan 04 complete (section furniture + teleport effect)
+**Current focus:** v2 in progress — Phase 16 plan 05 complete (classification integration into agent discovery)
 
 ## Current Status
 
 v1.0 (phases 1-8) complete. v2 work in progress: Phase 9 (furniture catalog + rendering fixes) and Phase 10a/10b (avatar polish + chair sitting) are complete. Phase 11 plan 01 (chair layer splitting) is complete. Phase 12 plans 01-03 complete (wall panels + kanban). Phase 14 plans 01-03 complete (outfit config, renderer integration, builder modal UI). Phase 14.1 plan 01 complete (avatar facial features with eyes, mouth, blink animation).
 
-**Last session:** 2026-03-08T13:06:46.453Z
+**Last session:** 2026-03-08T13:09:51Z
 **Milestone status:** v2 in progress
 
 ## Current Phase
 
 **Phase:** 16 — Agent Factory Workflow with Team Sections and Orchestration UI
-**Current Plan:** Plan 05 of 9
-**Status:** Executing (Plans 01-04 complete)
+**Current Plan:** Plan 06 of 9
+**Status:** Executing (Plans 01-05 complete)
 
 ## Decisions Log
 
@@ -108,6 +108,9 @@ v1.0 (phases 1-8) complete. v2 work in progress: Phase 9 (furniture catalog + re
 | 2026-03-08 | country_gate as teleport booth stand-in from cortex-assets | Real Habbo furniture item available in cortex-assets repo |
 | 2026-03-08 | 600ms teleport effect duration with sin-curve alpha peak | Smooth peak at progress=0.5, natural fade-in/fade-out |
 | 2026-03-08 | Radial gradient with lighter composite for teleport glow | White center fading to light blue; additive blending for luminous effect |
+| 2026-03-08 | Read first 50 JSONL lines for initial classification | Balances speed vs accuracy for agent display on spawn |
+| 2026-03-08 | onClassificationNeeded callback pattern for VS Code UI | Separates extension host UI concerns from agent manager logic |
+| 2026-03-08 | Dismissed quickpick defaults to core-dev team | Consistent with Plan 01 unmapped role default |
 
 ## Blockers
 
@@ -157,6 +160,7 @@ None.
 | Phase 16-agent-factory-workflow PP16-02 | 2min | 2 tasks tasks | 2 files files |
 | Phase 16-agent-factory-workflow P16-03 | 4min | 2 tasks | 3 files |
 | Phase 16-agent-factory-workflow PP16-04 | 2min | 2 tasks tasks | 5 files files |
+| Phase 16-agent-factory-workflow P16-05 | 2min | 2 tasks | 4 files |
 
 ## Phase History
 
@@ -202,6 +206,7 @@ None.
 | 16-agent-factory-workflow | 16-02 | Room layout engine generating 2x2 section grid templates with dividers, doorways, and per-section tiles for 3 sizes (371 tests passing) |
 | 16-agent-factory-workflow | 16-03 | Click-drag pan and scroll-wheel zoom for room canvas with pivot-point correction and camera-aware tile picking (380 tests passing) |
 | 16-agent-factory-workflow | 16-04 | Section-themed furniture catalog with teleport booth, radial gradient spawn/despawn flash effect, and per-team furniture placement (390 tests passing) |
+| 16-agent-factory-workflow | 16-05 | Classification pipeline wired into agent discovery with auto-classify on spawn, VS Code quickpick for unknowns, and webview team reassignment (390 tests passing) |
 
 ### Pending Todos
 
