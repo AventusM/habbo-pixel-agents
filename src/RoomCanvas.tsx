@@ -175,14 +175,14 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
   function mouseToTile(event: React.MouseEvent<HTMLCanvasElement>): { tileX: number; tileY: number } | null {
     const canvas = event.currentTarget;
     const rect = canvas.getBoundingClientRect();
-    const scaleX = canvas.width / rect.width;
-    const scaleY = canvas.height / rect.height;
+    const scaleX = canvas.offsetWidth / rect.width;
+    const scaleY = canvas.offsetHeight / rect.height;
     const mouseX = (event.clientX - rect.left) * scaleX;
     const mouseY = (event.clientY - rect.top) * scaleY;
 
     // Apply inverse camera transform to get world-space coordinates
     const cam = renderState.current.cameraState;
-    const world = screenToWorld(mouseX, mouseY, cam, canvas.width, canvas.height);
+    const world = screenToWorld(mouseX, mouseY, cam, canvas.offsetWidth, canvas.offsetHeight);
 
     // Subtract cameraOrigin (static centering offset) to get isometric coordinates
     const adjX = world.x - renderState.current.cameraOrigin.x;
@@ -431,8 +431,8 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
                 renderState.current.cameraState,
                 sx + ox.x,
                 sy + ox.y,
-                canvas.width,
-                canvas.height,
+                canvas.offsetWidth,
+                canvas.offsetHeight,
               );
             }
           }
@@ -711,8 +711,8 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
               const { x: sx, y: sy } = tileToScreen(center.x, center.y, 0);
               const ox = renderState.current.cameraOrigin;
               // Compute target pan values
-              const targetPanX = canvas.width / 2 - (sx + ox.x);
-              const targetPanY = canvas.height / 2 - (sy + ox.y);
+              const targetPanX = canvas.offsetWidth / 2 - (sx + ox.x);
+              const targetPanY = canvas.offsetHeight / 2 - (sy + ox.y);
               autoFollowTargetRef.current = { panX: targetPanX, panY: targetPanY };
             }
           }
@@ -738,9 +738,9 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
 
       // --- Begin camera-transformed world-space drawing ---
       ctx.save();
-      applyCameraTransform(ctx, cam, canvas.width, canvas.height);
+      applyCameraTransform(ctx, cam, canvas.offsetWidth, canvas.offsetHeight);
 
-      ctx.drawImage(offscreen, 0, 0);
+      ctx.drawImage(offscreen, 0, 0, canvas.offsetWidth, canvas.offsetHeight);
 
       // Kanban sticky notes on walls (drawn right after walls/floor, before furniture/avatars)
       if (kanbanCardsRef.current.length > 0 && renderState.current.grid) {
@@ -947,7 +947,7 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
 
       // Orchestration overlay (right-side HUD)
       if (canvas) {
-        drawOrchestrationOverlay(ctx, orchStateRef.current, canvas.width, canvas.height);
+        drawOrchestrationOverlay(ctx, orchStateRef.current, canvas.offsetWidth, canvas.offsetHeight);
       }
 
       rafIdRef.current = requestAnimationFrame(frame);
@@ -989,8 +989,9 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
       if (distance > 5) {
         drag.didDrag = true;
         const canvas = event.currentTarget;
-        const scaleX = canvas.width / canvas.getBoundingClientRect().width;
-        const scaleY = canvas.height / canvas.getBoundingClientRect().height;
+        const rect2 = canvas.getBoundingClientRect();
+        const scaleX = canvas.offsetWidth / rect2.width;
+        const scaleY = canvas.offsetHeight / rect2.height;
         // Pan in screen-scaled pixels, adjusted for zoom
         const cam = renderState.current.cameraState;
         cam.panX = drag.startPanX + (dx * scaleX) / cam.zoom;
@@ -1027,11 +1028,11 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
     const canvas = canvasRef.current;
     if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
-    const scaleX = canvas.width / rect.width;
-    const scaleY = canvas.height / rect.height;
+    const scaleX = canvas.offsetWidth / rect.width;
+    const scaleY = canvas.offsetHeight / rect.height;
     const pivotX = (event.clientX - rect.left) * scaleX;
     const pivotY = (event.clientY - rect.top) * scaleY;
-    applyZoom(renderState.current.cameraState, event.deltaY, pivotX, pivotY, canvas.width, canvas.height);
+    applyZoom(renderState.current.cameraState, event.deltaY, pivotX, pivotY, canvas.offsetWidth, canvas.offsetHeight);
   };
 
   useEffect(() => {
@@ -1053,10 +1054,15 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
 
     // --- Sticky note click detection (before tile logic) ---
     const canvas = canvasRef.current;
-    const dpr = window.devicePixelRatio || 1;
     const rect = canvas.getBoundingClientRect();
-    const noteClickX = (event.clientX - rect.left) * dpr;
-    const noteClickY = (event.clientY - rect.top) * dpr;
+    const cssScaleX = canvas.offsetWidth / rect.width;
+    const cssScaleY = canvas.offsetHeight / rect.height;
+    const screenX = (event.clientX - rect.left) * cssScaleX;
+    const screenY = (event.clientY - rect.top) * cssScaleY;
+    // Notes are drawn inside camera transform, so apply inverse to get world-space coords
+    const noteWorld = screenToWorld(screenX, screenY, renderState.current.cameraState, canvas.offsetWidth, canvas.offsetHeight);
+    const noteClickX = noteWorld.x;
+    const noteClickY = noteWorld.y;
 
     // If any note overlay is expanded, any click closes it
     if (expandedNoteRef.current || expandedAggregateRef.current) {
