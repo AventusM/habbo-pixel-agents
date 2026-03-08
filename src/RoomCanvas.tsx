@@ -1250,6 +1250,7 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
             variant={avatar.variant}
             onSave={handleBuilderSave}
             onClose={handleBuilderClose}
+            avatarTeam={sectionManagerRef.current?.getAgentTeam(builderAvatarId) ?? undefined}
           />
         );
       })()}

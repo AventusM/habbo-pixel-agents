@@ -11,7 +11,9 @@ import {
   CLOTHING_PALETTE,
   getCatalogForSlot,
   getRequiredAssets,
+  ROLE_OUTFIT_PRESETS,
 } from './avatarOutfitConfig.js';
+import type { TeamSection } from './agentTypes.js';
 import type { SpriteCache } from './isoSpriteCache.js';
 import { renderAvatarPreview, PREVIEW_WIDTH, PREVIEW_HEIGHT } from './avatarBuilderPreview.js';
 
@@ -23,6 +25,7 @@ interface AvatarBuilderPanelProps {
   onClose: () => void;
   wardrobePresets?: OutfitConfig[];
   onSaveWardrobe?: (presets: OutfitConfig[]) => void;
+  avatarTeam?: TeamSection;
 }
 
 type Category = 'hair' | 'tops' | 'bottoms' | 'shoes' | 'accessories';
@@ -57,6 +60,18 @@ const CATEGORY_COLOR_KEY: Record<Category, keyof OutfitConfig['colors']> = {
 
 const MAX_WARDROBE_SLOTS = 4;
 
+/** Team display names and colors for Role Outfits tab */
+const TEAM_DISPLAY: Record<TeamSection, { label: string; color: string }> = {
+  'planning': { label: 'Planning', color: '#3B5998' },
+  'core-dev': { label: 'Core Dev', color: '#5BD55B' },
+  'infrastructure': { label: 'Infra', color: '#D4A017' },
+  'support': { label: 'Support', color: '#9B5BD5' },
+};
+
+const ALL_TEAMS: TeamSection[] = ['planning', 'core-dev', 'infrastructure', 'support'];
+
+type TabMode = 'clothing' | 'roles';
+
 export function AvatarBuilderPanel({
   avatarId,
   initialOutfit,
@@ -65,12 +80,14 @@ export function AvatarBuilderPanel({
   onClose,
   wardrobePresets: initialWardrobe,
   onSaveWardrobe,
+  avatarTeam,
 }: AvatarBuilderPanelProps) {
   const [currentOutfit, setCurrentOutfit] = useState<OutfitConfig>(() =>
     JSON.parse(JSON.stringify(initialOutfit))
   );
   const [selectedCategory, setSelectedCategory] = useState<Category>('hair');
   const [gender, setGender] = useState<'M' | 'F'>(initialOutfit.gender);
+  const [tabMode, setTabMode] = useState<TabMode>('clothing');
   const [wardrobeSlots, setWardrobeSlots] = useState<OutfitConfig[]>(
     initialWardrobe ? [...initialWardrobe] : []
   );
@@ -193,6 +210,24 @@ export function AvatarBuilderPanel({
     setGender(preset.gender);
   };
 
+  // Apply a role outfit preset
+  const handleApplyRolePreset = (team: TeamSection) => {
+    const preset: OutfitConfig = JSON.parse(JSON.stringify(ROLE_OUTFIT_PRESETS[team]));
+    // Preserve current skin color for continuity
+    preset.colors.skin = currentOutfit.colors.skin;
+    setCurrentOutfit(preset);
+    setGender(preset.gender);
+  };
+
+  // Reset to the assigned team's default preset
+  const handleResetToRoleDefault = () => {
+    if (!avatarTeam) return;
+    const preset: OutfitConfig = JSON.parse(JSON.stringify(ROLE_OUTFIT_PRESETS[avatarTeam]));
+    preset.colors.skin = currentOutfit.colors.skin;
+    setCurrentOutfit(preset);
+    setGender(preset.gender);
+  };
+
   // Get filtered items for current category and gender
   const categoryItems = getCatalogForSlot(selectedCategory, gender);
 
@@ -311,119 +346,232 @@ export function AvatarBuilderPanel({
           ))}
         </div>
 
-        {/* Category tabs */}
-        <div style={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-          {CATEGORIES.map(cat => (
-            <button
-              key={cat}
-              onClick={() => setSelectedCategory(cat)}
-              style={{
-                padding: '3px 5px',
-                fontSize: 6,
-                fontFamily: '"Press Start 2P", monospace',
-                backgroundColor: selectedCategory === cat ? '#0066cc' : '#2a2a4a',
-                color: '#e0e0e0',
-                border: selectedCategory === cat ? '1px solid #4488ee' : '1px solid #444',
-                borderRadius: 3,
-                cursor: 'pointer',
-              }}
-            >
-              {CATEGORY_LABELS[cat]}
-            </button>
-          ))}
+        {/* Main tab switcher: Clothing vs Role Outfits */}
+        <div style={{ display: 'flex', gap: 2 }}>
+          <button
+            onClick={() => setTabMode('clothing')}
+            style={{
+              flex: 1,
+              padding: '3px 5px',
+              fontSize: 6,
+              fontFamily: '"Press Start 2P", monospace',
+              backgroundColor: tabMode === 'clothing' ? '#0066cc' : '#2a2a4a',
+              color: '#e0e0e0',
+              border: tabMode === 'clothing' ? '1px solid #4488ee' : '1px solid #444',
+              borderRadius: 3,
+              cursor: 'pointer',
+            }}
+          >
+            Clothing
+          </button>
+          <button
+            onClick={() => setTabMode('roles')}
+            style={{
+              flex: 1,
+              padding: '3px 5px',
+              fontSize: 6,
+              fontFamily: '"Press Start 2P", monospace',
+              backgroundColor: tabMode === 'roles' ? '#0066cc' : '#2a2a4a',
+              color: '#e0e0e0',
+              border: tabMode === 'roles' ? '1px solid #4488ee' : '1px solid #444',
+              borderRadius: 3,
+              cursor: 'pointer',
+            }}
+          >
+            Role Outfits
+          </button>
         </div>
 
-        {/* Icon grid */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(4, 1fr)',
-          gap: 2,
-          maxHeight: 100,
-          overflowY: 'auto',
-        }}>
-          {categoryItems.map(item => {
-            const isSelected = currentPart
-              && item.asset === currentPart.asset
-              && item.setId === currentPart.setId;
-            return (
+        {tabMode === 'clothing' ? (
+          <>
+            {/* Category tabs */}
+            <div style={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+              {CATEGORIES.map(cat => (
+                <button
+                  key={cat}
+                  onClick={() => setSelectedCategory(cat)}
+                  style={{
+                    padding: '3px 5px',
+                    fontSize: 6,
+                    fontFamily: '"Press Start 2P", monospace',
+                    backgroundColor: selectedCategory === cat ? '#0066cc' : '#2a2a4a',
+                    color: '#e0e0e0',
+                    border: selectedCategory === cat ? '1px solid #4488ee' : '1px solid #444',
+                    borderRadius: 3,
+                    cursor: 'pointer',
+                  }}
+                >
+                  {CATEGORY_LABELS[cat]}
+                </button>
+              ))}
+            </div>
+
+            {/* Icon grid */}
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(4, 1fr)',
+              gap: 2,
+              maxHeight: 100,
+              overflowY: 'auto',
+            }}>
+              {categoryItems.map(item => {
+                const isSelected = currentPart
+                  && item.asset === currentPart.asset
+                  && item.setId === currentPart.setId;
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => handleItemSelect(item)}
+                    title={item.displayName}
+                    style={{
+                      width: '100%',
+                      aspectRatio: '1',
+                      fontSize: 5,
+                      fontFamily: '"Press Start 2P", monospace',
+                      backgroundColor: isSelected ? '#0066cc' : '#2a2a4a',
+                      color: '#e0e0e0',
+                      border: isSelected ? '2px solid #4488ee' : '1px solid #444',
+                      borderRadius: 3,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      textAlign: 'center',
+                      padding: 1,
+                      lineHeight: '1.2',
+                      wordBreak: 'break-word',
+                    }}
+                  >
+                    {item.displayName}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Skin color palette */}
+            <div>
+              <div style={{ marginBottom: 2, fontSize: 6, color: '#aaa' }}>Skin</div>
+              <div style={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                {SKIN_PALETTE.map(color => (
+                  <button
+                    key={`skin-${color}`}
+                    onClick={() => handleColorChange('skin', color)}
+                    style={{
+                      width: 16,
+                      height: 16,
+                      backgroundColor: color,
+                      border: currentOutfit.colors.skin === color
+                        ? '2px solid #fff'
+                        : '1px solid #555',
+                      borderRadius: 2,
+                      cursor: 'pointer',
+                      padding: 0,
+                    }}
+                  />
+                ))}
+              </div>
+            </div>
+
+            {/* Category color palette */}
+            <div>
+              <div style={{ marginBottom: 2, fontSize: 6, color: '#aaa' }}>
+                {CATEGORY_LABELS[selectedCategory]} Color
+              </div>
+              <div style={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                {categoryPalette.map(color => (
+                  <button
+                    key={`${selectedCategory}-${color}`}
+                    onClick={() => handleColorChange(colorKey, color)}
+                    style={{
+                      width: 16,
+                      height: 16,
+                      backgroundColor: color,
+                      border: currentOutfit.colors[colorKey] === color
+                        ? '2px solid #fff'
+                        : '1px solid #555',
+                      borderRadius: 2,
+                      cursor: 'pointer',
+                      padding: 0,
+                    }}
+                  />
+                ))}
+              </div>
+            </div>
+          </>
+        ) : (
+          /* Role Outfits tab */
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <div style={{ fontSize: 6, color: '#aaa', marginBottom: 2 }}>
+              Apply a team outfit preset:
+            </div>
+            {ALL_TEAMS.map(team => {
+              const display = TEAM_DISPLAY[team];
+              const isCurrentTeam = avatarTeam === team;
+              return (
+                <div
+                  key={team}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '4px 6px',
+                    backgroundColor: isCurrentTeam ? 'rgba(255,255,255,0.08)' : '#1a1a2e',
+                    border: isCurrentTeam ? `1px solid ${display.color}` : '1px solid #333',
+                    borderRadius: 3,
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <div style={{
+                      width: 8,
+                      height: 8,
+                      borderRadius: '50%',
+                      backgroundColor: display.color,
+                    }} />
+                    <span style={{ fontSize: 6 }}>
+                      {display.label}
+                      {isCurrentTeam && (
+                        <span style={{ color: display.color, marginLeft: 4, fontSize: 5 }}>*</span>
+                      )}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => handleApplyRolePreset(team)}
+                    style={{
+                      padding: '2px 6px',
+                      fontSize: 5,
+                      fontFamily: '"Press Start 2P", monospace',
+                      backgroundColor: '#2a2a4a',
+                      color: '#e0e0e0',
+                      border: '1px solid #444',
+                      borderRadius: 2,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Apply
+                  </button>
+                </div>
+              );
+            })}
+            {avatarTeam && (
               <button
-                key={item.id}
-                onClick={() => handleItemSelect(item)}
-                title={item.displayName}
+                onClick={handleResetToRoleDefault}
                 style={{
-                  width: '100%',
-                  aspectRatio: '1',
-                  fontSize: 5,
+                  padding: '4px 8px',
+                  fontSize: 6,
                   fontFamily: '"Press Start 2P", monospace',
-                  backgroundColor: isSelected ? '#0066cc' : '#2a2a4a',
+                  backgroundColor: '#2a2a4a',
                   color: '#e0e0e0',
-                  border: isSelected ? '2px solid #4488ee' : '1px solid #444',
+                  border: '1px solid #444',
                   borderRadius: 3,
                   cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  textAlign: 'center',
-                  padding: 1,
-                  lineHeight: '1.2',
-                  wordBreak: 'break-word',
+                  marginTop: 2,
                 }}
               >
-                {item.displayName}
+                Reset to Role Default
               </button>
-            );
-          })}
-        </div>
-
-        {/* Skin color palette */}
-        <div>
-          <div style={{ marginBottom: 2, fontSize: 6, color: '#aaa' }}>Skin</div>
-          <div style={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-            {SKIN_PALETTE.map(color => (
-              <button
-                key={`skin-${color}`}
-                onClick={() => handleColorChange('skin', color)}
-                style={{
-                  width: 16,
-                  height: 16,
-                  backgroundColor: color,
-                  border: currentOutfit.colors.skin === color
-                    ? '2px solid #fff'
-                    : '1px solid #555',
-                  borderRadius: 2,
-                  cursor: 'pointer',
-                  padding: 0,
-                }}
-              />
-            ))}
+            )}
           </div>
-        </div>
-
-        {/* Category color palette */}
-        <div>
-          <div style={{ marginBottom: 2, fontSize: 6, color: '#aaa' }}>
-            {CATEGORY_LABELS[selectedCategory]} Color
-          </div>
-          <div style={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-            {categoryPalette.map(color => (
-              <button
-                key={`${selectedCategory}-${color}`}
-                onClick={() => handleColorChange(colorKey, color)}
-                style={{
-                  width: 16,
-                  height: 16,
-                  backgroundColor: color,
-                  border: currentOutfit.colors[colorKey] === color
-                    ? '2px solid #fff'
-                    : '1px solid #555',
-                  borderRadius: 2,
-                  cursor: 'pointer',
-                  padding: 0,
-                }}
-              />
-            ))}
-          </div>
-        </div>
+        )}
       </div>
 
       {/* Footer: Wardrobe + Save/Cancel */}
