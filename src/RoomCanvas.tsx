@@ -10,7 +10,6 @@ import { drawSpeechBubble } from './isoBubbleRenderer.js';
 import { drawNameTag } from './isoNameTagRenderer.js';
 import { tileToScreen, TILE_W_HALF, TILE_H_HALF } from './isometricMath.js';
 import {
-  getHoveredTile,
   drawHoverHighlight,
   toggleTileWalkability,
   setTileColor,
@@ -36,6 +35,9 @@ import type { OutfitConfig } from './avatarOutfitConfig.js';
 import { getDefaultPreset } from './avatarOutfitConfig.js';
 import { AvatarBuilderPanel } from './AvatarBuilderModal.js';
 import { AvatarDebugGrid } from './AvatarDebugGrid.js';
+import type { CameraState } from './cameraController.js';
+import { createCameraState, applyPan, applyZoom, applyCameraTransform, screenToWorld } from './cameraController.js';
+import { screenToTile } from './isometricMath.js';
 
 interface RoomCanvasProps {
   heightmap: string;
@@ -93,9 +95,20 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
   const [selectedColor, setSelectedColor] = useState<HsbColor>({ h: 200, s: 50, b: 50 });
   const [selectedFurniture, setSelectedFurniture] = useState<string>('hc_chr');
   const [furnitureDirection, setFurnitureDirection] = useState<number>(0);
+  // Camera drag state (not in renderState to avoid re-renders)
+  const dragRef = useRef<{
+    isDragging: boolean;
+    didDrag: boolean;
+    startX: number;
+    startY: number;
+    startPanX: number;
+    startPanY: number;
+  }>({ isDragging: false, didDrag: false, startX: 0, startY: 0, startPanX: 0, startPanY: 0 });
+
   const renderState = useRef<{
     offscreenCanvas: OffscreenCanvas | null;
     cameraOrigin: { x: number; y: number };
+    cameraState: CameraState;
     mainCtx: CanvasRenderingContext2D | null;
     lastFrameTimeMs: number;
     editorState: EditorState;
@@ -107,6 +120,7 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
   }>({
     offscreenCanvas: null,
     cameraOrigin: { x: 0, y: 0 },
+    cameraState: createCameraState(),
     mainCtx: null,
     lastFrameTimeMs: Date.now(),
     editorState: {
@@ -120,6 +134,34 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
     multiTileFurniture: [],
     furnitureRenderables: [],
   });
+
+  /**
+   * Convert mouse event to tile coordinates, accounting for camera pan/zoom.
+   * Replaces direct getHoveredTile calls when camera transform is active.
+   */
+  function mouseToTile(event: React.MouseEvent<HTMLCanvasElement>): { tileX: number; tileY: number } | null {
+    const canvas = event.currentTarget;
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    const mouseX = (event.clientX - rect.left) * scaleX;
+    const mouseY = (event.clientY - rect.top) * scaleY;
+
+    // Apply inverse camera transform to get world-space coordinates
+    const cam = renderState.current.cameraState;
+    const world = screenToWorld(mouseX, mouseY, cam, canvas.width, canvas.height);
+
+    // Subtract cameraOrigin (static centering offset) to get isometric coordinates
+    const adjX = world.x - renderState.current.cameraOrigin.x;
+    const adjY = world.y - renderState.current.cameraOrigin.y;
+
+    const { x, y } = screenToTile(adjX, adjY);
+    const tileX = Math.floor(x);
+    const tileY = Math.floor(y);
+
+    if (tileX < 0 || tileY < 0) return null;
+    return { tileX, tileY };
+  }
 
   // Reset direction to first supported direction when furniture type changes
   useEffect(() => {
@@ -299,7 +341,14 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
       }
       renderState.current.lastFrameTimeMs = currentTimeMs;
 
+      const cam = renderState.current.cameraState;
+
       ctx.clearRect(0, 0, canvas.offsetWidth, canvas.offsetHeight);
+
+      // --- Begin camera-transformed world-space drawing ---
+      ctx.save();
+      applyCameraTransform(ctx, cam, canvas.width, canvas.height);
+
       ctx.drawImage(offscreen, 0, 0);
 
       // Kanban sticky notes on walls (drawn right after walls/floor, before furniture/avatars)
@@ -323,15 +372,15 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
         if (renderState.current.editorState.mode === 'furniture') {
           const dir = renderState.current.editorState.furnitureDirection ?? 0;
           const { x: sx, y: sy } = tileToScreen(x, y, z);
-          const cx = sx + renderState.current.cameraOrigin.x;
-          const cy = sy + TILE_H_HALF + renderState.current.cameraOrigin.y;
+          const arrowCx = sx + renderState.current.cameraOrigin.x;
+          const arrowCy = sy + TILE_H_HALF + renderState.current.cameraOrigin.y;
           // Direction arrows: 0=NE, 2=SE, 4=SW, 6=NW
           const arrows: Record<number, string> = { 0: '\u2197', 2: '\u2198', 4: '\u2199', 6: '\u2196' };
           ctx.save();
           ctx.font = '14px sans-serif';
           ctx.fillStyle = 'rgba(255, 255, 100, 0.9)';
           ctx.textAlign = 'center';
-          ctx.fillText(arrows[dir] || '?', cx, cy - 4);
+          ctx.fillText(arrows[dir] || '?', arrowCx, arrowCy - 4);
           ctx.restore();
         }
       }
@@ -344,12 +393,13 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
           const renderable = createNitroAvatarRenderable(spec, spriteCache)
             || createAvatarRenderable(spec, spriteCache, 'avatar');
 
+          // Camera transform is already applied; just translate by cameraOrigin for avatar world positioning
           const originalDraw = renderable.draw;
-          renderable.draw = (ctx) => {
-            ctx.save();
-            ctx.translate(renderState.current.cameraOrigin.x, renderState.current.cameraOrigin.y);
-            originalDraw(ctx);
-            ctx.restore();
+          renderable.draw = (drawCtx) => {
+            drawCtx.save();
+            drawCtx.translate(renderState.current.cameraOrigin.x, renderState.current.cameraOrigin.y);
+            originalDraw(drawCtx);
+            drawCtx.restore();
           };
 
           dynamicRenderables.push(renderable);
@@ -371,7 +421,7 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
           }
         }
 
-        // UI Overlays: name tags + speech bubbles
+        // UI Overlays: name tags + speech bubbles (world-positioned, inside camera transform)
         ctx.font = '8px "Press Start 2P"';
         for (const avatar of avatars) {
           const { x: screenX, y: screenY } = tileToScreen(avatar.tileX, avatar.tileY, avatar.tileZ);
@@ -415,6 +465,11 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
         }
       }
 
+      // --- End camera-transformed world-space drawing ---
+      ctx.restore();
+
+      // Screen-space overlays (drawn OUTSIDE camera transform)
+
       // Expanded sticky note overlay (drawn last, on top of everything)
       if (expandedNoteRef.current && kanbanCardsRef.current.length > 0) {
         const expandedCard = kanbanCardsRef.current.find(c => c.id === expandedNoteRef.current);
@@ -445,11 +500,46 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
     };
   }, [heightmap]);
 
-  // Mouse event handlers for editor mode
+  // Mouse event handlers for editor mode + camera drag
+  const handleMouseDown = (event: React.MouseEvent<HTMLCanvasElement>) => {
+    // Middle-click always drags; left-click in view mode starts potential drag
+    if (event.button === 1 || (event.button === 0 && renderState.current.editorState.mode === 'view')) {
+      const drag = dragRef.current;
+      drag.isDragging = true;
+      drag.didDrag = false;
+      drag.startX = event.clientX;
+      drag.startY = event.clientY;
+      drag.startPanX = renderState.current.cameraState.panX;
+      drag.startPanY = renderState.current.cameraState.panY;
+    }
+  };
+
+  const handleMouseUp = () => {
+    dragRef.current.isDragging = false;
+  };
+
   const handleMouseMove = (event: React.MouseEvent<HTMLCanvasElement>) => {
+    // Handle camera drag panning
+    const drag = dragRef.current;
+    if (drag.isDragging) {
+      const dx = event.clientX - drag.startX;
+      const dy = event.clientY - drag.startY;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      if (distance > 5) {
+        drag.didDrag = true;
+        const canvas = event.currentTarget;
+        const scaleX = canvas.width / canvas.getBoundingClientRect().width;
+        const scaleY = canvas.height / canvas.getBoundingClientRect().height;
+        // Pan in screen-scaled pixels, adjusted for zoom
+        const cam = renderState.current.cameraState;
+        cam.panX = drag.startPanX + (dx * scaleX) / cam.zoom;
+        cam.panY = drag.startPanY + (dy * scaleY) / cam.zoom;
+      }
+    }
+
     if (!renderState.current.grid) return;
 
-    const hoveredCoords = getHoveredTile(event, renderState.current.cameraOrigin);
+    const hoveredCoords = mouseToTile(event);
 
     if (hoveredCoords) {
       const { tileX, tileY } = hoveredCoords;
@@ -468,7 +558,24 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
     }
   };
 
+  const handleWheel = (event: React.WheelEvent<HTMLCanvasElement>) => {
+    event.preventDefault();
+    const canvas = event.currentTarget;
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    const pivotX = (event.clientX - rect.left) * scaleX;
+    const pivotY = (event.clientY - rect.top) * scaleY;
+    applyZoom(renderState.current.cameraState, event.deltaY, pivotX, pivotY, canvas.width, canvas.height);
+  };
+
   const handleClick = async (event: React.MouseEvent<HTMLCanvasElement>) => {
+    // Skip click if user was dragging the camera
+    if (dragRef.current.didDrag) {
+      dragRef.current.didDrag = false;
+      return;
+    }
+
     if (!renderState.current.grid || !canvasRef.current) return;
 
     // --- Sticky note click detection (before tile logic) ---
@@ -499,7 +606,7 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
     }
 
     // Read event.currentTarget BEFORE any await (React clears it after)
-    const clickedCoords = getHoveredTile(event, renderState.current.cameraOrigin);
+    const clickedCoords = mouseToTile(event);
     if (!clickedCoords) return;
 
     const { tileX, tileY } = clickedCoords;
@@ -572,7 +679,7 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
     // Editor modes don't use right-click
     if (renderState.current.editorState.mode !== 'view') return;
 
-    const clickedCoords = getHoveredTile(event, renderState.current.cameraOrigin);
+    const clickedCoords = mouseToTile(event);
     if (!clickedCoords) return;
 
     const { tileX, tileY } = clickedCoords;
@@ -683,6 +790,7 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
 
   const handleMouseLeave = () => {
     renderState.current.editorState.hoveredTile = null;
+    dragRef.current.isDragging = false;
   };
 
   function reRenderRoom() {
@@ -850,7 +958,10 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
       <canvas
         ref={canvasRef}
         style={{ width: '100%', height: '100%', display: 'block' }}
+        onMouseDown={handleMouseDown}
+        onMouseUp={handleMouseUp}
         onMouseMove={handleMouseMove}
+        onWheel={handleWheel}
         onClick={handleClick}
         onContextMenu={handleContextMenu}
         onMouseLeave={handleMouseLeave}
