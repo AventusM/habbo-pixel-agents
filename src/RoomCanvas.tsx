@@ -1125,6 +1125,12 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
     const clickedAvatar = avatarManager.getAvatarAtTile(tileX, tileY);
 
     if (clickedAvatar) {
+      // Select this avatar for right-click movement targeting
+      selectionManagerRef.current.selectAvatar(clickedAvatar.id);
+      for (const avatar of avatarManager.getAvatars()) {
+        avatar.isSelected = (avatar.id === clickedAvatar.id);
+      }
+
       // If avatar is sitting, stand it up
       if (clickedAvatar.state === 'sit') {
         avatarManager.standAvatar(clickedAvatar.id);
