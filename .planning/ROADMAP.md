@@ -370,7 +370,7 @@ Plans:
 **Goal:** Wire selectAvatar() into the left-click avatar handler so right-click movement targets the user-selected avatar instead of always falling back to the nearest idle avatar.
 **Requirements**: BUG-17.3-01
 **Depends on:** Phase 17
-**Plans:** 1 plan
+**Plans:** 1/1 plans complete
 
 Plans:
 - [ ] 17.3-01-PLAN.md — Wire selectAvatar() call into left-click handler for right-click movement targeting
