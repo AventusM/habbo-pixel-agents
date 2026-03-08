@@ -15,6 +15,9 @@ export interface AgentEvent {
 /** Agent lifecycle state */
 export type AgentStatus = 'active' | 'idle';
 
+/** Team section for agent grouping */
+export type TeamSection = 'planning' | 'core-dev' | 'infrastructure' | 'support';
+
 /** Tracked agent state */
 export interface AgentState {
   agentId: string;
@@ -23,6 +26,10 @@ export interface AgentState {
   status: AgentStatus;
   lastActivityMs: number;
   jsonlPath: string;
+  role?: string;
+  team?: TeamSection;
+  taskArea?: string;
+  displayName?: string;
 }
 
 /** A card from a GitHub Projects v2 kanban board */
@@ -40,7 +47,8 @@ export type ExtensionMessage =
   | { type: 'agentTool'; agentId: string; toolName: string; displayText: string }
   | { type: 'kanbanCards'; cards: KanbanCard[] }
   | { type: 'devMode'; enabled: boolean }
-  | { type: 'avatarOutfits'; outfits: Record<string, { outfit: OutfitConfig; wardrobePresets?: OutfitConfig[] }> };
+  | { type: 'avatarOutfits'; outfits: Record<string, { outfit: OutfitConfig; wardrobePresets?: OutfitConfig[] }> }
+  | { type: 'classifyAgent'; agentId: string; jsonlPath: string };
 
 /** Messages from webview → extension host */
 export type WebviewMessage =
@@ -48,4 +56,5 @@ export type WebviewMessage =
   | { type: 'requestAgents' }
   | { type: 'devCapture'; screenshot: string; logs: string[] }
   | { type: 'saveAvatar'; agentId: string; outfit: OutfitConfig }
-  | { type: 'loadAvatars' };
+  | { type: 'loadAvatars' }
+  | { type: 'reassignAgent'; agentId: string; team: TeamSection };
