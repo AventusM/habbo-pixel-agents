@@ -370,7 +370,7 @@ Plans:
 **Goal:** Fix three bugs in agent discovery: filter out parent conversation JSONL files, read meta.json for authoritative sub-agent classification, and add deduplication guard to prevent duplicate spawn side effects.
 **Requirements**: FIX-17.4-01, FIX-17.4-02, FIX-17.4-03
 **Depends on:** Phase 17
-**Plans:** 1 plan
+**Plans:** 1/1 plans complete
 
 Plans:
 - [ ] 17.4-01-PLAN.md — Filter parent conversations, meta.json classification, and deduplication guard
