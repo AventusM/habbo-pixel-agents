@@ -55,19 +55,8 @@ export class AgentManager {
 
     try {
       const files = fs.readdirSync(claudeDir);
-      for (const file of files) {
-        if (!file.endsWith('.jsonl')) continue;
-        const filePath = path.join(claudeDir, file);
-
-        // Only track recently-modified files (not old historical sessions)
-        try {
-          const stat = fs.statSync(filePath);
-          if (now - stat.mtimeMs < RECENT_THRESHOLD_MS) {
-            console.log(`[AgentManager] Tracking recent session: ${file} (modified ${Math.round((now - stat.mtimeMs) / 1000)}s ago)`);
-            this.trackAgent(filePath);
-          }
-        } catch {}
-      }
+      // NOTE: Root-level JSONL files are parent/orchestrator conversations.
+      // They should NOT spawn avatars. Only subagents/*.jsonl files are tracked.
 
       // Scan session directories for subagents/*.jsonl
       for (const file of files) {
@@ -110,14 +99,9 @@ export class AgentManager {
       const dirWatcher = fs.watch(claudeDir, (eventType, filename) => {
         if (!filename) return;
 
-        if (filename.endsWith('.jsonl')) {
-          const filePath = path.join(claudeDir, filename);
-          if (fs.existsSync(filePath) && !this.agents.has(filePath)) {
-            console.log(`[AgentManager] New JSONL detected: ${filename}`);
-            this.trackAgent(filePath);
-          }
-        } else {
-          // Check if a new session directory appeared
+        // NOTE: Root-level JSONL files are parent conversations — do NOT track them.
+        // Only watch for new session directories that may contain subagents/.
+        if (!filename.endsWith('.jsonl')) {
           const dirPath = path.join(claudeDir, filename);
           try {
             if (fs.existsSync(dirPath) && fs.statSync(dirPath).isDirectory()) {
@@ -207,8 +191,21 @@ export class AgentManager {
       // File may not be readable yet
     }
 
-    // Classify agent based on JSONL content
-    const subagentType = extractSubagentType(initialContent);
+    // Try meta.json first (authoritative source from Claude Code)
+    const metaPath = jsonlPath.replace('.jsonl', '.meta.json');
+    let subagentType: string | null = null;
+    try {
+      if (fs.existsSync(metaPath)) {
+        const meta = JSON.parse(fs.readFileSync(metaPath, 'utf8'));
+        subagentType = meta.agentType || null;
+      }
+    } catch {}
+
+    // Fall back to JSONL content scanning only if meta.json unavailable
+    if (!subagentType) {
+      subagentType = extractSubagentType(initialContent);
+    }
+
     const classification = classifyAgent(subagentType, initialContent);
 
     const terminalName = classification.displayName;

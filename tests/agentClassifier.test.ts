@@ -180,6 +180,50 @@ describe('inferTaskArea', () => {
   });
 });
 
+describe('extractSubagentType with sub-agent transcripts', () => {
+  it('returns null for sub-agent transcripts (they contain tool_use but not Agent spawns)', () => {
+    // Sub-agents use tools like Read/Write/Bash — they don't spawn other agents via Agent tool_use
+    const subAgentJsonl = [
+      JSON.stringify({ role: 'assistant', content: [{ type: 'tool_use', name: 'Read', input: { file_path: 'src/foo.ts' } }] }),
+      JSON.stringify({ role: 'assistant', content: [{ type: 'tool_use', name: 'Bash', input: { command: 'npm test' } }] }),
+      JSON.stringify({ role: 'assistant', content: [{ type: 'tool_use', name: 'Write', input: { file_path: 'src/bar.ts', content: '// code' } }] }),
+    ].join('\n');
+    expect(extractSubagentType(subAgentJsonl)).toBeNull();
+  });
+
+  it('returns null for user-only messages without any tool_use', () => {
+    const userOnlyJsonl = [
+      JSON.stringify({ role: 'user', content: 'Please fix the bug' }),
+      JSON.stringify({ role: 'assistant', content: 'I will fix it now.' }),
+    ].join('\n');
+    expect(extractSubagentType(userOnlyJsonl)).toBeNull();
+  });
+});
+
+describe('classifyAgent with meta.json agentType values', () => {
+  it('classifies gsd-executor as core-dev team', () => {
+    const result = classifyAgent('gsd-executor', '');
+    expect(result.team).toBe('core-dev');
+    expect(result.role).toBe('gsd-executor');
+    expect(result.roleName).toBe('Executor');
+  });
+
+  it('classifies gsd-planner as planning team', () => {
+    const result = classifyAgent('gsd-planner', '');
+    expect(result.team).toBe('planning');
+    expect(result.role).toBe('gsd-planner');
+    expect(result.roleName).toBe('Planner');
+  });
+
+  it('classifies null subagentType as core-dev with Agent role', () => {
+    const result = classifyAgent(null, '');
+    expect(result.team).toBe('core-dev');
+    expect(result.role).toBe('unknown');
+    expect(result.roleName).toBe('Agent');
+    expect(result.taskArea).toBe('General');
+  });
+});
+
 describe('ROLE_TO_TEAM coverage', () => {
   it('covers all expected GSD subagent types', () => {
     const expectedTypes = [
