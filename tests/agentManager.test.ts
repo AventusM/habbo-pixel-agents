@@ -31,6 +31,17 @@ describe('isAgentCompleted', () => {
     expect(isAgentCompleted(filePath)).toBe(true);
   });
 
+  it('returns true for file ending with null stop_reason (short-lived agent)', () => {
+    const dir = setup();
+    const filePath = path.join(dir, 'null-stop.jsonl');
+    const lines = [
+      JSON.stringify({ type: 'user', message: { content: [{ type: 'text', text: 'hello' }] } }),
+      JSON.stringify({ type: 'assistant', message: { stop_reason: null, content: [{ type: 'text', text: 'done' }] } }),
+    ];
+    fs.writeFileSync(filePath, lines.join('\n') + '\n');
+    expect(isAgentCompleted(filePath)).toBe(true);
+  });
+
   it('returns false for file ending with tool_use stop_reason', () => {
     const dir = setup();
     const filePath = path.join(dir, 'running.jsonl');

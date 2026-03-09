@@ -23,7 +23,7 @@ const RECENT_THRESHOLD_MS = 30 * 60_000; // 30 minutes
 const COMPLETION_STALENESS_MS = 15_000;
 
 /** How many bytes to read from the end of a JSONL file for completion check */
-const COMPLETION_READ_SIZE = 8192;
+const COMPLETION_READ_SIZE = 32768;
 
 /**
  * Check if an agent's JSONL file indicates task completion.
@@ -48,12 +48,29 @@ export function isAgentCompleted(jsonlPath: string): boolean {
     const lines = tail.split('\n').filter((l) => l.trim().length > 0);
     if (lines.length === 0) return false;
 
+    // When reading from mid-file, the first line is likely truncated.
+    // Skip it unless we read from the start of the file.
+    const startIdx = readSize < stat.size && lines.length > 1 ? 1 : 0;
     const lastLine = lines[lines.length - 1];
-    const entry = JSON.parse(lastLine);
 
+    // Try the last line first; if it fails (truncated), try working backwards
+    let entry: { type?: string; message?: { stop_reason?: string } } | null = null;
+    for (let i = lines.length - 1; i >= startIdx; i--) {
+      try {
+        entry = JSON.parse(lines[i]);
+        break;
+      } catch {
+        // Truncated line, try the next one up
+      }
+    }
+    if (!entry) return false;
+
+    // Agent is completed if the last entry is an assistant message that is NOT
+    // mid-tool-use. stop_reason can be 'end_turn', null (short-lived agents),
+    // or any value other than 'tool_use'.
     return (
       entry.type === 'assistant' &&
-      entry.message?.stop_reason === 'end_turn'
+      entry.message?.stop_reason !== 'tool_use'
     );
   } catch {
     return false;
@@ -201,6 +218,12 @@ export class AgentManager {
           try {
             const subStat = fs.statSync(subFilePath);
             if (now - subStat.mtimeMs < RECENT_THRESHOLD_MS) {
+              // Skip agents that are already completed — no point spawning just to despawn
+              const staleness = now - subStat.mtimeMs;
+              if (staleness > COMPLETION_STALENESS_MS && isAgentCompleted(subFilePath)) {
+                console.log(`[AgentManager] Skipping already-completed sub-agent: ${subFile} (stale ${Math.round(staleness / 1000)}s)`);
+                continue;
+              }
               console.log(`[AgentManager] Tracking sub-agent: ${path.basename(sessionDirPath)}/subagents/${subFile} (modified ${Math.round((now - subStat.mtimeMs) / 1000)}s ago)`);
               this.trackAgent(subFilePath);
             }
