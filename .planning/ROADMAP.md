@@ -367,13 +367,13 @@ Plans:
 
 ### Phase 17.4: Fix agent discovery pipeline - deduplicate spawns, filter parent conversations, classify sub-agents properly (INSERTED)
 
-**Goal:** [Urgent work - to be planned]
-**Requirements**: TBD
+**Goal:** Fix three bugs in agent discovery: filter out parent conversation JSONL files, read meta.json for authoritative sub-agent classification, and add deduplication guard to prevent duplicate spawn side effects.
+**Requirements**: FIX-17.4-01, FIX-17.4-02, FIX-17.4-03
 **Depends on:** Phase 17
-**Plans:** 0 plans
+**Plans:** 1 plan
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 17.4 to break down)
+- [ ] 17.4-01-PLAN.md — Filter parent conversations, meta.json classification, and deduplication guard
 
 ### Phase 17.3: Fix move logic to respect selected avatar (INSERTED)
 
@@ -408,7 +408,7 @@ Plans:
 ---
 
 *Created: 2026-02-28*
-*Last updated: 2026-03-08*
+*Last updated: 2026-03-09*
 
 ### Phase 17.2: Fix walking animation clipping and layer artifacts (INSERTED)
 
