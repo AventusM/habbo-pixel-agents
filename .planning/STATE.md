@@ -19,7 +19,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-02-28)
 
 **Core value:** Claude Code agents should feel like they're working together in a recognisable Habbo Hotel room — the isometric 2.5D aesthetic must be faithful to the classic v14 era.
-**Current focus:** v2 in progress — Phase 16 complete (agent factory workflow with team sections and orchestration UI)
+**Current focus:** Phase 18 — architecture documentation
 
 ## Current Status
 
@@ -122,6 +122,9 @@ v1.0 (phases 1-8) complete. v2 work in progress: Phase 9 (furniture catalog + re
 | 2026-03-08 | Lazy SectionManager initialization from global floorTemplate | Set in webview.tsx, consumed in RoomCanvas via window global |
 | 2026-03-08 | Walk-to-booth despawn with 500ms delay for teleport flash | Smooth animation before avatar removal |
 | 2026-03-08 | Section furniture populated from template on canvas init | All 4 zone furniture arrays merged into render state |
+| 2026-03-09 | meta.json as authoritative agent classification source | JSONL scanning unreliable for sub-agent types; meta.json written by Claude Code |
+| 2026-03-09 | Root-level JSONL files excluded from agent discovery | Parent conversations are orchestrators, not working sub-agents |
+| 2026-03-09 | Dedup guard before spawn in agentCreated handler | Prevents all side effects from re-broadcast messages |
 
 ### Quick Tasks Completed
 
