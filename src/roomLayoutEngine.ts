@@ -112,15 +112,18 @@ export function generateFloorTemplate(size: 'small' | 'medium' | 'large'): Floor
     { x: divEnd + 1, y: divEnd + 1 },         // bottom-right (support)
   ];
 
+  // Single shared teleport booth in top-right of room
+  const sharedTeleportTile = {
+    x: walkEnd,
+    y: border,
+  };
+
   // Build section layouts
   const sections: SectionLayout[] = SECTION_TEAMS.map((team, i) => {
     const origin = sectionOrigins[i];
 
-    // Teleport tile: corner of section nearest to divider (1 tile from divider)
-    const teleportTile = {
-      x: i % 2 === 0 ? origin.x + usable - 1 : origin.x,
-      y: i < 2 ? origin.y + usable - 1 : origin.y,
-    };
+    // All sections share the single teleport booth
+    const teleportTile = { ...sharedTeleportTile };
 
     // Desk tiles: interior positions away from dividers
     const deskTiles = generateDeskTiles(origin, usable);
@@ -169,14 +172,16 @@ export function getSectionFurniture(
   const specs: FurnitureSpec[] = [];
   const { originTile, widthTiles: w, heightTiles: h, teleportTile, deskTiles } = section;
 
-  // Every section gets a teleport booth at the teleport tile
-  specs.push({
-    name: 'country_gate',
-    tileX: teleportTile.x,
-    tileY: teleportTile.y,
-    tileZ: 0,
-    direction: 0,
-  });
+  // Only the first section (planning) places the shared teleport booth
+  if (team === 'planning') {
+    specs.push({
+      name: 'ads_cltele',
+      tileX: teleportTile.x,
+      tileY: teleportTile.y,
+      tileZ: 0,
+      direction: 4,
+    });
+  }
 
   // Every section gets one lamp — glows when agents are present
   specs.push({

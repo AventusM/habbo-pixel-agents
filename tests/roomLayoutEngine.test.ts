@@ -77,13 +77,17 @@ describe('roomLayoutEngine', () => {
       }
     });
 
-    it('each section has at least 1 teleport tile', () => {
+    it('all sections share a single teleport tile in bottom-left', () => {
       const t = generateFloorTemplate('small');
+      const firstTp = t.sections[0].teleportTile;
       for (const s of t.sections) {
         expect(s.teleportTile).toBeDefined();
-        expect(s.teleportTile.x).toBeGreaterThanOrEqual(s.originTile.x);
-        expect(s.teleportTile.y).toBeGreaterThanOrEqual(s.originTile.y);
+        expect(s.teleportTile.x).toBe(firstTp.x);
+        expect(s.teleportTile.y).toBe(firstTp.y);
       }
+      // Only one teleport booth furniture across all sections
+      const boothCount = t.sections.flatMap(s => s.furniture).filter(f => f.name === 'ads_cltele').length;
+      expect(boothCount).toBe(1);
     });
 
     it('each section has at least 2 desk tiles', () => {
