@@ -38,9 +38,12 @@ export class AgentManager {
     this.onClassificationNeeded = onClassificationNeeded;
   }
 
+  /** Path of the currently active session directory (if any) */
+  private activeSessionDir: string | null = null;
+
   /**
    * Discover existing JSONL files in the Claude projects directory
-   * and start watching them. Only tracks recently-active sessions.
+   * and start watching them. Only tracks the active session's sub-agents.
    */
   discoverAgents(): void {
     const claudeDir = this.getClaudeProjectDir();
@@ -51,69 +54,33 @@ export class AgentManager {
 
     console.log('[AgentManager] Found Claude project dir:', claudeDir);
 
-    const now = Date.now();
-
-    try {
-      const files = fs.readdirSync(claudeDir);
-      // NOTE: Root-level JSONL files are parent/orchestrator conversations.
-      // They should NOT spawn avatars. Only subagents/*.jsonl files are tracked.
-
-      // Scan session directories for subagents/*.jsonl
-      for (const file of files) {
-        const sessionDirPath = path.join(claudeDir, file);
-        try {
-          const stat = fs.statSync(sessionDirPath);
-          if (!stat.isDirectory()) continue;
-
-          const subagentsPath = path.join(sessionDirPath, 'subagents');
-          if (fs.existsSync(subagentsPath) && fs.statSync(subagentsPath).isDirectory()) {
-            // Scan existing sub-agent JSONL files
-            try {
-              const subFiles = fs.readdirSync(subagentsPath);
-              for (const subFile of subFiles) {
-                if (!subFile.endsWith('.jsonl')) continue;
-                const subFilePath = path.join(subagentsPath, subFile);
-                try {
-                  const subStat = fs.statSync(subFilePath);
-                  if (now - subStat.mtimeMs < RECENT_THRESHOLD_MS) {
-                    console.log(`[AgentManager] Tracking sub-agent: ${file}/subagents/${subFile} (modified ${Math.round((now - subStat.mtimeMs) / 1000)}s ago)`);
-                    this.trackAgent(subFilePath);
-                  }
-                } catch {}
-              }
-            } catch {}
-            // Watch for new sub-agent JSONL files in this subagents dir
-            this.watchSubagentsDir(subagentsPath);
-          } else {
-            // No subagents dir yet — watch session dir for it to appear
-            this.watchSessionDirForSubagents(sessionDirPath);
-          }
-        } catch {}
-      }
-    } catch (err) {
-      console.warn('[AgentManager] Error scanning directory:', err);
+    // Identify the single active session
+    const activeDir = this.findActiveSessionDir(claudeDir);
+    if (!activeDir) {
+      console.log('[AgentManager] No active session found — no sub-agents to track');
+    } else {
+      this.activeSessionDir = activeDir;
+      this.scanAndWatchSession(activeDir);
     }
 
-    // Watch for new JSONL files and session directories appearing
+    // Watch for new session directories appearing — may indicate a new active session
     try {
       const dirWatcher = fs.watch(claudeDir, (eventType, filename) => {
         if (!filename) return;
 
-        // NOTE: Root-level JSONL files are parent conversations — do NOT track them.
-        // Only watch for new session directories that may contain subagents/.
-        if (!filename.endsWith('.jsonl')) {
-          const dirPath = path.join(claudeDir, filename);
-          try {
-            if (fs.existsSync(dirPath) && fs.statSync(dirPath).isDirectory()) {
-              // Only watch if we aren't already watching this session dir
-              const sessionKey = `__sessiondir__${dirPath}`;
-              const subagentsKey = `__subagentsdir__${path.join(dirPath, 'subagents')}`;
-              if (!this.watchers.has(sessionKey) && !this.watchers.has(subagentsKey)) {
-                console.log(`[AgentManager] New session directory detected: ${filename}`);
-                this.watchSessionDirForSubagents(dirPath);
-              }
-            }
-          } catch {}
+        // Only care about directories (not root-level JSONL files)
+        if (filename.endsWith('.jsonl')) return;
+
+        const dirPath = path.join(claudeDir, filename);
+        try {
+          if (!fs.existsSync(dirPath) || !fs.statSync(dirPath).isDirectory()) return;
+        } catch { return; }
+
+        // Check if this new directory becomes the active session
+        const newActiveDir = this.findActiveSessionDir(claudeDir);
+        if (newActiveDir && newActiveDir !== this.activeSessionDir) {
+          console.log(`[AgentManager] New active session detected: ${path.basename(newActiveDir)}`);
+          this.switchToSession(newActiveDir);
         }
       });
 
@@ -124,6 +91,109 @@ export class AgentManager {
 
     // Start idle checker
     this.idleTimer = setInterval(() => this.checkIdleAgents(), IDLE_CHECK_INTERVAL_MS);
+  }
+
+  /**
+   * Find the active session directory by locating the session with
+   * the most recently modified root-level JSONL file.
+   * Root JSONL = any .jsonl directly in the session dir (not in subagents/).
+   */
+  private findActiveSessionDir(claudeDir: string): string | null {
+    let bestDir: string | null = null;
+    let bestMtime = 0;
+
+    try {
+      const entries = fs.readdirSync(claudeDir);
+      for (const entry of entries) {
+        const sessionDirPath = path.join(claudeDir, entry);
+        try {
+          if (!fs.statSync(sessionDirPath).isDirectory()) continue;
+        } catch { continue; }
+
+        // Look for root-level JSONL files (the parent conversation file)
+        try {
+          const sessionFiles = fs.readdirSync(sessionDirPath);
+          for (const sf of sessionFiles) {
+            if (!sf.endsWith('.jsonl')) continue;
+            const sfPath = path.join(sessionDirPath, sf);
+            try {
+              const sfStat = fs.statSync(sfPath);
+              if (!sfStat.isFile()) continue;
+              if (sfStat.mtimeMs > bestMtime) {
+                bestMtime = sfStat.mtimeMs;
+                bestDir = sessionDirPath;
+              }
+            } catch {}
+          }
+        } catch {}
+      }
+    } catch {}
+
+    if (bestDir) {
+      const agoSec = Math.round((Date.now() - bestMtime) / 1000);
+      console.log(`[AgentManager] Active session: ${path.basename(bestDir)} (root JSONL modified ${agoSec}s ago)`);
+    }
+
+    return bestDir;
+  }
+
+  /**
+   * Scan a single session directory for sub-agents and set up watchers.
+   */
+  private scanAndWatchSession(sessionDirPath: string): void {
+    const now = Date.now();
+    const subagentsPath = path.join(sessionDirPath, 'subagents');
+
+    if (fs.existsSync(subagentsPath) && fs.statSync(subagentsPath).isDirectory()) {
+      // Scan existing sub-agent JSONL files
+      try {
+        const subFiles = fs.readdirSync(subagentsPath);
+        for (const subFile of subFiles) {
+          if (!subFile.endsWith('.jsonl')) continue;
+          const subFilePath = path.join(subagentsPath, subFile);
+          try {
+            const subStat = fs.statSync(subFilePath);
+            if (now - subStat.mtimeMs < RECENT_THRESHOLD_MS) {
+              console.log(`[AgentManager] Tracking sub-agent: ${path.basename(sessionDirPath)}/subagents/${subFile} (modified ${Math.round((now - subStat.mtimeMs) / 1000)}s ago)`);
+              this.trackAgent(subFilePath);
+            }
+          } catch {}
+        }
+      } catch {}
+      this.watchSubagentsDir(subagentsPath);
+    } else {
+      // No subagents dir yet — watch session dir for it to appear
+      this.watchSessionDirForSubagents(sessionDirPath);
+    }
+  }
+
+  /**
+   * Switch to a new active session: dispose agent-level watchers,
+   * send agentRemoved for all tracked agents, clear state, then
+   * scan and watch the new session.
+   */
+  private switchToSession(newSessionDir: string): void {
+    // Dispose all watchers EXCEPT the top-level dir watcher
+    for (const [key, watcher] of this.watchers) {
+      if (key === '__dir__') continue;
+      watcher.dispose();
+    }
+    // Remove non-dir watchers from the map
+    for (const key of Array.from(this.watchers.keys())) {
+      if (key !== '__dir__') {
+        this.watchers.delete(key);
+      }
+    }
+
+    // Send agentRemoved for each tracked agent
+    for (const [, agent] of this.agents) {
+      this.onMessage({ type: 'agentRemoved', agentId: agent.agentId });
+    }
+    this.agents.clear();
+
+    // Update active session and scan
+    this.activeSessionDir = newSessionDir;
+    this.scanAndWatchSession(newSessionDir);
   }
 
   /**
