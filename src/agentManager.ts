@@ -104,26 +104,32 @@ export class AgentManager {
 
     try {
       const entries = fs.readdirSync(claudeDir);
+      // Build a set of directory names for quick lookup
+      const dirNames = new Set<string>();
       for (const entry of entries) {
-        const sessionDirPath = path.join(claudeDir, entry);
+        const fullPath = path.join(claudeDir, entry);
         try {
-          if (!fs.statSync(sessionDirPath).isDirectory()) continue;
-        } catch { continue; }
+          if (fs.statSync(fullPath).isDirectory()) dirNames.add(entry);
+        } catch {}
+      }
 
-        // Look for root-level JSONL files (the parent conversation file)
+      // Root JSONL files are siblings of their session directories.
+      // e.g. 98e67f14-....jsonl sits next to 98e67f14-..../ directory.
+      // Match each .jsonl to its companion directory by UUID prefix.
+      for (const entry of entries) {
+        if (!entry.endsWith('.jsonl')) continue;
+        const jsonlPath = path.join(claudeDir, entry);
         try {
-          const sessionFiles = fs.readdirSync(sessionDirPath);
-          for (const sf of sessionFiles) {
-            if (!sf.endsWith('.jsonl')) continue;
-            const sfPath = path.join(sessionDirPath, sf);
-            try {
-              const sfStat = fs.statSync(sfPath);
-              if (!sfStat.isFile()) continue;
-              if (sfStat.mtimeMs > bestMtime) {
-                bestMtime = sfStat.mtimeMs;
-                bestDir = sessionDirPath;
-              }
-            } catch {}
+          const stat = fs.statSync(jsonlPath);
+          if (!stat.isFile()) continue;
+
+          // Find companion directory: same name without .jsonl extension
+          const dirName = entry.replace('.jsonl', '');
+          if (!dirNames.has(dirName)) continue;
+
+          if (stat.mtimeMs > bestMtime) {
+            bestMtime = stat.mtimeMs;
+            bestDir = path.join(claudeDir, dirName);
           }
         } catch {}
       }
