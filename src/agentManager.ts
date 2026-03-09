@@ -378,7 +378,7 @@ export class AgentManager {
   }
 
   /**
-   * Watch a subagents directory for new JSONL files appearing.
+   * Watch a subagents directory for new JSONL files appearing or being deleted.
    */
   private watchSubagentsDir(subagentsDirPath: string): void {
     const watcherKey = `__subagentsdir__${subagentsDirPath}`;
@@ -392,6 +392,9 @@ export class AgentManager {
           if (fs.existsSync(filePath) && !this.agents.has(filePath)) {
             console.log(`[AgentManager] New sub-agent JSONL detected: ${filename}`);
             this.trackAgent(filePath);
+          } else if (!fs.existsSync(filePath) && this.agents.has(filePath)) {
+            // File was deleted — despawn the agent
+            this.removeAgent(filePath);
           }
         } catch {}
       });
@@ -400,6 +403,27 @@ export class AgentManager {
     } catch (err) {
       console.warn(`[AgentManager] Cannot watch subagents dir ${subagentsDirPath}:`, err);
     }
+  }
+
+  /**
+   * Remove an agent whose JSONL file has been deleted.
+   * Sends agentRemoved, disposes the per-file watcher, and cleans up state.
+   */
+  private removeAgent(jsonlPath: string): void {
+    const agent = this.agents.get(jsonlPath);
+    if (!agent) return;
+
+    console.log(`[AgentManager] Agent file removed, despawning: ${agent.agentId}`);
+    this.onMessage({ type: 'agentRemoved', agentId: agent.agentId });
+
+    // Dispose per-file watcher
+    const watcher = this.watchers.get(jsonlPath);
+    if (watcher) {
+      watcher.dispose();
+      this.watchers.delete(jsonlPath);
+    }
+
+    this.agents.delete(jsonlPath);
   }
 
   /**
@@ -434,10 +458,21 @@ export class AgentManager {
 
   /**
    * Check for idle agents based on inactivity timeout.
+   * Also verifies JSONL files still exist as a deletion fallback.
    */
   private checkIdleAgents(): void {
     const now = Date.now();
-    for (const [, agent] of this.agents) {
+
+    // Collect paths to remove first to avoid mutating map during iteration
+    const toRemove: string[] = [];
+
+    for (const [jsonlPath, agent] of this.agents) {
+      // File deletion fallback — catch deletions missed by fs.watch
+      if (!fs.existsSync(jsonlPath)) {
+        toRemove.push(jsonlPath);
+        continue;
+      }
+
       if (agent.status === 'active' && now - agent.lastActivityMs > IDLE_TIMEOUT_MS) {
         agent.status = 'idle';
         this.onMessage({
@@ -446,6 +481,10 @@ export class AgentManager {
           status: 'idle',
         });
       }
+    }
+
+    for (const jsonlPath of toRemove) {
+      this.removeAgent(jsonlPath);
     }
   }
 
