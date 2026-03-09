@@ -365,6 +365,16 @@ Plans:
 Plans:
 - [ ] 17-01-PLAN.md — Constrain In Progress sticky notes to left wall only (remove right-wall overflow)
 
+### Phase 17.5: Auto-despawn agents on task completion (INSERTED)
+
+**Goal:** Detect completed sub-agents via JSONL last-line end_turn + file staleness and trigger automatic despawn through existing removeAgent flow.
+**Requirements**: 17.5-01, 17.5-02, 17.5-03, 17.5-04, 17.5-05
+**Depends on:** Phase 17
+**Plans:** 1/1 plans complete
+
+Plans:
+- [ ] 17.5-01-PLAN.md — Completion detection via end_turn + staleness guard with auto-despawn
+
 ### Phase 17.4: Fix agent discovery pipeline - deduplicate spawns, filter parent conversations, classify sub-agents properly (INSERTED)
 
 **Goal:** Fix three bugs in agent discovery: filter out parent conversation JSONL files, read meta.json for authoritative sub-agent classification, and add deduplication guard to prevent duplicate spawn side effects.

@@ -19,6 +19,64 @@ const IDLE_CHECK_INTERVAL_MS = 5_000;
 /** Only track JSONL files modified within this window (ms) */
 const RECENT_THRESHOLD_MS = 30 * 60_000; // 30 minutes
 
+/** How long a JSONL file must be stale before checking for completion (ms) */
+const COMPLETION_STALENESS_MS = 15_000;
+
+/** How many bytes to read from the end of a JSONL file for completion check */
+const COMPLETION_READ_SIZE = 32768;
+
+/**
+ * Check if an agent's JSONL file indicates task completion.
+ * Reads the last line and checks for stop_reason: "end_turn".
+ * Returns false on any error (parse failure, file access, etc).
+ */
+export function isAgentCompleted(jsonlPath: string): boolean {
+  try {
+    const stat = fs.statSync(jsonlPath);
+    if (stat.size === 0) return false;
+
+    const readSize = Math.min(COMPLETION_READ_SIZE, stat.size);
+    const buffer = Buffer.alloc(readSize);
+    const fd = fs.openSync(jsonlPath, 'r');
+    try {
+      fs.readSync(fd, buffer, 0, readSize, stat.size - readSize);
+    } finally {
+      fs.closeSync(fd);
+    }
+
+    const tail = buffer.toString('utf8');
+    const lines = tail.split('\n').filter((l) => l.trim().length > 0);
+    if (lines.length === 0) return false;
+
+    // When reading from mid-file, the first line is likely truncated.
+    // Skip it unless we read from the start of the file.
+    const startIdx = readSize < stat.size && lines.length > 1 ? 1 : 0;
+    const lastLine = lines[lines.length - 1];
+
+    // Try the last line first; if it fails (truncated), try working backwards
+    let entry: { type?: string; message?: { stop_reason?: string } } | null = null;
+    for (let i = lines.length - 1; i >= startIdx; i--) {
+      try {
+        entry = JSON.parse(lines[i]);
+        break;
+      } catch {
+        // Truncated line, try the next one up
+      }
+    }
+    if (!entry) return false;
+
+    // Agent is completed if the last entry is an assistant message that is NOT
+    // mid-tool-use. stop_reason can be 'end_turn', null (short-lived agents),
+    // or any value other than 'tool_use'.
+    return (
+      entry.type === 'assistant' &&
+      entry.message?.stop_reason !== 'tool_use'
+    );
+  } catch {
+    return false;
+  }
+}
+
 export class AgentManager {
   private agents = new Map<string, AgentState>();
   private watchers = new Map<string, Disposable>();
@@ -160,6 +218,12 @@ export class AgentManager {
           try {
             const subStat = fs.statSync(subFilePath);
             if (now - subStat.mtimeMs < RECENT_THRESHOLD_MS) {
+              // Skip agents that are already completed — no point spawning just to despawn
+              const staleness = now - subStat.mtimeMs;
+              if (staleness > COMPLETION_STALENESS_MS && isAgentCompleted(subFilePath)) {
+                console.log(`[AgentManager] Skipping already-completed sub-agent: ${subFile} (stale ${Math.round(staleness / 1000)}s)`);
+                continue;
+              }
               console.log(`[AgentManager] Tracking sub-agent: ${path.basename(sessionDirPath)}/subagents/${subFile} (modified ${Math.round((now - subStat.mtimeMs) / 1000)}s ago)`);
               this.trackAgent(subFilePath);
             }
@@ -471,6 +535,19 @@ export class AgentManager {
       if (!fs.existsSync(jsonlPath)) {
         toRemove.push(jsonlPath);
         continue;
+      }
+
+      // Completion detection: if file is stale and last JSONL line is end_turn, despawn
+      try {
+        const stat = fs.statSync(jsonlPath);
+        const staleness = now - stat.mtimeMs;
+        if (staleness > COMPLETION_STALENESS_MS && isAgentCompleted(jsonlPath)) {
+          console.log(`[AgentManager] Agent completed (end_turn + ${Math.round(staleness / 1000)}s stale): ${agent.agentId}`);
+          toRemove.push(jsonlPath);
+          continue;
+        }
+      } catch {
+        // Race condition: file may have been deleted between existsSync and statSync
       }
 
       if (agent.status === 'active' && now - agent.lastActivityMs > IDLE_TIMEOUT_MS) {

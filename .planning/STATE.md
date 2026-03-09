@@ -4,19 +4,19 @@ milestone: v1.0
 milestone_name: milestone
 current_plan: Not started
 status: planning
-last_updated: "2026-03-09T17:06:08.685Z"
+last_updated: "2026-03-09"
 progress:
-  total_phases: 20
-  completed_phases: 17
-  total_plans: 49
-  completed_plans: 47
+  total_phases: 21
+  completed_phases: 18
+  total_plans: 50
+  completed_plans: 48
 ---
 
 # STATE.md
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-02-28)
+See: .planning/PROJECT.md (updated 2026-03-09)
 
 **Core value:** Claude Code agents should feel like they're working together in a recognisable Habbo Hotel room — the isometric 2.5D aesthetic must be faithful to the classic v14 era.
 **Current focus:** Phase 18 — architecture documentation
@@ -25,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-02-28)
 
 v1.0 (phases 1-8) complete. v2 work in progress: Phase 9 (furniture catalog + rendering fixes) and Phase 10a/10b (avatar polish + chair sitting) are complete. Phase 11 plan 01 (chair layer splitting) is complete. Phase 12 plans 01-03 complete (wall panels + kanban). Phase 14 plans 01-03 complete (outfit config, renderer integration, builder modal UI). Phase 14.1 plan 01 complete (avatar facial features with eyes, mouth, blink animation).
 
-**Last session:** 2026-03-09T17:06:07.815Z
+**Last session:** 2026-03-09
 **Milestone status:** v2 in progress
 
 ## Current Phase
 
-**Phase:** 16 — Agent Factory Workflow with Team Sections and Orchestration UI
+**Phase:** 18 — Architecture Documentation Lite
 **Current Plan:** Not started
 **Status:** Ready to plan
 
@@ -125,6 +125,8 @@ v1.0 (phases 1-8) complete. v2 work in progress: Phase 9 (furniture catalog + re
 | 2026-03-09 | meta.json as authoritative agent classification source | JSONL scanning unreliable for sub-agent types; meta.json written by Claude Code |
 | 2026-03-09 | Root-level JSONL files excluded from agent discovery | Parent conversations are orchestrators, not working sub-agents |
 | 2026-03-09 | Dedup guard before spawn in agentCreated handler | Prevents all side effects from re-broadcast messages |
+| 2026-03-09 | 15s staleness + end_turn for agent completion detection | Prevents premature despawn mid-response; safe threshold for idle detection |
+| 2026-03-09 | Export isAgentCompleted as standalone function | Direct testability without class instantiation; class method wraps it |
 
 ### Quick Tasks Completed
 
@@ -193,6 +195,7 @@ None.
 | Phase 17.4-fix-agent-discovery-pipeline P01 | 2min | 2 tasks | 3 files |
 | Phase quick-3 P01 | 1min | 1 tasks | 1 files |
 | Phase quick-4 P01 | 1min | 1 tasks | 1 files |
+| Phase 17.5-auto-despawn-agents-on-task-completion P01 | 2min | 1 tasks | 2 files |
 
 ## Phase History
 
@@ -243,6 +246,7 @@ None.
 | 16-agent-factory-workflow | 16-07 | Role-based outfit presets and team-specific idle behaviors: coders sit at desks, planners pace, others wander within section bounds (390 tests passing) |
 | 16-agent-factory-workflow | 16-08 | Orchestration sidebar panel with agent list, section overview, activity log, MessageBridge relay, and quick actions (399 tests passing) |
 | 16-agent-factory-workflow | 16-09 | Agent popup cards, activity-linked furniture glows, Role Outfits tab in Avatar Builder, and auto-follow camera (399 tests passing) |
+| 17.5-auto-despawn-agents-on-task-completion | 17.5-01 | Auto-despawn completed sub-agents via JSONL end_turn + 15s staleness with isAgentCompleted() and 6 unit tests (410 tests passing) |
 
 ### Pending Todos
 
@@ -258,3 +262,4 @@ None.
 - Phase 17.2 inserted after Phase 17: Fix walking animation clipping and layer artifacts (URGENT)
 - Phase 17.3 inserted after Phase 17: Fix move logic to respect selected avatar (URGENT)
 - Phase 17.4 inserted after Phase 17: Fix agent discovery pipeline - deduplicate spawns, filter parent conversations, classify sub-agents properly (URGENT)
+- Phase 17.5 inserted after Phase 17: Auto-despawn agents on task completion (COMPLETE)
