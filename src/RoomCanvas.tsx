@@ -263,6 +263,11 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
 
       switch (msg.type) {
         case 'agentCreated': {
+          // Guard: skip if avatar already exists (prevents duplicate side effects from re-broadcast)
+          if (avatarManager.getAvatar(msg.agentId)) {
+            console.log(`[Room] agentCreated: ${msg.agentId} already exists, skipping`);
+            break;
+          }
           if (grid) {
             const team: TeamSection = (msg as any).team || 'core-dev';
             console.log(`[Room] agentCreated: ${msg.agentId} team=${team}`);
