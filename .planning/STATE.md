@@ -4,12 +4,12 @@ milestone: v1.0
 milestone_name: milestone
 current_plan: Not started
 status: planning
-last_updated: "2026-03-09T17:06:08.685Z"
+last_updated: "2026-03-09T18:42:50.483Z"
 progress:
-  total_phases: 20
-  completed_phases: 17
-  total_plans: 49
-  completed_plans: 47
+  total_phases: 21
+  completed_phases: 18
+  total_plans: 50
+  completed_plans: 48
 ---
 
 # STATE.md
@@ -25,7 +25,7 @@ See: .planning/PROJECT.md (updated 2026-02-28)
 
 v1.0 (phases 1-8) complete. v2 work in progress: Phase 9 (furniture catalog + rendering fixes) and Phase 10a/10b (avatar polish + chair sitting) are complete. Phase 11 plan 01 (chair layer splitting) is complete. Phase 12 plans 01-03 complete (wall panels + kanban). Phase 14 plans 01-03 complete (outfit config, renderer integration, builder modal UI). Phase 14.1 plan 01 complete (avatar facial features with eyes, mouth, blink animation).
 
-**Last session:** 2026-03-09T17:06:07.815Z
+**Last session:** 2026-03-09T18:42:50.481Z
 **Milestone status:** v2 in progress
 
 ## Current Phase
@@ -193,6 +193,7 @@ None.
 | Phase 17.4-fix-agent-discovery-pipeline P01 | 2min | 2 tasks | 3 files |
 | Phase quick-3 P01 | 1min | 1 tasks | 1 files |
 | Phase quick-4 P01 | 1min | 1 tasks | 1 files |
+| Phase 17.5-auto-despawn-agents-on-task-completion P01 | 2min | 1 tasks | 2 files |
 
 ## Phase History
 
@@ -258,3 +259,4 @@ None.
 - Phase 17.2 inserted after Phase 17: Fix walking animation clipping and layer artifacts (URGENT)
 - Phase 17.3 inserted after Phase 17: Fix move logic to respect selected avatar (URGENT)
 - Phase 17.4 inserted after Phase 17: Fix agent discovery pipeline - deduplicate spawns, filter parent conversations, classify sub-agents properly (URGENT)
+- Phase 17.5 inserted after Phase 17: Auto-despawn agents on task completion (URGENT)

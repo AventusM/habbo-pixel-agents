@@ -370,7 +370,7 @@ Plans:
 **Goal:** Detect completed sub-agents via JSONL last-line end_turn + file staleness and trigger automatic despawn through existing removeAgent flow.
 **Requirements**: 17.5-01, 17.5-02, 17.5-03, 17.5-04, 17.5-05
 **Depends on:** Phase 17
-**Plans:** 1 plan
+**Plans:** 1/1 plans complete
 
 Plans:
 - [ ] 17.5-01-PLAN.md — Completion detection via end_turn + staleness guard with auto-despawn
