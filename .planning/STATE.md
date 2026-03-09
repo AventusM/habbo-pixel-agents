@@ -133,6 +133,7 @@ v1.0 (phases 1-8) complete. v2 work in progress: Phase 9 (furniture catalog + re
 | 1 | Fix invisible teleport booths - change country_gate direction from 2 to 0 | 2026-03-08 | e19fae2 | [1-fix-invisible-teleport-booths-change-cou](./quick/1-fix-invisible-teleport-booths-change-cou/) |
 | 2 | Watch subagents subdirectories for sub-agent JSONL files in AgentManager | 2026-03-08 | 3df25a6 | [2-watch-subagents-subdirectories-for-sub-a](./quick/2-watch-subagents-subdirectories-for-sub-a/) |
 | 3 | Only discover sub-agents from the current active session | 2026-03-09 | 033e1cd | [3-only-discover-sub-agents-from-the-curren](./quick/3-only-discover-sub-agents-from-the-curren/) |
+| 4 | Auto-despawn agents through teleport booth when JSONL files removed | 2026-03-09 | ddf45c6 | [4-auto-despawn-agents-through-teleport-boo](./quick/4-auto-despawn-agents-through-teleport-boo/) |
 
 ## Blockers
 
