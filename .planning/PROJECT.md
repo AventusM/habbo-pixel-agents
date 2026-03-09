@@ -79,4 +79,4 @@ Z-sort, pathfinding, and character state machines continue to apply — they fee
 | Incremental furniture catalog post-V1 | Full Habbo furni catalog is extensive; V1 proves the rendering approach with 8 core pieces | Confirmed — 8 office furniture types in v1, catalog expansion planned for v2 |
 
 ---
-*Last updated: 2026-03-09 after Phase 17.4*
+*Last updated: 2026-03-09 after Phase 17.5*
