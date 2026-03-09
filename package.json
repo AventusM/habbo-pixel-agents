@@ -4,7 +4,9 @@
   "type": "module",
   "main": "./dist/extension.cjs",
   "engines": {
-    "vscode": "^1.80.0"
+    "vscode": "^1.80.0",
+    "node": ">=22.0.0",
+    "npm": ">=7.0.0"
   },
   "activationEvents": [
     "onStartupFinished"
