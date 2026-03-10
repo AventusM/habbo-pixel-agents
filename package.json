@@ -77,7 +77,10 @@
         },
         "habboPixelAgents.kanbanSource": {
           "type": "string",
-          "enum": ["github", "azuredevops"],
+          "enum": [
+            "github",
+            "azuredevops"
+          ],
           "default": "github",
           "description": "Which kanban board source to use for wall sticky notes"
         },
@@ -125,6 +128,7 @@
     "vitest": "^3.0.0"
   },
   "dependencies": {
+    "dotenv": "^17.3.1",
     "react": "^19.2.4",
     "react-dom": "^19.2.4"
   }

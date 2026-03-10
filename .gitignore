@@ -21,6 +21,9 @@ package-lock.json
 # Test artifacts
 coverage/
 
+# Environment variables (contains PATs)
+.env
+
 # macOS system files
 .DS_Store
 

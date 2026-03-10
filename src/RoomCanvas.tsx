@@ -116,8 +116,8 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
   // Expanded sticky note (click-to-open)
   const expandedNoteRef = useRef<string | null>(null);
 
-  // Expanded aggregate note (backlog / done)
-  const expandedAggregateRef = useRef<'backlog' | 'done' | null>(null);
+  // Expanded aggregate note (todo / done)
+  const expandedAggregateRef = useRef<'todo' | 'done' | null>(null);
 
   // Avatar builder modal state (Phase 14-03)
   const [isBuilderOpen, setIsBuilderOpen] = useState(false);
@@ -942,9 +942,11 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
       // Expanded aggregate note overlay
       if (expandedAggregateRef.current && kanbanCardsRef.current.length > 0 && canvas) {
         const aggType = expandedAggregateRef.current;
-        const aggCards = aggType === 'backlog'
-          ? kanbanCardsRef.current.filter(c => c.status !== 'Done' && c.status !== 'In Progress')
-          : kanbanCardsRef.current.filter(c => c.status === 'Done');
+        const IP = ['In Progress', 'Doing'];
+        const DONE = ['Done'];
+        const aggCards = aggType === 'todo'
+          ? kanbanCardsRef.current.filter(c => !DONE.includes(c.status) && !IP.includes(c.status))
+          : kanbanCardsRef.current.filter(c => DONE.includes(c.status));
         if (aggCards.length > 0) {
           drawExpandedAggregateNote(ctx, aggType, aggCards, canvas.offsetWidth, canvas.offsetHeight);
         }

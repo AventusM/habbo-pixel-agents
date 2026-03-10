@@ -2,7 +2,7 @@
 // Renders GitHub Projects kanban cards as wall-mounted sticky notes in the isometric room.
 // Notes are drawn with isometric skew transforms to appear "on" wall surfaces,
 // with folded corners and click-to-expand interaction.
-// Large aggregate notes for Backlog (Todo + No Status) and Done columns;
+// Large aggregate notes for Todo and Done columns;
 // small individual notes for In Progress cards.
 
 import type { TileGrid } from './isoTypes.js';
@@ -15,6 +15,9 @@ const KANBAN_COLORS: Record<string, string> = {
   'In Progress': '#93c5fd',
   'Done': '#86efac',
   'No Status': '#fda4af',
+  // Azure DevOps status names
+  'To Do': '#fef08a',
+  'Doing': '#93c5fd',
 };
 
 // Darker shade for folded corner per status
@@ -23,6 +26,9 @@ const KANBAN_FOLD_COLORS: Record<string, string> = {
   'In Progress': '#3b82f6',
   'Done': '#22c55e',
   'No Status': '#f43f5e',
+  // Azure DevOps status names
+  'To Do': '#eab308',
+  'Doing': '#3b82f6',
 };
 
 /** Sticky note dimensions (local space, before skew) */
@@ -38,7 +44,7 @@ const LARGE_NOTE_MAX_CHARS = 9;
 const LARGE_NOTE_MAX_LINES = 6;
 
 /** Sentinel card IDs for aggregate notes */
-const BACKLOG_ID = '__backlog__';
+const TODO_ID = '__todo__';
 const DONE_ID = '__done__';
 
 /** Hit area for a rendered note (screen-space quad corners) */
@@ -46,7 +52,7 @@ export interface NoteHitArea {
   cardId: string;
   corners: [Point, Point, Point, Point]; // TL, TR, BR, BL in screen space
   wallSide: 'left' | 'right';
-  aggregateType?: 'backlog' | 'done';
+  aggregateType?: 'todo' | 'done';
 }
 
 interface Point { x: number; y: number }
@@ -326,8 +332,8 @@ function drawLargeNote(
 /**
  * Draw all kanban cards as sticky notes on the room walls.
  *
- * Backlog (Todo + No Status) → large aggregate note on left wall.
- * Done → large aggregate note on right wall.
+ * Todo → large aggregate note on left wall.
+ * Done → large aggregate note on left wall (near corner).
  * In Progress → small individual notes distributed across remaining edge tiles.
  */
 export function drawKanbanNotes(
@@ -336,17 +342,26 @@ export function drawKanbanNotes(
   grid: TileGrid,
   cameraOrigin: { x: number; y: number },
   expandedNoteId?: string | null,
-  expandedAggregateType?: 'backlog' | 'done' | null,
+  expandedAggregateType?: 'todo' | 'done' | null,
 ): void {
   if (cards.length === 0) return;
 
   // Reset hit areas for this frame
   noteHitAreas = [];
 
-  // Partition cards (unrecognized statuses go to backlog)
-  const doneCards = cards.filter(c => c.status === 'Done');
-  const inProgressCards = cards.filter(c => c.status === 'In Progress');
-  const backlogCards = cards.filter(c => c.status !== 'Done' && c.status !== 'In Progress');
+  // Partition cards into three groups.
+  // GitHub Projects: 'Todo', 'In Progress', 'Done', 'No Status'
+  // Azure DevOps:    'To Do', 'Doing', 'Done', 'No Status'
+  const TODO_STATUSES = ['Todo', 'To Do', 'No Status'];
+  const IP_STATUSES = ['In Progress', 'Doing'];
+  const DONE_STATUSES = ['Done'];
+
+  const todoCards = cards.filter(c => TODO_STATUSES.includes(c.status));
+  const inProgressCards = cards.filter(c => IP_STATUSES.includes(c.status));
+  const doneCards = cards.filter(c => DONE_STATUSES.includes(c.status));
+  // Unrecognised statuses fall into todo
+  const unmatchedCards = cards.filter(c => !TODO_STATUSES.includes(c.status) && !IP_STATUSES.includes(c.status) && !DONE_STATUSES.includes(c.status));
+  const allTodoCards = [...todoCards, ...unmatchedCards];
 
   // Left wall edge: leftmost non-void tile per row
   const leftEdge: EdgeTile[] = [];
@@ -361,9 +376,9 @@ export function drawKanbanNotes(
     }
   }
 
-  // BACKLOG at the far left of the left wall (second-to-last to stay within bounds)
-  const backlogIdx = Math.max(0, leftEdge.length - 2);
-  // DONE at the far right of the left wall (index 0 or 1 = top/back, near corner)
+  // TODO at the far left of the left wall (near front)
+  const todoIdx = Math.max(0, leftEdge.length - 2);
+  // DONE at the far right of the left wall (near back corner)
   const doneIdx = Math.min(1, leftEdge.length - 1);
 
   // Helper: compute left-wall large note position for a given edge tile
@@ -375,33 +390,36 @@ export function drawKanbanNotes(
     };
   }
 
-  // Draw large backlog note at far left of left wall
-  if (backlogCards.length > 0 && leftEdge.length > 0) {
-    const pos = largeNotePos(leftEdge[backlogIdx]);
-    const isExpanded = expandedAggregateType === 'backlog';
-    drawLargeNote(ctx, pos.x, pos.y, 'BACKLOG', backlogCards, '#fef08a', '#eab308', 'left', isExpanded);
+  // Pixel offset to push large notes away from the small note zone
+  // Left wall slope: moving toward front = -X, +0.5Y
+  const LARGE_NOTE_OFFSET = 10;
+
+  // Draw large todo note at far left of left wall (pushed toward front)
+  if (allTodoCards.length > 0 && leftEdge.length > 0) {
+    const pos = largeNotePos(leftEdge[todoIdx]);
+    pos.x -= LARGE_NOTE_OFFSET;
+    pos.y += LARGE_NOTE_OFFSET * 0.5;
+    const isExpanded = expandedAggregateType === 'todo';
+    drawLargeNote(ctx, pos.x, pos.y, 'TODO', allTodoCards, '#fef08a', '#eab308', 'left', isExpanded);
     const corners = computeSkewedCorners(pos.x, pos.y, LARGE_NOTE_W, LARGE_NOTE_H, 'left');
-    noteHitAreas.push({ cardId: BACKLOG_ID, corners, wallSide: 'left', aggregateType: 'backlog' });
+    noteHitAreas.push({ cardId: TODO_ID, corners, wallSide: 'left', aggregateType: 'todo' });
   }
 
-  // Draw large done note at far right of left wall (near corner)
-  if (doneCards.length > 0 && leftEdge.length > 0 && doneIdx !== backlogIdx) {
+  // Draw large done note at far right of left wall (pushed toward back corner)
+  if (doneCards.length > 0 && leftEdge.length > 0 && doneIdx !== todoIdx) {
     const pos = largeNotePos(leftEdge[doneIdx]);
+    pos.x += LARGE_NOTE_OFFSET;
+    pos.y -= LARGE_NOTE_OFFSET * 0.5;
     const isExpanded = expandedAggregateType === 'done';
     drawLargeNote(ctx, pos.x, pos.y, 'DONE', doneCards, '#86efac', '#22c55e', 'left', isExpanded);
     const corners = computeSkewedCorners(pos.x, pos.y, LARGE_NOTE_W, LARGE_NOTE_H, 'left');
     noteHitAreas.push({ cardId: DONE_ID, corners, wallSide: 'left', aggregateType: 'done' });
   }
 
-  // Distribute small In Progress notes on remaining left wall tiles.
-  // Skip tiles occupied by large aggregate notes.
-  const hasBacklog = backlogCards.length > 0 && leftEdge.length > 0;
-  const hasDone = doneCards.length > 0 && leftEdge.length > 0 && doneIdx !== backlogIdx;
-  const leftSmallTiles = leftEdge.filter((_, i) => {
-    if (hasBacklog && i === backlogIdx) return false;
-    if (hasDone && i === doneIdx) return false;
-    return true;
-  });
+  // Distribute small In Progress notes between the DONE and TODO positions.
+  const lo = Math.min(doneIdx, todoIdx);
+  const hi = Math.max(doneIdx, todoIdx);
+  const leftSmallTiles = leftEdge.filter((_, i) => i > lo && i < hi).reverse();
 
   const smallCapacity = leftSmallTiles.length * 2;
   const ipCardsToShow = inProgressCards.slice(0, smallCapacity);
@@ -523,14 +541,14 @@ export function drawExpandedNote(
  */
 export function drawExpandedAggregateNote(
   ctx: CanvasRenderingContext2D,
-  aggregateType: 'backlog' | 'done',
+  aggregateType: 'todo' | 'done',
   cards: KanbanCard[],
   canvasWidth: number,
   canvasHeight: number,
 ): void {
-  const label = aggregateType === 'backlog' ? 'BACKLOG' : 'DONE';
-  const color = aggregateType === 'backlog' ? '#fef08a' : '#86efac';
-  const fold = aggregateType === 'backlog' ? '#eab308' : '#22c55e';
+  const label = aggregateType === 'todo' ? 'TODO' : 'DONE';
+  const color = aggregateType === 'todo' ? '#fef08a' : '#86efac';
+  const fold = aggregateType === 'todo' ? '#eab308' : '#22c55e';
 
   const panelW = 220;
   const lineHeight = 16;

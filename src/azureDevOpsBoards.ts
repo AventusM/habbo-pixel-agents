@@ -6,11 +6,11 @@ import type { KanbanCard } from './agentTypes.js';
 
 /** Map Azure DevOps work item state to kanban status */
 export function mapAzureDevOpsState(state: string): string {
-  const TODO = ['New', 'Proposed', 'Approved'];
-  const IN_PROGRESS = ['Active', 'Committed', 'In Progress'];
+  const TODO = ['New', 'Proposed', 'Approved', 'To Do'];
+  const IN_PROGRESS = ['Active', 'Committed', 'In Progress', 'Doing'];
   const DONE_STATES = ['Resolved', 'Done', 'Closed'];
-  if (TODO.includes(state)) return 'Todo';
-  if (IN_PROGRESS.includes(state)) return 'In Progress';
+  if (TODO.includes(state)) return 'To Do';
+  if (IN_PROGRESS.includes(state)) return 'Doing';
   if (DONE_STATES.includes(state)) return 'Done';
   if (state === 'Removed') return 'Removed';
   return 'No Status';

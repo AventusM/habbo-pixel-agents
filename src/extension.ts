@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
 import { join } from 'path';
 import * as os from 'os';
+import { config as loadDotenv } from 'dotenv';
 import { AgentManager } from './agentManager.js';
 import type { WebviewMessage, ExtensionMessage, TeamSection } from './agentTypes.js';
 import { fetchKanbanCards } from './githubProjects.js';
@@ -16,30 +17,13 @@ interface KanbanConfig {
   pollIntervalSeconds: number;
 }
 
-/**
- * Read kanban config from VS Code settings, falling back to .vscode/settings.json
- * in the extension directory when no workspace folder is open (e.g. Extension Dev Host).
- */
-function readKanbanConfig(extUri: vscode.Uri): KanbanConfig {
+/** Read kanban config — env vars take priority, VS Code settings as fallback. */
+function readKanbanConfig(): KanbanConfig {
   const config = vscode.workspace.getConfiguration('habboPixelAgents');
-  let owner = config.get<string>('githubProject.owner', '');
-  let ownerType = config.get<string>('githubProject.ownerType', 'org') as 'org' | 'user';
-  let projectNumber = config.get<number>('githubProject.projectNumber', 0);
+  const owner = process.env.GITHUB_PROJECT_OWNER || config.get<string>('githubProject.owner', '') || '';
+  const ownerType = (process.env.GITHUB_PROJECT_OWNER_TYPE || config.get<string>('githubProject.ownerType', '') || 'org') as 'org' | 'user';
+  const projectNumber = parseInt(process.env.GITHUB_PROJECT_NUMBER || '0', 10) || config.get<number>('githubProject.projectNumber', 0) || 0;
   const pollIntervalSeconds = config.get<number>('githubProject.pollIntervalSeconds', 60);
-
-  if (!owner) {
-    try {
-      const settingsPath = join(extUri.fsPath, '.vscode', 'settings.json');
-      if (existsSync(settingsPath)) {
-        const raw = JSON.parse(readFileSync(settingsPath, 'utf8'));
-        owner = raw['habboPixelAgents.githubProject.owner'] || '';
-        ownerType = (raw['habboPixelAgents.githubProject.ownerType'] || 'org') as 'org' | 'user';
-        projectNumber = raw['habboPixelAgents.githubProject.projectNumber'] || 0;
-      }
-    } catch {
-      // Ignore — settings simply not available
-    }
-  }
 
   return { owner, ownerType, projectNumber, pollIntervalSeconds };
 }
@@ -51,30 +35,13 @@ interface AzureDevOpsConfig {
   pollIntervalSeconds: number;
 }
 
-/**
- * Read Azure DevOps config from VS Code settings, falling back to .vscode/settings.json
- * in the extension directory when no workspace folder is open (e.g. Extension Dev Host).
- */
-function readAzureDevOpsConfig(extUri: vscode.Uri): AzureDevOpsConfig {
+/** Read Azure DevOps config — env vars take priority, VS Code settings as fallback. */
+function readAzureDevOpsConfig(): AzureDevOpsConfig {
   const config = vscode.workspace.getConfiguration('habboPixelAgents');
-  let organization = config.get<string>('azureDevOps.organization', '');
-  let project = config.get<string>('azureDevOps.project', '');
-  let pat = config.get<string>('azureDevOps.pat', '');
+  const organization = process.env.AZURE_DEVOPS_ORG || config.get<string>('azureDevOps.organization', '') || '';
+  const project = process.env.AZURE_DEVOPS_PROJECT || config.get<string>('azureDevOps.project', '') || '';
+  const pat = process.env.AZURE_DEVOPS_PAT || config.get<string>('azureDevOps.pat', '') || '';
   const pollIntervalSeconds = config.get<number>('azureDevOps.pollIntervalSeconds', 60);
-
-  if (!organization) {
-    try {
-      const settingsPath = join(extUri.fsPath, '.vscode', 'settings.json');
-      if (existsSync(settingsPath)) {
-        const raw = JSON.parse(readFileSync(settingsPath, 'utf8'));
-        organization = raw['habboPixelAgents.azureDevOps.organization'] || '';
-        project = raw['habboPixelAgents.azureDevOps.project'] || '';
-        pat = raw['habboPixelAgents.azureDevOps.pat'] || '';
-      }
-    } catch {
-      // Ignore
-    }
-  }
 
   return { organization, project, pat, pollIntervalSeconds };
 }
@@ -93,6 +60,14 @@ const DEMO_HEIGHTMAP = [
 ].join('\n');
 
 export function activate(context: vscode.ExtensionContext) {
+  // Load .env from workspace root (or extension root in dev mode)
+  const wsRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || context.extensionUri.fsPath;
+  {
+    const envPath = join(wsRoot, '.env');
+    const result = loadDotenv({ path: envPath });
+    console.log(`[dotenv] loaded from ${envPath}`, result.error ? `error: ${result.error}` : `parsed ${Object.keys(result.parsed || {}).length} vars`);
+  }
+
   // --- Message Bridge & Orchestration Sidebar ---
   const bridge = new MessageBridge();
   const orchestrationProvider = new OrchestrationPanelProvider(context.extensionUri, bridge);
@@ -280,14 +255,31 @@ export function activate(context: vscode.ExtensionContext) {
             panel.webview.postMessage({ type: 'devMode', enabled: true } as ExtensionMessage);
           }
           agentManager.discoverAgents();
-          const { owner, ownerType, projectNumber } = readKanbanConfig(context.extensionUri);
-          console.log(`[Kanban] ready received. owner="${owner}" projectNumber=${projectNumber} ownerType="${ownerType}"`);
-          if (owner && projectNumber > 0) {
-            const cards = fetchKanbanCards(owner, projectNumber, ownerType);
-            console.log(`[Kanban] fetched ${cards.length} cards:`, cards.map(c => c.title));
-            panel.webview.postMessage({ type: 'kanbanCards', cards } as ExtensionMessage);
+          const readyConfig = vscode.workspace.getConfiguration('habboPixelAgents');
+          const readyKanbanSource = process.env.KANBAN_SOURCE || readyConfig.get<string>('kanbanSource', '') || 'github';
+          console.log(`[Kanban] ready received. source="${readyKanbanSource}"`);
+
+          if (readyKanbanSource === 'azuredevops') {
+            const { organization, project, pat } = readAzureDevOpsConfig();
+            console.log(`[Kanban] ADO config: org="${organization}" project="${project}" pat=${pat ? '***' : '(empty)'}`);
+            if (organization && project && pat) {
+              void fetchAzureDevOpsCards(organization, project, pat).then((cards) => {
+                console.log(`[Kanban] fetched ${cards.length} ADO cards`);
+                panel.webview.postMessage({ type: 'kanbanCards', cards } as ExtensionMessage);
+              });
+            } else {
+              console.log('[Kanban] skipped ADO fetch: missing org, project, or pat');
+            }
           } else {
-            console.log('[Kanban] skipped fetch: owner or projectNumber not configured');
+            const { owner, ownerType, projectNumber } = readKanbanConfig();
+            console.log(`[Kanban] GitHub config: owner="${owner}" projectNumber=${projectNumber} ownerType="${ownerType}"`);
+            if (owner && projectNumber > 0) {
+              const cards = fetchKanbanCards(owner, projectNumber, ownerType);
+              console.log(`[Kanban] fetched ${cards.length} GitHub cards`);
+              panel.webview.postMessage({ type: 'kanbanCards', cards } as ExtensionMessage);
+            } else {
+              console.log('[Kanban] skipped GitHub fetch: owner or projectNumber not configured');
+            }
           }
           break;
         }
@@ -381,10 +373,10 @@ export function activate(context: vscode.ExtensionContext) {
 
     {
       const globalConfig = vscode.workspace.getConfiguration('habboPixelAgents');
-      const kanbanSource = globalConfig.get<string>('kanbanSource', 'github');
+      const kanbanSource = process.env.KANBAN_SOURCE || globalConfig.get<string>('kanbanSource', '') || 'github';
 
       if (kanbanSource === 'azuredevops') {
-        const { organization: adoOrg, project: adoProject, pat: adoPat, pollIntervalSeconds: adoPollIntervalSeconds } = readAzureDevOpsConfig(context.extensionUri);
+        const { organization: adoOrg, project: adoProject, pat: adoPat, pollIntervalSeconds: adoPollIntervalSeconds } = readAzureDevOpsConfig();
         if (adoOrg && adoProject && adoPat && adoPollIntervalSeconds > 0) {
           kanbanPollId = setInterval(() => {
             void fetchAzureDevOpsCards(adoOrg, adoProject, adoPat).then((cards) => {
@@ -394,7 +386,7 @@ export function activate(context: vscode.ExtensionContext) {
         }
       } else {
         // Default: GitHub Projects
-        const { owner: pollOwner, ownerType: pollOwnerType, projectNumber: pollProjectNumber, pollIntervalSeconds } = readKanbanConfig(context.extensionUri);
+        const { owner: pollOwner, ownerType: pollOwnerType, projectNumber: pollProjectNumber, pollIntervalSeconds } = readKanbanConfig();
         if (pollOwner && pollProjectNumber > 0 && pollIntervalSeconds > 0) {
           kanbanPollId = setInterval(() => {
             const polledCards = fetchKanbanCards(pollOwner, pollProjectNumber, pollOwnerType);
