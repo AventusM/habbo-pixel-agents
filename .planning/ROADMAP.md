@@ -365,6 +365,17 @@ Plans:
 Plans:
 - [ ] 17-01-PLAN.md — Constrain In Progress sticky notes to left wall only (remove right-wall overflow)
 
+### Phase 17.6: Azure DevOps Boards Integration (INSERTED)
+
+**Goal:** Add Azure DevOps Boards as a second kanban source alongside existing GitHub Projects integration, using PAT-based REST API fetch with WIQL + workitemsbatch endpoints, state-to-status mapping, and a kanbanSource VS Code setting to select the active source.
+**Requirements**: ADO-01, ADO-02, ADO-03, ADO-04, ADO-05, ADO-06, ADO-07
+**Depends on:** Phase 17
+**Plans:** 2 plans
+
+Plans:
+- [ ] 17.6-01-PLAN.md — TDD: Azure DevOps fetch module with WIQL + batch API, state mapping, and silent fallback
+- [ ] 17.6-02-PLAN.md — VS Code settings contributions, kanbanSource selector, and extension.ts polling wiring
+
 ### Phase 17.5: Auto-despawn agents on task completion (INSERTED)
 
 **Goal:** Detect completed sub-agents via JSONL last-line end_turn + file staleness and trigger automatic despawn through existing removeAgent flow.
