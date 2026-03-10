@@ -5,6 +5,7 @@ import * as os from 'os';
 import { AgentManager } from './agentManager.js';
 import type { WebviewMessage, ExtensionMessage, TeamSection } from './agentTypes.js';
 import { fetchKanbanCards } from './githubProjects.js';
+import { fetchAzureDevOpsCards } from './azureDevOpsBoards.js';
 import { MessageBridge } from './messageBridge.js';
 import { OrchestrationPanelProvider } from './orchestrationPanel.js';
 
@@ -41,6 +42,41 @@ function readKanbanConfig(extUri: vscode.Uri): KanbanConfig {
   }
 
   return { owner, ownerType, projectNumber, pollIntervalSeconds };
+}
+
+interface AzureDevOpsConfig {
+  organization: string;
+  project: string;
+  pat: string;
+  pollIntervalSeconds: number;
+}
+
+/**
+ * Read Azure DevOps config from VS Code settings, falling back to .vscode/settings.json
+ * in the extension directory when no workspace folder is open (e.g. Extension Dev Host).
+ */
+function readAzureDevOpsConfig(extUri: vscode.Uri): AzureDevOpsConfig {
+  const config = vscode.workspace.getConfiguration('habboPixelAgents');
+  let organization = config.get<string>('azureDevOps.organization', '');
+  let project = config.get<string>('azureDevOps.project', '');
+  let pat = config.get<string>('azureDevOps.pat', '');
+  const pollIntervalSeconds = config.get<number>('azureDevOps.pollIntervalSeconds', 60);
+
+  if (!organization) {
+    try {
+      const settingsPath = join(extUri.fsPath, '.vscode', 'settings.json');
+      if (existsSync(settingsPath)) {
+        const raw = JSON.parse(readFileSync(settingsPath, 'utf8'));
+        organization = raw['habboPixelAgents.azureDevOps.organization'] || '';
+        project = raw['habboPixelAgents.azureDevOps.project'] || '';
+        pat = raw['habboPixelAgents.azureDevOps.pat'] || '';
+      }
+    } catch {
+      // Ignore
+    }
+  }
+
+  return { organization, project, pat, pollIntervalSeconds };
 }
 
 const DEMO_HEIGHTMAP = [
@@ -340,16 +376,31 @@ export function activate(context: vscode.ExtensionContext) {
       }
     });
 
-    // --- GitHub Projects kanban polling ---
+    // --- Kanban polling (GitHub Projects or Azure DevOps, gated by kanbanSource) ---
     let kanbanPollId: ReturnType<typeof setInterval> | undefined;
 
     {
-      const { owner: pollOwner, ownerType: pollOwnerType, projectNumber: pollProjectNumber, pollIntervalSeconds } = readKanbanConfig(context.extensionUri);
-      if (pollOwner && pollProjectNumber > 0 && pollIntervalSeconds > 0) {
-        kanbanPollId = setInterval(() => {
-          const polledCards = fetchKanbanCards(pollOwner, pollProjectNumber, pollOwnerType);
-          panel.webview.postMessage({ type: 'kanbanCards', cards: polledCards } as ExtensionMessage);
-        }, pollIntervalSeconds * 1000);
+      const globalConfig = vscode.workspace.getConfiguration('habboPixelAgents');
+      const kanbanSource = globalConfig.get<string>('kanbanSource', 'github');
+
+      if (kanbanSource === 'azuredevops') {
+        const { organization: adoOrg, project: adoProject, pat: adoPat, pollIntervalSeconds: adoPollIntervalSeconds } = readAzureDevOpsConfig(context.extensionUri);
+        if (adoOrg && adoProject && adoPat && adoPollIntervalSeconds > 0) {
+          kanbanPollId = setInterval(() => {
+            void fetchAzureDevOpsCards(adoOrg, adoProject, adoPat).then((cards) => {
+              panel.webview.postMessage({ type: 'kanbanCards', cards } as ExtensionMessage);
+            });
+          }, adoPollIntervalSeconds * 1000);
+        }
+      } else {
+        // Default: GitHub Projects
+        const { owner: pollOwner, ownerType: pollOwnerType, projectNumber: pollProjectNumber, pollIntervalSeconds } = readKanbanConfig(context.extensionUri);
+        if (pollOwner && pollProjectNumber > 0 && pollIntervalSeconds > 0) {
+          kanbanPollId = setInterval(() => {
+            const polledCards = fetchKanbanCards(pollOwner, pollProjectNumber, pollOwnerType);
+            panel.webview.postMessage({ type: 'kanbanCards', cards: polledCards } as ExtensionMessage);
+          }, pollIntervalSeconds * 1000);
+        }
       }
     }
 
