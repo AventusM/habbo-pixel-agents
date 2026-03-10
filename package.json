@@ -74,6 +74,35 @@
           "type": "number",
           "default": 60,
           "description": "How often to refresh kanban cards (seconds, 0 = disabled)"
+        },
+        "habboPixelAgents.kanbanSource": {
+          "type": "string",
+          "enum": [
+            "github",
+            "azuredevops"
+          ],
+          "default": "github",
+          "description": "Which kanban board source to use for wall sticky notes"
+        },
+        "habboPixelAgents.azureDevOps.organization": {
+          "type": "string",
+          "default": "",
+          "description": "Azure DevOps organization name (e.g. 'mycompany' from https://dev.azure.com/mycompany)"
+        },
+        "habboPixelAgents.azureDevOps.project": {
+          "type": "string",
+          "default": "",
+          "description": "Azure DevOps project name to fetch work items from"
+        },
+        "habboPixelAgents.azureDevOps.pat": {
+          "type": "string",
+          "default": "",
+          "description": "Azure DevOps Personal Access Token (read:work items scope). Store in user settings only — do not commit to workspace settings."
+        },
+        "habboPixelAgents.azureDevOps.pollIntervalSeconds": {
+          "type": "number",
+          "default": 60,
+          "description": "How often (in seconds) to refresh Azure DevOps work items. Set to 0 to disable polling."
         }
       }
     }
@@ -99,6 +128,7 @@
     "vitest": "^3.0.0"
   },
   "dependencies": {
+    "dotenv": "^17.3.1",
     "react": "^19.2.4",
     "react-dom": "^19.2.4"
   }

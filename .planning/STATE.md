@@ -4,12 +4,12 @@ milestone: v1.0
 milestone_name: milestone
 current_plan: Not started
 status: planning
-last_updated: "2026-03-09"
+last_updated: "2026-03-10T17:56:47.582Z"
 progress:
-  total_phases: 21
-  completed_phases: 18
-  total_plans: 50
-  completed_plans: 48
+  total_phases: 22
+  completed_phases: 19
+  total_plans: 52
+  completed_plans: 50
 ---
 
 # STATE.md
@@ -25,7 +25,7 @@ See: .planning/PROJECT.md (updated 2026-03-09)
 
 v1.0 (phases 1-8) complete. v2 work in progress: Phase 9 (furniture catalog + rendering fixes) and Phase 10a/10b (avatar polish + chair sitting) are complete. Phase 11 plan 01 (chair layer splitting) is complete. Phase 12 plans 01-03 complete (wall panels + kanban). Phase 14 plans 01-03 complete (outfit config, renderer integration, builder modal UI). Phase 14.1 plan 01 complete (avatar facial features with eyes, mouth, blink animation).
 
-**Last session:** 2026-03-09
+**Last session:** 2026-03-10T17:51:35.471Z
 **Milestone status:** v2 in progress
 
 ## Current Phase
@@ -127,6 +127,11 @@ v1.0 (phases 1-8) complete. v2 work in progress: Phase 9 (furniture catalog + re
 | 2026-03-09 | Dedup guard before spawn in agentCreated handler | Prevents all side effects from re-broadcast messages |
 | 2026-03-09 | 15s staleness + end_turn for agent completion detection | Prevents premature despawn mid-response; safe threshold for idle detection |
 | 2026-03-09 | Export isAgentCompleted as standalone function | Direct testability without class instantiation; class method wraps it |
+| 2026-03-10 | Use native fetch for Azure DevOps REST API | Node 22 has built-in fetch; no new npm dependencies needed |
+| 2026-03-10 | vi.stubGlobal('fetch') for mocking in Vitest | fetch is a global in Node 22, not a module import; vi.mock would not intercept it |
+| 2026-03-10 | WIQL query filters Closed and Removed at source | Batch response Removed filter is a safety net for future WIQL changes |
+| 2026-03-10 | kanbanSource defaults to 'github' for backward compatibility | All existing GitHub Projects users unaffected when Azure DevOps wiring is added |
+| 2026-03-10 | Azure DevOps polling uses void + .then() in setInterval | Avoids unhandled promise rejection for async fetch calls in synchronous interval callbacks |
 
 ### Quick Tasks Completed
 
@@ -196,6 +201,8 @@ None.
 | Phase quick-3 P01 | 1min | 1 tasks | 1 files |
 | Phase quick-4 P01 | 1min | 1 tasks | 1 files |
 | Phase 17.5-auto-despawn-agents-on-task-completion P01 | 2min | 1 tasks | 2 files |
+| Phase 17.6-azure-devops-boards-integration P01 | 3min | 1 tasks | 2 files |
+| Phase 17.6-azure-devops-boards-integration P02 | 2min | 2 tasks | 2 files |
 
 ## Phase History
 
@@ -247,6 +254,8 @@ None.
 | 16-agent-factory-workflow | 16-08 | Orchestration sidebar panel with agent list, section overview, activity log, MessageBridge relay, and quick actions (399 tests passing) |
 | 16-agent-factory-workflow | 16-09 | Agent popup cards, activity-linked furniture glows, Role Outfits tab in Avatar Builder, and auto-follow camera (399 tests passing) |
 | 17.5-auto-despawn-agents-on-task-completion | 17.5-01 | Auto-despawn completed sub-agents via JSONL end_turn + 15s staleness with isAgentCompleted() and 6 unit tests (410 tests passing) |
+| 17.6-azure-devops-boards-integration | 17.6-01 | Azure DevOps work item fetch via WIQL + workitemsbatch REST API with state mapping to KanbanCard[], 16 unit tests, no new npm dependencies (427 tests passing) |
+| 17.6-azure-devops-boards-integration | 17.6-02 | VS Code settings for Azure DevOps (org/project/PAT/poll) added to package.json, kanbanSource selector gates GitHub vs Azure DevOps polling in extension.ts with full backward compatibility (427 tests passing) |
 
 ### Pending Todos
 
@@ -263,3 +272,4 @@ None.
 - Phase 17.3 inserted after Phase 17: Fix move logic to respect selected avatar (URGENT)
 - Phase 17.4 inserted after Phase 17: Fix agent discovery pipeline - deduplicate spawns, filter parent conversations, classify sub-agents properly (URGENT)
 - Phase 17.5 inserted after Phase 17: Auto-despawn agents on task completion (COMPLETE)
+- Phase 17.6 inserted after Phase 17: Azure DevOps Boards Integration (URGENT)
