@@ -370,7 +370,7 @@ Plans:
 **Goal:** Add Azure DevOps Boards as a second kanban source alongside existing GitHub Projects integration, using PAT-based REST API fetch with WIQL + workitemsbatch endpoints, state-to-status mapping, and a kanbanSource VS Code setting to select the active source.
 **Requirements**: ADO-01, ADO-02, ADO-03, ADO-04, ADO-05, ADO-06, ADO-07
 **Depends on:** Phase 17
-**Plans:** 2 plans
+**Plans:** 1/2 plans executed
 
 Plans:
 - [ ] 17.6-01-PLAN.md — TDD: Azure DevOps fetch module with WIQL + batch API, state mapping, and silent fallback
