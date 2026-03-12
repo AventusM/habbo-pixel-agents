@@ -100,6 +100,19 @@ function copyAssets() {
   } else {
     console.log('⚠ No assets/habbo directory - skipping Nitro asset copy (run download + convert scripts first)');
   }
+
+  // Copy PixelLab character assets
+  const pixellabSrc = 'assets/pixellab';
+  if (fs.existsSync(pixellabSrc)) {
+    const pixellabDest = path.join(destDir, 'pixellab');
+    fs.mkdirSync(pixellabDest, { recursive: true });
+    for (const file of fs.readdirSync(pixellabSrc)) {
+      if (file.endsWith('.png') || file.endsWith('.json')) {
+        fs.copyFileSync(path.join(pixellabSrc, file), path.join(pixellabDest, file));
+        console.log(`  ✓ Copied pixellab/${file}`);
+      }
+    }
+  }
 }
 
 async function build() {

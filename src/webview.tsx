@@ -51,7 +51,7 @@ const spriteCache = new SpriteCache();
 
 (async () => {
   try {
-    const { chairPng, chairJson, furniturePng, furnitureJson, avatarPng, avatarJson } = (window as any).ASSET_URIS;
+    const { chairPng, chairJson, furniturePng, furnitureJson, avatarPng, avatarJson, pixellabPng, pixellabJson } = (window as any).ASSET_URIS;
 
     console.log('Loading chair atlas from:', chairPng, chairJson);
     await spriteCache.loadAtlas('chair', chairPng, chairJson);
@@ -85,6 +85,17 @@ const spriteCache = new SpriteCache();
         w: deskFrame.w,
         h: deskFrame.h,
       });
+    }
+
+    // Load PixelLab character atlas
+    if (pixellabPng && pixellabJson) {
+      try {
+        console.log('Loading PixelLab character atlas...');
+        await spriteCache.loadAtlas('pixellab', pixellabPng, pixellabJson);
+        console.log('✓ PixelLab character atlas loaded');
+      } catch (err) {
+        console.warn('⚠ Failed to load PixelLab character atlas:', err);
+      }
     }
 
     // Test avatar frame lookup
