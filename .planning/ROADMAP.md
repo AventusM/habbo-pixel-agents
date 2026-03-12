@@ -376,6 +376,28 @@ Plans:
 - [ ] 17.6-01-PLAN.md — TDD: Azure DevOps fetch module with WIQL + batch API, state mapping, and silent fallback
 - [ ] 17.6-02-PLAN.md — VS Code settings contributions, kanbanSource selector, and extension.ts polling wiring
 
+### Phase 17.7: PixelLab Character Integration (INSERTED)
+
+**Goal:** Replace multi-layer Nitro Habbo avatar rendering with single-sprite PixelLab-generated characters, introducing a shared AvatarRenderer interface and sprite packer pipeline.
+**Status:** Complete (2026-03-12)
+**Depends on:** Phase 17
+**Plans:** 1/1 plans complete
+
+Plans:
+- [x] 17.7-01-PLAN.md — Sprite packer, PixelLab renderer, build pipeline, and renderer abstraction
+
+### Phase 17.8: Remove Copyrighted Habbo Character Content (INSERTED)
+
+**Goal:** Eliminate all copyrighted Habbo character/figure assets and rendering code (cortex-assets figures, multi-layer avatar composition, avatar builder clothing catalog), replacing fully with PixelLab-generated characters. Habbo furniture assets are retained.
+**Requirements**: REM-01, REM-02, REM-03, REM-04, REM-05, REM-06, REM-07, REM-08, REM-09, REM-10
+**Depends on:** Phase 17.7
+**Plans:** 3 plans
+
+Plans:
+- [ ] 17.8-01-PLAN.md — Generate 4 team-specific PixelLab characters and wire per-team atlas selection
+- [ ] 17.8-02-PLAN.md — Remove all Habbo figure code, assets, avatar builder UI, clean up types and imports, add character legend panel
+- [ ] 17.8-03-PLAN.md — Full codebase audit for leftover references and UAT verification checkpoint
+
 ### Phase 17.5: Auto-despawn agents on task completion (INSERTED)
 
 **Goal:** Detect completed sub-agents via JSONL last-line end_turn + file staleness and trigger automatic despawn through existing removeAgent flow.
