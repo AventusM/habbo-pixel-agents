@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
+import { writeFileSync } from 'fs';
 import { join } from 'path';
 import * as os from 'os';
 import { config as loadDotenv } from 'dotenv';
@@ -215,16 +215,38 @@ export function activate(context: vscode.ExtensionContext) {
     const nitroFurnitureBaseUri = panel.webview.asWebviewUri(
       vscode.Uri.joinPath(context.extensionUri, 'dist', 'webview-assets', 'furniture')
     );
-    const nitroFiguresBaseUri = panel.webview.asWebviewUri(
-      vscode.Uri.joinPath(context.extensionUri, 'dist', 'webview-assets', 'figures')
-    );
-
     // Generate webview URIs for PixelLab character sprites
     const pixellabPngUri = panel.webview.asWebviewUri(
       vscode.Uri.joinPath(context.extensionUri, 'dist', 'webview-assets', 'pixellab', 'beanie-hoodie-guy.png')
     );
     const pixellabJsonUri = panel.webview.asWebviewUri(
       vscode.Uri.joinPath(context.extensionUri, 'dist', 'webview-assets', 'pixellab', 'beanie-hoodie-guy.json')
+    );
+
+    // Generate webview URIs for team-specific PixelLab atlases
+    const plPlanningPngUri = panel.webview.asWebviewUri(
+      vscode.Uri.joinPath(context.extensionUri, 'dist', 'webview-assets', 'pixellab', 'pl-planning.png')
+    );
+    const plPlanningJsonUri = panel.webview.asWebviewUri(
+      vscode.Uri.joinPath(context.extensionUri, 'dist', 'webview-assets', 'pixellab', 'pl-planning.json')
+    );
+    const plCoreDevPngUri = panel.webview.asWebviewUri(
+      vscode.Uri.joinPath(context.extensionUri, 'dist', 'webview-assets', 'pixellab', 'pl-core-dev.png')
+    );
+    const plCoreDevJsonUri = panel.webview.asWebviewUri(
+      vscode.Uri.joinPath(context.extensionUri, 'dist', 'webview-assets', 'pixellab', 'pl-core-dev.json')
+    );
+    const plInfrastructurePngUri = panel.webview.asWebviewUri(
+      vscode.Uri.joinPath(context.extensionUri, 'dist', 'webview-assets', 'pixellab', 'pl-infrastructure.png')
+    );
+    const plInfrastructureJsonUri = panel.webview.asWebviewUri(
+      vscode.Uri.joinPath(context.extensionUri, 'dist', 'webview-assets', 'pixellab', 'pl-infrastructure.json')
+    );
+    const plSupportPngUri = panel.webview.asWebviewUri(
+      vscode.Uri.joinPath(context.extensionUri, 'dist', 'webview-assets', 'pixellab', 'pl-support.png')
+    );
+    const plSupportJsonUri = panel.webview.asWebviewUri(
+      vscode.Uri.joinPath(context.extensionUri, 'dist', 'webview-assets', 'pixellab', 'pl-support.json')
     );
 
     // --- Message Bridge: register room panel ---
@@ -343,42 +365,6 @@ export function activate(context: vscode.ExtensionContext) {
           vscode.window.showInformationMessage(`Debug grid exported: ${gridPngPath}`);
           break;
         }
-        case 'saveAvatar': {
-          const { agentId, outfit } = msg as any;
-          if (workspaceDir) {
-            const avatarsDir = join(workspaceDir, '.habbo-agents');
-            const avatarsPath = join(avatarsDir, 'avatars.json');
-            // Read existing data
-            let data: Record<string, any> = {};
-            try {
-              if (existsSync(avatarsPath)) {
-                data = JSON.parse(readFileSync(avatarsPath, 'utf8'));
-              }
-            } catch { /* fresh file */ }
-            // Merge
-            if (!data[agentId]) data[agentId] = {};
-            data[agentId].outfit = outfit;
-            // Write
-            if (!existsSync(avatarsDir)) {
-              mkdirSync(avatarsDir, { recursive: true });
-            }
-            writeFileSync(avatarsPath, JSON.stringify(data, null, 2));
-          }
-          break;
-        }
-        case 'loadAvatars': {
-          if (workspaceDir) {
-            const avatarsPath = join(workspaceDir, '.habbo-agents', 'avatars.json');
-            let data: Record<string, any> = {};
-            try {
-              if (existsSync(avatarsPath)) {
-                data = JSON.parse(readFileSync(avatarsPath, 'utf8'));
-              }
-            } catch { /* no file yet */ }
-            panel.webview.postMessage({ type: 'avatarOutfits', outfits: data } as ExtensionMessage);
-          }
-          break;
-        }
         default:
           // Relay unhandled room messages through bridge (e.g., agentClicked)
           bridge.handleRoomMessage(msg);
@@ -450,9 +436,16 @@ export function activate(context: vscode.ExtensionContext) {
         notificationSound: '${notificationSoundUri}',
         nitroManifest: '${nitroManifestUri}',
         nitroFurnitureBase: '${nitroFurnitureBaseUri}',
-        nitroFiguresBase: '${nitroFiguresBaseUri}',
         pixellabPng: '${pixellabPngUri}',
-        pixellabJson: '${pixellabJsonUri}'
+        pixellabJson: '${pixellabJsonUri}',
+        plPlanningPng: '${plPlanningPngUri}',
+        plPlanningJson: '${plPlanningJsonUri}',
+        plCoreDevPng: '${plCoreDevPngUri}',
+        plCoreDevJson: '${plCoreDevJsonUri}',
+        plInfrastructurePng: '${plInfrastructurePngUri}',
+        plInfrastructureJson: '${plInfrastructureJsonUri}',
+        plSupportPng: '${plSupportPngUri}',
+        plSupportJson: '${plSupportJsonUri}'
       };
     </script>
   </head>

@@ -51,7 +51,17 @@ const spriteCache = new SpriteCache();
 
 (async () => {
   try {
-    const { chairPng, chairJson, furniturePng, furnitureJson, avatarPng, avatarJson, pixellabPng, pixellabJson } = (window as any).ASSET_URIS;
+    const {
+      chairPng, chairJson,
+      furniturePng, furnitureJson,
+      avatarPng, avatarJson,
+      pixellabPng, pixellabJson,
+      plPlanningPng, plPlanningJson,
+      plCoreDevPng, plCoreDevJson,
+      plInfrastructurePng, plInfrastructureJson,
+      plSupportPng, plSupportJson,
+      nitroManifest, nitroFurnitureBase,
+    } = (window as any).ASSET_URIS;
 
     console.log('Loading chair atlas from:', chairPng, chairJson);
     await spriteCache.loadAtlas('chair', chairPng, chairJson);
@@ -87,7 +97,7 @@ const spriteCache = new SpriteCache();
       });
     }
 
-    // Load PixelLab character atlas
+    // Load PixelLab character atlas (default fallback)
     if (pixellabPng && pixellabJson) {
       try {
         console.log('Loading PixelLab character atlas...');
@@ -95,6 +105,24 @@ const spriteCache = new SpriteCache();
         console.log('✓ PixelLab character atlas loaded');
       } catch (err) {
         console.warn('⚠ Failed to load PixelLab character atlas:', err);
+      }
+    }
+
+    // Load per-team PixelLab atlases
+    const teamAtlases: Array<{ name: string; png: string; json: string }> = [
+      { name: 'pl-planning',       png: plPlanningPng,       json: plPlanningJson },
+      { name: 'pl-core-dev',       png: plCoreDevPng,        json: plCoreDevJson },
+      { name: 'pl-infrastructure', png: plInfrastructurePng, json: plInfrastructureJson },
+      { name: 'pl-support',        png: plSupportPng,        json: plSupportJson },
+    ];
+    for (const atlas of teamAtlases) {
+      if (atlas.png && atlas.json) {
+        try {
+          await spriteCache.loadAtlas(atlas.name, atlas.png, atlas.json);
+          console.log(`✓ Team atlas loaded: ${atlas.name}`);
+        } catch (err) {
+          console.warn(`⚠ Failed to load team atlas ${atlas.name}:`, err);
+        }
       }
     }
 
@@ -110,8 +138,7 @@ const spriteCache = new SpriteCache();
       });
     }
 
-    // Load Nitro per-item assets (real Habbo sprites)
-    const { nitroManifest, nitroFurnitureBase, nitroFiguresBase } = (window as any).ASSET_URIS;
+    // Load Nitro per-item furniture assets
     if (nitroManifest) {
       try {
         const manifestRes = await fetch(nitroManifest);
@@ -131,22 +158,6 @@ const spriteCache = new SpriteCache();
                 console.log(`✓ Loaded Nitro furniture: ${name}`);
               } catch (err) {
                 console.warn(`⚠ Failed to load Nitro furniture ${name}:`, err);
-              }
-            }
-          }
-
-          // Load figure items
-          if (manifest.figures && nitroFiguresBase) {
-            for (const name of manifest.figures) {
-              try {
-                await spriteCache.loadNitroAsset(
-                  name,
-                  `${nitroFiguresBase}/${name}.png`,
-                  `${nitroFiguresBase}/${name}.json`
-                );
-                console.log(`✓ Loaded Nitro figure: ${name}`);
-              } catch (err) {
-                console.warn(`⚠ Failed to load Nitro figure ${name}:`, err);
               }
             }
           }
@@ -187,8 +198,6 @@ const spriteCache = new SpriteCache();
     // Notify extension that webview is ready (triggers agent discovery)
     if (vscodeApi) {
       vscodeApi.postMessage({ type: 'ready' });
-      // Load saved avatar outfits from .habbo-agents/avatars.json
-      vscodeApi.postMessage({ type: 'loadAvatars' });
     }
   } catch (error) {
     console.error('Asset loading failed:', error);

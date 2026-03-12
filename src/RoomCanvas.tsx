@@ -3,9 +3,10 @@ import { parseHeightmap, depthSort } from './isoTypes.js';
 import { initCanvas, computeCameraOrigin, preRenderRoom, createFurnitureRenderables } from './isoTileRenderer.js';
 import type { TileGrid, Renderable } from './isoTypes.js';
 import type { FurnitureSpec, MultiTileFurnitureSpec } from './isoFurnitureRenderer.js';
-import type { AvatarSpec, AvatarRenderer } from './isoAvatarRenderer.js';
-import { habboRenderer, AVATAR_GROUND_Y } from './isoAvatarRenderer.js';
+import type { AvatarSpec, AvatarRenderer } from './avatarRendererTypes.js';
 import { pixelLabRenderer } from './pixelLabAvatarRenderer.js';
+
+const AVATAR_GROUND_Y = 0;
 import type { SpriteCache } from './isoSpriteCache.js';
 import { drawSpeechBubble } from './isoBubbleRenderer.js';
 import { drawNameTag } from './isoNameTagRenderer.js';
@@ -33,12 +34,8 @@ import type { ExtensionMessage } from './agentTypes.js';
 import type { KanbanCard } from './agentTypes.js';
 import { computeBlockedTiles } from './isoPathfinding.js';
 import { drawKanbanNotes, drawExpandedNote, drawExpandedAggregateNote, getNoteHitAreas, pointInQuad } from './isoKanbanRenderer.js';
-import type { OutfitConfig } from './avatarOutfitConfig.js';
-import { getDefaultPreset } from './avatarOutfitConfig.js';
-import { AvatarBuilderPanel } from './AvatarBuilderModal.js';
-import { AvatarDebugGrid } from './AvatarDebugGrid.js';
 import type { CameraState } from './cameraController.js';
-import { createCameraState, applyPan, applyZoom, applyCameraTransform, screenToWorld } from './cameraController.js';
+import { createCameraState, applyZoom, applyCameraTransform, screenToWorld } from './cameraController.js';
 import { screenToTile } from './isometricMath.js';
 import { SectionManager } from './sectionManager.js';
 import { type FloorTemplate, buildSectionColorMap } from './roomLayoutEngine.js';
@@ -120,10 +117,6 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
   // Expanded aggregate note (todo / done)
   const expandedAggregateRef = useRef<'todo' | 'done' | null>(null);
 
-  // Avatar builder modal state (Phase 14-03)
-  const [isBuilderOpen, setIsBuilderOpen] = useState(false);
-  const [builderAvatarId, setBuilderAvatarId] = useState<string | null>(null);
-  const [showDebugGrid, setShowDebugGrid] = useState(false);
   // Editor UI state
   const [editorMode, setEditorMode] = useState<EditorMode>(editorModeProp);
   const [selectedColor, setSelectedColor] = useState<HsbColor>({ h: 200, s: 50, b: 50 });
@@ -459,11 +452,6 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
           kanbanCardsRef.current = msg.cards;
           break;
         }
-        case 'avatarOutfits': {
-          const outfitsMsg = msg as any;
-          avatarManagerRef.current.loadAvatarOutfits(outfitsMsg.outfits);
-          break;
-        }
         case 'devMode': {
           setDevMode(msg.enabled);
           break;
@@ -513,10 +501,6 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
         }
         case 'playSound': {
           handlePlaySound((msg as any).sound || 'notification');
-          break;
-        }
-        case 'debugGrid': {
-          setShowDebugGrid(prev => !prev);
           break;
         }
       }
@@ -658,12 +642,9 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
         }
       }
 
-      // Select active avatar renderer (PixelLab preferred, Habbo fallback)
+      // PixelLab is the sole avatar renderer
       const spriteCache = (window as any).spriteCache as SpriteCache | undefined;
-      const activeRenderer: AvatarRenderer =
-        spriteCache && pixelLabRenderer.isAvailable(spriteCache)
-          ? pixelLabRenderer
-          : habboRenderer;
+      const activeRenderer: AvatarRenderer = pixelLabRenderer;
 
       // Update animation state for all avatars
       const avatars = avatarManagerRef.current.getAvatars();
@@ -1161,10 +1142,8 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
 
       // Toggle popup card for this agent
       if (popupAgentRef.current === clickedAvatar.id) {
-        // Clicking same agent closes popup and opens builder
+        // Clicking same agent closes popup
         popupAgentRef.current = null;
-        setIsBuilderOpen(true);
-        setBuilderAvatarId(clickedAvatar.id);
       } else {
         // First click shows popup card
         popupAgentRef.current = clickedAvatar.id;
@@ -1440,26 +1419,6 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
     }
   };
 
-  // Avatar builder save handler — updates avatar and persists to extension host
-  const handleBuilderSave = (outfit: OutfitConfig) => {
-    if (!builderAvatarId) return;
-    // Update avatar spec in place (rAF loop picks up changes)
-    avatarManagerRef.current.setAvatarOutfit(builderAvatarId, outfit);
-    // Persist via extension host
-    const vscodeApi = (window as any).vscodeApi;
-    if (vscodeApi) {
-      vscodeApi.postMessage({ type: 'saveAvatar', agentId: builderAvatarId, outfit });
-    }
-    setIsBuilderOpen(false);
-    setBuilderAvatarId(null);
-  };
-
-  // Avatar builder close handler (cancel)
-  const handleBuilderClose = () => {
-    setIsBuilderOpen(false);
-    setBuilderAvatarId(null);
-  };
-
   return (
     <>
       {/* Layout editor panel hidden — controls moved to orchestration sidebar.
@@ -1474,7 +1433,7 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
         furnitureDirection={furnitureDirection}
         devMode={devMode}
         onDevCapture={handleDevCapture}
-        onDebugGrid={() => setShowDebugGrid(true)}
+        onDebugGrid={undefined}
         onPlaySound={handlePlaySound}
         availableSounds={availableSounds}
         onRotate={() => {
@@ -1498,23 +1457,6 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
         onContextMenu={handleContextMenu}
         onMouseLeave={handleMouseLeave}
       />
-      {showDebugGrid && (
-        <AvatarDebugGrid onClose={() => setShowDebugGrid(false)} />
-      )}
-      {isBuilderOpen && builderAvatarId && (() => {
-        const avatar = avatarManagerRef.current.getAvatar(builderAvatarId);
-        if (!avatar) return null;
-        return (
-          <AvatarBuilderPanel
-            avatarId={builderAvatarId}
-            initialOutfit={avatar.outfit || getDefaultPreset(avatar.variant)}
-            variant={avatar.variant}
-            onSave={handleBuilderSave}
-            onClose={handleBuilderClose}
-            avatarTeam={sectionManagerRef.current?.getAgentTeam(builderAvatarId) ?? undefined}
-          />
-        );
-      })()}
     </>
   );
 }
