@@ -85,18 +85,6 @@ function copyAssets() {
       }
     }
 
-    // Copy figure assets
-    const figuresSrc = path.join(habboDir, 'figures');
-    if (fs.existsSync(figuresSrc)) {
-      const figuresDest = path.join(destDir, 'figures');
-      fs.mkdirSync(figuresDest, { recursive: true });
-      for (const file of fs.readdirSync(figuresSrc)) {
-        if (file.endsWith('.png') || file.endsWith('.json')) {
-          fs.copyFileSync(path.join(figuresSrc, file), path.join(figuresDest, file));
-          console.log(`  ✓ Copied figures/${file}`);
-        }
-      }
-    }
   } else {
     console.log('⚠ No assets/habbo directory - skipping Nitro asset copy (run download + convert scripts first)');
   }

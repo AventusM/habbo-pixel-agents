@@ -1,8 +1,6 @@
 // src/agentTypes.ts
 // Shared types for agent monitoring and extension↔webview messaging
 
-import type { OutfitConfig } from './avatarOutfitConfig.js';
-
 /** Parsed event from a Claude Code JSONL transcript */
 export interface AgentEvent {
   type: 'tool_use' | 'tool_result' | 'turn_duration';
@@ -47,7 +45,6 @@ export type ExtensionMessage =
   | { type: 'agentTool'; agentId: string; toolName: string; displayText: string }
   | { type: 'kanbanCards'; cards: KanbanCard[] }
   | { type: 'devMode'; enabled: boolean }
-  | { type: 'avatarOutfits'; outfits: Record<string, { outfit: OutfitConfig; wardrobePresets?: OutfitConfig[] }> }
   | { type: 'requestClassification'; agentId: string }
   // Sidebar control panel → room webview (relayed via extension host)
   | { type: 'jumpToSection'; team: string }
@@ -68,7 +65,5 @@ export type WebviewMessage =
   | { type: 'ready' }
   | { type: 'requestAgents' }
   | { type: 'devCapture'; screenshot: string; logs: string[] }
-  | { type: 'saveAvatar'; agentId: string; outfit: OutfitConfig }
-  | { type: 'loadAvatars' }
   | { type: 'reassignAgent'; agentId: string; team: TeamSection }
   | { type: 'exportDebugGrid'; screenshot: string };

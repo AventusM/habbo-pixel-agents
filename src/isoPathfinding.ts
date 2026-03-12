@@ -4,7 +4,7 @@
 
 import type { TileGrid } from './isoTypes.js';
 import type { TilePathStep, TilePath } from './isoAgentBehavior.js';
-import type { AvatarSpec } from './isoAvatarRenderer.js';
+import type { AvatarSpec } from './avatarRendererTypes.js';
 import type { FurnitureSpec, MultiTileFurnitureSpec } from './isoFurnitureRenderer.js';
 import { isWalkableFurniture } from './furnitureRegistry.js';
 

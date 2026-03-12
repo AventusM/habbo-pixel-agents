@@ -36,15 +36,15 @@ function buildBatchResponse(items: Array<{ id: number; title: string; state: str
 
 describe('mapAzureDevOpsState', () => {
   it('maps Todo states correctly', () => {
-    expect(mapAzureDevOpsState('New')).toBe('Todo');
-    expect(mapAzureDevOpsState('Proposed')).toBe('Todo');
-    expect(mapAzureDevOpsState('Approved')).toBe('Todo');
+    expect(mapAzureDevOpsState('New')).toBe('To Do');
+    expect(mapAzureDevOpsState('Proposed')).toBe('To Do');
+    expect(mapAzureDevOpsState('Approved')).toBe('To Do');
   });
 
   it('maps In Progress states correctly', () => {
-    expect(mapAzureDevOpsState('Active')).toBe('In Progress');
-    expect(mapAzureDevOpsState('Committed')).toBe('In Progress');
-    expect(mapAzureDevOpsState('In Progress')).toBe('In Progress');
+    expect(mapAzureDevOpsState('Active')).toBe('Doing');
+    expect(mapAzureDevOpsState('Committed')).toBe('Doing');
+    expect(mapAzureDevOpsState('In Progress')).toBe('Doing');
   });
 
   it('maps Done states correctly', () => {
@@ -133,8 +133,8 @@ describe('fetchAzureDevOpsCards', () => {
     const result = await fetchAzureDevOpsCards('myOrg', 'myProject', 'myPat');
 
     expect(result).toHaveLength(2);
-    expect(result[0]).toEqual({ id: '101', title: 'Fix auth bug', status: 'In Progress' });
-    expect(result[1]).toEqual({ id: '102', title: 'Add new feature', status: 'Todo' });
+    expect(result[0]).toEqual({ id: '101', title: 'Fix auth bug', status: 'Doing' });
+    expect(result[1]).toEqual({ id: '102', title: 'Add new feature', status: 'To Do' });
   });
 
   it('slices IDs to max 100 before batch call', async () => {

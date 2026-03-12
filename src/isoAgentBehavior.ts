@@ -3,7 +3,7 @@
 // Converts BFS tile paths to isometric screen positions with facing directions
 
 import { tileToScreen, getDirection } from './isometricMath.js';
-import type { AvatarSpec } from './isoAvatarRenderer.js';
+import type { AvatarSpec } from './avatarRendererTypes.js';
 
 /**
  * Represents a single step in a BFS path as tile coordinates.

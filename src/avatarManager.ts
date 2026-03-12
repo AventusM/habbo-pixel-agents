@@ -2,16 +2,16 @@
 // Manages dynamic avatar pool driven by agent events
 // Runs in browser (webview-side)
 
-import type { AvatarSpec } from './isoAvatarRenderer.js';
+import type { AvatarSpec } from './avatarRendererTypes.js';
 import type { TileGrid } from './isoTypes.js';
 import type { TilePath, IsometricPosition } from './isoAgentBehavior.js';
 import { pathToIsometricPositions } from './isoAgentBehavior.js';
 import { findPath, getRandomWalkableTile, isTileOccupied } from './isoPathfinding.js';
 import { tileToScreen } from './isometricMath.js';
-import { TILE_STEP_DURATION_MS } from './isoAvatarRenderer.js';
-import type { OutfitConfig } from './avatarOutfitConfig.js';
-import { getDefaultPreset, getRolePreset } from './avatarOutfitConfig.js';
 import type { TeamSection } from './agentTypes.js';
+
+/** Time per tile step in ms (walk speed) */
+const TILE_STEP_DURATION_MS = 350;
 
 /** Path state for an avatar in motion */
 interface PathState {
@@ -25,8 +25,6 @@ interface PathState {
 export class AvatarManager {
   private avatars = new Map<string, AvatarSpec>();
   private pathStates = new Map<string, PathState>();
-  /** Saved outfits for late-spawning avatars */
-  private savedOutfits = new Map<string, { outfit: OutfitConfig }>();
 
   /**
    * Spawn a new avatar at a random walkable tile.
@@ -47,9 +45,6 @@ export class AvatarManager {
     if (!tile) return null;
 
     const now = Date.now();
-    // Use saved outfit if available, then role preset, then default variant preset
-    const savedData = this.savedOutfits.get(agentId);
-    const outfit = savedData ? savedData.outfit : team ? getRolePreset(team, variant) : getDefaultPreset(variant);
 
     const spec: AvatarSpec = {
       id: agentId,
@@ -61,14 +56,12 @@ export class AvatarManager {
       state: 'spawning',
       frame: 0,
       lastUpdateMs: now,
-      nextBlinkMs: now + 5000,
-      blinkFrame: 0,
       spawnProgress: 0,
       screenOffsetX: 0,
       screenOffsetY: 0,
       isSelected: false,
       displayName,
-      outfit,
+      team: team || 'core-dev',
     };
 
     this.avatars.set(agentId, spec);
@@ -86,8 +79,6 @@ export class AvatarManager {
     if (tileY < 0 || tileY >= grid.height || tileX < 0 || tileX >= grid.width) return null;
 
     const now = Date.now();
-    const savedData = this.savedOutfits.get(agentId);
-    const outfit = savedData ? savedData.outfit : team ? getRolePreset(team, variant) : getDefaultPreset(variant);
 
     const spec: AvatarSpec = {
       id: agentId,
@@ -99,14 +90,12 @@ export class AvatarManager {
       state: 'spawning',
       frame: 0,
       lastUpdateMs: now,
-      nextBlinkMs: now + 5000,
-      blinkFrame: 0,
       spawnProgress: 0,
       screenOffsetX: 0,
       screenOffsetY: 0,
       isSelected: false,
       displayName,
-      outfit,
+      team: team || 'core-dev',
     };
 
     this.avatars.set(agentId, spec);
@@ -283,33 +272,6 @@ export class AvatarManager {
     avatar.state = 'idle';
     avatar.sittingChairKey = undefined;
     avatar.lastUpdateMs = Date.now();
-  }
-
-  /**
-   * Update the outfit on an existing avatar.
-   * The rAF loop will pick up the change on the next frame.
-   */
-  setAvatarOutfit(agentId: string, outfit: OutfitConfig): void {
-    const avatar = this.avatars.get(agentId);
-    if (avatar) {
-      avatar.outfit = outfit;
-    }
-  }
-
-  /**
-   * Apply saved outfits to existing avatars and store for late-spawning avatars.
-   * Called when extension sends previously-persisted outfit data on load.
-   */
-  loadAvatarOutfits(outfits: Record<string, { outfit: OutfitConfig }>): void {
-    for (const [agentId, data] of Object.entries(outfits)) {
-      // Store for late-spawning avatars
-      this.savedOutfits.set(agentId, data);
-      // Apply to existing avatar if already spawned
-      const avatar = this.avatars.get(agentId);
-      if (avatar) {
-        avatar.outfit = data.outfit;
-      }
-    }
   }
 
   /**

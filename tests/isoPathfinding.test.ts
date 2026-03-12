@@ -4,7 +4,7 @@
 import { describe, it, expect } from 'vitest';
 import { findPath, getRandomWalkableTile, isTileOccupied, computeBlockedTiles } from '../src/isoPathfinding.js';
 import { parseHeightmap } from '../src/isoTypes.js';
-import type { AvatarSpec } from '../src/isoAvatarRenderer.js';
+import type { AvatarSpec } from '../src/avatarRendererTypes.js';
 
 function makeGrid(heightmap: string) {
   return parseHeightmap(heightmap);
@@ -272,8 +272,6 @@ describe('isTileOccupied', () => {
     state: 'idle',
     frame: 0,
     lastUpdateMs: 0,
-    nextBlinkMs: 0,
-    blinkFrame: 0,
     spawnProgress: 0,
   });
 

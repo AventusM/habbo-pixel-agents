@@ -46,32 +46,6 @@ const FURNITURE_ITEMS = [
   'ads_cltele',         // Habbo Club teleport booth (1x1, dirs 2/4)
 ];
 
-// Avatar body + clothing
-const FIGURE_ITEMS = [
-  // Existing
-  'hh_human_body',
-  'hh_human_face',
-  'Hair_M_yo',
-  'Hair_U_Messy',
-  'Shirt_M_Tshirt_Plain',
-  'Trousers_U_Skinny_Jeans',
-  'Shoes_U_Slipons',
-  // New for Phase 14 (avatar builder catalog)
-  'Hair_F_Bob',
-  'Hair_U_Multi_Colour',
-  'Shirt_F_Schoolshirt',
-  'Shirt_F_Tshirt_Sleeved',
-  'Shirt_M_Tshirt_Sleeved',
-  'Shirt_F_Cardigan',
-  'Shirt_M_Cardigan',
-  'Shirt_F_Punk_Shirt',
-  'Trousers_U_Sraight',
-  'Trousers_U_runway',
-  'Trousers_F_Leather_skirt',
-  'Shoes_F_Schoolshoes',
-  'Hat_U_sombrero',
-  'Hat_U_urban',
-];
 
 function download(url) {
   return new Promise((resolve, reject) => {
@@ -127,18 +101,6 @@ async function main() {
   for (const item of FURNITURE_ITEMS) {
     try {
       await downloadAsset('furnitures', item, furnitureDir);
-      console.log(`  ✓ ${item}`);
-    } catch (err) {
-      console.error(`  ✗ ${item}: ${err.message}`);
-    }
-  }
-
-  // Download figures
-  const figuresDir = 'assets/habbo-raw/figures';
-  console.log(`\nFigures → ${figuresDir}/`);
-  for (const item of FIGURE_ITEMS) {
-    try {
-      await downloadAsset('figures', item, figuresDir);
       console.log(`  ✓ ${item}`);
     } catch (err) {
       console.error(`  ✗ ${item}: ${err.message}`);

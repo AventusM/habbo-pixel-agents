@@ -4,12 +4,12 @@ milestone: v1.0
 milestone_name: milestone
 current_plan: Not started
 status: planning
-last_updated: "2026-03-10T17:56:47.582Z"
+last_updated: "2026-03-12T20:06:09.639Z"
 progress:
-  total_phases: 22
-  completed_phases: 19
-  total_plans: 52
-  completed_plans: 50
+  total_phases: 24
+  completed_phases: 21
+  total_plans: 56
+  completed_plans: 54
 ---
 
 # STATE.md
@@ -25,7 +25,7 @@ See: .planning/PROJECT.md (updated 2026-03-09)
 
 v1.0 (phases 1-8) complete. v2 work in progress: Phase 9 (furniture catalog + rendering fixes) and Phase 10a/10b (avatar polish + chair sitting) are complete. Phase 11 plan 01 (chair layer splitting) is complete. Phase 12 plans 01-03 complete (wall panels + kanban). Phase 14 plans 01-03 complete (outfit config, renderer integration, builder modal UI). Phase 14.1 plan 01 complete (avatar facial features with eyes, mouth, blink animation).
 
-**Last session:** 2026-03-10T17:51:35.471Z
+**Last session:** 2026-03-12T19:56:57.677Z
 **Milestone status:** v2 in progress
 
 ## Current Phase
@@ -141,6 +141,7 @@ v1.0 (phases 1-8) complete. v2 work in progress: Phase 9 (furniture catalog + re
 | 2 | Watch subagents subdirectories for sub-agent JSONL files in AgentManager | 2026-03-08 | 3df25a6 | [2-watch-subagents-subdirectories-for-sub-a](./quick/2-watch-subagents-subdirectories-for-sub-a/) |
 | 3 | Only discover sub-agents from the current active session | 2026-03-09 | 033e1cd | [3-only-discover-sub-agents-from-the-curren](./quick/3-only-discover-sub-agents-from-the-curren/) |
 | 4 | Auto-despawn agents through teleport booth when JSONL files removed | 2026-03-09 | ddf45c6 | [4-auto-despawn-agents-through-teleport-boo](./quick/4-auto-despawn-agents-through-teleport-boo/) |
+| 5 | Fix 2 pre-existing test failures in isoKanbanRenderer.test.ts | 2026-03-12 | a5f10be | [5-fix-5-pre-existing-test-failures-in-isok](./quick/5-fix-5-pre-existing-test-failures-in-isok/) |
 
 ## Blockers
 
@@ -203,6 +204,10 @@ None.
 | Phase 17.5-auto-despawn-agents-on-task-completion P01 | 2min | 1 tasks | 2 files |
 | Phase 17.6-azure-devops-boards-integration P01 | 3min | 1 tasks | 2 files |
 | Phase 17.6-azure-devops-boards-integration P02 | 2min | 2 tasks | 2 files |
+| Phase 17.8-remove-copyrighted-habbo-characters P01 | 6min | 2 tasks | 12 files |
+| Phase 17.8-remove-copyrighted-habbo-characters P02 | 13min | 2 tasks | 22 files |
+| Phase 17.8-remove-copyrighted-habbo-characters P03 | 2min | 1 tasks | 3 files |
+| Phase 17.8-remove-copyrighted-habbo-characters P03 | 10min | 2 tasks | 3 files |
 
 ## Phase History
 

@@ -102,111 +102,10 @@ function convertFurniture(name, rawJson, pngSize) {
   };
 }
 
-/**
- * Convert a cortex-assets figure JSON to Nitro unbundled format.
- *
- * Cortex figure input: flat { "h_std_bd_1_0_0": { offset: "-20,49", left, top, width, height } }
- * Output: same Nitro schema but type = "figure"
- */
-function convertFigure(name, rawJson, pngSize) {
-  const frames = {};
-  const nitroAssets = {};
-
-  for (const [key, sprite] of Object.entries(rawJson)) {
-    // Skip REGPOINTS entries (registration point metadata, not sprites)
-    if (key.includes('REGPOINTS')) continue;
-
-    // Skip metadata entries (empty objects like "manifest":{} and "AssetName":{})
-    if (!sprite.offset && !sprite.left && !sprite.link) continue;
-
-    // Parse offset string "x,y"
-    let offsetX = 0, offsetY = 0;
-    if (sprite.offset) {
-      const parts = sprite.offset.split(',');
-      offsetX = parseInt(parts[0]);
-      offsetY = parseInt(parts[1]);
-    }
-
-    // Handle link references: entry shares sprite data from another key
-    if (sprite.link) {
-      // Resolve link target to get sprite coordinates
-      const target = rawJson[sprite.link];
-      if (target && target.left) {
-        const w = parseInt(target.width);
-        const h = parseInt(target.height);
-        const left = parseInt(target.left);
-        const top = parseInt(target.top);
-
-        frames[key] = {
-          frame: { x: left, y: top, w, h },
-          rotated: false,
-          trimmed: false,
-          spriteSourceSize: { x: 0, y: 0, w, h },
-          sourceSize: { w, h },
-        };
-      } else {
-        // Link target not found or also a link — record as source reference
-        nitroAssets[key] = {
-          x: offsetX,
-          y: offsetY,
-          source: sprite.link,
-          flipH: false,
-        };
-        continue;
-      }
-
-      nitroAssets[key] = {
-        x: offsetX,
-        y: offsetY,
-        source: null,
-        flipH: false,
-      };
-      continue;
-    }
-
-    // Normal sprite entry with left/top/width/height
-    const w = parseInt(sprite.width);
-    const h = parseInt(sprite.height);
-    const left = parseInt(sprite.left);
-    const top = parseInt(sprite.top);
-
-    frames[key] = {
-      frame: { x: left, y: top, w, h },
-      rotated: false,
-      trimmed: false,
-      spriteSourceSize: { x: 0, y: 0, w, h },
-      sourceSize: { w, h },
-    };
-
-    nitroAssets[key] = {
-      x: offsetX,
-      y: offsetY,
-      source: null,
-      flipH: false,
-    };
-  }
-
-  return {
-    name,
-    type: 'figure',
-    spritesheet: {
-      frames,
-      meta: {
-        image: `${name}.png`,
-        format: 'RGBA8888',
-        size: pngSize,
-      },
-    },
-    assets: nitroAssets,
-    visualization: { layerCount: 1, directions: {} },
-    logic: { dimensions: [1, 1, 1], directions: [0, 1, 2, 3, 4, 5, 6, 7] },
-  };
-}
-
 function main() {
   console.log('Converting cortex-assets → Nitro unbundled schema...\n');
 
-  const manifest = { furniture: [], figures: [] };
+  const manifest = { furniture: [] };
 
   // Convert furniture
   const furnitureRaw = path.join(RAW_DIR, 'furniture');
@@ -245,41 +144,6 @@ function main() {
     console.warn('⚠ No furniture raw assets found. Run download script first.');
   }
 
-  // Convert figures
-  const figuresRaw = path.join(RAW_DIR, 'figures');
-  const figuresOut = path.join(OUT_DIR, 'figures');
-
-  if (fs.existsSync(figuresRaw)) {
-    fs.mkdirSync(figuresOut, { recursive: true });
-    const jsonFiles = fs.readdirSync(figuresRaw).filter(f => f.endsWith('.json'));
-
-    for (const jsonFile of jsonFiles) {
-      const name = jsonFile.replace('.json', '');
-      const rawJson = JSON.parse(fs.readFileSync(path.join(figuresRaw, jsonFile), 'utf8'));
-      const pngPath = path.join(figuresRaw, `${name}.png`);
-
-      if (!fs.existsSync(pngPath)) {
-        console.warn(`  ⚠ No PNG for ${name}, skipping`);
-        continue;
-      }
-
-      const pngSize = getPngDimensions(pngPath);
-      const nitro = convertFigure(name, rawJson, pngSize);
-
-      fs.writeFileSync(
-        path.join(figuresOut, `${name}.json`),
-        JSON.stringify(nitro, null, 2)
-      );
-
-      fs.copyFileSync(pngPath, path.join(figuresOut, `${name}.png`));
-
-      manifest.figures.push(name);
-      console.log(`  ✓ ${name} (${Object.keys(nitro.spritesheet.frames).length} frames)`);
-    }
-  } else {
-    console.warn('⚠ No figure raw assets found. Run download script first.');
-  }
-
   // Write manifest
   fs.mkdirSync(OUT_DIR, { recursive: true });
   fs.writeFileSync(
@@ -290,7 +154,6 @@ function main() {
   console.log(`\n✓ Conversion complete!`);
   console.log(`  Manifest: ${path.join(OUT_DIR, 'manifest.json')}`);
   console.log(`  Furniture: ${manifest.furniture.length} items`);
-  console.log(`  Figures: ${manifest.figures.length} items`);
   console.log('\nNext: npm run build');
 }
 
