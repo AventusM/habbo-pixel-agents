@@ -1,0 +1,90 @@
+---
+id: T01
+parent: S16
+milestone: M002
+provides:
+  - fetchAzureDevOpsCards async function (org, project, pat) returning KanbanCard[]
+  - mapAzureDevOpsState function mapping Azure DevOps states to kanban statuses
+  - Silent-fallback Azure DevOps data source adapter
+requires: []
+affects: []
+key_files: []
+key_decisions: []
+patterns_established: []
+observability_surfaces: []
+drill_down_paths: []
+duration: 3min
+verification_result: passed
+completed_at: 2026-03-10
+blocker_discovered: false
+---
+# T01: 17.6-azure-devops-boards-integration 01
+
+**# Phase 17.6 Plan 01: Azure DevOps Boards Fetch Module Summary**
+
+## What Happened
+
+# Phase 17.6 Plan 01: Azure DevOps Boards Fetch Module Summary
+
+**Azure DevOps work item fetch via WIQL + workitemsbatch REST API with state mapping to KanbanCard[], 16 unit tests, no new npm dependencies**
+
+## Performance
+
+- **Duration:** 3 min
+- **Started:** 2026-03-10T17:41:52Z
+- **Completed:** 2026-03-10T17:44:09Z
+- **Tasks:** 1
+- **Files modified:** 2
+
+## Accomplishments
+- Implemented `fetchAzureDevOpsCards(organization, project, pat)` using the two-step WIQL → workitemsbatch REST API pattern
+- Implemented `mapAzureDevOpsState` covering all Azure DevOps process template states (New, Proposed, Approved, Active, Committed, In Progress, Resolved, Done, Closed, Removed, custom)
+- 16 unit tests covering happy path, error branches (network, 401, empty config), state mapping, ID capping, URL construction, and authorization header
+- Full test suite still green: 427 tests passing (up from 410)
+
+## Task Commits
+
+Each task was committed atomically:
+
+1. **Task 1: TDD — Azure DevOps fetch module with state mapping** - `cb47b5d` (feat)
+
+**Plan metadata:** (pending docs commit)
+
+_Note: TDD tasks — RED (failing test file) confirmed, GREEN (implementation) passing all 16 tests_
+
+## Files Created/Modified
+- `src/azureDevOpsBoards.ts` - Azure DevOps fetch module with fetchAzureDevOpsCards and mapAzureDevOpsState exports
+- `tests/azureDevOpsBoards.test.ts` - 16 unit tests covering all behaviors and error paths
+
+## Decisions Made
+- Used native fetch (Node 22 global) instead of any HTTP library — no new npm dependencies
+- Used `vi.stubGlobal('fetch', vi.fn())` for test mocking — correct approach for native globals vs vi.mock
+- WIQL WHERE clause filters Closed and Removed at source; batch response filter for Removed is an additional safety net
+- Work item IDs capped at 100 before batch call per Azure DevOps API limit
+
+## Deviations from Plan
+
+None - plan executed exactly as written.
+
+## Issues Encountered
+
+None.
+
+## User Setup Required
+
+None - no external service configuration required at this stage. Azure DevOps PAT and org/project settings will be wired into VS Code settings in a subsequent plan.
+
+## Next Phase Readiness
+- `fetchAzureDevOpsCards` module is complete and tested, ready for VS Code settings integration and polling wiring
+- Module mirrors githubProjects.ts pattern exactly — integration into extension host follows the same kanban polling flow
+
+---
+*Phase: 17.6-azure-devops-boards-integration*
+*Completed: 2026-03-10*
+
+## Self-Check: PASSED
+
+- FOUND: src/azureDevOpsBoards.ts
+- FOUND: tests/azureDevOpsBoards.test.ts
+- FOUND: .planning/phases/17.6-azure-devops-boards-integration/17.6-01-SUMMARY.md
+- FOUND: commit cb47b5d
