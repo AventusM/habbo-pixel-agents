@@ -7,8 +7,22 @@ import type { SpriteCache } from "./isoSpriteCache.js";
 import type { Renderable } from "./isoTypes.js";
 import type { AvatarSpec, AvatarRenderer } from "./avatarRendererTypes.js";
 
-/** PixelLab atlas name in SpriteCache */
-const ATLAS_NAME = "pixellab";
+/** Default PixelLab atlas name (beanie-hoodie-guy fallback) */
+const DEFAULT_ATLAS_NAME = "pixellab";
+
+/**
+ * Map a TeamSection string to the corresponding PixelLab atlas name.
+ * Falls back to the default 'pixellab' atlas when team is unrecognised or absent.
+ */
+export function getAtlasForTeam(team?: string): string {
+  switch (team) {
+    case 'planning':       return 'pl-planning';
+    case 'core-dev':       return 'pl-core-dev';
+    case 'infrastructure': return 'pl-infrastructure';
+    case 'support':        return 'pl-support';
+    default:               return DEFAULT_ATLAS_NAME;
+  }
+}
 
 /** Scale factor: 48px sprites scaled up to match furniture proportions */
 const SCALE = 2.5;
@@ -44,7 +58,7 @@ export const pixelLabRenderer: AvatarRenderer = {
   name: "PixelLab",
 
   isAvailable(spriteCache: SpriteCache): boolean {
-    return spriteCache.getFrame(ATLAS_NAME, "pl_rot_3") !== null;
+    return spriteCache.getFrame(DEFAULT_ATLAS_NAME, "pl_rot_3") !== null;
   },
 
   updateAnimation(spec: AvatarSpec, currentTimeMs: number): void {
@@ -111,8 +125,11 @@ export const pixelLabRenderer: AvatarRenderer = {
           frameKey = `pl_rot_${spec.direction}`;
         }
 
-        const frame = spriteCache.getFrame(ATLAS_NAME, frameKey)
-          || spriteCache.getFrame(ATLAS_NAME, `pl_rot_${spec.direction}`);
+        const atlasName = getAtlasForTeam((spec as any).team);
+        const frame = spriteCache.getFrame(atlasName, frameKey)
+          || spriteCache.getFrame(atlasName, `pl_rot_${spec.direction}`)
+          || spriteCache.getFrame(DEFAULT_ATLAS_NAME, frameKey)
+          || spriteCache.getFrame(DEFAULT_ATLAS_NAME, `pl_rot_${spec.direction}`);
         if (!frame) return;
 
         const dw = Math.floor(frame.w * SCALE);

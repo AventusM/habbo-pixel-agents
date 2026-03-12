@@ -227,6 +227,32 @@ export function activate(context: vscode.ExtensionContext) {
       vscode.Uri.joinPath(context.extensionUri, 'dist', 'webview-assets', 'pixellab', 'beanie-hoodie-guy.json')
     );
 
+    // Generate webview URIs for team-specific PixelLab atlases
+    const plPlanningPngUri = panel.webview.asWebviewUri(
+      vscode.Uri.joinPath(context.extensionUri, 'dist', 'webview-assets', 'pixellab', 'pl-planning.png')
+    );
+    const plPlanningJsonUri = panel.webview.asWebviewUri(
+      vscode.Uri.joinPath(context.extensionUri, 'dist', 'webview-assets', 'pixellab', 'pl-planning.json')
+    );
+    const plCoreDevPngUri = panel.webview.asWebviewUri(
+      vscode.Uri.joinPath(context.extensionUri, 'dist', 'webview-assets', 'pixellab', 'pl-core-dev.png')
+    );
+    const plCoreDevJsonUri = panel.webview.asWebviewUri(
+      vscode.Uri.joinPath(context.extensionUri, 'dist', 'webview-assets', 'pixellab', 'pl-core-dev.json')
+    );
+    const plInfrastructurePngUri = panel.webview.asWebviewUri(
+      vscode.Uri.joinPath(context.extensionUri, 'dist', 'webview-assets', 'pixellab', 'pl-infrastructure.png')
+    );
+    const plInfrastructureJsonUri = panel.webview.asWebviewUri(
+      vscode.Uri.joinPath(context.extensionUri, 'dist', 'webview-assets', 'pixellab', 'pl-infrastructure.json')
+    );
+    const plSupportPngUri = panel.webview.asWebviewUri(
+      vscode.Uri.joinPath(context.extensionUri, 'dist', 'webview-assets', 'pixellab', 'pl-support.png')
+    );
+    const plSupportJsonUri = panel.webview.asWebviewUri(
+      vscode.Uri.joinPath(context.extensionUri, 'dist', 'webview-assets', 'pixellab', 'pl-support.json')
+    );
+
     // --- Message Bridge: register room panel ---
     bridge.setRoomPanel(panel);
 
@@ -452,7 +478,15 @@ export function activate(context: vscode.ExtensionContext) {
         nitroFurnitureBase: '${nitroFurnitureBaseUri}',
         nitroFiguresBase: '${nitroFiguresBaseUri}',
         pixellabPng: '${pixellabPngUri}',
-        pixellabJson: '${pixellabJsonUri}'
+        pixellabJson: '${pixellabJsonUri}',
+        plPlanningPng: '${plPlanningPngUri}',
+        plPlanningJson: '${plPlanningJsonUri}',
+        plCoreDevPng: '${plCoreDevPngUri}',
+        plCoreDevJson: '${plCoreDevJsonUri}',
+        plInfrastructurePng: '${plInfrastructurePngUri}',
+        plInfrastructureJson: '${plInfrastructureJsonUri}',
+        plSupportPng: '${plSupportPngUri}',
+        plSupportJson: '${plSupportJsonUri}'
       };
     </script>
   </head>

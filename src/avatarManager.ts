@@ -71,6 +71,9 @@ export class AvatarManager {
       outfit,
     };
 
+    // Store team on the spec so pixelLabAvatarRenderer can select the correct atlas
+    (spec as any).team = team || 'core-dev';
+
     this.avatars.set(agentId, spec);
     return spec;
   }
@@ -108,6 +111,9 @@ export class AvatarManager {
       displayName,
       outfit,
     };
+
+    // Store team on the spec so pixelLabAvatarRenderer can select the correct atlas
+    (spec as any).team = team || 'core-dev';
 
     this.avatars.set(agentId, spec);
     return spec;

@@ -51,7 +51,16 @@ const spriteCache = new SpriteCache();
 
 (async () => {
   try {
-    const { chairPng, chairJson, furniturePng, furnitureJson, avatarPng, avatarJson, pixellabPng, pixellabJson } = (window as any).ASSET_URIS;
+    const {
+      chairPng, chairJson,
+      furniturePng, furnitureJson,
+      avatarPng, avatarJson,
+      pixellabPng, pixellabJson,
+      plPlanningPng, plPlanningJson,
+      plCoreDevPng, plCoreDevJson,
+      plInfrastructurePng, plInfrastructureJson,
+      plSupportPng, plSupportJson,
+    } = (window as any).ASSET_URIS;
 
     console.log('Loading chair atlas from:', chairPng, chairJson);
     await spriteCache.loadAtlas('chair', chairPng, chairJson);
@@ -87,7 +96,7 @@ const spriteCache = new SpriteCache();
       });
     }
 
-    // Load PixelLab character atlas
+    // Load PixelLab character atlas (default fallback)
     if (pixellabPng && pixellabJson) {
       try {
         console.log('Loading PixelLab character atlas...');
@@ -95,6 +104,24 @@ const spriteCache = new SpriteCache();
         console.log('✓ PixelLab character atlas loaded');
       } catch (err) {
         console.warn('⚠ Failed to load PixelLab character atlas:', err);
+      }
+    }
+
+    // Load per-team PixelLab atlases
+    const teamAtlases: Array<{ name: string; png: string; json: string }> = [
+      { name: 'pl-planning',       png: plPlanningPng,       json: plPlanningJson },
+      { name: 'pl-core-dev',       png: plCoreDevPng,        json: plCoreDevJson },
+      { name: 'pl-infrastructure', png: plInfrastructurePng, json: plInfrastructureJson },
+      { name: 'pl-support',        png: plSupportPng,        json: plSupportJson },
+    ];
+    for (const atlas of teamAtlases) {
+      if (atlas.png && atlas.json) {
+        try {
+          await spriteCache.loadAtlas(atlas.name, atlas.png, atlas.json);
+          console.log(`✓ Team atlas loaded: ${atlas.name}`);
+        } catch (err) {
+          console.warn(`⚠ Failed to load team atlas ${atlas.name}:`, err);
+        }
       }
     }
 
