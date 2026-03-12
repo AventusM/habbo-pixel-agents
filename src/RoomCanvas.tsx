@@ -504,10 +504,6 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
           handlePlaySound((msg as any).sound || 'notification');
           break;
         }
-        case 'debugGrid': {
-          // Debug grid removed (Habbo figure renderer removed)
-          break;
-        }
       }
     }
 

@@ -13,7 +13,6 @@ declare global {
       avatarJson?: string;
       nitroManifest?: string;
       nitroFurnitureBase?: string;
-      nitroFiguresBase?: string;
     };
   }
 }
