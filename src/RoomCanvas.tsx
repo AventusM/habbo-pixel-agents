@@ -4,7 +4,7 @@ import { initCanvas, computeCameraOrigin, preRenderRoom, createFurnitureRenderab
 import type { TileGrid, Renderable } from './isoTypes.js';
 import type { FurnitureSpec, MultiTileFurnitureSpec } from './isoFurnitureRenderer.js';
 import type { AvatarSpec } from './isoAvatarRenderer.js';
-import { createAvatarRenderable, createNitroAvatarRenderable, updateAvatarAnimation, AVATAR_GROUND_Y } from './isoAvatarRenderer.js';
+import { createAvatarRenderable, createNitroAvatarRenderable, createPixelLabAvatarRenderable, updateAvatarAnimation, AVATAR_GROUND_Y } from './isoAvatarRenderer.js';
 import type { SpriteCache } from './isoSpriteCache.js';
 import { drawSpeechBubble } from './isoBubbleRenderer.js';
 import { drawNameTag } from './isoNameTagRenderer.js';
@@ -803,7 +803,10 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
 
       if (spriteCache && avatars.length > 0) {
         for (const spec of avatars) {
-          const renderable = createNitroAvatarRenderable(spec, spriteCache)
+          // Use PixelLab renderer first, then fall back to Nitro, then placeholder
+          spec.usePixelLab = true;
+          const renderable = createPixelLabAvatarRenderable(spec, spriteCache)
+            || createNitroAvatarRenderable(spec, spriteCache)
             || createAvatarRenderable(spec, spriteCache, 'avatar');
 
           // Camera transform is already applied; just translate by cameraOrigin for avatar world positioning

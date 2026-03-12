@@ -70,4 +70,5 @@ export type WebviewMessage =
   | { type: 'devCapture'; screenshot: string; logs: string[] }
   | { type: 'saveAvatar'; agentId: string; outfit: OutfitConfig }
   | { type: 'loadAvatars' }
-  | { type: 'reassignAgent'; agentId: string; team: TeamSection };
+  | { type: 'reassignAgent'; agentId: string; team: TeamSection }
+  | { type: 'exportDebugGrid'; screenshot: string };

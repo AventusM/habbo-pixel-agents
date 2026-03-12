@@ -40,6 +40,12 @@ const DEBUG_PART_COLORS: Record<string, string> = {
 export const TILE_STEP_DURATION_MS = 350;
 /** Time per walk animation frame (leg cycle speed) */
 export const WALK_FRAME_DURATION_MS = 150;
+/** Number of walk frames for PixelLab characters (6 vs 4 for Nitro) */
+export const PIXELLAB_WALK_FRAMES = 6;
+/** Number of idle frames for PixelLab characters */
+export const PIXELLAB_IDLE_FRAMES = 4;
+/** Time per idle animation frame for PixelLab breathing-idle */
+export const PIXELLAB_IDLE_FRAME_DURATION_MS = 250;
 export const BLINK_INTERVAL_MIN_MS = 5000; // Min 5 seconds between blinks
 export const BLINK_INTERVAL_MAX_MS = 8000; // Max 8 seconds between blinks
 export const BLINK_FRAME_DURATION_MS = 100; // 100ms per blink frame (fast blink)
@@ -84,6 +90,12 @@ export interface AvatarSpec {
   sittingChairKey?: string;
   /** Dynamic outfit configuration (overrides variant-based fallback) */
   outfit?: OutfitConfig;
+  /** Use PixelLab single-sprite rendering instead of Nitro multi-layer */
+  usePixelLab?: boolean;
+  /** PixelLab idle animation frame (0-3 for breathing cycle) */
+  pixelLabIdleFrame?: number;
+  /** Timestamp for PixelLab idle frame advancement */
+  pixelLabIdleLastMs?: number;
 }
 
 /**
@@ -96,15 +108,25 @@ export function updateAvatarAnimation(
 ): void {
   const elapsed = currentTimeMs - spec.lastUpdateMs;
 
-  // Handle walk cycle
+  // Handle walk cycle (supports both 4-frame Nitro and 6-frame PixelLab)
   if (spec.state === "walk") {
     if (elapsed >= WALK_FRAME_DURATION_MS) {
-      spec.frame = (spec.frame + 1) % 4; // Cycle through frames 0-3
+      const maxFrames = spec.usePixelLab ? PIXELLAB_WALK_FRAMES : 4;
+      spec.frame = (spec.frame + 1) % maxFrames;
       spec.lastUpdateMs = currentTimeMs;
     }
   }
 
-  // Handle idle/sit blinks
+  // Handle PixelLab idle breathing animation
+  if (spec.usePixelLab && (spec.state === "idle" || spec.state === "sit")) {
+    const idleElapsed = currentTimeMs - (spec.pixelLabIdleLastMs || spec.lastUpdateMs);
+    if (idleElapsed >= PIXELLAB_IDLE_FRAME_DURATION_MS) {
+      spec.pixelLabIdleFrame = ((spec.pixelLabIdleFrame || 0) + 1) % PIXELLAB_IDLE_FRAMES;
+      spec.pixelLabIdleLastMs = currentTimeMs;
+    }
+  }
+
+  // Handle idle/sit blinks (Nitro only)
   if (spec.state === "idle" || spec.state === "sit") {
     if (currentTimeMs >= spec.nextBlinkMs && spec.blinkFrame === 0) {
       spec.blinkFrame = 1;
@@ -781,6 +803,94 @@ export function createNitroAvatarRenderable(
         ctx.moveTo(regX, regY - 5);
         ctx.lineTo(regX, regY + 5);
         ctx.stroke();
+      }
+    },
+  };
+}
+
+// ---- PixelLab single-sprite avatar rendering ----
+
+/**
+ * Create a renderable for an avatar using PixelLab character sprites.
+ * Uses single pre-rendered sprites instead of multi-layer body part composition.
+ *
+ * Frame key format: pl_{animation}_{habboDirection}_{frameNum}
+ * - pl_rot_{dir} — static rotation (idle fallback)
+ * - pl_idle_{dir}_{frame} — breathing idle (4 frames)
+ * - pl_walk_{dir}_{frame} — walking (6 frames)
+ * - pl_run_{dir}_{frame} — running (6 frames)
+ */
+export function createPixelLabAvatarRenderable(
+  spec: AvatarSpec,
+  spriteCache: SpriteCache,
+): Renderable | null {
+  // Check if PixelLab atlas is loaded
+  if (!spriteCache.getFrame("pixellab", "pl_rot_3")) {
+    return null;
+  }
+
+  return {
+    tileX: spec.tileX + 0.6,
+    tileY: spec.tileY,
+    tileZ: spec.tileZ,
+    draw: (ctx) => {
+      const screen = tileToScreen(spec.tileX, spec.tileY, spec.tileZ);
+      screen.y += AVATAR_GROUND_Y;
+      screen.x += spec.screenOffsetX || 0;
+      screen.y += spec.screenOffsetY || 0;
+
+      // Build frame key based on state
+      let frameKey: string;
+      if (spec.state === "walk") {
+        frameKey = `pl_walk_${spec.direction}_${spec.frame}`;
+      } else if (spec.state === "idle" || spec.state === "sit") {
+        const idleFrame = spec.pixelLabIdleFrame || 0;
+        frameKey = `pl_idle_${spec.direction}_${idleFrame}`;
+      } else {
+        // spawning/despawning — use static rotation
+        frameKey = `pl_rot_${spec.direction}`;
+      }
+
+      const frame = spriteCache.getFrame("pixellab", frameKey);
+      if (!frame) {
+        // Fallback to static rotation
+        const fallback = spriteCache.getFrame("pixellab", `pl_rot_${spec.direction}`);
+        if (!fallback) return;
+        const dx = Math.floor(screen.x - fallback.w / 2);
+        const dy = Math.floor(screen.y - fallback.h + TILE_H_HALF);
+        ctx.drawImage(fallback.bitmap, fallback.x, fallback.y, fallback.w, fallback.h, dx, dy, fallback.w, fallback.h);
+        return;
+      }
+
+      const dx = Math.floor(screen.x - frame.w / 2);
+      const dy = Math.floor(screen.y - frame.h + TILE_H_HALF);
+
+      // Handle spawn/despawn clipping
+      if (spec.state === "spawning" || spec.state === "despawning") {
+        ctx.save();
+        const clipY = spec.state === "spawning"
+          ? dy
+          : dy + frame.h * (1 - spec.spawnProgress);
+        const clipHeight = frame.h * spec.spawnProgress;
+        ctx.beginPath();
+        ctx.rect(dx, clipY, frame.w, clipHeight);
+        ctx.clip();
+      }
+
+      ctx.drawImage(
+        frame.bitmap,
+        frame.x,
+        frame.y,
+        frame.w,
+        frame.h,
+        dx,
+        dy,
+        frame.w,
+        frame.h,
+      );
+
+      if (spec.state === "spawning" || spec.state === "despawning") {
+        ctx.restore();
       }
     },
   };

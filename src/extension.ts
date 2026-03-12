@@ -219,6 +219,14 @@ export function activate(context: vscode.ExtensionContext) {
       vscode.Uri.joinPath(context.extensionUri, 'dist', 'webview-assets', 'figures')
     );
 
+    // Generate webview URIs for PixelLab character sprites
+    const pixellabPngUri = panel.webview.asWebviewUri(
+      vscode.Uri.joinPath(context.extensionUri, 'dist', 'webview-assets', 'pixellab', 'beanie-hoodie-guy.png')
+    );
+    const pixellabJsonUri = panel.webview.asWebviewUri(
+      vscode.Uri.joinPath(context.extensionUri, 'dist', 'webview-assets', 'pixellab', 'beanie-hoodie-guy.json')
+    );
+
     // --- Message Bridge: register room panel ---
     bridge.setRoomPanel(panel);
 
@@ -323,6 +331,16 @@ export function activate(context: vscode.ExtensionContext) {
           const clipboardText = `Screenshot: ${pngPath}${logSection}`;
           vscode.env.clipboard.writeText(clipboardText);
           vscode.window.showInformationMessage(`Dev capture saved: ${pngPath}`);
+          break;
+        }
+        case 'exportDebugGrid': {
+          const { screenshot: gridScreenshot } = msg as { type: 'exportDebugGrid'; screenshot: string };
+          const ts = Date.now();
+          const desktopDir = join(os.homedir(), 'Desktop');
+          const gridPngPath = join(desktopDir, `habbo-debug-grid-${ts}.png`);
+          const gridBase64 = gridScreenshot.replace(/^data:image\/png;base64,/, '');
+          writeFileSync(gridPngPath, Buffer.from(gridBase64, 'base64'));
+          vscode.window.showInformationMessage(`Debug grid exported: ${gridPngPath}`);
           break;
         }
         case 'saveAvatar': {
@@ -432,7 +450,9 @@ export function activate(context: vscode.ExtensionContext) {
         notificationSound: '${notificationSoundUri}',
         nitroManifest: '${nitroManifestUri}',
         nitroFurnitureBase: '${nitroFurnitureBaseUri}',
-        nitroFiguresBase: '${nitroFiguresBaseUri}'
+        nitroFiguresBase: '${nitroFiguresBaseUri}',
+        pixellabPng: '${pixellabPngUri}',
+        pixellabJson: '${pixellabJsonUri}'
       };
     </script>
   </head>
