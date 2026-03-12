@@ -141,6 +141,7 @@ v1.0 (phases 1-8) complete. v2 work in progress: Phase 9 (furniture catalog + re
 | 2 | Watch subagents subdirectories for sub-agent JSONL files in AgentManager | 2026-03-08 | 3df25a6 | [2-watch-subagents-subdirectories-for-sub-a](./quick/2-watch-subagents-subdirectories-for-sub-a/) |
 | 3 | Only discover sub-agents from the current active session | 2026-03-09 | 033e1cd | [3-only-discover-sub-agents-from-the-curren](./quick/3-only-discover-sub-agents-from-the-curren/) |
 | 4 | Auto-despawn agents through teleport booth when JSONL files removed | 2026-03-09 | ddf45c6 | [4-auto-despawn-agents-through-teleport-boo](./quick/4-auto-despawn-agents-through-teleport-boo/) |
+| 5 | Fix 2 pre-existing test failures in isoKanbanRenderer.test.ts | 2026-03-12 | a5f10be | [5-fix-5-pre-existing-test-failures-in-isok](./quick/5-fix-5-pre-existing-test-failures-in-isok/) |
 
 ## Blockers
 
