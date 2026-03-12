@@ -4,10 +4,15 @@
 
 All implementation tasks MUST go through the GSD workflow:
 
-1. **Planning**: Use `/gsd:plan-phase <N>` to research and create executable plans
-2. **Execution**: Use `/gsd:execute-phase <N>` to implement plans with atomic commits
-3. **Verification**: Use `/gsd:verify-work` to validate features after execution
+1. **Step mode**: Use `/gsd` or `/gsd next` to execute one unit at a time
+2. **Auto mode**: Use `/gsd auto` to research, plan, execute, and commit autonomously
+3. **Discussion**: Use `/gsd discuss` alongside auto mode for architecture decisions
+4. **Status**: Use `/gsd status` or `Ctrl+Alt+G` for progress dashboard
 
-Do NOT implement features directly without going through GSD plan-phase and execute-phase. This applies to all new features, bug fixes, and refactoring work — regardless of size.
+Do NOT implement features directly without going through GSD. This applies to all new features, bug fixes, and refactoring work — regardless of size.
 
-Check `/gsd:progress` to see current project state before starting work.
+## Project State
+
+- **State files**: `.gsd/` directory (PROJECT.md, STATE.md, DECISIONS.md, REQUIREMENTS.md)
+- **Milestones**: `.gsd/milestones/M001/` (v1 complete), `.gsd/milestones/M002/` (v2 in progress)
+- **Legacy planning**: `.planning/` directory preserved as read-only reference (migrated to `.gsd/`)

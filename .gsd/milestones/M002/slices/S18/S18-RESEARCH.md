@@ -1,0 +1,449 @@
+# Phase 17.8: Remove Copyrighted Habbo Character Content - Research
+
+**Researched:** 2026-03-12
+**Domain:** Code removal / asset purge / renderer simplification
+**Confidence:** HIGH
+
+<user_constraints>
+## User Constraints (from CONTEXT.md)
+
+### Locked Decisions
+
+**Removal boundary:**
+- Remove ALL figure-related code: isoAvatarRenderer, multi-layer composition logic, figure asset conversion scripts
+- Split download-habbo-assets script to keep furniture downloads, remove figure downloads
+- Delete converted figure assets from repo entirely (assets/habbo/figures/) — do not keep in gitignored location
+- Clean up shared types (NitroAssetData in isoSpriteCache, etc.) — audit and remove figure-specific fields/branches, keep only what furniture needs
+
+**PixelLab character defaults:**
+- Fixed character appearance per agent type — each agent type gets its own unique, visually distinguishable PixelLab character
+- Pre-generated static assets committed to repo — no runtime PixelLab API dependency
+- Habbo-inspired pixel art style — retro isometric aesthetic but with original non-copyrighted designs
+- Generate all agent-type-specific characters as part of this phase (don't assume 17.7 covers all types)
+
+**Avatar builder replacement:**
+- Remove avatar builder UI entirely — no user customization needed since characters are fixed per agent type
+- Full cleanup of all routes, navigation links, menu entries, and UI references to the avatar builder
+- Delete all clothing/figure catalog data regardless of format
+- Add a character legend panel — small UI showing which character appearance maps to which agent type
+- Room view remains the primary way users see agent characters
+
+**Migration approach:**
+- Claude's discretion on removal order (clean sweep vs incremental) — pick safest approach
+- Normal commit deletes — no git history cleanup (BFG can be done later if repo size matters)
+- Full codebase audit after removal — grep/scan for any remaining figure-related imports, references, or dead code paths
+- **CRITICAL: UAT and test verification required** — all tests must pass, nothing should break. Follow test statuses closely throughout the removal process
+
+### Claude's Discretion
+- Removal order (single sweep vs incremental steps)
+- Exact PixelLab character designs/prompts per agent type
+- Character legend panel placement and design
+
+### Deferred Ideas (OUT OF SCOPE)
+
+None — discussion stayed within phase scope
+</user_constraints>
+
+---
+
+## Summary
+
+Phase 17.8 is a removal and replacement phase. The PixelLab renderer (`pixelLabAvatarRenderer.ts`) already exists and is already the primary renderer in `RoomCanvas.tsx` (with Habbo as fallback). The task is to remove the fallback path and everything it depends on: the multi-layer Habbo avatar renderer, the avatar builder UI, the figure catalog data, and the figure asset files on disk. The PixelLab renderer must be extended with per-agent-type characters (currently only one character exists: `beanie-hoodie-guy`).
+
+The codebase has a clean abstraction boundary from Phase 17.7: `AvatarRenderer` interface in `avatarRendererTypes.ts` cleanly separates the two renderers. The `habboRenderer` lives in `isoAvatarRenderer.ts`. The `pixelLabRenderer` lives in `pixelLabAvatarRenderer.ts`. `RoomCanvas.tsx` already picks `pixelLabRenderer` when available. Removing the Habbo path is safe once PixelLab coverage is complete.
+
+There are 7 agent role types in the system: `gsd-phase-researcher`, `gsd-planner`, `gsd-plan-checker`, `gsd-executor`, `gsd-codebase-mapper`, `gsd-debugger`, `gsd-verifier`. Each maps to one of 4 teams: planning, core-dev, infrastructure, support. Characters should be visually distinguishable by team (or role) so agents are identifiable at a glance.
+
+**Primary recommendation:** Incremental 4-wave removal — (1) generate per-agent-type PixelLab characters, (2) wire characters into variant selection, (3) add character legend panel, (4) delete Habbo figure code and assets, audit dead code.
+
+---
+
+## Standard Stack
+
+### Core
+| Library | Version | Purpose | Why Standard |
+|---------|---------|---------|--------------|
+| TypeScript | 5.x (project) | All source files | Project standard |
+| Vitest | (project) | Test framework | Already used — `npx vitest run` |
+| React | (project) | Character legend panel UI | Already used in RoomCanvas |
+| Canvas 2D | Browser API | Legend panel rendering | Already used everywhere |
+| pngjs | (project) | Sprite packing script | Already used in pack-pixellab-sprites.mjs |
+
+### Supporting
+| Library | Version | Purpose | When to Use |
+|---------|---------|---------|-------------|
+| mcp__pixellab__animate_character | MCP tool | Generate PixelLab character animations | Use for generating each agent-type character |
+| mcp__pixellab__create_character | MCP tool | Generate PixelLab character statics | Use for rotation frame generation |
+
+### Alternatives Considered
+| Instead of | Could Use | Tradeoff |
+|------------|-----------|----------|
+| MCP PixelLab tools | Manual art | MCP is faster and consistent; manual art requires graphic skills |
+| Single multi-character atlas | Per-agent-type atlases | Single atlas is simpler for legend panel; per-type easier for generation |
+
+**Installation:**
+No new dependencies needed. All required libraries are already in the project.
+
+---
+
+## Architecture Patterns
+
+### Current Architecture (to be changed)
+
+```
+RoomCanvas.tsx
+  → activeRenderer = pixelLabRenderer.isAvailable() ? pixelLabRenderer : habboRenderer
+  → habboRenderer (in isoAvatarRenderer.ts) — REMOVE
+  → pixelLabRenderer (in pixelLabAvatarRenderer.ts) — KEEP, extend
+
+AvatarSpec (in avatarRendererTypes.ts)
+  → outfit?: OutfitConfig   ← Habbo-only field — REMOVE
+  → nextBlinkMs, blinkFrame ← Habbo-only fields — REMOVE
+  → pixelLabIdleFrame, pixelLabIdleLastMs ← PixelLab fields — KEEP
+
+avatarManager.ts
+  → imports getDefaultPreset, getRolePreset from avatarOutfitConfig.ts — REMOVE
+  → assigns outfit on spawn — REMOVE
+
+AvatarBuilderPanel (AvatarBuilderModal.tsx) — REMOVE entirely
+avatarBuilderPreview.ts — REMOVE entirely
+avatarOutfitConfig.ts — REMOVE entirely
+```
+
+### Target Architecture
+
+```
+RoomCanvas.tsx
+  → activeRenderer = pixelLabRenderer (always)
+  → no habboRenderer fallback
+
+AvatarSpec (in avatarRendererTypes.ts)
+  → agentType?: string          ← new: maps to character sprite set
+  → pixelLabIdleFrame?          ← keep
+  → pixelLabIdleLastMs?         ← keep
+  → nextBlinkMs, blinkFrame     ← remove (Habbo-only)
+  → outfit?                     ← remove (Habbo-only)
+
+pixelLabAvatarRenderer.ts
+  → per-agent-type sprite selection: pl_{agentType}_{animation}_{dir}_{frame}
+  OR: separate atlas per agent type loaded lazily
+
+avatarManager.ts
+  → assigns agentType on spawn (from TeamSection or role)
+  → no outfit logic
+
+CharacterLegendPanel (new small React component)
+  → renders agentType → character sprite mapping legend
+  → placed somewhere non-blocking in the room view
+
+assets/pixellab/
+  → beanie-hoodie-guy.{png,json}  ← existing, keep as default or planning team
+  → [new per-agent-type atlases]
+
+scripts/download-habbo-assets.mjs
+  → keep FURNITURE_ITEMS section only
+  → remove FIGURE_ITEMS section entirely
+```
+
+### Pattern 1: Per-Agent-Type PixelLab Sprite Selection
+
+**What:** Map agent role/team to a specific PixelLab character atlas. Each character is pre-generated and committed. The sprite key format stays the same (`pl_idle_2_0`), but each character has its own atlas name in the SpriteCache.
+
+**When to use:** This is the simplest approach that maintains the existing frame key format and renderer logic unchanged.
+
+**Example approach (multiple atlases):**
+```typescript
+// pixelLabAvatarRenderer.ts
+function getAtlasNameForAgent(agentType?: string): string {
+  const map: Record<string, string> = {
+    'gsd-executor': 'pl-executor',
+    'gsd-planner': 'pl-planner',
+    // etc.
+  };
+  return agentType ? (map[agentType] || 'pixellab') : 'pixellab';
+}
+```
+
+**Alternative approach (team-based, fewer characters):** Map by team (4 teams, 4 characters) instead of role (7 roles, 7 characters). Simpler to generate, still visually distinguishable by team color. AvatarSpec already carries `team` via the spawn message.
+
+**When to use:** Team-based is simpler but less granular. Role-based gives 7 distinct characters.
+
+### Pattern 2: Character Legend Panel
+
+**What:** Small React panel showing character sprite → agent type label.
+**When to use:** Always present, cannot be opened/closed.
+
+**Design:** Bottom-right corner (Builder was bottom-left) or integrated into orchestration overlay. The panel shows a grid of character icons with labels below each. Use existing Press Start 2P font and dark background styling consistent with existing UI panels.
+
+The panel only needs to show one frame (idle, dir 2 = front-facing) for each character type. It can use `SpriteCache.getFrame('pl-{type}', 'pl_rot_3')` (dir 3 = south = front-facing for PixelLab).
+
+### Anti-Patterns to Avoid
+- **Keeping `outfit?: OutfitConfig` in AvatarSpec:** Any Habbo reference leaks copyright concern. Remove it entirely.
+- **Keeping `nextBlinkMs` / `blinkFrame` in AvatarSpec:** These are Habbo-specific fields. PixelLab has `pixelLabIdleFrame` for its own animation. Removing unused fields reduces confusion.
+- **Keeping `AvatarBuilderModal.tsx` but just hiding it:** Delete it — no need for dead code.
+- **Keeping `isoAvatarRenderer.ts` with just the `habboRenderer` removed:** After removal the file is mostly dead code (only `createAvatarRenderable` placeholder would remain, which is used in fallback path already handled by pixelLabRenderer). Delete the whole file.
+
+---
+
+## Don't Hand-Roll
+
+| Problem | Don't Build | Use Instead | Why |
+|---------|-------------|-------------|-----|
+| Sprite packing | Custom packer | `scripts/pack-pixellab-sprites.mjs` (already exists) | Proven, handles mirroring and frame mapping |
+| Character generation | Manual pixel art | PixelLab MCP tools | Consistent isometric pixel art style |
+| Legend panel icons | Complex sprite renderer | Simple `ctx.drawImage` with SpriteCache.getFrame | Same approach used in avatarBuilderPreview.ts |
+
+**Key insight:** The sprite packing pipeline already exists. Generating a new character is: (1) call PixelLab MCP → (2) save PNGs to a directory → (3) run `node scripts/pack-pixellab-sprites.mjs <dir> <name>` → (4) commit the resulting `.png` + `.json` to `assets/pixellab/`.
+
+---
+
+## Common Pitfalls
+
+### Pitfall 1: Breaking avatar display when removing Habbo fallback
+**What goes wrong:** If PixelLab atlas is not loaded (e.g., network error in webview), avatars silently disappear. Currently Habbo provides fallback sprites.
+**Why it happens:** `pixelLabRenderer.isAvailable()` returns false if atlas load fails; the Habbo fallback catches this case.
+**How to avoid:** After removing Habbo fallback, add a graceful no-op in pixelLabRenderer when atlas missing (already implemented — `createRenderable` returns `null` and renderer gracefully skips render). Make sure the atlas load failure is logged, not swallowed silently without warning.
+**Warning signs:** Avatars not visible in room after removal with no errors in console.
+
+### Pitfall 2: Tests referencing deleted exports from isoAvatarRenderer.ts
+**What goes wrong:** `tests/isoAvatarRenderer.test.ts` imports 15+ symbols from `isoAvatarRenderer.ts` (e.g., `createAvatarRenderable`, `createNitroAvatarRenderable`, `buildFrameKey`, `updateAvatarAnimation`). Deleting the file breaks 26 tests.
+**Why it happens:** Tests were written against the old renderer.
+**How to avoid:** Delete `tests/isoAvatarRenderer.test.ts` at the same time as the source file. Replace with a test for the pixelLabRenderer behavior that is analogous and meaningful. Alternatively, if `updateAvatarAnimation`-style logic moves to pixelLabAvatarRenderer.ts, keep those tests in adapted form.
+**Warning signs:** `Test Files 1 failed` on `tests/isoAvatarRenderer.test.ts`.
+
+### Pitfall 3: Tests referencing avatarOutfitConfig.ts
+**What goes wrong:** `tests/avatarOutfitConfig.test.ts` has 30 tests for `FIGURE_CATALOG`, `DEFAULT_PRESETS`, `outfitToFigureParts`, etc. Deleting `avatarOutfitConfig.ts` breaks all of them.
+**Why it happens:** Same as above — test file must be deleted along with source.
+**How to avoid:** Delete `tests/avatarOutfitConfig.test.ts` at the same time as `avatarOutfitConfig.ts`.
+
+### Pitfall 4: avatarManager.ts importing OutfitConfig
+**What goes wrong:** `avatarManager.ts` imports `getDefaultPreset` and `getRolePreset` from `avatarOutfitConfig.ts` and uses them on spawn. Deleting `avatarOutfitConfig.ts` breaks `avatarManager.ts` at compile time.
+**Why it happens:** Outfit assignment is woven into the spawn path.
+**How to avoid:** Before deleting `avatarOutfitConfig.ts`, update `avatarManager.ts` to remove outfit imports and logic. Replace with agentType/team-based character selection.
+
+### Pitfall 5: agentTypes.ts imports OutfitConfig
+**What goes wrong:** `agentTypes.ts` imports `OutfitConfig` for the `avatarOutfits` message type. The `avatarOutfits` message is part of `ExtensionMessage` type and is sent from `extension.ts`.
+**Why it happens:** Outfit persistence via `.habbo-agents/avatars.json` is wired through extension.ts and agentManager.ts.
+**How to avoid:** Remove `avatarOutfits`-related message types and their handlers in `extension.ts` and `RoomCanvas.tsx`.
+
+### Pitfall 6: AvatarDebugGrid.tsx imports from isoAvatarRenderer
+**What goes wrong:** `AvatarDebugGrid.tsx` imports `createNitroAvatarRenderable` and `setDebugAvatarParts` from `isoAvatarRenderer.ts`. Also checks `spriteCache.hasNitroAsset('hh_human_body')`.
+**Why it happens:** Debug grid was built for the Habbo renderer.
+**How to avoid:** Either delete `AvatarDebugGrid.tsx` entirely (since avatar builder is being removed, this dev tool is also unnecessary) or rewrite it to use the PixelLab renderer. Given that it's a dev mode debug tool, simplest is to delete it.
+
+### Pitfall 7: isoSpriteCache.ts NitroAssetData fields used by both furniture AND figures
+**What goes wrong:** `NitroAssetData` interface (and `getNitroFrame`, `getNitroMetadata`, etc.) is shared between furniture and figure rendering. If you remove figure-specific fields, you might break furniture rendering.
+**Why it happens:** The same `loadNitroAsset` / `getNitroFrame` pipeline serves both figure and furniture sprites.
+**How to avoid:** Audit carefully — the `NitroAssetData` interface itself is generic and serves furniture too. Keep `NitroAssetData`, `NitroSpriteFrame`, `getNitroFrame`, `loadNitroAsset` intact. Only remove the `offset` field conventions unique to figures if any. Based on the code, `isoSpriteCache.ts` has no figure-specific branches — it is clean and should not require changes.
+
+### Pitfall 8: webview.tsx loads figure assets
+**What goes wrong:** `webview.tsx` iterates `manifest.figures` and loads each figure via `loadNitroAsset`. After removing figures from the manifest, this code becomes a no-op. But if you also remove the `manifest.figures` section from `manifest.json`, ensure `webview.tsx` handles a missing `figures` array gracefully.
+**Why it happens:** The figure-loading section was added in earlier phases.
+**How to avoid:** Either remove the `if (manifest.figures && nitroFiguresBase)` block from `webview.tsx`, or leave it as a no-op (it just won't find any entries in `manifest.json` since figures section will be removed).
+
+### Pitfall 9: Pre-existing test failures
+**What goes wrong:** 5 tests are currently failing before Phase 17.8 even starts (`azureDevOpsBoards.test.ts` 3 failures, `isoKanbanRenderer.test.ts` 2 failures). These are pre-existing failures.
+**Why it happens:** Phase 17.6 Azure DevOps tests have a state mapping bug; isoKanbanRenderer has a capacity assertion mismatch.
+**How to avoid:** Document baseline as 427 tests with 5 pre-existing failures. Track that 17.8 changes don't worsen the failure count beyond this baseline.
+
+---
+
+## Code Examples
+
+### Current renderer selection in RoomCanvas.tsx (lines 663-666)
+```typescript
+const activeRenderer: AvatarRenderer =
+  spriteCache && pixelLabRenderer.isAvailable(spriteCache)
+    ? pixelLabRenderer
+    : habboRenderer;
+```
+After Phase 17.8, this becomes simply: `const activeRenderer = pixelLabRenderer;`
+
+### Current PixelLab atlas loading in webview.tsx (lines 91-98)
+```typescript
+if (pixellabPng && pixellabJson) {
+  try {
+    await spriteCache.loadAtlas('pixellab', pixellabPng, pixellabJson);
+  } catch (err) { ... }
+}
+```
+With per-agent-type characters, this will need to load multiple atlases (or a combined atlas).
+
+### pack-pixellab-sprites.mjs usage
+```bash
+node scripts/pack-pixellab-sprites.mjs /tmp/executor-character executor
+# Produces: assets/pixellab/executor.{png,json}
+```
+
+### AvatarSpec fields to remove
+```typescript
+// REMOVE from avatarRendererTypes.ts:
+nextBlinkMs: number;        // Habbo-only
+blinkFrame: number;         // Habbo-only
+outfit?: OutfitConfig;      // Habbo-only
+
+// REMOVE import:
+import type { OutfitConfig } from "./avatarOutfitConfig.js";
+```
+
+---
+
+## File Inventory: What Gets Removed
+
+### Source files to DELETE
+| File | Reason |
+|------|--------|
+| `src/isoAvatarRenderer.ts` | Entire Habbo multi-layer renderer |
+| `src/avatarOutfitConfig.ts` | Figure catalog, presets, color palettes |
+| `src/avatarBuilderPreview.ts` | Preview canvas renderer for builder |
+| `src/AvatarBuilderModal.tsx` | Avatar builder UI panel |
+| `src/AvatarDebugGrid.tsx` | Debug grid for Habbo renderer |
+
+### Test files to DELETE
+| File | Reason |
+|------|--------|
+| `tests/isoAvatarRenderer.test.ts` | Tests for deleted file |
+| `tests/avatarOutfitConfig.test.ts` | Tests for deleted file |
+
+### Script files to MODIFY
+| File | Change |
+|------|--------|
+| `scripts/download-habbo-assets.mjs` | Remove `FIGURE_ITEMS` array and download loop |
+| `scripts/convert-cortex-to-nitro.mjs` | Either remove figure conversion section or delete entirely (figures no longer needed) |
+
+### Asset directories to DELETE
+| Path | Contents |
+|------|----------|
+| `assets/habbo/figures/` | 21 figure PNG+JSON pairs (42 files) |
+| `assets/habbo/manifest.json` | Update to remove `figures` array |
+
+### Source files to MODIFY
+| File | Changes Needed |
+|------|----------------|
+| `src/avatarRendererTypes.ts` | Remove `outfit?`, `nextBlinkMs`, `blinkFrame`, import of OutfitConfig |
+| `src/avatarManager.ts` | Remove outfit imports, outfit assignment on spawn; add agentType-based character selection |
+| `src/agentTypes.ts` | Remove `OutfitConfig` import, remove `avatarOutfits` message variant, remove `saveAvatar`/`loadAvatars` webview message variants |
+| `src/RoomCanvas.tsx` | Remove `habboRenderer` import, simplify renderer selection; remove `AvatarBuilderPanel` component and all its state/handlers; remove `isBuilderOpen`, `builderAvatarId` state; remove outfit-loading message handler; add `CharacterLegendPanel` |
+| `src/webview.tsx` | Remove `nitroFiguresBase` URI setup, remove figure loading block; remove `nitroFiguresBase` from `ASSET_URIS` injection |
+| `src/extension.ts` | Remove `nitroFiguresBaseUri` generation; remove `avatarOutfits` message sending; remove `.habbo-agents/avatars.json` persistence logic |
+| `src/pixelLabAvatarRenderer.ts` | Add per-agent-type atlas selection |
+| `esbuild.config.mjs` | Remove figure copy step |
+
+### Source files to CREATE
+| File | Purpose |
+|------|---------|
+| `src/CharacterLegendPanel.tsx` | Small React panel: agentType → character appearance legend |
+
+### Assets to GENERATE + COMMIT
+Per the context decisions, need one character per distinguishable agent type. With 4 teams (planning, core-dev, infrastructure, support), the minimum set is 4 characters. With 7 roles it would be 7. Decision on role vs team granularity is at Claude's discretion.
+
+**Recommendation: 4 team-based characters** (simpler to generate, already have beanie-hoodie-guy as base reference):
+| Atlas name | Team | Visual concept |
+|------------|------|----------------|
+| `pl-planning` | planning | Suit jacket + clipboard look |
+| `pl-core-dev` | core-dev | Hoodie + laptop look (existing beanie-hoodie-guy works for this) |
+| `pl-infrastructure` | infrastructure | Hard hat / tool-belt look |
+| `pl-support` | support | Headset / help-desk look |
+
+---
+
+## State of the Art
+
+| Old Approach | Current Approach | When Changed | Impact |
+|--------------|------------------|--------------|--------|
+| Habbo figures as primary renderer | PixelLab as primary, Habbo as fallback | Phase 17.7 | Phase 17.8 removes the fallback |
+| Multi-variant `outfit` system (8 presets) | Fixed per-agent-type characters | Phase 17.8 | Simpler, no user customization |
+| Avatar builder UI | Character legend panel (read-only) | Phase 17.8 | Removes customization, adds legibility |
+
+---
+
+## Open Questions
+
+1. **How many characters to generate: team-based (4) or role-based (7)?**
+   - What we know: 4 teams with 7 roles; teams are simpler to generate for
+   - What's unclear: whether role-level granularity adds meaningful visual value
+   - Recommendation: Generate 4 team-based characters. Team assignment is already the primary grouping in the UI (sections, outfit presets, idle behaviors). Role granularity is secondary display info.
+
+2. **What to do with `AvatarSpec.variant` field after Habbo removal?**
+   - What we know: `variant` is still used in pixelLabAvatarRenderer.ts currently? — NO, checking `pixelLabAvatarRenderer.ts` it doesn't use `variant` at all. The `variant` in `AvatarSpec` was Habbo-specific.
+   - What's unclear: Whether the `variant` field should be repurposed for something else or removed
+   - Recommendation: Keep `variant` in AvatarSpec but repurpose it for something meaningful (e.g., map it to `agentType`/`team` sprite selection). Or remove it and use `team` directly. Since `AvatarManager.spawnAvatar` already accepts `variant: 0|1|2|3|4|5`, it may be easier to repurpose variant as the team index (0=planning, 1=core-dev, 2=infrastructure, 3=support) rather than removing it from the data model.
+
+3. **Can the PixelLab atlas handle multiple character types in one spritesheet?**
+   - What we know: `pack-pixellab-sprites.mjs` packs a single character's frames into one sheet
+   - What's unclear: Whether to use one combined multi-character atlas or separate atlases per character type
+   - Recommendation: Separate atlases per character type (e.g., `pixellab-planning`, `pixellab-core-dev`). The SpriteCache already handles multiple named atlases. One combined sheet is harder to manage when adding future characters.
+
+4. **Pre-existing test failures — should they be fixed in this phase?**
+   - What we know: 5 tests failing before Phase 17.8 (3 in azureDevOpsBoards, 2 in isoKanbanRenderer). These are pre-existing.
+   - What's unclear: Are they in scope for this phase?
+   - Recommendation: Do NOT fix pre-existing failures in this phase (out of scope). Track them as known baseline.
+
+---
+
+## Validation Architecture
+
+### Test Framework
+| Property | Value |
+|----------|-------|
+| Framework | Vitest |
+| Config file | `vitest.config.ts` |
+| Quick run command | `npx vitest run` |
+| Full suite command | `npx vitest run` |
+
+### Pre-existing Failures (Baseline)
+Before Phase 17.8 begins: **5 tests failing** (pre-existing, not caused by this phase):
+- `tests/azureDevOpsBoards.test.ts`: 3 failures (state mapping logic)
+- `tests/isoKanbanRenderer.test.ts`: 2 failures (capacity assertion)
+
+Phase 17.8 must not add to this failure count. Tests passing before this phase: **422**.
+
+### Phase Requirements → Test Map
+| Req ID | Behavior | Test Type | Automated Command | File Exists? |
+|--------|----------|-----------|-------------------|-------------|
+| TBD-01 | PixelLab renderer works for all 4 team-based characters | unit | `npx vitest run tests/pixelLabAvatarRenderer.test.ts` | ❌ Wave 0 |
+| TBD-02 | AvatarSpec no longer contains outfit/blinkFrame fields | type check | `npx tsc --noEmit` | ✅ (tsc via build) |
+| TBD-03 | avatarManager assigns agentType on spawn without outfit logic | unit | `npx vitest run tests/avatarManager.test.ts` | ✅ (modify existing) |
+| TBD-04 | isoAvatarRenderer.test.ts deleted without breaking suite | compilation | `npx vitest run` | ❌ Wave 0 (delete file) |
+| TBD-05 | CharacterLegendPanel renders without crash | smoke | manual visual | ❌ Wave 0 (optional) |
+| TBD-06 | No figure-related imports remain in codebase | static analysis | `grep -r "avatarOutfitConfig\|isoAvatarRenderer\|figures" src/` | manual |
+
+### Wave 0 Gaps
+- [ ] `tests/pixelLabAvatarRenderer.test.ts` — covers PixelLab renderer with multiple character atlases
+- [ ] Delete `tests/isoAvatarRenderer.test.ts` — no longer relevant after removing source file
+- [ ] Delete `tests/avatarOutfitConfig.test.ts` — no longer relevant after removing source file
+- [ ] Update `tests/avatarManager.test.ts` — remove outfit-related assertions, add agentType assertions
+
+---
+
+## Sources
+
+### Primary (HIGH confidence)
+- Direct codebase inspection — all findings verified by reading source files directly
+- `src/isoAvatarRenderer.ts` — full Habbo renderer implementation
+- `src/pixelLabAvatarRenderer.ts` — existing PixelLab renderer
+- `src/avatarRendererTypes.ts` — shared interface
+- `src/RoomCanvas.tsx` — renderer selection and avatar builder wiring
+- `src/avatarManager.ts` — outfit assignment on spawn
+- `src/agentTypes.ts` — message type dependencies
+- `src/extension.ts` — figure URI generation
+- `src/webview.tsx` — figure manifest loading
+- `tests/isoAvatarRenderer.test.ts` — 35 tests that will be deleted
+- `tests/avatarOutfitConfig.test.ts` — 30 tests that will be deleted
+- `assets/habbo/manifest.json` — confirms figure list (21 items)
+- `assets/habbo/figures/` — 42 files confirmed in repo
+
+### Secondary (MEDIUM confidence)
+- Test run output: `5 failed | 422 passed (427)` — verified baseline test counts
+
+---
+
+## Metadata
+
+**Confidence breakdown:**
+- Standard stack: HIGH — no new libraries needed, all existing
+- Architecture: HIGH — all files directly inspected
+- Pitfalls: HIGH — identified through direct code reading and test analysis
+
+**Research date:** 2026-03-12
+**Valid until:** 2026-04-12 (stable codebase)

@@ -33,3 +33,11 @@ coverage/
 .memory-layer/logs/
 .memory-layer/reports/
 .memory-layer/archive/
+
+# Background shell state
+.bg-shell/
+
+# Migration temp files
+_migrate.ts
+_debug_migrate.ts
+_migrate.mjs
