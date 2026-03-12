@@ -60,6 +60,7 @@ const spriteCache = new SpriteCache();
       plCoreDevPng, plCoreDevJson,
       plInfrastructurePng, plInfrastructureJson,
       plSupportPng, plSupportJson,
+      nitroManifest, nitroFurnitureBase,
     } = (window as any).ASSET_URIS;
 
     console.log('Loading chair atlas from:', chairPng, chairJson);
@@ -137,8 +138,7 @@ const spriteCache = new SpriteCache();
       });
     }
 
-    // Load Nitro per-item assets (real Habbo sprites)
-    const { nitroManifest, nitroFurnitureBase, nitroFiguresBase } = (window as any).ASSET_URIS;
+    // Load Nitro per-item furniture assets
     if (nitroManifest) {
       try {
         const manifestRes = await fetch(nitroManifest);
@@ -158,22 +158,6 @@ const spriteCache = new SpriteCache();
                 console.log(`✓ Loaded Nitro furniture: ${name}`);
               } catch (err) {
                 console.warn(`⚠ Failed to load Nitro furniture ${name}:`, err);
-              }
-            }
-          }
-
-          // Load figure items
-          if (manifest.figures && nitroFiguresBase) {
-            for (const name of manifest.figures) {
-              try {
-                await spriteCache.loadNitroAsset(
-                  name,
-                  `${nitroFiguresBase}/${name}.png`,
-                  `${nitroFiguresBase}/${name}.json`
-                );
-                console.log(`✓ Loaded Nitro figure: ${name}`);
-              } catch (err) {
-                console.warn(`⚠ Failed to load Nitro figure ${name}:`, err);
               }
             }
           }
@@ -214,8 +198,6 @@ const spriteCache = new SpriteCache();
     // Notify extension that webview is ready (triggers agent discovery)
     if (vscodeApi) {
       vscodeApi.postMessage({ type: 'ready' });
-      // Load saved avatar outfits from .habbo-agents/avatars.json
-      vscodeApi.postMessage({ type: 'loadAvatars' });
     }
   } catch (error) {
     console.error('Asset loading failed:', error);

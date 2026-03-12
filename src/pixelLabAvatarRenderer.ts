@@ -125,7 +125,7 @@ export const pixelLabRenderer: AvatarRenderer = {
           frameKey = `pl_rot_${spec.direction}`;
         }
 
-        const atlasName = getAtlasForTeam((spec as any).team);
+        const atlasName = getAtlasForTeam(spec.team);
         const frame = spriteCache.getFrame(atlasName, frameKey)
           || spriteCache.getFrame(atlasName, `pl_rot_${spec.direction}`)
           || spriteCache.getFrame(DEFAULT_ATLAS_NAME, frameKey)

@@ -9,7 +9,7 @@ import {
   type TilePath,
   type IsometricPosition,
 } from '../src/isoAgentBehavior.js';
-import type { AvatarSpec } from '../src/isoAvatarRenderer.js';
+import type { AvatarSpec } from '../src/avatarRendererTypes.js';
 
 describe('pathToIsometricPositions', () => {
   it('converts single-step path correctly', () => {
@@ -94,14 +94,14 @@ describe('drawParentChildLine', () => {
       id: 'parent',
       tileX: 2, tileY: 2, tileZ: 0,
       direction: 2, variant: 0, state: 'idle', frame: 0,
-      lastUpdateMs: 0, nextBlinkMs: 0, blinkFrame: 0, spawnProgress: 0,
+      lastUpdateMs: 0, spawnProgress: 0,
     };
 
     const child: AvatarSpec = {
       id: 'child',
       tileX: 5, tileY: 5, tileZ: 0,
       direction: 2, variant: 0, state: 'idle', frame: 0,
-      lastUpdateMs: 0, nextBlinkMs: 0, blinkFrame: 0, spawnProgress: 0,
+      lastUpdateMs: 0, spawnProgress: 0,
     };
 
     drawParentChildLine(mockCtx, parent, child);
@@ -121,7 +121,7 @@ describe('updateAvatarAlongPath', () => {
       id: 'avatar',
       tileX: 2, tileY: 2, tileZ: 0,
       direction: 0, variant: 0, state: 'idle', frame: 0,
-      lastUpdateMs: 0, nextBlinkMs: 0, blinkFrame: 0, spawnProgress: 0,
+      lastUpdateMs: 0, spawnProgress: 0,
     };
 
     // Progress 50% through path (1000ms elapsed of 2000ms total)
@@ -140,7 +140,7 @@ describe('updateAvatarAlongPath', () => {
       id: 'avatar',
       tileX: 2, tileY: 2, tileZ: 0,
       direction: 0, variant: 0, state: 'walk', frame: 0,
-      lastUpdateMs: 0, nextBlinkMs: 0, blinkFrame: 0, spawnProgress: 0,
+      lastUpdateMs: 0, spawnProgress: 0,
     };
 
     // Progress 100% through path (2000ms elapsed of 2000ms total)
@@ -159,7 +159,7 @@ describe('updateAvatarAlongPath', () => {
       id: 'avatar',
       tileX: 2, tileY: 2, tileZ: 0,
       direction: 0, variant: 0, state: 'idle', frame: 0,
-      lastUpdateMs: 0, nextBlinkMs: 0, blinkFrame: 0, spawnProgress: 0,
+      lastUpdateMs: 0, spawnProgress: 0,
     };
 
     updateAvatarAlongPath(spec, path, 500, 0, 2000);
@@ -172,7 +172,7 @@ describe('updateAvatarAlongPath', () => {
       id: 'avatar',
       tileX: 2, tileY: 2, tileZ: 0,
       direction: 0, variant: 0, state: 'idle', frame: 0,
-      lastUpdateMs: 0, nextBlinkMs: 0, blinkFrame: 0, spawnProgress: 0,
+      lastUpdateMs: 0, spawnProgress: 0,
     };
 
     // Should not crash or throw

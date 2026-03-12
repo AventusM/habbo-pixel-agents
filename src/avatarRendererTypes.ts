@@ -1,9 +1,9 @@
 // src/avatarRendererTypes.ts
-// Shared types for avatar rendering backends (Habbo/Nitro and PixelLab)
+// Shared types for avatar rendering backends (PixelLab)
 
-import type { OutfitConfig } from "./avatarOutfitConfig.js";
 import type { SpriteCache } from "./isoSpriteCache.js";
 import type { Renderable } from "./isoTypes.js";
+import type { TeamSection } from "./agentTypes.js";
 
 /**
  * Avatar specification — shared by all rendering backends.
@@ -40,14 +40,8 @@ export interface AvatarSpec {
   displayName?: string;
   /** Key of the chair tile the avatar is sitting on (e.g. "3,5") */
   sittingChairKey?: string;
-  /** Dynamic outfit configuration (Habbo/Nitro only — overrides variant-based fallback) */
-  outfit?: OutfitConfig;
-
-  // --- Habbo/Nitro-specific state ---
-  /** Next blink timestamp (only for idle state, Habbo renderer) */
-  nextBlinkMs: number;
-  /** Current blink frame (0 = no blink, 1-3 = blink overlay frames, Habbo renderer) */
-  blinkFrame: number;
+  /** Team section for PixelLab character selection */
+  team?: TeamSection;
 
   // --- PixelLab-specific state ---
   /** PixelLab idle animation frame (0-3 for breathing cycle) */
@@ -58,7 +52,7 @@ export interface AvatarSpec {
 
 /**
  * Avatar renderer backend interface.
- * Each rendering backend (Habbo/Nitro, PixelLab) implements this.
+ * Each rendering backend implements this.
  */
 export interface AvatarRenderer {
   /** Human-readable name for this renderer */
