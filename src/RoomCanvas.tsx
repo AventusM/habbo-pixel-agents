@@ -36,7 +36,7 @@ import { computeBlockedTiles } from './isoPathfinding.js';
 import { drawKanbanNotes, drawExpandedNote, drawExpandedAggregateNote, getNoteHitAreas, pointInQuad } from './isoKanbanRenderer.js';
 import { CharacterLegendPanel } from './CharacterLegendPanel.js';
 import type { CameraState } from './cameraController.js';
-import { createCameraState, applyPan, applyZoom, applyCameraTransform, screenToWorld } from './cameraController.js';
+import { createCameraState, applyZoom, applyCameraTransform, screenToWorld } from './cameraController.js';
 import { screenToTile } from './isometricMath.js';
 import { SectionManager } from './sectionManager.js';
 import { type FloorTemplate, buildSectionColorMap } from './roomLayoutEngine.js';
@@ -1434,7 +1434,7 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
         furnitureDirection={furnitureDirection}
         devMode={devMode}
         onDevCapture={handleDevCapture}
-        onDebugGrid={() => setShowDebugGrid(true)}
+        onDebugGrid={undefined}
         onPlaySound={handlePlaySound}
         availableSounds={availableSounds}
         onRotate={() => {
