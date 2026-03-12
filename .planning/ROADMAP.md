@@ -391,7 +391,7 @@ Plans:
 **Goal:** Eliminate all copyrighted Habbo character/figure assets and rendering code (cortex-assets figures, multi-layer avatar composition, avatar builder clothing catalog), replacing fully with PixelLab-generated characters. Habbo furniture assets are retained.
 **Requirements**: REM-01, REM-02, REM-03, REM-04, REM-05, REM-06, REM-07, REM-08, REM-09, REM-10
 **Depends on:** Phase 17.7
-**Plans:** 3 plans
+**Plans:** 1/3 plans executed
 
 Plans:
 - [ ] 17.8-01-PLAN.md — Generate 4 team-specific PixelLab characters and wire per-team atlas selection
