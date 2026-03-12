@@ -34,7 +34,6 @@ import type { ExtensionMessage } from './agentTypes.js';
 import type { KanbanCard } from './agentTypes.js';
 import { computeBlockedTiles } from './isoPathfinding.js';
 import { drawKanbanNotes, drawExpandedNote, drawExpandedAggregateNote, getNoteHitAreas, pointInQuad } from './isoKanbanRenderer.js';
-import { CharacterLegendPanel } from './CharacterLegendPanel.js';
 import type { CameraState } from './cameraController.js';
 import { createCameraState, applyZoom, applyCameraTransform, screenToWorld } from './cameraController.js';
 import { screenToTile } from './isometricMath.js';
@@ -1458,7 +1457,6 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
         onContextMenu={handleContextMenu}
         onMouseLeave={handleMouseLeave}
       />
-      <CharacterLegendPanel />
     </>
   );
 }
