@@ -15,4 +15,6 @@ Do NOT implement features directly without going through GSD. This applies to al
 
 - **State files**: `.gsd/` directory (PROJECT.md, STATE.md, DECISIONS.md, REQUIREMENTS.md)
 - **Milestones**: `.gsd/milestones/M001/` (v1 complete), `.gsd/milestones/M002/` (v2 in progress)
-- **Legacy planning**: `.planning/` directory preserved as read-only reference (migrated to `.gsd/`)
+- **Quick fixes**: `.gsd/quick/` (Q01-Q05, migrated from legacy `.planning/quick/`)
+- **Todos**: `.gsd/todos/` (done + pending)
+- **Archive**: `.gsd/archive/` (v1 roadmap and config, read-only reference)

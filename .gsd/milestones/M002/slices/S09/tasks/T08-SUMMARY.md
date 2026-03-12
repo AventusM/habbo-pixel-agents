@@ -1,28 +1,40 @@
 ---
-id: T08
-parent: S09
-milestone: M002
+phase: 16-agent-factory-workflow
+plan: 08
+subsystem: ui
+tags: [vscode-sidebar, webview, message-bridge, orchestration, activity-bar]
+
+requires:
+  - phase: 16-05
+    provides: "Agent classification pipeline and webview reassignment"
 provides:
   - "OrchestrationPanelProvider for VS Code Activity Bar sidebar"
   - "MessageBridge for room-sidebar message relay"
   - "Sidebar HTML with agent list, section overview, activity log, quick actions"
-requires: []
-affects: []
-key_files: []
-key_decisions: []
-patterns_established: []
-observability_surfaces: []
-drill_down_paths: []
+affects: [16-09]
+
+tech-stack:
+  added: []
+  patterns: ["WebviewViewProvider for sidebar panels", "MessageBridge relay pattern for multi-webview communication"]
+
+key-files:
+  created: [src/messageBridge.ts, src/orchestrationPanel.ts, src/orchestrationPanelHtml.ts, media/habbo-icon.svg, tests/messageBridge.test.ts]
+  modified: [src/extension.ts, package.json]
+
+key-decisions:
+  - "EventEmitter pattern on OrchestrationPanelProvider for extension.ts to handle viewTranscript and reassignAgent"
+  - "Bridge broadcastAgentEvent replaces direct panel.webview.postMessage in AgentManager callback"
+  - "Default case in room message handler relays unhandled messages through bridge for agentClicked"
+
+patterns-established:
+  - "MessageBridge: centralized relay between multiple webview surfaces"
+  - "OrchestrationPanelProvider: sidebar with onDidReceiveMessage event for extension-level actions"
+
+requirements-completed: [AF-21, AF-22, AF-23, AF-24]
+
 duration: 4min
-verification_result: passed
-completed_at: 2026-03-08
-blocker_discovered: false
+completed: 2026-03-08
 ---
-# T08: 16-agent-factory-workflow 08
-
-**# Phase 16 Plan 08: Orchestration Sidebar Summary**
-
-## What Happened
 
 # Phase 16 Plan 08: Orchestration Sidebar Summary
 

@@ -1,30 +1,53 @@
 ---
-id: T09
-parent: S09
-milestone: M002
+phase: 16-agent-factory-workflow
+plan: 09
+subsystem: ui
+tags: [popup-cards, furniture-activity, auto-follow-camera, role-outfits, avatar-builder]
+
+requires:
+  - phase: 16-06
+    provides: "SectionManager with agent-to-section tracking"
+  - phase: 16-07
+    provides: "ROLE_OUTFIT_PRESETS for team-specific outfits"
+  - phase: 16-08
+    provides: "MessageBridge and orchestration sidebar"
 provides:
   - "Agent popup cards with team/role/status info on click"
   - "Activity-linked furniture overlays (monitor glow, lamp warmth)"
   - "Auto-follow camera tracking most active section"
   - "Role Outfits tab in Avatar Builder for team preset customization"
   - "jumpToSection message handling in room canvas"
-requires: []
 affects: []
-key_files: []
-key_decisions: []
-patterns_established: []
-observability_surfaces: []
-drill_down_paths: []
+
+tech-stack:
+  added: []
+  patterns: [furniture-activity-overlay, popup-card-ui, auto-follow-lerp-camera]
+
+key-files:
+  created: []
+  modified:
+    - src/RoomCanvas.tsx
+    - src/isoFurnitureRenderer.ts
+    - src/AvatarBuilderModal.tsx
+    - src/sectionManager.ts
+
+key-decisions:
+  - "Popup card auto-dismisses after 5 seconds; second click on same agent opens builder"
+  - "Furniture activity overlay uses lighter composite operation for non-destructive glow"
+  - "Auto-follow camera checks every 3 seconds with 10% per-frame lerp for smooth pan"
+  - "Role Outfits tab preserves skin color when applying presets for visual continuity"
+  - "Activity defined as agentTool events within last 10 seconds for furniture glow"
+
+patterns-established:
+  - "drawAgentPopup: team-colored header card with role/status at avatar head position"
+  - "drawFurnitureActiveOverlay: per-type glow effects (lighter composite, radial gradient)"
+  - "autoFollowRef with lerp target for smooth automated camera movement"
+
+requirements-completed: [AF-20, AF-25, AF-26, AF-27, AF-28]
+
 duration: 6min
-verification_result: passed
-completed_at: 2026-03-08
-blocker_discovered: false
+completed: 2026-03-08
 ---
-# T09: 16-agent-factory-workflow 09
-
-**# Phase 16 Plan 09: Final Integration and Polish Summary**
-
-## What Happened
 
 # Phase 16 Plan 09: Final Integration and Polish Summary
 
