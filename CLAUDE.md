@@ -11,6 +11,18 @@ All implementation tasks MUST go through the GSD workflow:
 
 Do NOT implement features directly without going through GSD. This applies to all new features, bug fixes, and refactoring work — regardless of size.
 
+## PixelLab Furniture Pipeline
+
+To replace a Habbo furniture sprite with a PixelLab-generated image:
+
+1. Drop the PixelLab PNG into `assets/pixellab/furniture/`
+2. Run `node scripts/pack-pixellab-furniture.mjs assets/pixellab/furniture/<name>.png <furniture-id>` 
+3. Run `node esbuild.config.mjs` to copy into dist
+
+Options: `--bottom-offset=N` (default 9), `--dimensions=WxHxD`, `--directions=N,...`, `--no-shadow`, `--no-icon`, `--dry-run`.
+
+Source assets live in `assets/habbo/furniture/` (the build copies from there to `dist/webview-assets/furniture/`). Originals are backed up as `.orig` on first replacement.
+
 ## Project State
 
 - **State files**: `.gsd/` directory (PROJECT.md, STATE.md, DECISIONS.md, REQUIREMENTS.md)

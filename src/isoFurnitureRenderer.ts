@@ -57,20 +57,20 @@ export function drawFurnitureActiveOverlay(
     ctx.fill();
     ctx.restore();
   } else if (furnitureName === 'hc_lmp') {
-    // Warm yellow radial gradient glow from lamp top (shade area)
+    // Warm yellow radial gradient glow from lamp glass area (PixelLab oil lamp)
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
-    const glowY = screenY - 55; // lamp shade area
+    const glowY = screenY - 15; // glass/flame area of PixelLab oil lamp
     const grad = ctx.createRadialGradient(
-      screenX, glowY, 6,
-      screenX, glowY, 64,
+      screenX, glowY, 4,
+      screenX, glowY, 48,
     );
     grad.addColorStop(0, 'rgba(255, 220, 120, 0.32)');
     grad.addColorStop(0.4, 'rgba(255, 190, 80, 0.14)');
     grad.addColorStop(1, 'rgba(255, 160, 40, 0)');
     ctx.fillStyle = grad;
     ctx.beginPath();
-    ctx.arc(screenX, glowY, 64, 0, Math.PI * 2);
+    ctx.arc(screenX, glowY, 48, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
   }
