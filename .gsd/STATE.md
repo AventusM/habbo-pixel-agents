@@ -8,4 +8,4 @@
 
 ## M002: Polish & Extended Features
 
-- Slices: 15/20
+- Slices: 16/21
