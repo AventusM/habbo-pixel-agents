@@ -16,7 +16,7 @@ const WANDER_MIN_MS = 4000;
 /** Max idle time before wandering (ms) */
 const WANDER_MAX_MS = 10000;
 /** Max tile radius for random wander destination */
-const WANDER_RADIUS = 5;
+const WANDER_RADIUS = 8;
 /** Probability of trying to sit on a chair instead of wandering */
 const SIT_PROBABILITY = 0.3;
 /** Min sit duration (ms) */

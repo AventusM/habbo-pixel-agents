@@ -52,3 +52,5 @@
   > After this: Create a top-level ARCHITECTURE.
 - [ ] **S20: Architecture Refactor Full Deep Codebase Restructuring With Comprehensive Architecture Docs And Code Linked Diagrams** `risk:medium` `depends:[S19]`
   > After this: unit tests prove architecture-refactor-full-deep-codebase-restructuring-with-comprehensive-architecture-docs-and-code-linked-diagrams works
+- [x] **S21: Larger Room Sizes** `risk:low` `depends:[]`
+  > After this: Room templates are significantly larger (small 15×15, medium 19×19, large 25×25) with multi-row desk placement and adjusted agent-count thresholds for size selection.
