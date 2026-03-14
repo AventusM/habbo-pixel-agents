@@ -10,32 +10,32 @@ import { parseHeightmap } from '../src/isoTypes.js';
 
 describe('roomLayoutEngine', () => {
   describe('template generation', () => {
-    it('small template produces a 9x9 heightmap', () => {
+    it('small template produces a 15x15 heightmap', () => {
       const t = generateFloorTemplate('small');
       const rows = t.heightmap.split('\n');
-      expect(rows.length).toBe(9);
+      expect(rows.length).toBe(15);
       for (const row of rows) {
-        expect(row.length).toBe(9);
+        expect(row.length).toBe(15);
       }
-      expect(t.totalWidth).toBe(9);
-      expect(t.totalHeight).toBe(9);
+      expect(t.totalWidth).toBe(15);
+      expect(t.totalHeight).toBe(15);
     });
 
-    it('medium template produces an 11x11 heightmap', () => {
+    it('medium template produces a 19x19 heightmap', () => {
       const t = generateFloorTemplate('medium');
       const rows = t.heightmap.split('\n');
-      expect(rows.length).toBe(11);
+      expect(rows.length).toBe(19);
       for (const row of rows) {
-        expect(row.length).toBe(11);
+        expect(row.length).toBe(19);
       }
     });
 
-    it('large template produces a 13x13 heightmap', () => {
+    it('large template produces a 25x25 heightmap', () => {
       const t = generateFloorTemplate('large');
       const rows = t.heightmap.split('\n');
-      expect(rows.length).toBe(13);
+      expect(rows.length).toBe(25);
       for (const row of rows) {
-        expect(row.length).toBe(13);
+        expect(row.length).toBe(25);
       }
     });
 
@@ -178,23 +178,23 @@ describe('roomLayoutEngine', () => {
   });
 
   describe('smart size selection', () => {
-    it('getTemplateSize(8) returns small', () => {
+    it('getTemplateSize(4) returns small', () => {
+      expect(getTemplateSize(4)).toBe('small');
+    });
+
+    it('getTemplateSize(12) returns medium', () => {
+      expect(getTemplateSize(12)).toBe('medium');
+    });
+
+    it('getTemplateSize(20) returns large', () => {
+      expect(getTemplateSize(20)).toBe('large');
+    });
+
+    it('boundary values: 8 is small, 9 is medium, 16 is medium, 17 is large', () => {
       expect(getTemplateSize(8)).toBe('small');
-    });
-
-    it('getTemplateSize(16) returns medium', () => {
+      expect(getTemplateSize(9)).toBe('medium');
       expect(getTemplateSize(16)).toBe('medium');
-    });
-
-    it('getTemplateSize(30) returns large', () => {
-      expect(getTemplateSize(30)).toBe('large');
-    });
-
-    it('boundary values: 12 is small, 13 is medium, 24 is medium, 25 is large', () => {
-      expect(getTemplateSize(12)).toBe('small');
-      expect(getTemplateSize(13)).toBe('medium');
-      expect(getTemplateSize(24)).toBe('medium');
-      expect(getTemplateSize(25)).toBe('large');
+      expect(getTemplateSize(17)).toBe('large');
     });
   });
 

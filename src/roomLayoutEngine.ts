@@ -31,9 +31,9 @@ export interface FloorTemplate {
 
 /** Template size definitions */
 export const TEMPLATE_SIZES = {
-  small: { total: 9, usable: 4, border: 0, divider: 1 },
-  medium: { total: 11, usable: 5, border: 0, divider: 1 },
-  large: { total: 13, usable: 6, border: 0, divider: 1 },
+  small: { total: 15, usable: 7, border: 0, divider: 1 },
+  medium: { total: 19, usable: 9, border: 0, divider: 1 },
+  large: { total: 25, usable: 12, border: 0, divider: 1 },
 } as const;
 
 /** Section assignments in 2x2 grid order */
@@ -195,23 +195,35 @@ export function getSectionFurniture(
   return specs;
 }
 
-/** Generate desk tile positions in the interior of a section */
+/** Generate desk tile positions in the interior of a section.
+ *  Places desks in rows with spacing. For larger sections, uses
+ *  two rows to fill the space better. */
 function generateDeskTiles(
   origin: { x: number; y: number },
   usable: number,
 ): { x: number; y: number; dir: number }[] {
   const desks: { x: number; y: number; dir: number }[] = [];
-  // Place desks in the interior (2 tiles from edges)
   const inset = Math.min(2, Math.floor(usable / 3));
-  const count = Math.max(2, Math.floor(usable / 3));
+  const desksPerRow = Math.max(2, Math.floor((usable - inset) / 2));
 
-  for (let i = 0; i < count; i++) {
-    desks.push({
-      x: origin.x + inset + i * 2,
-      y: origin.y + inset,
-      dir: 2, // facing south-east
-    });
+  // First row of desks
+  for (let i = 0; i < desksPerRow; i++) {
+    const x = origin.x + inset + i * 2;
+    if (x >= origin.x + usable) break;
+    desks.push({ x, y: origin.y + inset, dir: 2 });
   }
+
+  // Second row for sections with 9+ usable tiles
+  if (usable >= 9) {
+    const row2Y = origin.y + inset + 3;
+    for (let i = 0; i < desksPerRow; i++) {
+      const x = origin.x + inset + i * 2;
+      if (x >= origin.x + usable) break;
+      if (row2Y >= origin.y + usable) break;
+      desks.push({ x, y: row2Y, dir: 2 });
+    }
+  }
+
   return desks;
 }
 
@@ -253,8 +265,8 @@ export function getSectionForTeam(
 
 /** Select template size based on agent count */
 export function getTemplateSize(agentCount: number): 'small' | 'medium' | 'large' {
-  if (agentCount <= 12) return 'small';
-  if (agentCount <= 24) return 'medium';
+  if (agentCount <= 8) return 'small';
+  if (agentCount <= 16) return 'medium';
   return 'large';
 }
 
