@@ -2,33 +2,6 @@
 
 ## Active
 
-### ASSET-01 — A Node.js pre-build script (`extractNitro.ts`) correctly parses the custom `.nitro` binary format (BigEndian UI16 file count, per-file UI16 name length + UI32 compressed length + zlib-inflated data) and outputs PNG atlas files and JSON manifests to `dist/webview-assets/`.
-
-- Status: active
-- Class: core-capability
-- Source: inferred
-- Primary Slice: none yet
-
-A Node.js pre-build script (`extractNitro.ts`) correctly parses the custom `.nitro` binary format (BigEndian UI16 file count, per-file UI16 name length + UI32 compressed length + zlib-inflated data) and outputs PNG atlas files and JSON manifests to `dist/webview-assets/`.
-
-### ASSET-07 — The extraction script is validated by running it against a known `.nitro` bundle and comparing extracted PNG + JSON output visually against Retrosprite.
-
-- Status: active
-- Class: core-capability
-- Source: inferred
-- Primary Slice: none yet
-
-The extraction script is validated by running it against a known `.nitro` bundle and comparing extracted PNG + JSON output visually against Retrosprite.
-
-### UI-08 — Volter/Goldfish font is available as an explicit opt-in setting; when enabled, it loads from a locally bundled TTF file and a licensing disclaimer is shown in the extension settings UI. *(Deferred to post-v1)*
-
-- Status: active
-- Class: core-capability
-- Source: inferred
-- Primary Slice: none yet
-
-Volter/Goldfish font is available as an explicit opt-in setting; when enabled, it loads from a locally bundled TTF file and a licensing disclaimer is shown in the extension settings UI. *(Deferred to post-v1)*
-
 ## Validated
 
 ### COORD-01 — `tileToScreen(x, y, z)` returns correct screen pixel coordinates matching the 2:1 isometric formula (`screenX = (x - y) * 32`, `screenY = (x + y) * 16 - z * 16`) for all integer tile positions and height levels 0-9.
@@ -545,5 +518,32 @@ The pre-build asset conversion script runs before the esbuild step and its outpu
 The build does not commit any extracted Sulake assets (PNG, JSON, sound files) to the git repository; `.gitignore` excludes `dist/webview-assets/` or equivalent.
 
 ## Deferred
+
+### ASSET-01 — A Node.js pre-build script (`extractNitro.ts`) correctly parses the custom `.nitro` binary format (BigEndian UI16 file count, per-file UI16 name length + UI32 compressed length + zlib-inflated data) and outputs PNG atlas files and JSON manifests to `dist/webview-assets/`.
+
+- Status: deferred
+- Class: core-capability
+- Source: inferred
+- Primary Slice: none yet
+
+A Node.js pre-build script (`extractNitro.ts`) correctly parses the custom `.nitro` binary format (BigEndian UI16 file count, per-file UI16 name length + UI32 compressed length + zlib-inflated data) and outputs PNG atlas files and JSON manifests to `dist/webview-assets/`. *Deferred: project uses CakeChloe/cortex-assets conversion instead of .nitro extraction.*
+
+### ASSET-07 — The extraction script is validated by running it against a known `.nitro` bundle and comparing extracted PNG + JSON output visually against Retrosprite.
+
+- Status: deferred
+- Class: core-capability
+- Source: inferred
+- Primary Slice: none yet
+
+The extraction script is validated by running it against a known `.nitro` bundle and comparing extracted PNG + JSON output visually against Retrosprite. *Deferred: no .nitro bundles used; validation done via cortex-assets frame key verification.*
+
+### UI-08 — Volter/Goldfish font is available as an explicit opt-in setting; when enabled, it loads from a locally bundled TTF file and a licensing disclaimer is shown in the extension settings UI. *(Deferred to post-v1)*
+
+- Status: deferred
+- Class: core-capability
+- Source: inferred
+- Primary Slice: none yet
+
+Volter/Goldfish font is available as an explicit opt-in setting; when enabled, it loads from a locally bundled TTF file and a licensing disclaimer is shown in the extension settings UI. *Deferred to post-v1: requires extension settings UI for opt-in and licensing disclaimer.*
 
 ## Out of Scope
