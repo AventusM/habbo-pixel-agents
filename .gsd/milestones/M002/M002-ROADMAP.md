@@ -54,3 +54,5 @@
   > After this: unit tests prove architecture-refactor-full-deep-codebase-restructuring-with-comprehensive-architecture-docs-and-code-linked-diagrams works
 - [x] **S21: Larger Room Sizes** `risk:low` `depends:[]`
   > After this: Room templates are significantly larger (small 15×15, medium 19×19, large 25×25) with multi-row desk placement and adjusted agent-count thresholds for size selection.
+- [x] **S22: Section Desk & Chair Furniture** `risk:low` `depends:[S21]`
+  > After this: Each of the 4 team sections has 2 desk+chair furniture combos placed at desk tile positions, agents sit in the chairs when working via the existing chair-sitting system.

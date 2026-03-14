@@ -90,11 +90,72 @@ describe('roomLayoutEngine', () => {
       expect(boothCount).toBe(1);
     });
 
-    it('each section has at least 2 desk tiles', () => {
+    it('each section has exactly 2 desk tiles', () => {
       for (const size of ['small', 'medium', 'large'] as const) {
         const t = generateFloorTemplate(size);
         for (const s of t.sections) {
-          expect(s.deskTiles.length).toBeGreaterThanOrEqual(2);
+          expect(s.deskTiles.length).toBe(2);
+        }
+      }
+    });
+
+    it('each section has 2 desk and 2 chair furniture items', () => {
+      for (const size of ['small', 'medium', 'large'] as const) {
+        const t = generateFloorTemplate(size);
+        for (const s of t.sections) {
+          const desks = s.furniture.filter(f => f.name === 'hc_dsk');
+          const chairs = s.furniture.filter(f => f.name === 'hc_chr');
+          expect(desks.length).toBe(2);
+          expect(chairs.length).toBe(2);
+        }
+      }
+    });
+
+    it('chairs are at deskTile positions and desks diagonally NE (x-1, y-1)', () => {
+      for (const size of ['small', 'medium', 'large'] as const) {
+        const t = generateFloorTemplate(size);
+        for (const s of t.sections) {
+          const chairs = s.furniture.filter(f => f.name === 'hc_chr');
+          const desks = s.furniture.filter(f => f.name === 'hc_dsk');
+          for (let i = 0; i < 2; i++) {
+            // Chair at deskTile position
+            expect(chairs[i].tileX).toBe(s.deskTiles[i].x);
+            expect(chairs[i].tileY).toBe(s.deskTiles[i].y);
+            // Desk diagonally NE (x-1, y-1)
+            expect(desks[i].tileX).toBe(s.deskTiles[i].x - 1);
+            expect(desks[i].tileY).toBe(s.deskTiles[i].y - 1);
+          }
+        }
+      }
+    });
+
+    it('all desk and chair furniture on walkable tiles', () => {
+      for (const size of ['small', 'medium', 'large'] as const) {
+        const t = generateFloorTemplate(size);
+        const rows = t.heightmap.split('\n');
+        for (const s of t.sections) {
+          for (const f of s.furniture) {
+            if (f.name === 'hc_dsk' || f.name === 'hc_chr') {
+              expect(rows[f.tileY][f.tileX]).toBe('0');
+            }
+          }
+        }
+      }
+    });
+
+    it('idle tiles do not overlap desk or chair positions', () => {
+      for (const size of ['small', 'medium', 'large'] as const) {
+        const t = generateFloorTemplate(size);
+        for (const s of t.sections) {
+          const occupied = new Set<string>();
+          for (const f of s.furniture) {
+            if (f.name === 'hc_dsk' || f.name === 'hc_chr') {
+              occupied.add(`${f.tileX},${f.tileY}`);
+            }
+          }
+          for (const tile of s.idleTiles) {
+            expect(occupied.has(`${tile.x},${tile.y}`)).toBe(false);
+          }
         }
       }
     });

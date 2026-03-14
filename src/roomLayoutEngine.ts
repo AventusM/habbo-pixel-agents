@@ -2,9 +2,9 @@
 // Room layout template engine for generating multi-section floor plans
 // Produces heightmap strings compatible with parseHeightmap from isoTypes.ts
 
-import type { TeamSection } from './agentTypes.js';
-import type { FurnitureSpec } from './isoFurnitureRenderer.js';
-import type { HsbColor } from './isoTypes.js';
+import type { TeamSection } from "./agentTypes.js";
+import type { FurnitureSpec } from "./isoFurnitureRenderer.js";
+import type { HsbColor } from "./isoTypes.js";
 
 /** Layout info for a single team section within the floor template */
 export interface SectionLayout {
@@ -20,7 +20,7 @@ export interface SectionLayout {
 
 /** Complete floor template with sections, dividers, and doorways */
 export interface FloorTemplate {
-  size: 'small' | 'medium' | 'large';
+  size: "small" | "medium" | "large";
   totalWidth: number;
   totalHeight: number;
   heightmap: string;
@@ -38,10 +38,10 @@ export const TEMPLATE_SIZES = {
 
 /** Section assignments in 2x2 grid order */
 const SECTION_TEAMS: TeamSection[] = [
-  'planning',       // top-left
-  'core-dev',       // top-right
-  'infrastructure', // bottom-left
-  'support',        // bottom-right
+  "planning", // top-left
+  "core-dev", // top-right
+  "infrastructure", // bottom-left
+  "support", // bottom-right
 ];
 
 /**
@@ -49,7 +49,9 @@ const SECTION_TEAMS: TeamSection[] = [
  * All tiles are at height 0 (flat elevation). Dividers are void tiles
  * with doorway openings at midpoints between sections.
  */
-export function generateFloorTemplate(size: 'small' | 'medium' | 'large'): FloorTemplate {
+export function generateFloorTemplate(
+  size: "small" | "medium" | "large",
+): FloorTemplate {
   const cfg = TEMPLATE_SIZES[size];
   const total = cfg.total;
   const border = cfg.border;
@@ -65,7 +67,7 @@ export function generateFloorTemplate(size: 'small' | 'medium' | 'large'): Floor
   for (let y = 0; y < total; y++) {
     grid[y] = [];
     for (let x = 0; x < total; x++) {
-      grid[y][x] = 'x';
+      grid[y][x] = "x";
     }
   }
 
@@ -81,7 +83,7 @@ export function generateFloorTemplate(size: 'small' | 'medium' | 'large'): Floor
   for (let y = walkStart; y <= walkEnd; y++) {
     for (let x = walkStart; x <= walkEnd; x++) {
       // Default walkable
-      grid[y][x] = '0';
+      grid[y][x] = "0";
     }
   }
 
@@ -106,10 +108,10 @@ export function generateFloorTemplate(size: 'small' | 'medium' | 'large'): Floor
 
   // Section origins (top-left corner of each usable area)
   const sectionOrigins = [
-    { x: border, y: border },                 // top-left (planning)
-    { x: divEnd + 1, y: border },             // top-right (core-dev)
-    { x: border, y: divEnd + 1 },             // bottom-left (infrastructure)
-    { x: divEnd + 1, y: divEnd + 1 },         // bottom-right (support)
+    { x: border, y: border }, // top-left (planning)
+    { x: divEnd + 1, y: border }, // top-right (core-dev)
+    { x: border, y: divEnd + 1 }, // bottom-left (infrastructure)
+    { x: divEnd + 1, y: divEnd + 1 }, // bottom-right (support)
   ];
 
   // Single shared teleport booth in top-right of room
@@ -129,7 +131,12 @@ export function generateFloorTemplate(size: 'small' | 'medium' | 'large'): Floor
     const deskTiles = generateDeskTiles(origin, usable);
 
     // Idle/wander tiles: remaining interior positions
-    const idleTiles = generateIdleTiles(origin, usable, teleportTile, deskTiles);
+    const idleTiles = generateIdleTiles(
+      origin,
+      usable,
+      teleportTile,
+      deskTiles,
+    );
 
     const sectionLayout: SectionLayout = {
       team,
@@ -148,7 +155,7 @@ export function generateFloorTemplate(size: 'small' | 'medium' | 'large'): Floor
   });
 
   // Build heightmap string
-  const heightmap = grid.map(row => row.join('')).join('\n');
+  const heightmap = grid.map((row) => row.join("")).join("\n");
 
   return {
     size,
@@ -163,19 +170,25 @@ export function generateFloorTemplate(size: 'small' | 'medium' | 'large'): Floor
 
 /**
  * Generate section-themed furniture specs for a team section.
- * Each section gets a teleport booth plus team-appropriate items.
+ * Each section gets a teleport booth, a lamp, plus 2 desk+chair combos.
  */
 export function getSectionFurniture(
   team: TeamSection,
   section: SectionLayout,
 ): FurnitureSpec[] {
   const specs: FurnitureSpec[] = [];
-  const { originTile, widthTiles: w, heightTiles: h, teleportTile, deskTiles } = section;
+  const {
+    originTile,
+    widthTiles: w,
+    heightTiles: h,
+    teleportTile,
+    deskTiles,
+  } = section;
 
   // Only the first section (planning) places the shared teleport booth
-  if (team === 'planning') {
+  if (team === "planning") {
     specs.push({
-      name: 'ads_cltele',
+      name: "ads_cltele",
       tileX: teleportTile.x,
       tileY: teleportTile.y,
       tileZ: 0,
@@ -183,51 +196,67 @@ export function getSectionFurniture(
     });
   }
 
-  // Every section gets one lamp — glows when agents are present
+  // Lamp near the wall (low y = close to NE edge)
   specs.push({
-    name: 'hc_lmp',
-    tileX: originTile.x + Math.floor(w / 2),
-    tileY: originTile.y + Math.floor(h / 2),
+    name: "hc_lmp",
+    tileX: originTile.x + Math.floor(w / 2) - 2,
+    tileY: originTile.y + 2,
     tileZ: 0,
     direction: 0,
   });
 
+  // 2 desk+chair combos per section, positioned near the section center.
+  // deskTiles[i] is the chair position (where the agent walks to and sits).
+  // The desk is at (chairX-1, chairY-1) — one tile NE of the chair.
+  // The chair faces direction 6 (NW, toward the desk).
+  const combos = Math.min(2, deskTiles.length);
+  for (let i = 0; i < combos; i++) {
+    const chairTile = deskTiles[i];
+    // Desk one tile NE of the chair (x-1, y-1)
+    specs.push({
+      name: "hc_dsk",
+      tileX: chairTile.x - 1,
+      tileY: chairTile.y - 1,
+      tileZ: 0,
+      direction: 0,
+    });
+    // Chair at deskTile position — agent sits here facing NW toward desk
+    specs.push({
+      name: "hc_chr",
+      tileX: chairTile.x,
+      tileY: chairTile.y,
+      tileZ: 0,
+      direction: 6,
+    });
+  }
+
   return specs;
 }
 
-/** Generate desk tile positions in the interior of a section.
- *  Places desks in rows with spacing. For larger sections, uses
- *  two rows to fill the space better. */
+/** Generate desk tile positions (chair seats) in the interior of a section.
+ *  Returns exactly 2 chair positions per section — these are where agents
+ *  walk to and sit. Desks placed at (chairX-1, chairY-1) by getSectionFurniture.
+ *  Chair direction 6 (NW) faces the agent toward the desk. */
 function generateDeskTiles(
   origin: { x: number; y: number },
   usable: number,
 ): { x: number; y: number; dir: number }[] {
   const desks: { x: number; y: number; dir: number }[] = [];
-  const inset = Math.min(2, Math.floor(usable / 3));
-  const desksPerRow = Math.max(2, Math.floor((usable - inset) / 2));
+  // Chair row one below center, desk row at center
+  const centerY = origin.y + Math.floor(usable / 2);
+  const chairY = centerY + 1;
 
-  // First row of desks
-  for (let i = 0; i < desksPerRow; i++) {
-    const x = origin.x + inset + i * 2;
-    if (x >= origin.x + usable) break;
-    desks.push({ x, y: origin.y + inset, dir: 2 });
-  }
+  // Each combo: desk at (x, centerY), chair at (x+1, chairY).
+  // Two combos spaced 3 tiles apart horizontally.
+  const startX = origin.x + Math.floor((usable - 4) / 2);
 
-  // Second row for sections with 9+ usable tiles
-  if (usable >= 9) {
-    const row2Y = origin.y + inset + 3;
-    for (let i = 0; i < desksPerRow; i++) {
-      const x = origin.x + inset + i * 2;
-      if (x >= origin.x + usable) break;
-      if (row2Y >= origin.y + usable) break;
-      desks.push({ x, y: row2Y, dir: 2 });
-    }
-  }
+  desks.push({ x: startX + 1, y: chairY, dir: 6 });
+  desks.push({ x: startX + 4, y: chairY, dir: 6 });
 
   return desks;
 }
 
-/** Generate idle/wander tile positions avoiding teleport and desk tiles */
+/** Generate idle/wander tile positions avoiding teleport, chair, and desk tiles */
 function generateIdleTiles(
   origin: { x: number; y: number },
   usable: number,
@@ -237,7 +266,8 @@ function generateIdleTiles(
   const occupied = new Set<string>();
   occupied.add(`${teleportTile.x},${teleportTile.y}`);
   for (const d of deskTiles) {
-    occupied.add(`${d.x},${d.y}`);
+    occupied.add(`${d.x},${d.y}`); // chair position
+    occupied.add(`${d.x - 1},${d.y - 1}`); // desk position (one tile NE)
   }
 
   const tiles: { x: number; y: number }[] = [];
@@ -260,22 +290,24 @@ export function getSectionForTeam(
   template: FloorTemplate,
   team: TeamSection,
 ): SectionLayout | undefined {
-  return template.sections.find(s => s.team === team);
+  return template.sections.find((s) => s.team === team);
 }
 
 /** Select template size based on agent count */
-export function getTemplateSize(agentCount: number): 'small' | 'medium' | 'large' {
-  if (agentCount <= 8) return 'small';
-  if (agentCount <= 16) return 'medium';
-  return 'large';
+export function getTemplateSize(
+  agentCount: number,
+): "small" | "medium" | "large" {
+  if (agentCount <= 8) return "small";
+  if (agentCount <= 16) return "medium";
+  return "large";
 }
 
 /** HSB colors for each team section (soft pastels that look good as floor tiles) */
 const SECTION_COLORS: Record<TeamSection, HsbColor> = {
-  'planning':       { h: 220, s: 30, b: 85 },  // soft blue
-  'core-dev':       { h: 145, s: 30, b: 80 },  // soft green
-  'infrastructure': { h: 35,  s: 30, b: 85 },  // soft amber
-  'support':        { h: 280, s: 25, b: 85 },  // soft purple
+  planning: { h: 220, s: 30, b: 85 }, // soft blue
+  "core-dev": { h: 145, s: 30, b: 80 }, // soft green
+  infrastructure: { h: 35, s: 30, b: 85 }, // soft amber
+  support: { h: 280, s: 25, b: 85 }, // soft purple
 };
 
 /** Divider strip color (neutral grey, slightly darker) */
@@ -285,7 +317,9 @@ const DIVIDER_COLOR: HsbColor = { h: 0, s: 0, b: 70 };
  * Build a tileColorMap that colors each section's tiles differently.
  * Divider tiles get a neutral color to visually separate sections.
  */
-export function buildSectionColorMap(template: FloorTemplate): Map<string, HsbColor> {
+export function buildSectionColorMap(
+  template: FloorTemplate,
+): Map<string, HsbColor> {
   const map = new Map<string, HsbColor>();
 
   // Color each section's tiles

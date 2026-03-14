@@ -23,6 +23,15 @@ Options: `--bottom-offset=N` (default 9), `--dimensions=WxHxD`, `--directions=N,
 
 Source assets live in `assets/habbo/furniture/` (the build copies from there to `dist/webview-assets/furniture/`). Originals are backed up as `.orig` on first replacement.
 
+## Terminal Output Safety
+
+The pi TUI crashes if any single output line exceeds the terminal width (~144 chars). To avoid this:
+
+- **Never output wide JSON or data structures** directly to stdout. Pipe through `head -c 5000` or use `JSON.stringify(obj, null, 2)` with short values.
+- **Wrap debug scripts** with `console.log` calls that keep each line under 120 chars — break arrays/objects across lines.
+- **Prefer `npx vitest`** (already formatted) over raw `npx tsx -e` for verification.
+- When using inline scripts (`npx tsx -e`, `node -e`), format output with newlines — never dump arrays or objects on a single line.
+
 ## Project State
 
 - **State files**: `.gsd/` directory (PROJECT.md, STATE.md, DECISIONS.md, REQUIREMENTS.md)
