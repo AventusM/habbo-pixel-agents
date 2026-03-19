@@ -1,0 +1,80 @@
+name: "Furniture Asset Pipeline"
+description: "Add or replace a furniture sprite via the PixelLab asset pipeline"
+labels: ["asset-pipeline"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this template to request a new furniture asset. Assign the issue to Copilot with the `asset-pipeline` agent.
+
+        The source PNG must already be committed to `assets/pixellab/furniture/` before assigning.
+
+  - type: input
+    id: furniture-id
+    attributes:
+      label: Furniture ID
+      description: "Nitro asset name (e.g., hc_lmp, exe_chair)"
+      placeholder: "hc_lmp"
+    validations:
+      required: true
+
+  - type: input
+    id: display-name
+    attributes:
+      label: Display Name
+      description: "Human-readable name for the UI"
+      placeholder: "HC Lamp"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: category
+    attributes:
+      label: Category
+      options:
+        - habboclub
+        - fun
+        - office
+        - section
+    validations:
+      required: true
+
+  - type: input
+    id: source-png
+    attributes:
+      label: Source PNG Path
+      description: "Path relative to repo root"
+      placeholder: "assets/pixellab/furniture/oil_lamp.png"
+    validations:
+      required: true
+
+  - type: input
+    id: bottom-offset
+    attributes:
+      label: Bottom Offset
+      description: "Pixels below tile center (default: 9, floor items: 5-11)"
+      placeholder: "9"
+
+  - type: input
+    id: dimensions
+    attributes:
+      label: Dimensions
+      description: "Tile footprint WxHxD (default: 1x1x1)"
+      placeholder: "1x1x1"
+
+  - type: input
+    id: directions
+    attributes:
+      label: Directions
+      description: "Comma-separated Habbo directions (default: 0, rotatable: 0,2,4,6)"
+      placeholder: "0"
+
+  - type: checkboxes
+    id: properties
+    attributes:
+      label: Properties
+      options:
+        - label: "Sittable (chair-type)"
+        - label: "Walkable (rug/mat-type)"
+        - label: "Skip shadow generation"
+        - label: "Skip icon generation"

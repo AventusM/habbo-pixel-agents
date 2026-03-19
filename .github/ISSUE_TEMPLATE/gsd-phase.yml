@@ -1,0 +1,86 @@
+name: "GSD Phase / Slice"
+description: "Implement a feature slice following GSD workflow conventions"
+labels: ["gsd-phase"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this template to define a GSD slice for Copilot to implement. Assign the issue to Copilot with the `gsd-phase` agent.
+
+  - type: input
+    id: milestone
+    attributes:
+      label: Milestone
+      description: "Milestone ID (e.g., M002)"
+      placeholder: "M002"
+    validations:
+      required: true
+
+  - type: input
+    id: slice-number
+    attributes:
+      label: Slice Number
+      description: "Next available slice number (e.g., S23)"
+      placeholder: "S23"
+    validations:
+      required: true
+
+  - type: input
+    id: slice-name
+    attributes:
+      label: Slice Name
+      description: "Short descriptive name"
+      placeholder: "Widget Animation System"
+    validations:
+      required: true
+
+  - type: textarea
+    id: goal
+    attributes:
+      label: Goal
+      description: "One-sentence deliverable"
+      placeholder: "Add CSS-based animation transitions to widget state changes"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: risk
+    attributes:
+      label: Risk Level
+      options:
+        - low
+        - medium
+        - high
+    validations:
+      required: true
+
+  - type: input
+    id: dependencies
+    attributes:
+      label: Dependencies
+      description: "Comma-separated slice IDs this depends on (leave empty if none)"
+      placeholder: "S21, S22"
+
+  - type: textarea
+    id: tasks
+    attributes:
+      label: Tasks
+      description: "Numbered list of implementation tasks"
+      placeholder: |
+        1. Create animation utility module with easing functions
+        2. Wire animation hooks into widget state machine
+        3. Add unit tests for animation timing
+    validations:
+      required: true
+
+  - type: textarea
+    id: must-haves
+    attributes:
+      label: Must-Haves
+      description: "Acceptance criteria — what must be true when done"
+      placeholder: |
+        - Widget state transitions animate over 200ms
+        - No animation on initial render
+        - Tests cover all easing functions
+    validations:
+      required: true
