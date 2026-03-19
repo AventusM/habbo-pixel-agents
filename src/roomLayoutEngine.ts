@@ -170,7 +170,7 @@ export function generateFloorTemplate(
 
 /**
  * Generate section-themed furniture specs for a team section.
- * Each section gets a teleport booth, a lamp, plus 2 desk+chair combos.
+ * Each section gets a teleport booth, a lamp, plus 3 desk+chair combos.
  */
 export function getSectionFurniture(
   team: TeamSection,
@@ -205,11 +205,11 @@ export function getSectionFurniture(
     direction: 0,
   });
 
-  // 2 desk+chair combos per section, positioned near the section center.
+  // 3 desk+chair combos per section, positioned near the section center.
   // deskTiles[i] is the chair position (where the agent walks to and sits).
   // The desk is at (chairX-1, chairY-1) — one tile NE of the chair.
   // The chair faces direction 6 (NW, toward the desk).
-  const combos = Math.min(2, deskTiles.length);
+  const combos = Math.min(3, deskTiles.length);
   for (let i = 0; i < combos; i++) {
     const chairTile = deskTiles[i];
     // Desk one tile NE of the chair (x-1, y-1)
@@ -234,7 +234,7 @@ export function getSectionFurniture(
 }
 
 /** Generate desk tile positions (chair seats) in the interior of a section.
- *  Returns exactly 2 chair positions per section — these are where agents
+ *  Returns exactly 3 chair positions per section — these are where agents
  *  walk to and sit. Desks placed at (chairX-1, chairY-1) by getSectionFurniture.
  *  Chair direction 6 (NW) faces the agent toward the desk. */
 function generateDeskTiles(
@@ -246,12 +246,16 @@ function generateDeskTiles(
   const centerY = origin.y + Math.floor(usable / 2);
   const chairY = centerY + 1;
 
-  // Each combo: desk at (x, centerY), chair at (x+1, chairY).
-  // Two combos spaced 3 tiles apart horizontally.
-  const startX = origin.x + Math.floor((usable - 4) / 2);
+  // Spacing between combos depends on available width.
+  // With spacing s: desks at startX, startX+s, startX+2s
+  //                 chairs at startX+1, startX+1+s, startX+1+2s
+  // Total span (first desk to last chair) = 2s+2 tiles → center via startX.
+  const spacing = usable >= 9 ? 3 : 2;
+  const startX = origin.x + Math.floor((usable - (spacing * 2 + 2)) / 2);
 
   desks.push({ x: startX + 1, y: chairY, dir: 6 });
-  desks.push({ x: startX + 4, y: chairY, dir: 6 });
+  desks.push({ x: startX + 1 + spacing, y: chairY, dir: 6 });
+  desks.push({ x: startX + 1 + spacing * 2, y: chairY, dir: 6 });
 
   return desks;
 }

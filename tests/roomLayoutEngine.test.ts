@@ -90,23 +90,23 @@ describe('roomLayoutEngine', () => {
       expect(boothCount).toBe(1);
     });
 
-    it('each section has exactly 2 desk tiles', () => {
+    it('each section has exactly 3 desk tiles', () => {
       for (const size of ['small', 'medium', 'large'] as const) {
         const t = generateFloorTemplate(size);
         for (const s of t.sections) {
-          expect(s.deskTiles.length).toBe(2);
+          expect(s.deskTiles.length).toBe(3);
         }
       }
     });
 
-    it('each section has 2 desk and 2 chair furniture items', () => {
+    it('each section has 3 desk and 3 chair furniture items', () => {
       for (const size of ['small', 'medium', 'large'] as const) {
         const t = generateFloorTemplate(size);
         for (const s of t.sections) {
           const desks = s.furniture.filter(f => f.name === 'hc_dsk');
           const chairs = s.furniture.filter(f => f.name === 'hc_chr');
-          expect(desks.length).toBe(2);
-          expect(chairs.length).toBe(2);
+          expect(desks.length).toBe(3);
+          expect(chairs.length).toBe(3);
         }
       }
     });
@@ -117,7 +117,7 @@ describe('roomLayoutEngine', () => {
         for (const s of t.sections) {
           const chairs = s.furniture.filter(f => f.name === 'hc_chr');
           const desks = s.furniture.filter(f => f.name === 'hc_dsk');
-          for (let i = 0; i < 2; i++) {
+          for (let i = 0; i < 3; i++) {
             // Chair at deskTile position
             expect(chairs[i].tileX).toBe(s.deskTiles[i].x);
             expect(chairs[i].tileY).toBe(s.deskTiles[i].y);
