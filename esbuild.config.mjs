@@ -103,6 +103,57 @@ function copyAssets() {
   }
 }
 
+function generatePreviewHtml() {
+  const assets = 'webview-assets';
+  const html = `<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Habbo Pixel Agents — Preview</title>
+    <style>
+      @font-face {
+        font-family: 'Press Start 2P';
+        src: url('./${assets}/PressStart2P-Regular.ttf') format('truetype');
+        font-weight: normal;
+        font-style: normal;
+        font-display: block;
+      }
+      html, body, #root { margin: 0; padding: 0; width: 100%; height: 100vh; background: #1a1a2e; }
+    </style>
+    <script>
+      window.ASSET_URIS = {
+        chairPng: './${assets}/chair_atlas.png',
+        chairJson: './${assets}/chair_atlas.json',
+        furniturePng: './${assets}/furniture_atlas.png',
+        furnitureJson: './${assets}/furniture_atlas.json',
+        avatarPng: './${assets}/avatar_atlas.png',
+        avatarJson: './${assets}/avatar_atlas.json',
+        notificationSound: './${assets}/sounds/notification.wav',
+        nitroManifest: './${assets}/manifest.json',
+        nitroFurnitureBase: './${assets}/furniture',
+        pixellabPng: './${assets}/pixellab/beanie-hoodie-guy.png',
+        pixellabJson: './${assets}/pixellab/beanie-hoodie-guy.json',
+        plPlanningPng: './${assets}/pixellab/pl-planning.png',
+        plPlanningJson: './${assets}/pixellab/pl-planning.json',
+        plCoreDevPng: './${assets}/pixellab/pl-core-dev.png',
+        plCoreDevJson: './${assets}/pixellab/pl-core-dev.json',
+        plInfrastructurePng: './${assets}/pixellab/pl-infrastructure.png',
+        plInfrastructureJson: './${assets}/pixellab/pl-infrastructure.json',
+        plSupportPng: './${assets}/pixellab/pl-support.png',
+        plSupportJson: './${assets}/pixellab/pl-support.json',
+      };
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script src="./webview.js"></script>
+  </body>
+</html>`;
+
+  fs.writeFileSync(path.join('dist', 'preview.html'), html, 'utf8');
+  console.log('✓ Preview HTML generated: dist/preview.html');
+}
+
 async function build() {
   const target = process.argv[2]; // 'extension' | 'webview' | undefined (both)
 
@@ -117,6 +168,8 @@ async function build() {
 
     await esbuild.build(webviewConfig);
     console.log('✓ Webview built: dist/webview.js');
+
+    generatePreviewHtml();
   }
 }
 

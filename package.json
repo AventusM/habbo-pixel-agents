@@ -114,7 +114,8 @@
     "build": "node esbuild.config.mjs",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "preview": "node esbuild.config.mjs webview && npx serve dist"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
