@@ -10,6 +10,10 @@ export interface OrchestrationAgent {
   team: TeamSection;
   status: 'active' | 'idle';
   toolText: string;
+  /** ID of the kanban card this agent is working on */
+  linkedTicketId?: string;
+  /** Title of the linked ticket (for display) */
+  linkedTicketTitle?: string;
 }
 
 export interface OrchestrationLogEntry {
@@ -90,6 +94,30 @@ export function orchestrationSetTool(state: OrchestrationState, agentId: string,
     agent.toolText = toolText;
     pushLog(state, `${agent.displayName}: ${toolText}`);
   }
+}
+
+export function orchestrationSetLinkedTicket(
+  state: OrchestrationState,
+  agentId: string,
+  ticketId: string | undefined,
+  ticketTitle: string | undefined,
+): void {
+  const agent = state.agents.find(a => a.agentId === agentId);
+  if (agent) {
+    agent.linkedTicketId = ticketId;
+    agent.linkedTicketTitle = ticketTitle;
+  }
+}
+
+/** Get all ticket IDs that have an active agent working on them */
+export function getLinkedTicketIds(state: OrchestrationState): Set<string> {
+  const ids = new Set<string>();
+  for (const agent of state.agents) {
+    if (agent.linkedTicketId && agent.status === 'active') {
+      ids.add(agent.linkedTicketId);
+    }
+  }
+  return ids;
 }
 
 function pushLog(state: OrchestrationState, text: string): void {
@@ -199,8 +227,11 @@ export function drawOrchestrationOverlay(
         const name = truncate(agent.displayName, 20);
         ctx.fillText(name, x + PADDING + 12, curY + 8);
 
-        // Tool text (under name)
-        if (agent.toolText && agent.status === 'active') {
+        // Tool text or linked ticket (under name)
+        if (agent.linkedTicketTitle && agent.status === 'active') {
+          ctx.fillStyle = '#4a9eff';
+          ctx.fillText('🎫 ' + truncate(agent.linkedTicketTitle, 22), x + PADDING + 12, curY + 8);
+        } else if (agent.toolText && agent.status === 'active') {
           ctx.fillStyle = '#666';
           ctx.fillText(truncate(agent.toolText, 26), x + PADDING + 12, curY + 8);
         }

@@ -100,6 +100,22 @@ export function scheduleDemoEvents(): void {
         agentId: agent.id,
         status: 'active',
       });
+      // Link first two agents to tickets
+      if (agent.id === 'demo-coder-1') {
+        dispatch({
+          type: 'agentLinkedTicket',
+          agentId: agent.id,
+          ticketId: '101',
+          ticketTitle: 'Implement room renderer',
+        });
+      } else if (agent.id === 'demo-planner-1') {
+        dispatch({
+          type: 'agentLinkedTicket',
+          agentId: agent.id,
+          ticketId: '102',
+          ticketTitle: 'Azure DevOps integration',
+        });
+      }
     }, delay);
     delay += 500;
 

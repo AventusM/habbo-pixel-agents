@@ -68,6 +68,7 @@ export type ExtensionMessage =
   | { type: 'agentRemoved'; agentId: string }
   | { type: 'agentStatus'; agentId: string; status: AgentStatus }
   | { type: 'agentTool'; agentId: string; toolName: string; displayText: string }
+  | { type: 'agentLinkedTicket'; agentId: string; ticketId?: string; ticketTitle?: string }
   | { type: 'kanbanCards'; cards: KanbanCard[] }
   | { type: 'devMode'; enabled: boolean }
   | { type: 'requestClassification'; agentId: string }

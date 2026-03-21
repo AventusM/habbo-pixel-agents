@@ -179,6 +179,7 @@ function drawStickyNote(
   status: string,
   wallSide: 'left' | 'right',
   isExpanded: boolean,
+  isLinked?: boolean,
 ): void {
   const color = statusToColor(status);
   const fold = foldColor(status);
@@ -195,6 +196,12 @@ function drawStickyNote(
   const slope = wallSide === 'left' ? -0.5 : 0.5;
   ctx.transform(1, slope, 0, 1, anchorX, anchorY);
 
+  // Glow effect for linked notes (agent actively working on this ticket)
+  if (isLinked) {
+    ctx.shadowColor = '#4aff4a';
+    ctx.shadowBlur = 8;
+  }
+
   // Note body polygon (with folded bottom-right corner)
   ctx.beginPath();
   ctx.moveTo(x, y);
@@ -206,9 +213,13 @@ function drawStickyNote(
 
   ctx.fillStyle = color;
   ctx.fill();
-  ctx.strokeStyle = 'rgba(0,0,0,0.5)';
-  ctx.lineWidth = 1;
+  ctx.strokeStyle = isLinked ? '#4aff4a' : 'rgba(0,0,0,0.5)';
+  ctx.lineWidth = isLinked ? 2 : 1;
   ctx.stroke();
+
+  // Reset shadow
+  ctx.shadowColor = 'transparent';
+  ctx.shadowBlur = 0;
 
   // Folded corner triangle (darker overlay)
   ctx.beginPath();
@@ -221,6 +232,20 @@ function drawStickyNote(
   ctx.strokeStyle = 'rgba(0,0,0,0.5)';
   ctx.lineWidth = 1;
   ctx.stroke();
+
+  // "WORKING" badge for linked notes
+  if (isLinked) {
+    ctx.font = '4px "Press Start 2P"';
+    ctx.fillStyle = '#22c55e';
+    const badgeText = 'WORKING';
+    const badgeW = ctx.measureText(badgeText).width + 4;
+    ctx.fillStyle = '#166534';
+    ctx.fillRect(x + w - badgeW - 2, y + 2, badgeW, 7);
+    ctx.fillStyle = '#4aff4a';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    ctx.fillText(badgeText, x + w - badgeW, y + 3);
+  }
 
   // Highlight border if this note is expanded
   if (isExpanded) {
@@ -355,6 +380,7 @@ export function drawKanbanNotes(
   cameraOrigin: { x: number; y: number },
   expandedNoteId?: string | null,
   expandedAggregateType?: 'todo' | 'done' | null,
+  activeLinkedTicketIds?: Set<string>,
 ): void {
   if (cards.length === 0) return;
 
@@ -444,7 +470,8 @@ export function drawKanbanNotes(
       const card = ipCardsToShow[cardIndex++];
       const pos = leftWallNotePosition(tx, ty, slot as 0 | 1, cameraOrigin);
       const isExpanded = card.id === expandedNoteId;
-      drawStickyNote(ctx, pos.x, pos.y, card.title, card.status, 'left', isExpanded);
+      const isLinked = activeLinkedTicketIds?.has(card.id) ?? false;
+      drawStickyNote(ctx, pos.x, pos.y, card.title, card.status, 'left', isExpanded, isLinked);
       const corners = computeSkewedCorners(pos.x, pos.y, NOTE_W, NOTE_H, 'left');
       noteHitAreas.push({ cardId: card.id, corners, wallSide: 'left' });
     }

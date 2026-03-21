@@ -60,7 +60,7 @@ This milestone is complete only when all are true:
 - [x] **S03: Azure DevOps Deep Ticket Integration** `risk:medium` `depends:[S01]`
   > After this: The server fetches Azure DevOps work items including sub-tasks and linked PRs. Sticky notes on the room walls show ticket hierarchy — clicking expands to show sub-task progress and PR status.
 
-- [ ] **S04: Coding Agent ↔ Ticket Linking** `risk:medium` `depends:[S02, S03]`
+- [x] **S04: Coding Agent ↔ Ticket Linking** `risk:medium` `depends:[S02, S03]`
   > After this: When a GitHub coding agent works on a ticket, its avatar in the room is visually linked to that ticket's sticky note — a line or highlight connects them, and the ticket note shows "agent working" state.
 
 - [ ] **S05: Website Polish & Integrated Experience** `risk:low` `depends:[S04]`
