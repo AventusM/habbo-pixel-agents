@@ -130,6 +130,34 @@ wss.on('connection', (ws) => {
     ws.send(JSON.stringify({ type: 'kanbanCards', cards: lastKanbanCards }));
   }
 
+  // Send current Copilot agent sessions to newly connected client
+  if (copilotMonitor) {
+    for (const session of copilotMonitor.getSessions()) {
+      ws.send(JSON.stringify({
+        type: 'agentCreated',
+        agentId: session.id,
+        terminalName: copilotMonitor.getDisplayName(session.branch),
+        variant: 0,
+        team: 'core-dev',
+        role: 'Copilot',
+        taskArea: session.title,
+      }));
+      ws.send(JSON.stringify({
+        type: 'agentStatus',
+        agentId: session.id,
+        status: session.isRunning ? 'active' : 'idle',
+      }));
+      if (session.linkedTicketId) {
+        ws.send(JSON.stringify({
+          type: 'agentLinkedTicket',
+          agentId: session.id,
+          ticketId: session.linkedTicketId,
+          ticketTitle: session.title,
+        }));
+      }
+    }
+  }
+
   ws.on('close', () => {
     clients.delete(ws);
     console.log(`[WS] Client disconnected (${clients.size} remaining)`);
@@ -154,6 +182,7 @@ function broadcast(msg) {
 // Import dynamically from the server bundle built by esbuild
 let agentManager = null;
 let kanbanPollId = null;
+let copilotMonitor = null;
 
 async function startAgentManager() {
   try {
@@ -165,7 +194,7 @@ async function startAgentManager() {
       return;
     }
 
-    const { createAgentManager, readAzureDevOpsEnv, fetchEnrichedCards } = await import(serverBundle);
+    const { createAgentManager, readAzureDevOpsEnv, fetchEnrichedCards, createCopilotMonitor, readGitHubEnv } = await import(serverBundle);
     agentManager = createAgentManager(projectDir, (msg) => {
       broadcast(msg);
     });
@@ -201,6 +230,20 @@ async function startAgentManager() {
     } else {
       console.log('[Kanban] No Azure DevOps config (set AZDO_ORG, AZDO_PROJECT, AZDO_PAT)');
     }
+
+    // Start GitHub Copilot coding agent monitor if configured
+    const ghConfig = readGitHubEnv();
+    if (ghConfig.owner && ghConfig.repo && ghConfig.token) {
+      copilotMonitor = createCopilotMonitor(
+        ghConfig.owner, ghConfig.repo, ghConfig.token,
+        (msg) => { broadcast(msg); },
+        ghConfig.pollIntervalSeconds * 1000,
+      );
+      copilotMonitor.start();
+      console.log(`[Copilot] Monitor started: ${ghConfig.owner}/${ghConfig.repo} (every ${ghConfig.pollIntervalSeconds}s)`);
+    } else {
+      console.log('[Copilot] No GitHub config (set GITHUB_REPO=owner/repo and GITHUB_TOKEN)');
+    }
   } catch (err) {
     console.warn('[Server] AgentManager failed to start:', err.message);
     console.log('[Server] Running without agent monitoring (demo mode only)');
@@ -220,6 +263,7 @@ server.listen(PORT, async () => {
 process.on('SIGINT', () => {
   console.log('\n[Server] Shutting down...');
   if (kanbanPollId) clearInterval(kanbanPollId);
+  if (copilotMonitor) copilotMonitor.stop();
   if (agentManager) agentManager.dispose();
   wss.close();
   server.close();
@@ -228,6 +272,7 @@ process.on('SIGINT', () => {
 
 process.on('SIGTERM', () => {
   if (kanbanPollId) clearInterval(kanbanPollId);
+  if (copilotMonitor) copilotMonitor.stop();
   if (agentManager) agentManager.dispose();
   wss.close();
   server.close();

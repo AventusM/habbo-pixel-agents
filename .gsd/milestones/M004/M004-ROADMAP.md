@@ -66,6 +66,9 @@ This milestone is complete only when all are true:
 - [x] **S05: Website Polish & Integrated Experience** `risk:low` `depends:[S04]`
   > After this: The website has a clean layout with the room as the centrepiece, a sidebar or overlay for ticket details, real-time status indicators, and smooth transitions. Full end-to-end flow verified with real Azure DevOps data and coding agent activity.
 
+- [x] **S06: GitHub Copilot Coding Agent Monitor** `risk:medium` `depends:[S02, S04]`
+  > After this: When a GitHub Copilot coding agent is working on a PR, an avatar appears in the room, animates based on workflow run status, and links to the associated Azure DevOps ticket.
+
 ## Boundary Map
 
 ### S01 → S02

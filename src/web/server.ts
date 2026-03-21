@@ -8,6 +8,7 @@
  */
 import { AgentManager } from '../agentManager.js';
 import { fetchAzureDevOpsCards } from '../azureDevOpsBoards.js';
+import { CopilotAgentMonitor } from './copilotMonitor.js';
 import type { ExtensionMessage, KanbanCard } from '../agentTypes.js';
 
 /**
@@ -18,6 +19,38 @@ export function createAgentManager(
   onMessage: (msg: ExtensionMessage) => void,
 ): AgentManager {
   return new AgentManager(projectDir, onMessage);
+}
+
+/**
+ * Create a CopilotAgentMonitor for polling GitHub Copilot coding agent activity.
+ */
+export function createCopilotMonitor(
+  owner: string,
+  repo: string,
+  token: string,
+  onMessage: (msg: ExtensionMessage) => void,
+  pollIntervalMs?: number,
+): CopilotAgentMonitor {
+  return new CopilotAgentMonitor(owner, repo, token, onMessage, pollIntervalMs);
+}
+
+/**
+ * Read GitHub config from environment variables.
+ */
+export function readGitHubEnv(): {
+  owner: string;
+  repo: string;
+  token: string;
+  pollIntervalSeconds: number;
+} {
+  const fullRepo = process.env.GITHUB_REPO || '';
+  const [owner, repo] = fullRepo.includes('/') ? fullRepo.split('/') : ['', ''];
+  return {
+    owner,
+    repo,
+    token: process.env.GITHUB_TOKEN || '',
+    pollIntervalSeconds: parseInt(process.env.GITHUB_POLL_INTERVAL || '15', 10),
+  };
 }
 
 /**
