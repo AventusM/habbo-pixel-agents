@@ -10,7 +10,7 @@ import { RoomCanvas } from '../RoomCanvas.js';
 import { SpriteCache } from '../isoSpriteCache.js';
 import { generateFloorTemplate } from '../roomLayoutEngine.js';
 import { scheduleDemoEvents } from './demoData.js';
-import { connectWs, hasRealAgents } from './wsClient.js';
+import { connectWs, hasRealAgents, onWsStateChange, getWsState, type WsState } from './wsClient.js';
 
 // Console log interceptor — capture last 200 lines for dev capture
 const LOG_BUFFER_MAX = 200;
@@ -157,10 +157,30 @@ const spriteCache = new SpriteCache();
       // Connect to WebSocket for real agent data
       connectWs();
 
+      // Create status bar
+      const statusBar = document.createElement('div');
+      statusBar.id = 'status-bar';
+      statusBar.style.cssText = 'position:fixed;bottom:0;left:0;right:0;height:20px;background:rgba(26,26,46,0.9);display:flex;align-items:center;padding:0 8px;font:6px "Press Start 2P",monospace;color:#888;z-index:100;gap:12px;';
+      document.body.appendChild(statusBar);
+
+      let isDemoMode = false;
+
+      function updateStatusBar(wsState: WsState) {
+        const dot = wsState === 'connected' ? '🟢' : wsState === 'connecting' ? '🟡' : '🔴';
+        const label = wsState === 'connected' ? 'Connected' : wsState === 'connecting' ? 'Connecting...' : 'Disconnected';
+        const demoLabel = isDemoMode ? '<span style="color:#f59e0b;margin-left:8px">● DEMO MODE</span>' : '';
+        statusBar.innerHTML = `<span>${dot} ${label}</span>${demoLabel}<span style="margin-left:auto;color:#555">localhost:${window.location.port || '3000'}</span>`;
+      }
+
+      onWsStateChange(updateStatusBar);
+      updateStatusBar(getWsState());
+
       // Fallback: if no real agents arrive within 5 seconds, start demo mode
       setTimeout(() => {
         if (!hasRealAgents()) {
           console.log('[Web] No real agents detected — starting demo mode');
+          isDemoMode = true;
+          updateStatusBar(getWsState());
           scheduleDemoEvents();
         } else {
           console.log('[Web] Real agents active — demo mode skipped');

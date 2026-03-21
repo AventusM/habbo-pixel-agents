@@ -63,7 +63,7 @@ This milestone is complete only when all are true:
 - [x] **S04: Coding Agent ↔ Ticket Linking** `risk:medium` `depends:[S02, S03]`
   > After this: When a GitHub coding agent works on a ticket, its avatar in the room is visually linked to that ticket's sticky note — a line or highlight connects them, and the ticket note shows "agent working" state.
 
-- [ ] **S05: Website Polish & Integrated Experience** `risk:low` `depends:[S04]`
+- [x] **S05: Website Polish & Integrated Experience** `risk:low` `depends:[S04]`
   > After this: The website has a clean layout with the room as the centrepiece, a sidebar or overlay for ticket details, real-time status indicators, and smooth transitions. Full end-to-end flow verified with real Azure DevOps data and coding agent activity.
 
 ## Boundary Map
