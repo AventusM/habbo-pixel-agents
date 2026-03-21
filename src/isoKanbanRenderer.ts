@@ -92,6 +92,18 @@ function foldColor(status: string): string {
   return KANBAN_FOLD_COLORS[status] ?? '#f43f5e';
 }
 
+/** Map work item type to a badge background color */
+function workItemTypeColor(type: string): string {
+  switch (type?.toLowerCase()) {
+    case 'user story': return '#3b82f6';
+    case 'bug': return '#ef4444';
+    case 'task': return '#8b5cf6';
+    case 'feature': return '#f59e0b';
+    case 'epic': return '#06b6d4';
+    default: return '#6b7280';
+  }
+}
+
 /**
  * Compute screen position for a sticky note on the left wall.
  */
@@ -450,8 +462,14 @@ export function drawExpandedNote(
   canvasWidth: number,
   canvasHeight: number,
 ): void {
-  const panelW = 200;
-  const panelH = 150;
+  // Calculate dynamic panel height based on content
+  const baseHeight = 100;
+  const childrenHeight = card.children ? (card.children.length * 14 + 20) : 0;
+  const prsHeight = card.linkedPrs ? (card.linkedPrs.length * 14 + 20) : 0;
+  const assigneeHeight = card.assignee ? 16 : 0;
+
+  const panelW = 240;
+  const panelH = Math.min(350, baseHeight + childrenHeight + prsHeight + assigneeHeight);
   const cx = canvasWidth / 2;
   const cy = canvasHeight / 2;
   const px = cx - panelW / 2;
@@ -490,18 +508,38 @@ export function drawExpandedNote(
   ctx.fillStyle = fold;
   ctx.fill();
 
-  // Status badge
+  let curY = py + 10;
+
+  // Work item type badge + status badge (side by side)
   ctx.font = '6px "Press Start 2P"';
-  ctx.fillStyle = 'rgba(0,0,0,0.5)';
-  const badgeText = card.status.toUpperCase();
-  const badgeW = ctx.measureText(badgeText).width + 8;
-  const badgeX = px + 8;
-  const badgeY = py + 12;
-  ctx.fillRect(badgeX, badgeY, badgeW, 12);
-  ctx.fillStyle = '#fff';
-  ctx.textAlign = 'left';
-  ctx.textBaseline = 'top';
-  ctx.fillText(badgeText, badgeX + 4, badgeY + 3);
+  if (card.workItemType) {
+    const typeText = card.workItemType.toUpperCase();
+    const typeW = ctx.measureText(typeText).width + 8;
+    ctx.fillStyle = workItemTypeColor(card.workItemType);
+    ctx.fillRect(px + 8, curY, typeW, 12);
+    ctx.fillStyle = '#fff';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    ctx.fillText(typeText, px + 12, curY + 3);
+
+    // Status badge after type
+    const badgeText = card.status.toUpperCase();
+    const badgeW = ctx.measureText(badgeText).width + 8;
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillRect(px + 8 + typeW + 4, curY, badgeW, 12);
+    ctx.fillStyle = '#fff';
+    ctx.fillText(badgeText, px + 12 + typeW + 4, curY + 3);
+  } else {
+    const badgeText = card.status.toUpperCase();
+    const badgeW = ctx.measureText(badgeText).width + 8;
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillRect(px + 8, curY, badgeW, 12);
+    ctx.fillStyle = '#fff';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    ctx.fillText(badgeText, px + 12, curY + 3);
+  }
+  curY += 18;
 
   // Title (word-wrapped)
   ctx.font = '8px "Press Start 2P"';
@@ -511,19 +549,85 @@ export function drawExpandedNote(
   const maxLineW = panelW - 24;
   const words = card.title.split(' ');
   let line = '';
-  let lineY = py + 34;
   for (const word of words) {
     const test = line ? line + ' ' + word : word;
     if (ctx.measureText(test).width > maxLineW && line) {
-      ctx.fillText(line, px + 12, lineY);
+      ctx.fillText(line, px + 12, curY);
       line = word;
-      lineY += 14;
+      curY += 14;
     } else {
       line = test;
     }
   }
   if (line) {
-    ctx.fillText(line, px + 12, lineY);
+    ctx.fillText(line, px + 12, curY);
+    curY += 14;
+  }
+
+  // Assignee
+  if (card.assignee) {
+    curY += 4;
+    ctx.font = '6px "Press Start 2P"';
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillText(`👤 ${card.assignee}`, px + 12, curY);
+    curY += 14;
+  }
+
+  // Children (sub-tasks)
+  if (card.children && card.children.length > 0) {
+    curY += 6;
+    ctx.font = '6px "Press Start 2P"';
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    const completed = card.children.filter(c => c.completed).length;
+    ctx.fillText(`SUB-TASKS (${completed}/${card.children.length})`, px + 12, curY);
+    curY += 12;
+
+    // Progress bar
+    const barW = panelW - 24;
+    const barH = 4;
+    ctx.fillStyle = 'rgba(0,0,0,0.15)';
+    ctx.fillRect(px + 12, curY, barW, barH);
+    if (card.children.length > 0) {
+      ctx.fillStyle = completed === card.children.length ? '#22c55e' : '#3b82f6';
+      ctx.fillRect(px + 12, curY, barW * (completed / card.children.length), barH);
+    }
+    curY += 8;
+
+    for (const child of card.children) {
+      const check = child.completed ? '✓' : '○';
+      const childColor = child.completed ? 'rgba(0,0,0,0.35)' : '#1a1a2e';
+      ctx.fillStyle = childColor;
+      const childTitle = child.title.length > 28
+        ? child.title.slice(0, 26) + '..'
+        : child.title;
+      ctx.fillText(`${check} ${childTitle}`, px + 14, curY);
+      curY += 12;
+    }
+  }
+
+  // Linked PRs
+  if (card.linkedPrs && card.linkedPrs.length > 0) {
+    curY += 6;
+    ctx.font = '6px "Press Start 2P"';
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    ctx.fillText(`PULL REQUESTS (${card.linkedPrs.length})`, px + 12, curY);
+    curY += 12;
+
+    for (const pr of card.linkedPrs) {
+      const prIcon = pr.status === 'completed' ? '✓' : pr.status === 'abandoned' ? '✗' : '⬤';
+      const prColor = pr.status === 'completed' ? '#22c55e' :
+                       pr.status === 'abandoned' ? '#ef4444' : '#3b82f6';
+      ctx.fillStyle = prColor;
+      ctx.beginPath();
+      ctx.arc(px + 18, curY + 4, 3, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#1a1a2e';
+      const prTitle = pr.title.length > 26
+        ? pr.title.slice(0, 24) + '..'
+        : pr.title;
+      ctx.fillText(prTitle, px + 24, curY);
+      curY += 12;
+    }
   }
 
   // Close hint

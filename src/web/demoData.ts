@@ -4,7 +4,7 @@
  * Dispatches extensionMessage CustomEvents to simulate agent activity.
  * Uses the same message protocol as the VS Code extension host.
  */
-import type { TeamSection } from '../agentTypes.js';
+import type { TeamSection, KanbanCard } from '../agentTypes.js';
 
 function dispatch(msg: Record<string, unknown>) {
   window.dispatchEvent(new CustomEvent('extensionMessage', { detail: msg }));
@@ -46,6 +46,35 @@ const DEMO_AGENTS: Array<{
  */
 export function scheduleDemoEvents(): void {
   console.log('[Demo] Scheduling demo agent events...');
+
+  // Send demo kanban cards with enriched data
+  const demoCards: KanbanCard[] = [
+    {
+      id: '101', title: 'Implement room renderer', status: 'Doing',
+      workItemType: 'User Story', assignee: 'Alice',
+      children: [
+        { id: '101-1', title: 'Extract Canvas 2D code', state: 'Done', completed: true },
+        { id: '101-2', title: 'Add WebSocket client', state: 'Done', completed: true },
+        { id: '101-3', title: 'Wire demo avatars', state: 'Active', completed: false },
+      ],
+      linkedPrs: [
+        { id: '42', title: 'feat: standalone renderer', status: 'active' },
+      ],
+    },
+    {
+      id: '102', title: 'Azure DevOps integration', status: 'Doing',
+      workItemType: 'User Story', assignee: 'Bob',
+      children: [
+        { id: '102-1', title: 'Fetch work items', state: 'Done', completed: true },
+        { id: '102-2', title: 'Fetch sub-tasks', state: 'Active', completed: false },
+      ],
+    },
+    { id: '103', title: 'Fix avatar rendering glitch', status: 'To Do', workItemType: 'Bug' },
+    { id: '104', title: 'Add sound effects', status: 'To Do', workItemType: 'Task' },
+    { id: '105', title: 'Deploy to staging', status: 'Done', workItemType: 'Task', assignee: 'Carol' },
+    { id: '106', title: 'Write tests for pathfinding', status: 'Done', workItemType: 'Task' },
+  ];
+  dispatch({ type: 'kanbanCards', cards: demoCards });
 
   let delay = 500;
 

@@ -143,9 +143,10 @@ function broadcast(msg) {
   }
 }
 
-// --- Agent Manager ---
+// --- Agent Manager + Kanban Polling ---
 // Import dynamically from the server bundle built by esbuild
 let agentManager = null;
+let kanbanPollId = null;
 
 async function startAgentManager() {
   try {
@@ -157,12 +158,40 @@ async function startAgentManager() {
       return;
     }
 
-    const { createAgentManager } = await import(serverBundle);
+    const { createAgentManager, readAzureDevOpsEnv, fetchEnrichedCards } = await import(serverBundle);
     agentManager = createAgentManager(projectDir, (msg) => {
       broadcast(msg);
     });
     agentManager.discoverAgents();
     console.log(`[Server] AgentManager started, watching: ${projectDir}`);
+
+    // Start Azure DevOps kanban polling if configured
+    const adoConfig = readAzureDevOpsEnv();
+    if (adoConfig.organization && adoConfig.project && adoConfig.pat) {
+      console.log(`[Kanban] Azure DevOps configured: ${adoConfig.organization}/${adoConfig.project}`);
+
+      // Initial fetch
+      const cards = await fetchEnrichedCards(adoConfig.organization, adoConfig.project, adoConfig.pat);
+      if (cards.length > 0) {
+        broadcast({ type: 'kanbanCards', cards });
+        console.log(`[Kanban] Initial fetch: ${cards.length} cards`);
+      }
+
+      // Poll on interval
+      if (adoConfig.pollIntervalSeconds > 0) {
+        kanbanPollId = setInterval(async () => {
+          try {
+            const polledCards = await fetchEnrichedCards(adoConfig.organization, adoConfig.project, adoConfig.pat);
+            broadcast({ type: 'kanbanCards', cards: polledCards });
+          } catch (err) {
+            console.warn('[Kanban] Poll failed:', err.message);
+          }
+        }, adoConfig.pollIntervalSeconds * 1000);
+        console.log(`[Kanban] Polling every ${adoConfig.pollIntervalSeconds}s`);
+      }
+    } else {
+      console.log('[Kanban] No Azure DevOps config (set AZDO_ORG, AZDO_PROJECT, AZDO_PAT)');
+    }
   } catch (err) {
     console.warn('[Server] AgentManager failed to start:', err.message);
     console.log('[Server] Running without agent monitoring (demo mode only)');
@@ -181,6 +210,7 @@ server.listen(PORT, async () => {
 // Graceful shutdown
 process.on('SIGINT', () => {
   console.log('\n[Server] Shutting down...');
+  if (kanbanPollId) clearInterval(kanbanPollId);
   if (agentManager) agentManager.dispose();
   wss.close();
   server.close();
@@ -188,6 +218,7 @@ process.on('SIGINT', () => {
 });
 
 process.on('SIGTERM', () => {
+  if (kanbanPollId) clearInterval(kanbanPollId);
   if (agentManager) agentManager.dispose();
   wss.close();
   server.close();
