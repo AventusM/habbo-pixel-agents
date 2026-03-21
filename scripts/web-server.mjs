@@ -12,6 +12,7 @@
  * The --project flag tells AgentManager where to look for Claude Code
  * transcripts. Defaults to the current working directory.
  */
+import 'dotenv/config';
 import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -98,6 +99,7 @@ const server = http.createServer((req, res) => {
 // --- WebSocket Server ---
 const wss = new WebSocketServer({ server });
 const clients = new Set();
+let lastKanbanCards = null; // Cache for new client sync
 
 wss.on('connection', (ws) => {
   clients.add(ws);
@@ -121,6 +123,11 @@ wss.on('connection', (ws) => {
         status: agent.status,
       }));
     }
+  }
+
+  // Send cached kanban cards to newly connected client
+  if (lastKanbanCards) {
+    ws.send(JSON.stringify({ type: 'kanbanCards', cards: lastKanbanCards }));
   }
 
   ws.on('close', () => {
@@ -173,6 +180,7 @@ async function startAgentManager() {
       // Initial fetch
       const cards = await fetchEnrichedCards(adoConfig.organization, adoConfig.project, adoConfig.pat);
       if (cards.length > 0) {
+        lastKanbanCards = cards;
         broadcast({ type: 'kanbanCards', cards });
         console.log(`[Kanban] Initial fetch: ${cards.length} cards`);
       }
@@ -182,6 +190,7 @@ async function startAgentManager() {
         kanbanPollId = setInterval(async () => {
           try {
             const polledCards = await fetchEnrichedCards(adoConfig.organization, adoConfig.project, adoConfig.pat);
+            lastKanbanCards = polledCards;
             broadcast({ type: 'kanbanCards', cards: polledCards });
           } catch (err) {
             console.warn('[Kanban] Poll failed:', err.message);

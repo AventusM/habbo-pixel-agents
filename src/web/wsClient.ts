@@ -72,7 +72,7 @@ export function connectWs(url?: string): void {
       const msg = JSON.parse(event.data as string);
       if (msg && msg.type) {
         // Track whether we've received real agent data
-        if (msg.type === 'agentCreated') {
+        if (msg.type === 'agentCreated' || msg.type === 'kanbanCards') {
           hasReceivedAgents = true;
         }
 

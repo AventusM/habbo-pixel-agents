@@ -30,9 +30,9 @@ export function readAzureDevOpsEnv(): {
   pollIntervalSeconds: number;
 } {
   return {
-    organization: process.env.AZDO_ORG || '',
-    project: process.env.AZDO_PROJECT || '',
-    pat: process.env.AZDO_PAT || '',
+    organization: process.env.AZDO_ORG || process.env.AZURE_DEVOPS_ORG || '',
+    project: process.env.AZDO_PROJECT || process.env.AZURE_DEVOPS_PROJECT || '',
+    pat: process.env.AZDO_PAT || process.env.AZURE_DEVOPS_PAT || '',
     pollIntervalSeconds: parseInt(process.env.AZDO_POLL_INTERVAL || '60', 10),
   };
 }
