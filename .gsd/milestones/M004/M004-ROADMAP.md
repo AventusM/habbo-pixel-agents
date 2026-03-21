@@ -54,7 +54,7 @@ This milestone is complete only when all are true:
 - [x] **S01: Standalone Room Renderer** `risk:high` `depends:[]`
   > After this: Opening a local HTML page in a browser shows the full isometric Habbo room with furniture, camera controls, and placeholder avatars — no VS Code required.
 
-- [ ] **S02: Local WebSocket Server & Agent Feed** `risk:high` `depends:[S01]`
+- [x] **S02: Local WebSocket Server & Agent Feed** `risk:high` `depends:[S01]`
   > After this: A local Node.js server watches JSONL transcript files and pushes agent events over WebSocket. Avatars in the browser room spawn, move, and animate based on real coding agent activity.
 
 - [ ] **S03: Azure DevOps Deep Ticket Integration** `risk:medium` `depends:[S01]`

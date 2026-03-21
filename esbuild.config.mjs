@@ -37,6 +37,16 @@ const webStandaloneConfig = {
   plugins: [],
 };
 
+const webServerConfig = {
+  entryPoints: ['src/web/server.ts'],
+  bundle: true,
+  outfile: 'dist/web/server.mjs',
+  platform: 'node',
+  format: 'esm',
+  sourcemap: true,
+  external: ['vscode'],
+};
+
 // Copy assets from source to dist
 function copyAssets() {
   const srcDir = 'assets/spritesheets';
@@ -184,9 +194,13 @@ async function build() {
       console.log('✓ Webview built: dist/webview.js');
     }
 
-    // Build standalone web
+    // Build standalone web client
     await esbuild.build(webStandaloneConfig);
     console.log('✓ Standalone web built: dist/web/main.js');
+
+    // Build server-side module (AgentManager wrapper)
+    await esbuild.build(webServerConfig);
+    console.log('✓ Web server module built: dist/web/server.mjs');
 
     // Copy web assets
     copyWebAssets();

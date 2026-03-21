@@ -10,6 +10,7 @@ import { RoomCanvas } from '../RoomCanvas.js';
 import { SpriteCache } from '../isoSpriteCache.js';
 import { generateFloorTemplate } from '../roomLayoutEngine.js';
 import { scheduleDemoEvents } from './demoData.js';
+import { connectWs, hasRealAgents } from './wsClient.js';
 
 // Console log interceptor — capture last 200 lines for dev capture
 const LOG_BUFFER_MAX = 200;
@@ -153,10 +154,18 @@ const spriteCache = new SpriteCache();
       const rootElement = createRoot(root);
       rootElement.render(React.createElement(RoomCanvas, { heightmap: FLOOR_HEIGHTMAP }));
 
-      // Schedule demo agent events after a short delay for assets to settle
+      // Connect to WebSocket for real agent data
+      connectWs();
+
+      // Fallback: if no real agents arrive within 5 seconds, start demo mode
       setTimeout(() => {
-        scheduleDemoEvents();
-      }, 1000);
+        if (!hasRealAgents()) {
+          console.log('[Web] No real agents detected — starting demo mode');
+          scheduleDemoEvents();
+        } else {
+          console.log('[Web] Real agents active — demo mode skipped');
+        }
+      }, 5000);
     }
   } catch (error) {
     console.error('Asset loading failed:', error);
