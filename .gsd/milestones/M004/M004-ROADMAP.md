@@ -51,7 +51,7 @@ This milestone is complete only when all are true:
 
 ## Slices
 
-- [ ] **S01: Standalone Room Renderer** `risk:high` `depends:[]`
+- [x] **S01: Standalone Room Renderer** `risk:high` `depends:[]`
   > After this: Opening a local HTML page in a browser shows the full isometric Habbo room with furniture, camera controls, and placeholder avatars — no VS Code required.
 
 - [ ] **S02: Local WebSocket Server & Agent Feed** `risk:high` `depends:[S01]`

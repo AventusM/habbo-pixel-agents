@@ -26,6 +26,17 @@ const webviewConfig = {
   plugins: [],
 };
 
+const webStandaloneConfig = {
+  entryPoints: ['src/web/main.tsx'],
+  bundle: true,
+  outfile: 'dist/web/main.js',
+  platform: 'browser',
+  format: 'iife',
+  jsx: 'automatic',
+  sourcemap: true,
+  plugins: [],
+};
+
 // Copy assets from source to dist
 function copyAssets() {
   const srcDir = 'assets/spritesheets';
@@ -103,8 +114,53 @@ function copyAssets() {
   }
 }
 
+// Copy assets to standalone web dist (symlinks to avoid duplication)
+function copyWebAssets() {
+  const webDir = 'dist/web';
+  const assetsDir = path.join(webDir, 'assets');
+  fs.mkdirSync(assetsDir, { recursive: true });
+
+  // Copy index.html
+  fs.copyFileSync('src/web/index.html', path.join(webDir, 'index.html'));
+  console.log('  ✓ Copied index.html');
+
+  // The webview-assets directory has everything we need — copy it into assets/
+  const srcAssets = 'dist/webview-assets';
+  if (!fs.existsSync(srcAssets)) {
+    console.log('⚠ dist/webview-assets not found — run build:webview first');
+    return;
+  }
+
+  function copyDirRecursive(src, dest) {
+    fs.mkdirSync(dest, { recursive: true });
+    for (const entry of fs.readdirSync(src, { withFileTypes: true })) {
+      const srcPath = path.join(src, entry.name);
+      const destPath = path.join(dest, entry.name);
+      if (entry.isDirectory()) {
+        copyDirRecursive(srcPath, destPath);
+      } else {
+        fs.copyFileSync(srcPath, destPath);
+      }
+    }
+  }
+
+  copyDirRecursive(srcAssets, assetsDir);
+  console.log('  ✓ Copied webview-assets → dist/web/assets/');
+
+  // Also copy sounds directory if it exists in source
+  const soundsSrc = 'assets/sounds';
+  if (fs.existsSync(soundsSrc)) {
+    const soundsDest = path.join(assetsDir, 'sounds');
+    fs.mkdirSync(soundsDest, { recursive: true });
+    for (const file of fs.readdirSync(soundsSrc)) {
+      fs.copyFileSync(path.join(soundsSrc, file), path.join(soundsDest, file));
+    }
+    console.log('  ✓ Copied sounds/');
+  }
+}
+
 async function build() {
-  const target = process.argv[2]; // 'extension' | 'webview' | undefined (both)
+  const target = process.argv[2]; // 'extension' | 'webview' | 'web' | undefined (both ext+webview)
 
   if (!target || target === 'extension') {
     await esbuild.build(extensionConfig);
@@ -117,6 +173,24 @@ async function build() {
 
     await esbuild.build(webviewConfig);
     console.log('✓ Webview built: dist/webview.js');
+  }
+
+  if (target === 'web') {
+    // Ensure webview assets exist first
+    if (!fs.existsSync('dist/webview-assets')) {
+      console.log('Building webview assets first...');
+      copyAssets();
+      await esbuild.build(webviewConfig);
+      console.log('✓ Webview built: dist/webview.js');
+    }
+
+    // Build standalone web
+    await esbuild.build(webStandaloneConfig);
+    console.log('✓ Standalone web built: dist/web/main.js');
+
+    // Copy web assets
+    copyWebAssets();
+    console.log('✓ Web assets copied to dist/web/');
   }
 }
 
