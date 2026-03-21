@@ -30,11 +30,36 @@ export interface AgentState {
   displayName?: string;
 }
 
-/** A card from a GitHub Projects v2 kanban board */
+/** A card from a GitHub Projects v2 kanban board or Azure DevOps */
 export interface KanbanCard {
   id: string;
   title: string;
   status: string; // raw status column name from GitHub Projects
+  /** Work item type (e.g. "User Story", "Bug", "Task") */
+  workItemType?: string;
+  /** Assigned user display name */
+  assignee?: string;
+  /** Child work items (sub-tasks) */
+  children?: KanbanCardChild[];
+  /** Linked pull requests */
+  linkedPrs?: KanbanCardPr[];
+}
+
+/** A child work item (sub-task) */
+export interface KanbanCardChild {
+  id: string;
+  title: string;
+  state: string;
+  /** True if the child is in a completed state */
+  completed: boolean;
+}
+
+/** A linked pull request */
+export interface KanbanCardPr {
+  id: string;
+  title: string;
+  status: string; // 'active', 'completed', 'abandoned'
+  url?: string;
 }
 
 /** Messages from extension host → webview */
@@ -43,6 +68,7 @@ export type ExtensionMessage =
   | { type: 'agentRemoved'; agentId: string }
   | { type: 'agentStatus'; agentId: string; status: AgentStatus }
   | { type: 'agentTool'; agentId: string; toolName: string; displayText: string }
+  | { type: 'agentLinkedTicket'; agentId: string; ticketId?: string; ticketTitle?: string }
   | { type: 'kanbanCards'; cards: KanbanCard[] }
   | { type: 'devMode'; enabled: boolean }
   | { type: 'requestClassification'; agentId: string }

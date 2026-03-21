@@ -111,7 +111,10 @@
     "prebuild": "bash scripts/convert-audio-to-ogg.sh",
     "build:ext": "node esbuild.config.mjs extension",
     "build:webview": "node esbuild.config.mjs webview",
+    "build:web": "node esbuild.config.mjs web",
     "build": "node esbuild.config.mjs",
+    "web": "node esbuild.config.mjs web && node scripts/web-server.mjs",
+    "web:serve": "node scripts/web-server.mjs",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest"
@@ -121,6 +124,7 @@
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@types/vscode": "^1.109.0",
+    "@types/ws": "^8.18.1",
     "esbuild": "^0.27.3",
     "happy-dom": "^20.7.0",
     "pngjs": "^7.0.0",
@@ -130,6 +134,7 @@
   "dependencies": {
     "dotenv": "^17.3.1",
     "react": "^19.2.4",
-    "react-dom": "^19.2.4"
+    "react-dom": "^19.2.4",
+    "ws": "^8.20.0"
   }
 }

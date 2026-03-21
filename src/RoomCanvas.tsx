@@ -48,6 +48,7 @@ import {
   createOrchestrationState, drawOrchestrationOverlay,
   orchestrationAddAgent, orchestrationRemoveAgent,
   orchestrationSetStatus, orchestrationSetTool,
+  orchestrationSetLinkedTicket, getLinkedTicketIds,
 } from './isoOrchestrationOverlay.js';
 
 interface RoomCanvasProps {
@@ -417,6 +418,16 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
           }
           break;
         }
+        case 'agentLinkedTicket': {
+          const linkMsg = msg as any;
+          orchestrationSetLinkedTicket(
+            orchStateRef.current,
+            linkMsg.agentId,
+            linkMsg.ticketId,
+            linkMsg.ticketTitle,
+          );
+          break;
+        }
         case 'jumpToSection': {
           const jumpMsg = msg as any;
           const team = jumpMsg.team as TeamSection;
@@ -745,6 +756,7 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
           renderState.current.cameraOrigin,
           expandedNoteRef.current,
           expandedAggregateRef.current,
+          getLinkedTicketIds(orchStateRef.current),
         );
       }
 
