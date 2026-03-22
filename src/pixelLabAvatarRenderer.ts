@@ -45,6 +45,9 @@ const IDLE_FRAME_DURATION_MS = 250;
 /** Vertical offset applied to avatar ground position */
 const AVATAR_GROUND_Y = 0;
 
+/** Additional Y offset applied when avatar is sitting to lower the sprite onto the chair seat */
+const SIT_Y_OFFSET = 30;
+
 /**
  * PixelLab avatar renderer implementation.
  *
@@ -135,7 +138,8 @@ export const pixelLabRenderer: AvatarRenderer = {
         const dw = Math.floor(frame.w * SCALE);
         const dh = Math.floor(frame.h * SCALE);
         const dx = Math.floor(screen.x - dw / 2);
-        const dy = Math.floor(screen.y - dh + TILE_H_HALF + Y_OFFSET);
+        const sitOffset = spec.state === "sit" ? SIT_Y_OFFSET : 0;
+        const dy = Math.floor(screen.y - dh + TILE_H_HALF + Y_OFFSET + sitOffset);
 
         // Spawn/despawn clipping
         if (spec.state === "spawning" || spec.state === "despawning") {
