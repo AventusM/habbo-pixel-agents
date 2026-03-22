@@ -147,6 +147,14 @@ wss.on('connection', (ws) => {
         agentId: session.id,
         status: session.isRunning ? 'active' : 'idle',
       }));
+      if (session.lastStatus) {
+        ws.send(JSON.stringify({
+          type: 'agentTool',
+          agentId: session.id,
+          toolName: 'CopilotAgent',
+          displayText: session.lastStatus,
+        }));
+      }
       if (session.linkedTicketId) {
         ws.send(JSON.stringify({
           type: 'agentLinkedTicket',
