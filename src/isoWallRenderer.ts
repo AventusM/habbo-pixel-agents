@@ -8,7 +8,6 @@ import {
   TILE_W_HALF,
   TILE_H_HALF,
   WALL_HEIGHT,
-  FLOOR_THICKNESS,
   tileToScreen,
 } from './isometricMath.js';
 import type { TileGrid, HsbColor } from './isoTypes.js';
@@ -78,21 +77,6 @@ export function drawWallPanels(
     ctx.closePath();
     ctx.fillStyle = left;
     ctx.fill();
-
-    // Wall thickness strip — darker front edge along the bottom of the left wall
-    const WALL_EDGE = FLOOR_THICKNESS;
-    const { right: edgeColor } = tileColors(tileHsb);
-    ctx.beginPath();
-    for (let i = 0; i < bottomPoints.length; i++) {
-      const fn = i === 0 ? 'moveTo' : 'lineTo';
-      ctx[fn](bottomPoints[i].x, bottomPoints[i].y);
-    }
-    for (let i = bottomPoints.length - 1; i >= 0; i--) {
-      ctx.lineTo(bottomPoints[i].x - WALL_EDGE, bottomPoints[i].y + WALL_EDGE / 2);
-    }
-    ctx.closePath();
-    ctx.fillStyle = edgeColor;
-    ctx.fill();
   }
 
   // --- RIGHT WALL (rises above the right/top edge of the floor) ---
@@ -140,21 +124,6 @@ export function drawWallPanels(
     ctx.closePath();
     ctx.fillStyle = right;
     ctx.fill();
-
-    // Wall thickness strip — darker front edge along the bottom of the right wall
-    const WALL_EDGE_R = FLOOR_THICKNESS;
-    const { left: edgeColorR } = tileColors(tileHsb);
-    ctx.beginPath();
-    for (let i = 0; i < bottomPoints.length; i++) {
-      const fn = i === 0 ? 'moveTo' : 'lineTo';
-      ctx[fn](bottomPoints[i].x, bottomPoints[i].y);
-    }
-    for (let i = bottomPoints.length - 1; i >= 0; i--) {
-      ctx.lineTo(bottomPoints[i].x + WALL_EDGE_R, bottomPoints[i].y + WALL_EDGE_R / 2);
-    }
-    ctx.closePath();
-    ctx.fillStyle = edgeColorR;
-    ctx.fill();
   }
   // --- BACK CORNER POST ---
   const cornerTile = grid.tiles[0]?.[0];
@@ -169,5 +138,91 @@ export function drawWallPanels(
     // Post rises UPWARD from tile top vertex
     ctx.fillStyle = left;
     ctx.fillRect(screenX - 2, screenY - WALL_HEIGHT, 4, WALL_HEIGHT);
+  }
+}
+
+/**
+ * Draw wall front-face thickness edges.
+ *
+ * Must be called AFTER floor tiles so the edge strips render on top.
+ * Each wall gets a narrow vertical strip at its camera-facing termination edge,
+ * giving the wall visible depth (like a real slab, not a flat sheet).
+ *
+ * The left wall's front face is along its last (bottom-most) tile's left vertex,
+ * running from floor to ceiling. The right wall's front face is along its last
+ * (rightmost) tile's right vertex.
+ */
+export function drawWallEdges(
+  ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D,
+  grid: TileGrid,
+  cameraOrigin: { x: number; y: number },
+  hsb: HsbColor,
+  tileColorMap?: Map<string, HsbColor>,
+): void {
+  const WALL_DEPTH = 4; // Wall thickness in pixels
+  const tileHsb = (tileColorMap && tileColorMap.get('0,0')) || hsb;
+
+  // --- LEFT WALL front-face edge ---
+  // Find the last (bottom-most) tile on the left edge
+  let lastLeftTile: { tx: number; ty: number; height: number } | null = null;
+  for (let ty = grid.height - 1; ty >= 0; ty--) {
+    for (let tx = 0; tx < grid.width; tx++) {
+      const tile = grid.tiles[ty][tx];
+      if (tile == null) continue;
+      if (tx === 0 || grid.tiles[ty][tx - 1] == null) {
+        lastLeftTile = { tx, ty, height: tile.height };
+        break;
+      }
+    }
+    if (lastLeftTile) break;
+  }
+
+  if (lastLeftTile) {
+    const { x: sx, y: sy } = tileToScreen(lastLeftTile.tx, lastLeftTile.ty, lastLeftTile.height);
+    const leftX = sx + cameraOrigin.x - TILE_W_HALF;
+    const leftY = sy + cameraOrigin.y + TILE_H_HALF;
+    const { right: edgeColor } = tileColors(tileHsb);
+
+    // Vertical strip from floor to ceiling at the left wall's bottom-most left vertex
+    ctx.beginPath();
+    ctx.moveTo(leftX, leftY - WALL_HEIGHT);                          // top-left
+    ctx.lineTo(leftX - WALL_DEPTH, leftY - WALL_HEIGHT + WALL_DEPTH / 2); // top-right (offset for iso)
+    ctx.lineTo(leftX - WALL_DEPTH, leftY + WALL_DEPTH / 2);         // bottom-right
+    ctx.lineTo(leftX, leftY);                                        // bottom-left
+    ctx.closePath();
+    ctx.fillStyle = edgeColor;
+    ctx.fill();
+  }
+
+  // --- RIGHT WALL front-face edge ---
+  // Find the last (rightmost) tile on the top edge
+  let lastRightTile: { tx: number; ty: number; height: number } | null = null;
+  for (let tx = grid.width - 1; tx >= 0; tx--) {
+    for (let ty = 0; ty < grid.height; ty++) {
+      const tile = grid.tiles[ty][tx];
+      if (tile == null) continue;
+      if (ty === 0 || grid.tiles[ty - 1]?.[tx] == null) {
+        lastRightTile = { tx, ty, height: tile.height };
+        break;
+      }
+    }
+    if (lastRightTile) break;
+  }
+
+  if (lastRightTile) {
+    const { x: sx, y: sy } = tileToScreen(lastRightTile.tx, lastRightTile.ty, lastRightTile.height);
+    const rightX = sx + cameraOrigin.x + TILE_W_HALF;
+    const rightY = sy + cameraOrigin.y + TILE_H_HALF;
+    const { left: edgeColor } = tileColors(tileHsb);
+
+    // Vertical strip from floor to ceiling at the right wall's rightmost right vertex
+    ctx.beginPath();
+    ctx.moveTo(rightX, rightY - WALL_HEIGHT);                          // top-left
+    ctx.lineTo(rightX + WALL_DEPTH, rightY - WALL_HEIGHT + WALL_DEPTH / 2); // top-right
+    ctx.lineTo(rightX + WALL_DEPTH, rightY + WALL_DEPTH / 2);         // bottom-right
+    ctx.lineTo(rightX, rightY);                                        // bottom-left
+    ctx.closePath();
+    ctx.fillStyle = edgeColor;
+    ctx.fill();
   }
 }

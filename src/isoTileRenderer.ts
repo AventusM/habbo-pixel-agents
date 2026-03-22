@@ -13,7 +13,7 @@ import {
 } from './isometricMath.js';
 import type { TileGrid, HsbColor, Renderable } from './isoTypes.js';
 import { tileColors, depthSort } from './isoTypes.js';
-import { drawWallPanels } from './isoWallRenderer.js';
+import { drawWallPanels, drawWallEdges } from './isoWallRenderer.js';
 import {
   createFurnitureRenderable,
   createMultiTileFurnitureRenderable,
@@ -202,6 +202,9 @@ export function preRenderRoom(
   for (const renderable of sorted) {
     renderable.draw(ctx);
   }
+
+  // Draw wall front-face edges AFTER floor tiles so they render on top
+  drawWallEdges(ctx, grid, cameraOrigin, hsb, tileColorMap);
 
   return offscreen;
 }
