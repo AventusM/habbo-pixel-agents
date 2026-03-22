@@ -211,6 +211,81 @@ export function formatDisplayName(branch: string): string {
     .slice(0, 20);
 }
 
+/** State for a single SSE connection to Copilot session logs */
+export interface SSEConnection {
+  /** The agent ID this connection serves */
+  agentId: string;
+  /** AbortController to cancel the fetch */
+  controller: AbortController;
+  /** Whether the connection is currently active */
+  connected: boolean;
+}
+
+/**
+ * Parse a single SSE `data:` line into a tool call.
+ *
+ * Unlike `parseLastToolCall` which scans the entire body from the end,
+ * this processes one event at a time for incremental streaming.
+ * Returns null for setup/progress tools, unparseable lines, or
+ * content that isn't a meaningful tool call or thinking.
+ */
+export function parseSingleSSEEvent(dataLine: string): ParsedToolCall | null {
+  if (!dataLine.startsWith('data: ')) return null;
+
+  const skipTools = new Set(['run_custom_setup_step', 'run_setup', 'report_progress']);
+
+  try {
+    const json = JSON.parse(dataLine.slice(6));
+    const choices = json.choices || [];
+    for (const choice of choices) {
+      const delta = choice.delta || {};
+
+      // Check for tool calls
+      const toolCalls = delta.tool_calls || [];
+      for (const tc of toolCalls) {
+        const fn = tc.function || {};
+        const name = fn.name as string;
+        if (!name || skipTools.has(name)) continue;
+
+        let args: Record<string, unknown> = {};
+        try {
+          args = JSON.parse(fn.arguments || '{}');
+        } catch {
+          // Arguments might not be valid JSON
+        }
+
+        return {
+          name,
+          description: args.description as string | undefined,
+          path: (args.path || args.file_path) as string | undefined,
+          pattern: args.pattern as string | undefined,
+          command: args.command as string | undefined,
+        };
+      }
+
+      // Check for agent reasoning (content without tool calls)
+      if (delta.content && toolCalls.length === 0) {
+        const content = (delta.content as string).trim();
+        if (
+          content.length > 10 &&
+          !content.includes('<pr_title>') &&
+          !content.includes('<pr_description>') &&
+          !content.startsWith('$')
+        ) {
+          return {
+            name: '_thinking',
+            description: content,
+          };
+        }
+      }
+    }
+  } catch {
+    // Unparseable line — skip
+  }
+
+  return null;
+}
+
 export class CopilotAgentMonitor {
   private owner: string;
   private repo: string;
@@ -224,6 +299,8 @@ export class CopilotAgentMonitor {
   private sessionIdCache = new Map<number, string>();
   /** Whether the Copilot sessions API is available (avoids repeated 401s) */
   private sessionApiAvailable = true;
+  /** Active SSE connections per agent ID */
+  private sseConnections = new Map<string, SSEConnection>();
 
   constructor(
     owner: string,
@@ -246,17 +323,170 @@ export class CopilotAgentMonitor {
     this.pollTimer = setInterval(() => void this.poll(), this.pollIntervalMs);
   }
 
-  /** Stop polling */
+  /** Stop polling and close all SSE connections */
   stop(): void {
     if (this.pollTimer) {
       clearInterval(this.pollTimer);
       this.pollTimer = null;
     }
+    this.closeAllSSEConnections();
   }
 
   /** Get current sessions */
   getSessions(): CopilotAgentSession[] {
     return Array.from(this.sessions.values());
+  }
+
+  /** Check if an agent has an active SSE stream */
+  hasActiveSSE(agentId: string): boolean {
+    const conn = this.sseConnections.get(agentId);
+    return conn?.connected === true;
+  }
+
+  /**
+   * Open a persistent SSE connection to stream tool calls for a running agent.
+   *
+   * Reads the response body incrementally via ReadableStream, parses each
+   * `data:` line as it arrives, and emits agentTool/agentStatus messages
+   * for new tool calls. Falls back gracefully — if SSE fails, the poll
+   * cycle's `getActivitySnapshot()` still works.
+   */
+  private async openSSEStream(session: CopilotAgentSession): Promise<void> {
+    const agentId = session.id;
+
+    // Don't open duplicate connections
+    if (this.sseConnections.has(agentId)) return;
+    if (!this.sessionApiAvailable) return;
+
+    // Resolve the Copilot session ID
+    const sessionId = await this.resolveCopilotSessionId(session.prNumber);
+    if (!sessionId) {
+      console.log(`[CopilotMonitor] SSE: no session ID for PR #${session.prNumber}`);
+      return;
+    }
+    session.copilotSessionId = sessionId;
+
+    const controller = new AbortController();
+    const conn: SSEConnection = { agentId, controller, connected: false };
+    this.sseConnections.set(agentId, conn);
+
+    // Run the streaming fetch in the background — don't await it
+    void this.runSSEStream(session, sessionId, conn);
+  }
+
+  /**
+   * The actual SSE streaming loop. Runs for the lifetime of one connection.
+   */
+  private async runSSEStream(
+    session: CopilotAgentSession,
+    sessionId: string,
+    conn: SSEConnection,
+  ): Promise<void> {
+    const agentId = session.id;
+
+    try {
+      const res = await fetch(
+        `https://api.githubcopilot.com/agents/sessions/${sessionId}/logs`,
+        {
+          headers: {
+            'Authorization': `Bearer ${this.token}`,
+            'Content-Type': 'application/json',
+            'Copilot-Integration-Id': 'copilot-4-cli',
+            'X-Github-Api-Version': '2026-01-09',
+          },
+          signal: conn.controller.signal,
+        },
+      );
+
+      if (!res.ok) {
+        if (res.status === 401 || res.status === 403) {
+          console.warn('[CopilotMonitor] SSE: session logs API not authorized, disabling');
+          this.sessionApiAvailable = false;
+        } else {
+          console.warn(`[CopilotMonitor] SSE: failed for PR #${session.prNumber}: ${res.status}`);
+        }
+        this.sseConnections.delete(agentId);
+        return;
+      }
+
+      if (!res.body) {
+        console.warn(`[CopilotMonitor] SSE: no response body for PR #${session.prNumber}`);
+        this.sseConnections.delete(agentId);
+        return;
+      }
+
+      conn.connected = true;
+      console.log(`[CopilotMonitor] SSE connected for PR #${session.prNumber}`);
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+
+        // Process complete lines from the buffer
+        let newlineIdx: number;
+        while ((newlineIdx = buffer.indexOf('\n')) !== -1) {
+          const line = buffer.slice(0, newlineIdx).trim();
+          buffer = buffer.slice(newlineIdx + 1);
+
+          if (!line.startsWith('data: ')) continue;
+
+          const toolCall = parseSingleSSEEvent(line);
+          if (!toolCall) continue;
+
+          const displayText = formatCopilotToolCall(toolCall);
+          const phase = this.detectPhaseFromTool(toolCall);
+
+          // Only emit if the display text actually changed
+          if (displayText !== session.lastStatus) {
+            session.lastStatus = displayText;
+            this.onMessage({
+              type: 'agentStatus',
+              agentId,
+              status: 'active',
+            });
+            this.onMessage({
+              type: 'agentTool',
+              agentId,
+              toolName: 'CopilotAgent',
+              displayText,
+            });
+            console.log(`[CopilotMonitor] SSE PR #${session.prNumber}: ${displayText}`);
+          }
+        }
+      }
+    } catch (err) {
+      // AbortError is expected when we close the connection
+      if ((err as Error).name !== 'AbortError') {
+        console.warn(`[CopilotMonitor] SSE error for PR #${session.prNumber}:`, (err as Error).message);
+      }
+    } finally {
+      conn.connected = false;
+      this.sseConnections.delete(agentId);
+      console.log(`[CopilotMonitor] SSE closed for PR #${session.prNumber}`);
+    }
+  }
+
+  /** Close the SSE connection for a specific agent */
+  private closeSSEConnection(agentId: string): void {
+    const conn = this.sseConnections.get(agentId);
+    if (conn) {
+      conn.controller.abort();
+      this.sseConnections.delete(agentId);
+    }
+  }
+
+  /** Close all active SSE connections */
+  private closeAllSSEConnections(): void {
+    for (const [agentId, conn] of this.sseConnections) {
+      conn.controller.abort();
+    }
+    this.sseConnections.clear();
   }
 
   private async poll(): Promise<void> {
@@ -345,7 +575,11 @@ export class CopilotAgentMonitor {
           });
 
           console.log(`[CopilotMonitor] New agent: ${displayName} (PR #${pr.number}, ${activity.displayText})`);
-        } else {
+
+          // Open SSE stream for real-time updates if agent is running
+          if (isRunning) {
+            void this.openSSEStream(session);
+          }        } else {
           // Existing session — check for state changes
           const wasRunning = existing.isRunning;
           existing.isRunning = isRunning;
@@ -353,7 +587,29 @@ export class CopilotAgentMonitor {
           existing.updatedAt = pr.updatedAt;
           existing.lastRunName = runName;
 
-          // Always refresh activity when running, or on state transition
+          // Manage SSE connection lifecycle based on running state
+          if (isRunning && !wasRunning) {
+            // Agent started running — open SSE stream
+            void this.openSSEStream(existing);
+          } else if (!isRunning && wasRunning) {
+            // Agent stopped running — close SSE stream
+            this.closeSSEConnection(agentId);
+          }
+
+          // Skip activity snapshot if SSE is actively streaming updates
+          if (this.hasActiveSSE(agentId)) {
+            // SSE is handling real-time updates — just emit status if it changed
+            if (isRunning !== wasRunning) {
+              this.onMessage({
+                type: 'agentStatus',
+                agentId,
+                status: isRunning ? 'active' : 'idle',
+              });
+            }
+            continue;
+          }
+
+          // No active SSE — fall back to poll-based activity snapshot
           if (isRunning || isRunning !== wasRunning) {
             const activity = await this.getActivitySnapshot(existing, isRunning, runName);
 
@@ -380,6 +636,7 @@ export class CopilotAgentMonitor {
       // Remove sessions for PRs that are no longer open
       for (const [agentId] of this.sessions) {
         if (!currentIds.has(agentId)) {
+          this.closeSSEConnection(agentId);
           this.onMessage({ type: 'agentRemoved', agentId });
           this.sessions.delete(agentId);
           console.log(`[CopilotMonitor] Agent removed: ${agentId}`);
