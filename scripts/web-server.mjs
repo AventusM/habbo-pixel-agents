@@ -148,11 +148,12 @@ wss.on('connection', (ws) => {
         status: session.isRunning ? 'active' : 'idle',
       }));
       if (session.lastStatus) {
+        const ticketPrefix = session.linkedTicketId ? `AB#${session.linkedTicketId} · ` : '';
         ws.send(JSON.stringify({
           type: 'agentTool',
           agentId: session.id,
           toolName: 'CopilotAgent',
-          displayText: session.lastStatus,
+          displayText: `${ticketPrefix}${session.lastStatus}`,
         }));
       }
       if (session.linkedTicketId) {
