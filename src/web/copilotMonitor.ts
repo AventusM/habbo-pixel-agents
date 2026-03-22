@@ -56,6 +56,8 @@ export interface ParsedToolCall {
   path?: string;
   pattern?: string;
   command?: string;
+  /** Message from report_progress tool calls */
+  message?: string;
 }
 
 /** Summarised activity for display */
@@ -109,6 +111,7 @@ export function parseLastToolCall(sseBody: string): ParsedToolCall | null {
             path: (args.path || args.file_path) as string | undefined,
             pattern: args.pattern as string | undefined,
             command: args.command as string | undefined,
+            message: args.message as string | undefined,
           };
         }
 
@@ -183,8 +186,8 @@ export function formatCopilotToolCall(tool: ParsedToolCall): string {
     case 'codeql_checker':
       return 'Running security analysis';
     case 'report_progress': {
-      // Agent progress update — extract the message
-      const msg = tool.description || tool.command || '';
+      // Agent progress update — message field has the main content
+      const msg = tool.message || tool.description || tool.command || '';
       if (msg) return truncate(msg, 50);
       return 'Updating progress...';
     }
@@ -285,6 +288,7 @@ export function parseSingleSSEEvent(dataLine: string): ParsedToolCall | null {
           path: (args.path || args.file_path) as string | undefined,
           pattern: args.pattern as string | undefined,
           command: args.command as string | undefined,
+          message: args.message as string | undefined,
         };
       }
 
@@ -747,7 +751,7 @@ export class CopilotAgentMonitor {
           });
 
           // Fetch initial activity snapshot
-          const activity = await this.getActivitySnapshot(session, isRunning, runName);
+          const activity = await this.getActivitySnapshot(session, isRunning, runName, true);
           session.lastStatus = activity.displayText;
           this.onMessage({
             type: 'agentTool',
@@ -863,6 +867,7 @@ export class CopilotAgentMonitor {
     session: CopilotAgentSession,
     isRunning: boolean,
     runName?: string,
+    isInitialDiscovery?: boolean,
   ): Promise<ActivitySnapshot> {
     const topic = this.shortenTitle(session.title);
 
@@ -871,6 +876,10 @@ export class CopilotAgentMonitor {
     const liveActivity = await this.fetchLiveActivity(session);
 
     if (!isRunning) {
+      // For newly discovered PRs that aren't running yet, show "Starting" not "Done"
+      if (isInitialDiscovery) {
+        return { displayText: `Starting: ${topic}`, phase: 'waiting' };
+      }
       if (liveActivity) {
         // Completed — prefix with "Done" but show what was last done
         return { displayText: `Done: ${liveActivity.displayText}`, phase: 'waiting' };
