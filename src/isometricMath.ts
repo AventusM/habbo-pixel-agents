@@ -18,6 +18,12 @@ export const TILE_H_HALF = 16;
 export const WALL_HEIGHT = 128;
 
 /**
+ * Floor slab thickness in pixels.
+ * Draws darker side faces below front-facing tile edges for depth.
+ */
+export const FLOOR_THICKNESS = 6;
+
+/**
  * Convert isometric tile coordinates to screen pixel coordinates.
  * Returns the TOP VERTEX of the tile rhombus (before camera offset).
  *

@@ -54,6 +54,9 @@ This milestone is complete only when all are true:
 - [ ] **S11: Fix Copilot Agent Streaming Fallback & ADO PR-Opened State Sync** `risk:medium` `depends:[S10, S07]`
   > After this: Copilot agent speech bubbles update in real time (not 15s stale polls) with visible feed mode indicators, and opening a Copilot PR reliably moves the linked ADO ticket to "Doing" via server-side sync.
 
+- [ ] **S12: Floor & Wall Thickness for Habbo-Authentic Room Depth** `risk:low` `depends:[S01]`
+  > After this: Floor tiles show visible darker side faces (slab depth) and walls have edge thickness strips, giving the room a constructed 3D feel matching the classic Habbo look.
+
 - [ ] **S07: Copilot Agent Activity Monitor Workflow** `risk:low` `depends:[S06]`
   > After this: A GitHub Actions workflow watches Copilot agent PR activity and posts status updates as PR comments + syncs ADO work item state (To Do → Doing → Done) automatically. No human watching required.
 

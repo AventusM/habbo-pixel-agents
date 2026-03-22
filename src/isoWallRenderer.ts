@@ -8,6 +8,7 @@ import {
   TILE_W_HALF,
   TILE_H_HALF,
   WALL_HEIGHT,
+  FLOOR_THICKNESS,
   tileToScreen,
 } from './isometricMath.js';
 import type { TileGrid, HsbColor } from './isoTypes.js';
@@ -77,6 +78,21 @@ export function drawWallPanels(
     ctx.closePath();
     ctx.fillStyle = left;
     ctx.fill();
+
+    // Wall thickness strip — darker front edge along the bottom of the left wall
+    const WALL_EDGE = FLOOR_THICKNESS;
+    const { right: edgeColor } = tileColors(tileHsb);
+    ctx.beginPath();
+    for (let i = 0; i < bottomPoints.length; i++) {
+      const fn = i === 0 ? 'moveTo' : 'lineTo';
+      ctx[fn](bottomPoints[i].x, bottomPoints[i].y);
+    }
+    for (let i = bottomPoints.length - 1; i >= 0; i--) {
+      ctx.lineTo(bottomPoints[i].x - WALL_EDGE, bottomPoints[i].y + WALL_EDGE / 2);
+    }
+    ctx.closePath();
+    ctx.fillStyle = edgeColor;
+    ctx.fill();
   }
 
   // --- RIGHT WALL (rises above the right/top edge of the floor) ---
@@ -124,8 +140,22 @@ export function drawWallPanels(
     ctx.closePath();
     ctx.fillStyle = right;
     ctx.fill();
-  }
 
+    // Wall thickness strip — darker front edge along the bottom of the right wall
+    const WALL_EDGE_R = FLOOR_THICKNESS;
+    const { left: edgeColorR } = tileColors(tileHsb);
+    ctx.beginPath();
+    for (let i = 0; i < bottomPoints.length; i++) {
+      const fn = i === 0 ? 'moveTo' : 'lineTo';
+      ctx[fn](bottomPoints[i].x, bottomPoints[i].y);
+    }
+    for (let i = bottomPoints.length - 1; i >= 0; i--) {
+      ctx.lineTo(bottomPoints[i].x + WALL_EDGE_R, bottomPoints[i].y + WALL_EDGE_R / 2);
+    }
+    ctx.closePath();
+    ctx.fillStyle = edgeColorR;
+    ctx.fill();
+  }
   // --- BACK CORNER POST ---
   const cornerTile = grid.tiles[0]?.[0];
   if (cornerTile != null) {
