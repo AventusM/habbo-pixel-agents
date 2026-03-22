@@ -142,15 +142,16 @@ export function drawWallPanels(
 }
 
 /**
- * Draw wall front-face thickness edges.
+ * Draw wall front-face and top-face thickness edges.
  *
  * Must be called AFTER floor tiles so the edge strips render on top.
- * Each wall gets a narrow vertical strip at its camera-facing termination edge,
- * giving the wall visible depth (like a real slab, not a flat sheet).
  *
- * The left wall's front face is along its last (bottom-most) tile's left vertex,
- * running from floor to ceiling. The right wall's front face is along its last
- * (rightmost) tile's right vertex.
+ * Left wall gets:
+ * - A front face (parallelogram) running the full length of the wall's bottom edge,
+ *   offset outward by WALL_DEPTH pixels (camera-facing side).
+ * - A top face strip along the ceiling line.
+ *
+ * Right wall gets the same treatment on its camera-facing side.
  */
 export function drawWallEdges(
   ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D,
@@ -159,70 +160,104 @@ export function drawWallEdges(
   hsb: HsbColor,
   tileColorMap?: Map<string, HsbColor>,
 ): void {
-  const WALL_DEPTH = 4; // Wall thickness in pixels
+  const WALL_DEPTH = 4;
   const tileHsb = (tileColorMap && tileColorMap.get('0,0')) || hsb;
+  const colors = tileColors(tileHsb);
 
-  // --- LEFT WALL front-face edge ---
-  // Find the last (bottom-most) tile on the left edge
-  let lastLeftTile: { tx: number; ty: number; height: number } | null = null;
-  for (let ty = grid.height - 1; ty >= 0; ty--) {
+  // --- LEFT WALL edges ---
+  const leftEdge: Array<{ tx: number; ty: number; height: number }> = [];
+  for (let ty = 0; ty < grid.height; ty++) {
     for (let tx = 0; tx < grid.width; tx++) {
       const tile = grid.tiles[ty][tx];
       if (tile == null) continue;
       if (tx === 0 || grid.tiles[ty][tx - 1] == null) {
-        lastLeftTile = { tx, ty, height: tile.height };
+        leftEdge.push({ tx, ty, height: tile.height });
         break;
       }
     }
-    if (lastLeftTile) break;
   }
 
-  if (lastLeftTile) {
-    const { x: sx, y: sy } = tileToScreen(lastLeftTile.tx, lastLeftTile.ty, lastLeftTile.height);
-    const leftX = sx + cameraOrigin.x - TILE_W_HALF;
-    const leftY = sy + cameraOrigin.y + TILE_H_HALF;
-    const { right: edgeColor } = tileColors(tileHsb);
+  if (leftEdge.length > 0) {
+    // Build the bottom edge points (same as drawWallPanels)
+    const pts: Array<{ x: number; y: number }> = [];
+    const first = leftEdge[0];
+    const { x: fsx, y: fsy } = tileToScreen(first.tx, first.ty, first.height);
+    pts.push({ x: fsx + cameraOrigin.x, y: fsy + cameraOrigin.y });
+    for (const { tx, ty, height } of leftEdge) {
+      const { x: sx, y: sy } = tileToScreen(tx, ty, height);
+      pts.push({ x: sx + cameraOrigin.x - TILE_W_HALF, y: sy + cameraOrigin.y + TILE_H_HALF });
+    }
 
-    // Vertical strip from floor to ceiling at the left wall's bottom-most left vertex
+    // Front face: full-length parallelogram along the bottom edge, offset outward
     ctx.beginPath();
-    ctx.moveTo(leftX, leftY - WALL_HEIGHT);                          // top-left
-    ctx.lineTo(leftX - WALL_DEPTH, leftY - WALL_HEIGHT + WALL_DEPTH / 2); // top-right (offset for iso)
-    ctx.lineTo(leftX - WALL_DEPTH, leftY + WALL_DEPTH / 2);         // bottom-right
-    ctx.lineTo(leftX, leftY);                                        // bottom-left
+    for (let i = 0; i < pts.length; i++) {
+      ctx[i === 0 ? 'moveTo' : 'lineTo'](pts[i].x, pts[i].y);
+    }
+    for (let i = pts.length - 1; i >= 0; i--) {
+      ctx.lineTo(pts[i].x - WALL_DEPTH, pts[i].y + WALL_DEPTH / 2);
+    }
     ctx.closePath();
-    ctx.fillStyle = edgeColor;
+    ctx.fillStyle = colors.right;
+    ctx.fill();
+
+    // Top face: strip along the ceiling line
+    ctx.beginPath();
+    for (let i = 0; i < pts.length; i++) {
+      ctx[i === 0 ? 'moveTo' : 'lineTo'](pts[i].x, pts[i].y - WALL_HEIGHT);
+    }
+    for (let i = pts.length - 1; i >= 0; i--) {
+      ctx.lineTo(pts[i].x - WALL_DEPTH, pts[i].y - WALL_HEIGHT + WALL_DEPTH / 2);
+    }
+    ctx.closePath();
+    ctx.fillStyle = colors.top;
     ctx.fill();
   }
 
-  // --- RIGHT WALL front-face edge ---
-  // Find the last (rightmost) tile on the top edge
-  let lastRightTile: { tx: number; ty: number; height: number } | null = null;
-  for (let tx = grid.width - 1; tx >= 0; tx--) {
+  // --- RIGHT WALL edges ---
+  const rightEdge: Array<{ tx: number; ty: number; height: number }> = [];
+  for (let tx = 0; tx < grid.width; tx++) {
     for (let ty = 0; ty < grid.height; ty++) {
       const tile = grid.tiles[ty][tx];
       if (tile == null) continue;
       if (ty === 0 || grid.tiles[ty - 1]?.[tx] == null) {
-        lastRightTile = { tx, ty, height: tile.height };
+        rightEdge.push({ tx, ty, height: tile.height });
         break;
       }
     }
-    if (lastRightTile) break;
   }
 
-  if (lastRightTile) {
-    const { x: sx, y: sy } = tileToScreen(lastRightTile.tx, lastRightTile.ty, lastRightTile.height);
-    const rightX = sx + cameraOrigin.x + TILE_W_HALF;
-    const rightY = sy + cameraOrigin.y + TILE_H_HALF;
-    const { left: edgeColor } = tileColors(tileHsb);
+  if (rightEdge.length > 0) {
+    const pts: Array<{ x: number; y: number }> = [];
+    const first = rightEdge[0];
+    const { x: fsx, y: fsy } = tileToScreen(first.tx, first.ty, first.height);
+    pts.push({ x: fsx + cameraOrigin.x, y: fsy + cameraOrigin.y });
+    for (const { tx, ty, height } of rightEdge) {
+      const { x: sx, y: sy } = tileToScreen(tx, ty, height);
+      pts.push({ x: sx + cameraOrigin.x + TILE_W_HALF, y: sy + cameraOrigin.y + TILE_H_HALF });
+    }
 
-    // Vertical strip from floor to ceiling at the right wall's rightmost right vertex
+    // Front face: full-length parallelogram along the bottom edge, offset outward
     ctx.beginPath();
-    ctx.moveTo(rightX, rightY - WALL_HEIGHT);                          // top-left
-    ctx.lineTo(rightX + WALL_DEPTH, rightY - WALL_HEIGHT + WALL_DEPTH / 2); // top-right
-    ctx.lineTo(rightX + WALL_DEPTH, rightY + WALL_DEPTH / 2);         // bottom-right
-    ctx.lineTo(rightX, rightY);                                        // bottom-left
+    for (let i = 0; i < pts.length; i++) {
+      ctx[i === 0 ? 'moveTo' : 'lineTo'](pts[i].x, pts[i].y);
+    }
+    for (let i = pts.length - 1; i >= 0; i--) {
+      ctx.lineTo(pts[i].x + WALL_DEPTH, pts[i].y + WALL_DEPTH / 2);
+    }
     ctx.closePath();
-    ctx.fillStyle = edgeColor;
+    ctx.fillStyle = colors.left;
+    ctx.fill();
+
+    // Top face: strip along the ceiling line
+    ctx.beginPath();
+    for (let i = 0; i < pts.length; i++) {
+      ctx[i === 0 ? 'moveTo' : 'lineTo'](pts[i].x, pts[i].y - WALL_HEIGHT);
+    }
+    for (let i = pts.length - 1; i >= 0; i--) {
+      ctx.lineTo(pts[i].x + WALL_DEPTH, pts[i].y - WALL_HEIGHT + WALL_DEPTH / 2);
+    }
+    ctx.closePath();
+    ctx.fillStyle = colors.top;
     ctx.fill();
   }
 }
