@@ -126,19 +126,19 @@ jobs:
             *)                 echo "Unknown event: $EVENT"; exit 0 ;;
           esac
 
-          B64=$(printf ":%s" "$AZURE_DEVOPS_PAT" | base64)
+          B64=$(printf ":%s" "$AZURE_DEVOPS_PAT" | base64 -w 0)
 
           echo "Updating ADO work item #$ADO_ID → $ADO_STATE"
 
-          RESPONSE=$(curl -s -w "\n%{http_code}" \
+          RESPONSE=$(curl -sf -w "\n%{http_code}" \
             -X PATCH \
             -H "Content-Type: application/json-patch+json" \
             -H "Authorization: Basic $B64" \
             "https://dev.azure.com/${AZURE_DEVOPS_ORG}/${AZURE_DEVOPS_PROJECT}/_apis/wit/workitems/${ADO_ID}?api-version=7.1" \
-            -d "[{\"op\": \"replace\", \"path\": \"/fields/System.State\", \"value\": \"${ADO_STATE}\"}]")
+            -d "[{\"op\": \"replace\", \"path\": \"/fields/System.State\", \"value\": \"${ADO_STATE}\"}]") || true
 
           HTTP_CODE=$(echo "$RESPONSE" | tail -1)
-          if [ "$HTTP_CODE" -ge 200 ] && [ "$HTTP_CODE" -lt 300 ]; then
+          if [[ "$HTTP_CODE" -ge 200 && "$HTTP_CODE" -lt 300 ]]; then
             echo "✅ ADO #$ADO_ID → $ADO_STATE"
           else
             echo "❌ Failed to update ADO #$ADO_ID (HTTP $HTTP_CODE)"
