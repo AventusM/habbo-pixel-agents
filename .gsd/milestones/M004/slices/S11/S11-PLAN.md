@@ -40,7 +40,7 @@
 
 ## Tasks
 
-- [ ] **T01: Diagnose and fix SSE streaming reliability** `est:1.5h`
+- [x] **T01: Diagnose and fix SSE streaming reliability** `est:1.5h`
   - Why: S10 added SSE streaming but it silently falls back to 15s polling in practice. The likely failure points are: `resolveCopilotSessionId()` returning null (session not in first 50 results, or PR number doesn't match), the sessions API returning the full body and closing (not a true persistent stream), or auth header format rejected by the SSE endpoint. Need to identify which failure mode is happening and fix it, plus add a faster poll fallback if SSE genuinely can't work.
   - Files: `src/web/copilotMonitor.ts`
   - Do:
@@ -53,7 +53,7 @@
   - Verify: `npx vitest run --grep "copilot"` — existing + new tests pass; server logs show feed mode
   - Done when: Server logs clearly show why each agent is on SSE vs poll, and if SSE works, speech bubbles update within seconds
 
-- [ ] **T02: Browser feed mode visibility** `est:45m`
+- [x] **T02: Browser feed mode visibility** `est:45m`
   - Why: The browser currently has zero indication whether agent data is real-time or 15s stale. When things break, the user has no signal except visually noticing stale bubbles.
   - Files: `src/web/copilotMonitor.ts`, `src/agentTypes.ts`, `src/web/wsClient.ts`, `src/web/main.tsx`
   - Do:
@@ -64,7 +64,7 @@
   - Verify: `node esbuild.config.mjs web` builds cleanly; browser shows feed mode indicator when connected to a running server
   - Done when: Opening localhost:3000 with a running Copilot agent shows whether that agent's data is streaming or polling
 
-- [ ] **T03: Server-side ADO state sync on PR-opened** `est:1h`
+- [x] **T03: Server-side ADO state sync on PR-opened** `est:1h`
   - Why: The GitHub Actions workflow (`copilot-agent-monitor.yml`) triggers on `pull_request: opened`, but Copilot-created PRs may not fire this event for user workflows (GitHub App context). The merge→Done path works because a human triggers the merge. The fix is to also sync ADO state from the server-side `CopilotAgentMonitor` which already detects new PRs.
   - Files: `src/web/copilotMonitor.ts`, `src/azureDevOpsBoards.ts`
   - Do:
