@@ -84,13 +84,14 @@ describe('parseLastToolCall', () => {
     expect(result!.name).toBe('view');
   });
 
-  it('skips report_progress tool calls', () => {
-    const progress = sseToolCall('report_progress', { message: 'done' });
+  it('returns report_progress as a meaningful tool call', () => {
+    const progress = sseToolCall('report_progress', { description: 'all 435 tests passing' });
     const real = sseToolCall('edit', { path: 'src/foo.ts' });
-    const body = real + progress; // progress is last line, real comes before
-    // Scan from end: progress is skipped, edit is returned
+    const body = real + progress; // progress is last line
+    // Scan from end: report_progress is now a real tool call, returned first
     const result = parseLastToolCall(body);
-    expect(result!.name).toBe('edit');
+    expect(result!.name).toBe('report_progress');
+    expect(result!.description).toBe('all 435 tests passing');
   });
 
   it('returns the last tool when multiple real tools are present', () => {
@@ -224,6 +225,22 @@ describe('formatCopilotToolCall', () => {
     expect(formatCopilotToolCall({ name: 'store_memory' })).toBe('Using store_memory');
   });
 
+  it('formats report_progress with description', () => {
+    expect(formatCopilotToolCall({ name: 'report_progress', description: 'all 435 tests passing' })).toBe('all 435 tests passing');
+  });
+
+  it('formats report_progress without description', () => {
+    expect(formatCopilotToolCall({ name: 'report_progress' })).toBe('Updating progress...');
+  });
+
+  it('formats run_custom_setup_step with description', () => {
+    expect(formatCopilotToolCall({ name: 'run_custom_setup_step', description: "Start 'playwright' MCP server" })).toBe("Setup: Start 'playwright' MCP server");
+  });
+
+  it('formats run_custom_setup_step without description', () => {
+    expect(formatCopilotToolCall({ name: 'run_custom_setup_step' })).toBe('Setting up environment...');
+  });
+
   it('formats _thinking by extracting first sentence', () => {
     const text = formatCopilotToolCall({
       name: '_thinking',
@@ -344,11 +361,14 @@ describe('parseSingleSSEEvent', () => {
     expect(parseSingleSSEEvent(line)).toBeNull();
   });
 
-  it('skips report_progress', () => {
+  it('parses report_progress as a real tool call', () => {
     const line = `data: ${JSON.stringify({
-      choices: [{ delta: { tool_calls: [{ function: { name: 'report_progress', arguments: '{}' } }] } }],
+      choices: [{ delta: { tool_calls: [{ function: { name: 'report_progress', arguments: '{"description":"all tests pass"}' } }] } }],
     })}`;
-    expect(parseSingleSSEEvent(line)).toBeNull();
+    const result = parseSingleSSEEvent(line);
+    expect(result).not.toBeNull();
+    expect(result!.name).toBe('report_progress');
+    expect(result!.description).toBe('all tests pass');
   });
 
   it('returns thinking content for reasoning', () => {
