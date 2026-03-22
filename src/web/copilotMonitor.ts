@@ -11,6 +11,9 @@
  */
 import type { ExtensionMessage, TeamSection } from '../agentTypes.js';
 
+/** How agent activity data is currently being delivered */
+export type FeedMode = 'sse' | 'fast-poll' | 'poll';
+
 export interface CopilotAgentSession {
   /** PR number as string — used as agentId */
   id: string;
@@ -40,6 +43,10 @@ export interface CopilotAgentSession {
   commitCount: number;
   /** Copilot session UUID (from api.githubcopilot.com) */
   copilotSessionId?: string;
+  /** Current data feed mode for this agent */
+  feedMode: FeedMode;
+  /** Human-readable reason for the current feed mode */
+  feedReason: string;
 }
 
 /** A parsed tool call from the Copilot session SSE stream */
@@ -301,6 +308,12 @@ export class CopilotAgentMonitor {
   private sessionApiAvailable = true;
   /** Active SSE connections per agent ID */
   private sseConnections = new Map<string, SSEConnection>();
+  /** Active fast-poll timers per agent ID (when SSE fails) */
+  private fastPollTimers = new Map<string, ReturnType<typeof setInterval>>();
+  /** ADO tickets already transitioned to "Doing" in this session */
+  private adoTransitionedToDoing = new Set<string>();
+  /** Azure DevOps config for server-side state sync */
+  private adoConfig?: { organization: string; project: string; pat: string };
 
   constructor(
     owner: string,
@@ -308,12 +321,16 @@ export class CopilotAgentMonitor {
     token: string,
     onMessage: (msg: ExtensionMessage) => void,
     pollIntervalMs = 15_000,
+    adoConfig?: { organization: string; project: string; pat: string },
   ) {
     this.owner = owner;
     this.repo = repo;
     this.token = token;
     this.onMessage = onMessage;
     this.pollIntervalMs = pollIntervalMs;
+    if (adoConfig?.organization && adoConfig?.project && adoConfig?.pat) {
+      this.adoConfig = adoConfig;
+    }
   }
 
   /** Start polling for Copilot agent activity */
@@ -323,13 +340,14 @@ export class CopilotAgentMonitor {
     this.pollTimer = setInterval(() => void this.poll(), this.pollIntervalMs);
   }
 
-  /** Stop polling and close all SSE connections */
+  /** Stop polling and close all SSE connections and fast-poll timers */
   stop(): void {
     if (this.pollTimer) {
       clearInterval(this.pollTimer);
       this.pollTimer = null;
     }
     this.closeAllSSEConnections();
+    this.stopAllFastPollTimers();
   }
 
   /** Get current sessions */
@@ -348,20 +366,24 @@ export class CopilotAgentMonitor {
    *
    * Reads the response body incrementally via ReadableStream, parses each
    * `data:` line as it arrives, and emits agentTool/agentStatus messages
-   * for new tool calls. Falls back gracefully — if SSE fails, the poll
-   * cycle's `getActivitySnapshot()` still works.
+   * for new tool calls. Falls back to fast-poll (3s) if SSE fails.
    */
   private async openSSEStream(session: CopilotAgentSession): Promise<void> {
     const agentId = session.id;
 
     // Don't open duplicate connections
     if (this.sseConnections.has(agentId)) return;
-    if (!this.sessionApiAvailable) return;
+    if (!this.sessionApiAvailable) {
+      this.setFeedMode(session, 'poll', 'sessions API disabled (auth failure)');
+      this.startFastPoll(session);
+      return;
+    }
 
     // Resolve the Copilot session ID
     const sessionId = await this.resolveCopilotSessionId(session.prNumber);
     if (!sessionId) {
-      console.log(`[CopilotMonitor] SSE: no session ID for PR #${session.prNumber}`);
+      this.setFeedMode(session, 'poll', `no session ID found for PR #${session.prNumber}`);
+      this.startFastPoll(session);
       return;
     }
     session.copilotSessionId = sessionId;
@@ -376,6 +398,8 @@ export class CopilotAgentMonitor {
 
   /**
    * The actual SSE streaming loop. Runs for the lifetime of one connection.
+   * If the stream closes immediately (endpoint returns full body, not persistent),
+   * falls back to fast-poll (3s) instead of waiting 15s.
    */
   private async runSSEStream(
     session: CopilotAgentSession,
@@ -383,6 +407,7 @@ export class CopilotAgentMonitor {
     conn: SSEConnection,
   ): Promise<void> {
     const agentId = session.id;
+    const streamStartTime = Date.now();
 
     try {
       const res = await fetch(
@@ -400,27 +425,37 @@ export class CopilotAgentMonitor {
 
       if (!res.ok) {
         if (res.status === 401 || res.status === 403) {
-          console.warn('[CopilotMonitor] SSE: session logs API not authorized, disabling');
+          console.warn(`[CopilotMonitor] SSE: session logs API returned ${res.status}, disabling`);
           this.sessionApiAvailable = false;
         } else {
-          console.warn(`[CopilotMonitor] SSE: failed for PR #${session.prNumber}: ${res.status}`);
+          console.warn(`[CopilotMonitor] SSE: failed for PR #${session.prNumber}: HTTP ${res.status}`);
         }
         this.sseConnections.delete(agentId);
+        this.setFeedMode(session, 'fast-poll', `SSE HTTP ${res.status}`);
+        this.startFastPoll(session);
         return;
       }
 
       if (!res.body) {
         console.warn(`[CopilotMonitor] SSE: no response body for PR #${session.prNumber}`);
         this.sseConnections.delete(agentId);
+        this.setFeedMode(session, 'fast-poll', 'SSE response had no body');
+        this.startFastPoll(session);
         return;
       }
 
+      // Log response headers for diagnostics
+      const contentType = res.headers.get('content-type') || 'unknown';
+      const transferEncoding = res.headers.get('transfer-encoding') || 'none';
+      console.log(`[CopilotMonitor] SSE connected for PR #${session.prNumber} (content-type: ${contentType}, transfer-encoding: ${transferEncoding})`);
+
       conn.connected = true;
-      console.log(`[CopilotMonitor] SSE connected for PR #${session.prNumber}`);
+      this.setFeedMode(session, 'sse', 'connected');
 
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let buffer = '';
+      let eventCount = 0;
 
       while (true) {
         const { done, value } = await reader.read();
@@ -438,6 +473,7 @@ export class CopilotAgentMonitor {
 
           const toolCall = parseSingleSSEEvent(line);
           if (!toolCall) continue;
+          eventCount++;
 
           const displayText = formatCopilotToolCall(toolCall);
           const phase = this.detectPhaseFromTool(toolCall);
@@ -460,10 +496,23 @@ export class CopilotAgentMonitor {
           }
         }
       }
+
+      // Stream ended — check if it was a real persistent connection or a body dump
+      const streamDurationMs = Date.now() - streamStartTime;
+      console.log(`[CopilotMonitor] SSE stream ended for PR #${session.prNumber} after ${Math.round(streamDurationMs / 1000)}s (${eventCount} events)`);
+
+      // If stream ended quickly (< 10s) and agent is still running, it was a body dump, not persistent SSE
+      if (streamDurationMs < 10_000 && session.isRunning) {
+        console.log(`[CopilotMonitor] SSE stream was not persistent for PR #${session.prNumber} — switching to fast-poll`);
+        this.setFeedMode(session, 'fast-poll', `stream closed after ${Math.round(streamDurationMs / 1000)}s`);
+        this.startFastPoll(session);
+      }
     } catch (err) {
       // AbortError is expected when we close the connection
       if ((err as Error).name !== 'AbortError') {
-        console.warn(`[CopilotMonitor] SSE error for PR #${session.prNumber}:`, (err as Error).message);
+        console.warn(`[CopilotMonitor] SSE error for PR #${session.prNumber}: ${(err as Error).message}`);
+        this.setFeedMode(session, 'fast-poll', `SSE error: ${(err as Error).message}`);
+        this.startFastPoll(session);
       }
     } finally {
       conn.connected = false;
@@ -487,6 +536,119 @@ export class CopilotAgentMonitor {
       conn.controller.abort();
     }
     this.sseConnections.clear();
+  }
+
+  /** Update the feed mode for a session and broadcast to clients */
+  private setFeedMode(session: CopilotAgentSession, mode: FeedMode, reason: string): void {
+    if (session.feedMode === mode && session.feedReason === reason) return;
+    session.feedMode = mode;
+    session.feedReason = reason;
+    console.log(`[CopilotMonitor] PR #${session.prNumber}: feed=${mode} (${reason})`);
+    this.onMessage({
+      type: 'agentFeedMode',
+      agentId: session.id,
+      feedMode: mode,
+      feedReason: reason,
+    });
+  }
+
+  /**
+   * Start a fast-poll timer (3s) for an agent whose SSE connection failed.
+   * Fast-poll fetches the session logs body and parses the last tool call —
+   * same as the old getActivitySnapshot but at 3s instead of 15s.
+   */
+  private startFastPoll(session: CopilotAgentSession): void {
+    const agentId = session.id;
+    // Don't duplicate timers
+    if (this.fastPollTimers.has(agentId)) return;
+    if (!session.isRunning) return;
+
+    const FAST_POLL_MS = 3_000;
+    console.log(`[CopilotMonitor] Starting fast-poll (${FAST_POLL_MS / 1000}s) for PR #${session.prNumber}`);
+
+    const timer = setInterval(async () => {
+      // Stop if agent is no longer running
+      if (!session.isRunning) {
+        this.stopFastPoll(agentId);
+        return;
+      }
+      try {
+        const activity = await this.fetchLiveActivity(session);
+        if (activity && activity.displayText !== session.lastStatus) {
+          session.lastStatus = activity.displayText;
+          this.onMessage({
+            type: 'agentStatus',
+            agentId,
+            status: 'active',
+          });
+          this.onMessage({
+            type: 'agentTool',
+            agentId,
+            toolName: 'CopilotAgent',
+            displayText: activity.displayText,
+          });
+          console.log(`[CopilotMonitor] Fast-poll PR #${session.prNumber}: ${activity.displayText}`);
+        }
+      } catch (err) {
+        console.warn(`[CopilotMonitor] Fast-poll error PR #${session.prNumber}: ${(err as Error).message}`);
+      }
+    }, FAST_POLL_MS);
+
+    this.fastPollTimers.set(agentId, timer);
+  }
+
+  /** Stop the fast-poll timer for a specific agent */
+  private stopFastPoll(agentId: string): void {
+    const timer = this.fastPollTimers.get(agentId);
+    if (timer) {
+      clearInterval(timer);
+      this.fastPollTimers.delete(agentId);
+    }
+  }
+
+  /** Stop all fast-poll timers */
+  private stopAllFastPollTimers(): void {
+    for (const [, timer] of this.fastPollTimers) {
+      clearInterval(timer);
+    }
+    this.fastPollTimers.clear();
+  }
+
+  /**
+   * Transition an Azure DevOps work item to a target state.
+   * Used to move tickets to "Doing" when a Copilot PR is first detected.
+   */
+  async updateAdoWorkItemState(ticketId: string, targetState: string): Promise<boolean> {
+    if (!this.adoConfig) return false;
+    const { organization, project, pat } = this.adoConfig;
+
+    try {
+      const authHeader = `Basic ${Buffer.from(':' + pat).toString('base64')}`;
+      const res = await fetch(
+        `https://dev.azure.com/${organization}/${project}/_apis/wit/workitems/${ticketId}?api-version=7.1`,
+        {
+          method: 'PATCH',
+          headers: {
+            'Authorization': authHeader,
+            'Content-Type': 'application/json-patch+json',
+          },
+          body: JSON.stringify([
+            { op: 'replace', path: '/fields/System.State', value: targetState },
+          ]),
+        },
+      );
+
+      if (res.ok) {
+        console.log(`[CopilotMonitor] ADO #${ticketId} → ${targetState}`);
+        return true;
+      } else {
+        console.warn(`[CopilotMonitor] ADO #${ticketId} update failed: HTTP ${res.status}`);
+        return false;
+      }
+    } catch (err) {
+      console.warn(`[CopilotMonitor] ADO #${ticketId} update error: ${(err as Error).message}`);
+      return false;
+    }
   }
 
   private async poll(): Promise<void> {
@@ -533,6 +695,8 @@ export class CopilotAgentMonitor {
             linkedTicketId: this.extractTicketId(pr.branch, pr.title),
             lastRunName: runName,
             commitCount: 0,
+            feedMode: 'poll',
+            feedReason: 'initializing',
           };
           this.sessions.set(agentId, session);
 
@@ -576,10 +740,19 @@ export class CopilotAgentMonitor {
 
           console.log(`[CopilotMonitor] New agent: ${displayName} (PR #${pr.number}, ${activity.displayText})`);
 
+          // Sync ADO state to "Doing" for new PRs with linked tickets
+          if (session.linkedTicketId && isRunning && !this.adoTransitionedToDoing.has(session.linkedTicketId)) {
+            this.adoTransitionedToDoing.add(session.linkedTicketId);
+            void this.updateAdoWorkItemState(session.linkedTicketId, 'Doing');
+          }
+
           // Open SSE stream for real-time updates if agent is running
           if (isRunning) {
             void this.openSSEStream(session);
-          }        } else {
+          } else {
+            this.setFeedMode(session, 'poll', 'agent not running');
+          }
+        } else {
           // Existing session — check for state changes
           const wasRunning = existing.isRunning;
           existing.isRunning = isRunning;
@@ -587,18 +760,27 @@ export class CopilotAgentMonitor {
           existing.updatedAt = pr.updatedAt;
           existing.lastRunName = runName;
 
-          // Manage SSE connection lifecycle based on running state
+          // Manage SSE/fast-poll connection lifecycle based on running state
           if (isRunning && !wasRunning) {
-            // Agent started running — open SSE stream
+            // Agent started running — try SSE stream, sync ADO if needed
+            this.stopFastPoll(agentId);
             void this.openSSEStream(existing);
+
+            // Sync ADO to "Doing" if not already done
+            if (existing.linkedTicketId && !this.adoTransitionedToDoing.has(existing.linkedTicketId)) {
+              this.adoTransitionedToDoing.add(existing.linkedTicketId);
+              void this.updateAdoWorkItemState(existing.linkedTicketId, 'Doing');
+            }
           } else if (!isRunning && wasRunning) {
-            // Agent stopped running — close SSE stream
+            // Agent stopped running — close SSE stream and fast-poll
             this.closeSSEConnection(agentId);
+            this.stopFastPoll(agentId);
+            this.setFeedMode(existing, 'poll', 'agent stopped');
           }
 
-          // Skip activity snapshot if SSE is actively streaming updates
-          if (this.hasActiveSSE(agentId)) {
-            // SSE is handling real-time updates — just emit status if it changed
+          // Skip activity snapshot if SSE or fast-poll is handling updates
+          if (this.hasActiveSSE(agentId) || this.fastPollTimers.has(agentId)) {
+            // Real-time feed is handling updates — just emit status if it changed
             if (isRunning !== wasRunning) {
               this.onMessage({
                 type: 'agentStatus',
@@ -609,7 +791,7 @@ export class CopilotAgentMonitor {
             continue;
           }
 
-          // No active SSE — fall back to poll-based activity snapshot
+          // No active SSE or fast-poll — fall back to main poll-based activity snapshot
           if (isRunning || isRunning !== wasRunning) {
             const activity = await this.getActivitySnapshot(existing, isRunning, runName);
 
@@ -637,6 +819,7 @@ export class CopilotAgentMonitor {
       for (const [agentId] of this.sessions) {
         if (!currentIds.has(agentId)) {
           this.closeSSEConnection(agentId);
+          this.stopFastPoll(agentId);
           this.onMessage({ type: 'agentRemoved', agentId });
           this.sessions.delete(agentId);
           console.log(`[CopilotMonitor] Agent removed: ${agentId}`);
@@ -784,6 +967,7 @@ export class CopilotAgentMonitor {
       );
 
       if (!res.ok) {
+        console.warn(`[CopilotMonitor] Sessions list API returned HTTP ${res.status}`);
         if (res.status === 401 || res.status === 403) {
           this.sessionApiAvailable = false;
         }
@@ -806,11 +990,23 @@ export class CopilotAgentMonitor {
       for (const s of sessions) {
         if (s.resource_number === prNumber && s.head_ref?.startsWith('copilot/')) {
           this.sessionIdCache.set(prNumber, s.id);
+          console.log(`[CopilotMonitor] Resolved session for PR #${prNumber}: ${s.id.slice(0, 8)}...`);
           return s.id;
         }
       }
-    } catch {
-      // Silently ignore — will fall back
+
+      // Log why we didn't find a match
+      const prNumbers = sessions.map(s => s.resource_number);
+      const hasPrMatch = sessions.some(s => s.resource_number === prNumber);
+      if (hasPrMatch) {
+        const matching = sessions.filter(s => s.resource_number === prNumber);
+        const branches = matching.map(s => s.head_ref).join(', ');
+        console.log(`[CopilotMonitor] PR #${prNumber} found in sessions but no copilot/ branch match (branches: ${branches})`);
+      } else {
+        console.log(`[CopilotMonitor] PR #${prNumber} not in ${sessions.length} sessions (has_next_page: ${wrapper.has_next_page})`);
+      }
+    } catch (err) {
+      console.warn(`[CopilotMonitor] Sessions list API error: ${(err as Error).message}`);
     }
 
     return null;

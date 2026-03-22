@@ -30,8 +30,9 @@ export function createCopilotMonitor(
   token: string,
   onMessage: (msg: ExtensionMessage) => void,
   pollIntervalMs?: number,
+  adoConfig?: { organization: string; project: string; pat: string },
 ): CopilotAgentMonitor {
-  return new CopilotAgentMonitor(owner, repo, token, onMessage, pollIntervalMs);
+  return new CopilotAgentMonitor(owner, repo, token, onMessage, pollIntervalMs, adoConfig);
 }
 
 /**

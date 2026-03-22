@@ -163,6 +163,13 @@ wss.on('connection', (ws) => {
           ticketTitle: session.title,
         }));
       }
+      // Send current feed mode
+      ws.send(JSON.stringify({
+        type: 'agentFeedMode',
+        agentId: session.id,
+        feedMode: session.feedMode || 'poll',
+        feedReason: session.feedReason || 'unknown',
+      }));
     }
   }
 
@@ -242,13 +249,22 @@ async function startAgentManager() {
     // Start GitHub Copilot coding agent monitor if configured
     const ghConfig = readGitHubEnv();
     if (ghConfig.owner && ghConfig.repo && ghConfig.token) {
+      // Pass ADO config so the monitor can sync ticket state on PR-opened
+      const adoForCopilot = (adoConfig.organization && adoConfig.project && adoConfig.pat)
+        ? { organization: adoConfig.organization, project: adoConfig.project, pat: adoConfig.pat }
+        : undefined;
+
       copilotMonitor = createCopilotMonitor(
         ghConfig.owner, ghConfig.repo, ghConfig.token,
         (msg) => { broadcast(msg); },
         ghConfig.pollIntervalSeconds * 1000,
+        adoForCopilot,
       );
       copilotMonitor.start();
       console.log(`[Copilot] Monitor started: ${ghConfig.owner}/${ghConfig.repo} (every ${ghConfig.pollIntervalSeconds}s)`);
+      if (adoForCopilot) {
+        console.log(`[Copilot] ADO state sync enabled: ${adoForCopilot.organization}/${adoForCopilot.project}`);
+      }
     } else {
       console.log('[Copilot] No GitHub config (set GITHUB_REPO=owner/repo and GITHUB_TOKEN)');
     }

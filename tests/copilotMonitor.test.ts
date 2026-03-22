@@ -10,6 +10,7 @@ import {
   formatCopilotToolCall,
   extractTicketId,
   formatDisplayName,
+  type FeedMode,
 } from '../src/web/copilotMonitor.js';
 
 // ---------------------------------------------------------------------------
@@ -386,5 +387,100 @@ describe('parseSingleSSEEvent', () => {
     const fromFull = parseLastToolCall(body);
     const fromSingle = parseSingleSSEEvent(body.trim());
     expect(fromSingle).toEqual(fromFull);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// FeedMode type — compile-time check that the type exists and values are valid
+// ---------------------------------------------------------------------------
+describe('FeedMode', () => {
+  it('accepts valid feed mode values', () => {
+    const modes: FeedMode[] = ['sse', 'fast-poll', 'poll'];
+    expect(modes).toHaveLength(3);
+    expect(modes).toContain('sse');
+    expect(modes).toContain('fast-poll');
+    expect(modes).toContain('poll');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// CopilotAgentMonitor.updateAdoWorkItemState — unit test with mocked fetch
+// ---------------------------------------------------------------------------
+describe('CopilotAgentMonitor.updateAdoWorkItemState', () => {
+  it('returns false when no ADO config is provided', async () => {
+    const { CopilotAgentMonitor } = await import('../src/web/copilotMonitor.js');
+    const messages: Array<{ type: string }> = [];
+    const monitor = new CopilotAgentMonitor(
+      'owner', 'repo', 'ghp_token',
+      (msg: any) => messages.push(msg),
+      15000,
+      undefined, // no ADO config
+    );
+    const result = await monitor.updateAdoWorkItemState('42', 'Doing');
+    expect(result).toBe(false);
+  });
+
+  it('returns true on successful ADO update', async () => {
+    const { CopilotAgentMonitor } = await import('../src/web/copilotMonitor.js');
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = (async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({}),
+    })) as any;
+
+    try {
+      const monitor = new CopilotAgentMonitor(
+        'owner', 'repo', 'ghp_token',
+        () => {},
+        15000,
+        { organization: 'myorg', project: 'myproj', pat: 'mytoken' },
+      );
+      const result = await monitor.updateAdoWorkItemState('42', 'Doing');
+      expect(result).toBe(true);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it('returns false on HTTP error from ADO', async () => {
+    const { CopilotAgentMonitor } = await import('../src/web/copilotMonitor.js');
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = (async () => ({
+      ok: false,
+      status: 403,
+    })) as any;
+
+    try {
+      const monitor = new CopilotAgentMonitor(
+        'owner', 'repo', 'ghp_token',
+        () => {},
+        15000,
+        { organization: 'myorg', project: 'myproj', pat: 'mytoken' },
+      );
+      const result = await monitor.updateAdoWorkItemState('42', 'Doing');
+      expect(result).toBe(false);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it('returns false on network error', async () => {
+    const { CopilotAgentMonitor } = await import('../src/web/copilotMonitor.js');
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = (async () => { throw new Error('Network error'); }) as any;
+
+    try {
+      const monitor = new CopilotAgentMonitor(
+        'owner', 'repo', 'ghp_token',
+        () => {},
+        15000,
+        { organization: 'myorg', project: 'myproj', pat: 'mytoken' },
+      );
+      const result = await monitor.updateAdoWorkItemState('42', 'Doing');
+      expect(result).toBe(false);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
   });
 });
