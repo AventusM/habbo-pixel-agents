@@ -225,8 +225,16 @@ describe('formatCopilotToolCall', () => {
     expect(formatCopilotToolCall({ name: 'store_memory' })).toBe('Using store_memory');
   });
 
-  it('formats report_progress with description', () => {
+  it('formats report_progress with message field', () => {
+    expect(formatCopilotToolCall({ name: 'report_progress', message: 'chore: all 439 tests passing' })).toBe('chore: all 439 tests passing');
+  });
+
+  it('formats report_progress with description fallback', () => {
     expect(formatCopilotToolCall({ name: 'report_progress', description: 'all 435 tests passing' })).toBe('all 435 tests passing');
+  });
+
+  it('formats report_progress prefers message over description', () => {
+    expect(formatCopilotToolCall({ name: 'report_progress', message: 'the real message', description: 'fallback' })).toBe('the real message');
   });
 
   it('formats report_progress without description', () => {
@@ -361,7 +369,17 @@ describe('parseSingleSSEEvent', () => {
     expect(parseSingleSSEEvent(line)).toBeNull();
   });
 
-  it('parses report_progress as a real tool call', () => {
+  it('parses report_progress with message field', () => {
+    const line = `data: ${JSON.stringify({
+      choices: [{ delta: { tool_calls: [{ function: { name: 'report_progress', arguments: '{"message":"chore: all 439 tests passing"}' } }] } }],
+    })}`;
+    const result = parseSingleSSEEvent(line);
+    expect(result).not.toBeNull();
+    expect(result!.name).toBe('report_progress');
+    expect(result!.message).toBe('chore: all 439 tests passing');
+  });
+
+  it('parses report_progress with description field', () => {
     const line = `data: ${JSON.stringify({
       choices: [{ delta: { tool_calls: [{ function: { name: 'report_progress', arguments: '{"description":"all tests pass"}' } }] } }],
     })}`;
