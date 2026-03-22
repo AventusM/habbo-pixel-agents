@@ -311,7 +311,7 @@ function drawFloorTile(
 
   // Tile border — subtle darker edge lines (Habbo style)
   ctx.strokeStyle = borderColor;
-  ctx.lineWidth = 1;
+  ctx.lineWidth = 0.5;
   ctx.stroke();
 }
 
