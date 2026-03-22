@@ -91,8 +91,8 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
   const pendingStepOutRef = useRef<Map<string, { x: number; y: number }>>(new Map());
 
   // Agent popup card (shows role/team info on click)
-  const popupAgentRef = useRef<string | null>(null);
-  const popupTimeRef = useRef<number>(0);
+  const popupAgentRef = useRef<string | null>(null); // kept for click handling
+  const popupTimeRef = useRef<number>(0); // kept for click handling
 
   // Auto-follow camera toggle and state
   const autoFollowRef = useRef(false);
@@ -910,21 +910,6 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
           ctx.restore();
         }
 
-        // Draw agent popup card (if any)
-        if (popupAgentRef.current) {
-          // Auto-dismiss after 5 seconds
-          if (Date.now() - popupTimeRef.current > 5000) {
-            popupAgentRef.current = null;
-          } else {
-            const popupAvatar = avatarManagerRef.current.getAvatar(popupAgentRef.current);
-            if (popupAvatar) {
-              ctx.save();
-              ctx.translate(renderState.current.cameraOrigin.x, renderState.current.cameraOrigin.y);
-              drawAgentPopup(ctx, popupAvatar, sectionManagerRef.current);
-              ctx.restore();
-            }
-          }
-        }
       }
 
       // --- End camera-transformed world-space drawing ---
@@ -1152,25 +1137,15 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
         return;
       }
 
-      // Toggle popup card for this agent
-      if (popupAgentRef.current === clickedAvatar.id) {
-        // Clicking same agent closes popup
-        popupAgentRef.current = null;
-      } else {
-        // First click shows popup card
-        popupAgentRef.current = clickedAvatar.id;
-        popupTimeRef.current = Date.now();
-        // Notify extension for sidebar scroll-to
-        const vscodeApi = (window as any).vscodeApi;
-        if (vscodeApi) {
-          vscodeApi.postMessage({ type: 'agentClicked', agentId: clickedAvatar.id });
-        }
+      // Notify extension for sidebar scroll-to
+      const vscodeApi = (window as any).vscodeApi;
+      if (vscodeApi) {
+        vscodeApi.postMessage({ type: 'agentClicked', agentId: clickedAvatar.id });
       }
       return;
     }
 
-    // Click on empty space — deselect + close popup
-    popupAgentRef.current = null;
+    // Click on empty space — deselect
     selectionManagerRef.current.deselectAvatar();
     for (const avatar of avatarManager.getAvatars()) {
       avatar.isSelected = false;
@@ -1480,74 +1455,6 @@ const TEAM_COLORS: Record<string, string> = {
   'infrastructure': '#D4A017',
   'support': '#9B5BD5',
 };
-
-/**
- * Draw an agent popup card near the avatar showing role, team, and status info.
- * Appears above the name tag as a dark rounded rectangle with team-colored header.
- */
-function drawAgentPopup(
-  ctx: CanvasRenderingContext2D,
-  avatar: AvatarSpec,
-  sectionManager: SectionManager | null,
-): void {
-  const { x: screenX, y: screenY } = tileToScreen(avatar.tileX, avatar.tileY, avatar.tileZ);
-  const offsetX = avatar.screenOffsetX || 0;
-  const offsetY = avatar.screenOffsetY || 0;
-  const headY = screenY + AVATAR_GROUND_Y - AVATAR_HEIGHT + offsetY;
-
-  const cardW = 120;
-  const cardH = 48;
-  const cardX = screenX + offsetX - cardW / 2;
-  const cardY = headY - cardH - 90; // Above speech bubble (bubble anchor is headY-30, bubble body extends ~60px above that)
-
-  const team = sectionManager?.getAgentTeam(avatar.id) || 'core-dev';
-  const teamColor = TEAM_COLORS[team] || '#666';
-  const status = avatar.state === 'idle' || avatar.state === 'sit' ? 'Idle' : 'Active';
-  const displayName = avatar.displayName || avatar.id;
-
-  // Card background
-  ctx.save();
-  ctx.fillStyle = 'rgba(16, 20, 36, 0.92)';
-  ctx.beginPath();
-  ctx.roundRect(cardX, cardY, cardW, cardH, 4);
-  ctx.fill();
-
-  // Team-colored header bar
-  ctx.fillStyle = teamColor;
-  ctx.beginPath();
-  ctx.roundRect(cardX, cardY, cardW, 12, [4, 4, 0, 0]);
-  ctx.fill();
-
-  // Team name in header
-  ctx.font = '6px "Press Start 2P"';
-  ctx.fillStyle = '#fff';
-  ctx.textAlign = 'center';
-  ctx.fillText(team.replace('-', ' ').toUpperCase(), cardX + cardW / 2, cardY + 9);
-
-  // Agent name
-  ctx.font = '6px "Press Start 2P"';
-  ctx.fillStyle = '#e0e0e0';
-  ctx.textAlign = 'left';
-  const nameText = displayName.length > 16 ? displayName.slice(0, 14) + '..' : displayName;
-  ctx.fillText(nameText, cardX + 4, cardY + 24);
-
-  // Status indicator
-  ctx.fillStyle = status === 'Active' ? '#5BD55B' : '#888';
-  ctx.beginPath();
-  ctx.arc(cardX + 4 + 3, cardY + 34, 3, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.fillStyle = '#aaa';
-  ctx.font = '5px "Press Start 2P"';
-  ctx.fillText(status, cardX + 12, cardY + 36);
-
-  // Dismiss hint
-  ctx.fillStyle = '#555';
-  ctx.textAlign = 'right';
-  ctx.font = '5px "Press Start 2P"';
-  ctx.fillText('x', cardX + cardW - 4, cardY + 10);
-
-  ctx.restore();
-}
 
 /**
  * Draw a pulsing cyan rhombus outline at the selected avatar's tile.
