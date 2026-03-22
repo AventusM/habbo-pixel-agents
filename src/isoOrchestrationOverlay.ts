@@ -30,7 +30,7 @@ export interface OrchestrationState {
 const PANEL_WIDTH = 220;
 const PADDING = 8;
 const HEADER_HEIGHT = 18;
-const ROW_HEIGHT = 14;
+const ROW_HEIGHT = 24;
 const STAT_HEIGHT = 12;
 const LOG_ROW_HEIGHT = 11;
 const MAX_LOG_VISIBLE = 12;
@@ -221,19 +221,19 @@ export function drawOrchestrationOverlay(
         ctx.fillStyle = agent.status === 'active' ? '#4aff4a' : '#555';
         ctx.fill();
 
-        // Name
+        // Name (first line)
         ctx.font = FONT_SMALL;
         ctx.fillStyle = '#ccc';
         const name = truncate(agent.displayName, 20);
         ctx.fillText(name, x + PADDING + 12, curY + 8);
 
-        // Tool text or linked ticket (under name)
+        // Tool text or linked ticket (second line, below name)
         if (agent.linkedTicketTitle && agent.status === 'active') {
           ctx.fillStyle = '#4a9eff';
-          ctx.fillText('🎫 ' + truncate(agent.linkedTicketTitle, 22), x + PADDING + 12, curY + 8);
+          ctx.fillText('🎫 ' + truncate(agent.linkedTicketTitle, 22), x + PADDING + 12, curY + 19);
         } else if (agent.toolText && agent.status === 'active') {
           ctx.fillStyle = '#666';
-          ctx.fillText(truncate(agent.toolText, 26), x + PADDING + 12, curY + 8);
+          ctx.fillText(truncate(agent.toolText, 26), x + PADDING + 12, curY + 19);
         }
 
         curY += ROW_HEIGHT;

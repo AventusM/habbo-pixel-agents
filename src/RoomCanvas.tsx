@@ -904,7 +904,7 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
           drawSpeechBubble(ctx, {
             text: toolText || '',
             anchorX: screenX + offsetX,
-            anchorY: headY,
+            anchorY: headY - 30,
             isWaiting: !toolText,
           }, currentTimeMs);
           ctx.restore();
