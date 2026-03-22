@@ -43,7 +43,7 @@ export interface CopilotAgentSession {
 }
 
 /** A parsed tool call from the Copilot session SSE stream */
-interface ParsedToolCall {
+export interface ParsedToolCall {
   name: string;
   description?: string;
   path?: string;
@@ -52,11 +52,163 @@ interface ParsedToolCall {
 }
 
 /** Summarised activity for display */
-interface ActivitySnapshot {
+export interface ActivitySnapshot {
   /** Primary display text for speech bubble */
   displayText: string;
   /** What phase the agent is in */
   phase: 'planning' | 'coding' | 'responding' | 'testing' | 'waiting';
+}
+
+/**
+ * Parse the last meaningful tool call from the Copilot SSE stream body.
+ *
+ * The stream contains `data: {json}\n\n` lines. We scan from the end
+ * to find the most recent agent tool call (skipping setup steps and
+ * PR metadata generation).
+ */
+export function parseLastToolCall(sseBody: string): ParsedToolCall | null {
+  const lines = sseBody.split('\n');
+  const skipTools = new Set(['run_custom_setup_step', 'run_setup', 'report_progress']);
+  let lastThinking: ParsedToolCall | null = null;
+
+  // Scan from the end for the last real tool call
+  for (let i = lines.length - 1; i >= 0; i--) {
+    const line = lines[i];
+    if (!line.startsWith('data: ')) continue;
+
+    try {
+      const json = JSON.parse(line.slice(6));
+      const choices = json.choices || [];
+      for (const choice of choices) {
+        const delta = choice.delta || {};
+
+        // Check for tool calls — prefer these over thinking
+        const toolCalls = delta.tool_calls || [];
+        for (const tc of toolCalls) {
+          const fn = tc.function || {};
+          const name = fn.name as string;
+          if (!name || skipTools.has(name)) continue;
+
+          let args: Record<string, unknown> = {};
+          try {
+            args = JSON.parse(fn.arguments || '{}');
+          } catch {
+            // Arguments might not be valid JSON
+          }
+
+          return {
+            name,
+            description: args.description as string | undefined,
+            path: (args.path || args.file_path) as string | undefined,
+            pattern: args.pattern as string | undefined,
+            command: args.command as string | undefined,
+          };
+        }
+
+        // Check for agent reasoning (content without tool calls)
+        // Only keep the first (most recent) meaningful one as fallback
+        if (!lastThinking && delta.content && toolCalls.length === 0) {
+          const content = (delta.content as string).trim();
+          // Skip PR metadata, empty content, and very short content
+          if (
+            content.length > 10 &&
+            !content.includes('<pr_title>') &&
+            !content.includes('<pr_description>') &&
+            !content.startsWith('$') // skip shell output
+          ) {
+            lastThinking = {
+              name: '_thinking',
+              description: content,
+            };
+          }
+        }
+      }
+    } catch {
+      // Skip unparseable lines
+    }
+  }
+
+  return lastThinking;
+}
+
+/** Extract just the filename from a path */
+function extractFilename(path?: string): string {
+  if (!path) return 'file';
+  const parts = path.split('/');
+  return parts[parts.length - 1] || path;
+}
+
+/** Truncate text with ellipsis */
+function truncate(text?: string, maxLen = 50): string {
+  if (!text) return '';
+  if (text.length <= maxLen) return text;
+  return text.slice(0, maxLen - 3) + '...';
+}
+
+/**
+ * Format a Copilot tool call into a human-readable display string.
+ * Similar to formatToolStatus in transcriptParser.ts.
+ */
+export function formatCopilotToolCall(tool: ParsedToolCall): string {
+  switch (tool.name) {
+    case 'bash': {
+      if (tool.description) return truncate(tool.description, 50);
+      if (tool.command) return `Running: ${truncate(tool.command, 40)}`;
+      return 'Running command...';
+    }
+    case 'view':
+      return `Reading ${extractFilename(tool.path)}`;
+    case 'glob':
+      return `Searching: ${truncate(tool.pattern, 40)}`;
+    case 'grep':
+      return `Searching for: ${truncate(tool.pattern, 35)}`;
+    case 'edit':
+      return `Editing ${extractFilename(tool.path)}`;
+    case 'write':
+    case 'create':
+      return `Writing ${extractFilename(tool.path)}`;
+    case 'task':
+      return tool.description
+        ? `Task: ${truncate(tool.description, 40)}`
+        : 'Running sub-task...';
+    case 'reply_to_comment':
+      return 'Replying to review comment';
+    case 'codeql_checker':
+      return 'Running security analysis';
+    case '_thinking': {
+      // Agent reasoning — extract first sentence
+      const text = tool.description || '';
+      const firstSentence = text.split(/[.!?\n]/)[0].trim();
+      return truncate(firstSentence, 50);
+    }
+    default: {
+      // Handle prefixed tools like playwright-browser_navigate
+      const name = tool.name;
+      if (name.startsWith('playwright-')) {
+        const action = name.replace('playwright-', '').replace(/_/g, ' ');
+        return `Browser: ${action}`;
+      }
+      return `Using ${name}`;
+    }
+  }
+}
+
+/** Extract Azure DevOps ticket ID from PR title (AB#NNN) or generic #NNN reference */
+export function extractTicketId(branch: string, title: string): string | undefined {
+  const abMatch = title.match(/AB#(\d+)/);
+  if (abMatch) return abMatch[1];
+  const hashMatch = title.match(/#(\d+)/);
+  if (hashMatch) return hashMatch[1];
+  return undefined;
+}
+
+/** Convert a Copilot branch name to a display-friendly short name */
+export function formatDisplayName(branch: string): string {
+  return branch
+    .replace('copilot/', '')
+    .replace(/-/g, ' ')
+    .replace(/\b\w/g, c => c.toUpperCase())
+    .slice(0, 20);
 }
 
 export class CopilotAgentMonitor {
@@ -407,124 +559,14 @@ export class CopilotAgentMonitor {
     return null;
   }
 
-  /**
-   * Parse the last meaningful tool call from the SSE stream body.
-   *
-   * The stream contains `data: {json}\n\n` lines. We scan from the end
-   * to find the most recent agent tool call (skipping setup steps and
-   * PR metadata generation).
-   */
+  /** Delegates to the module-level parseLastToolCall function */
   private parseLastToolCall(sseBody: string): ParsedToolCall | null {
-    const lines = sseBody.split('\n');
-    const skipTools = new Set(['run_custom_setup_step', 'run_setup', 'report_progress']);
-    let lastThinking: ParsedToolCall | null = null;
-
-    // Scan from the end for the last real tool call
-    for (let i = lines.length - 1; i >= 0; i--) {
-      const line = lines[i];
-      if (!line.startsWith('data: ')) continue;
-
-      try {
-        const json = JSON.parse(line.slice(6));
-        const choices = json.choices || [];
-        for (const choice of choices) {
-          const delta = choice.delta || {};
-
-          // Check for tool calls — prefer these over thinking
-          const toolCalls = delta.tool_calls || [];
-          for (const tc of toolCalls) {
-            const fn = tc.function || {};
-            const name = fn.name as string;
-            if (!name || skipTools.has(name)) continue;
-
-            let args: Record<string, unknown> = {};
-            try {
-              args = JSON.parse(fn.arguments || '{}');
-            } catch {
-              // Arguments might not be valid JSON
-            }
-
-            return {
-              name,
-              description: args.description as string | undefined,
-              path: (args.path || args.file_path) as string | undefined,
-              pattern: args.pattern as string | undefined,
-              command: args.command as string | undefined,
-            };
-          }
-
-          // Check for agent reasoning (content without tool calls)
-          // Only keep the first (most recent) meaningful one as fallback
-          if (!lastThinking && delta.content && toolCalls.length === 0) {
-            const content = (delta.content as string).trim();
-            // Skip PR metadata, empty content, and very short content
-            if (
-              content.length > 10 &&
-              !content.includes('<pr_title>') &&
-              !content.includes('<pr_description>') &&
-              !content.startsWith('$') // skip shell output
-            ) {
-              lastThinking = {
-                name: '_thinking',
-                description: content,
-              };
-            }
-          }
-        }
-      } catch {
-        // Skip unparseable lines
-      }
-    }
-
-    return lastThinking;
+    return parseLastToolCall(sseBody);
   }
 
-  /**
-   * Format a Copilot tool call into a human-readable display string.
-   * Similar to formatToolStatus in transcriptParser.ts.
-   */
+  /** Delegates to the module-level formatCopilotToolCall function */
   private formatCopilotToolCall(tool: ParsedToolCall): string {
-    switch (tool.name) {
-      case 'bash': {
-        if (tool.description) return this.truncate(tool.description, 50);
-        if (tool.command) return `Running: ${this.truncate(tool.command, 40)}`;
-        return 'Running command...';
-      }
-      case 'view':
-        return `Reading ${this.extractFilename(tool.path)}`;
-      case 'glob':
-        return `Searching: ${this.truncate(tool.pattern, 40)}`;
-      case 'grep':
-        return `Searching for: ${this.truncate(tool.pattern, 35)}`;
-      case 'edit':
-        return `Editing ${this.extractFilename(tool.path)}`;
-      case 'write':
-      case 'create':
-        return `Writing ${this.extractFilename(tool.path)}`;
-      case 'task':
-        return tool.description
-          ? `Task: ${this.truncate(tool.description, 40)}`
-          : 'Running sub-task...';
-      case 'reply_to_comment':
-        return 'Replying to review comment';
-      case 'codeql_checker':
-        return 'Running security analysis';
-      case '_thinking': {
-        // Agent reasoning — extract first sentence
-        const text = tool.description || '';
-        const firstSentence = text.split(/[.!?\n]/)[0].trim();
-        return this.truncate(firstSentence, 50);
-      }
-      default: {
-        // Handle prefixed tools like playwright-browser_navigate
-        const name = tool.name;
-        if (name.startsWith('playwright-')) {
-          const action = name.replace('playwright-', '').replace(/_/g, ' ');
-          return `Browser: ${action}`;
-        }
-        return `Using ${name}`;
-      }
-    }
+    return formatCopilotToolCall(tool);
   }
 
   /**
@@ -598,18 +640,14 @@ export class CopilotAgentMonitor {
     return t;
   }
 
-  /** Extract just the filename from a path */
-  private extractFilename(path?: string): string {
-    if (!path) return 'file';
-    const parts = path.split('/');
-    return parts[parts.length - 1] || path;
+  /** Extract Azure DevOps ticket ID from branch name or PR title */
+  private extractTicketId(branch: string, title: string): string | undefined {
+    return extractTicketId(branch, title);
   }
 
-  /** Truncate text with ellipsis */
-  private truncate(text?: string, maxLen = 50): string {
-    if (!text) return '';
-    if (text.length <= maxLen) return text;
-    return text.slice(0, maxLen - 3) + '...';
+  /** Convert branch name to a display-friendly name */
+  getDisplayName(branch: string): string {
+    return formatDisplayName(branch);
   }
 
   private async fetchPRCommits(prNumber: number): Promise<Array<{
@@ -727,23 +765,5 @@ export class CopilotAgentMonitor {
         branch: run.head_branch,
         name: run.name,
       }));
-  }
-
-  /** Extract Azure DevOps ticket ID from branch name or PR title */
-  private extractTicketId(branch: string, title: string): string | undefined {
-    const abMatch = title.match(/AB#(\d+)/);
-    if (abMatch) return abMatch[1];
-    const hashMatch = title.match(/#(\d+)/);
-    if (hashMatch) return hashMatch[1];
-    return undefined;
-  }
-
-  /** Convert branch name to a display-friendly name */
-  getDisplayName(branch: string): string {
-    return branch
-      .replace('copilot/', '')
-      .replace(/-/g, ' ')
-      .replace(/\b\w/g, c => c.toUpperCase())
-      .slice(0, 20);
   }
 }
