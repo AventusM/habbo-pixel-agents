@@ -297,7 +297,7 @@ function drawFloorTile(
   sy: number,
   hsb: HsbColor,
 ): void {
-  const { top } = tileColors(hsb);
+  const { top, right: borderColor } = tileColors(hsb);
 
   ctx.beginPath();
   ctx.moveTo(sx, sy); // top vertex
@@ -308,6 +308,11 @@ function drawFloorTile(
 
   ctx.fillStyle = top;
   ctx.fill();
+
+  // Tile border — subtle darker edge lines (Habbo style)
+  ctx.strokeStyle = borderColor;
+  ctx.lineWidth = 1;
+  ctx.stroke();
 }
 
 /**
