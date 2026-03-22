@@ -4,6 +4,7 @@
  * Polls the GitHub API for Copilot coding agent activity:
  * - PRs authored by Copilot (user "Copilot" or branches matching copilot/*)
  * - Workflow runs named "Running Copilot coding agent"
+ * - Latest commits on Copilot PRs (for detailed activity display)
  *
  * Emits agent lifecycle events (created, status, tool, removed) via callback,
  * using the same ExtensionMessage protocol as the JSONL-based AgentManager.
@@ -13,6 +14,8 @@ import type { ExtensionMessage, TeamSection } from '../agentTypes.js';
 export interface CopilotAgentSession {
   /** PR number as string — used as agentId */
   id: string;
+  /** PR number */
+  prNumber: number;
   /** PR title */
   title: string;
   /** Branch name (e.g. copilot/fix-bug) */
@@ -29,6 +32,20 @@ export interface CopilotAgentSession {
   updatedAt: string;
   /** Linked Azure DevOps ticket ID (if branch name matches) */
   linkedTicketId?: string;
+  /** SHA of the last commit we reported — avoids duplicate updates */
+  lastCommitSha?: string;
+  /** Name of the last active workflow run */
+  lastRunName?: string;
+  /** Total commit count at last check */
+  commitCount: number;
+}
+
+/** Summarised activity for display */
+interface ActivitySnapshot {
+  /** Primary display text for speech bubble */
+  displayText: string;
+  /** What phase the agent is in */
+  phase: 'planning' | 'coding' | 'responding' | 'testing' | 'waiting';
 }
 
 export class CopilotAgentMonitor {
@@ -58,7 +75,6 @@ export class CopilotAgentMonitor {
   /** Start polling for Copilot agent activity */
   start(): void {
     console.log(`[CopilotMonitor] Starting — polling ${this.owner}/${this.repo} every ${this.pollIntervalMs / 1000}s`);
-    // Initial poll immediately
     void this.poll();
     this.pollTimer = setInterval(() => void this.poll(), this.pollIntervalMs);
   }
@@ -83,17 +99,19 @@ export class CopilotAgentMonitor {
         this.fetchCopilotRuns(),
       ]);
 
-      // Build a set of branches with active runs
+      // Build maps of active runs and latest run names per branch
       const activeBranches = new Set<string>();
-      const runStatusByBranch = new Map<string, string>();
+      const runNameByBranch = new Map<string, string>();
       for (const run of runs) {
         if (run.status === 'in_progress' || run.status === 'queued') {
           activeBranches.add(run.branch);
-          runStatusByBranch.set(run.branch, run.name || 'Working...');
+        }
+        // Keep the most recent run name per branch (runs are sorted newest first)
+        if (!runNameByBranch.has(run.branch)) {
+          runNameByBranch.set(run.branch, run.name);
         }
       }
 
-      // Track which sessions still exist
       const currentIds = new Set<string>();
 
       for (const pr of prs) {
@@ -101,19 +119,23 @@ export class CopilotAgentMonitor {
         currentIds.add(agentId);
         const isRunning = activeBranches.has(pr.branch);
         const existing = this.sessions.get(agentId);
+        const runName = runNameByBranch.get(pr.branch);
 
         if (!existing) {
           // New session — spawn agent
           const session: CopilotAgentSession = {
             id: agentId,
+            prNumber: pr.number,
             title: pr.title,
             branch: pr.branch,
             prState: pr.state,
             draft: pr.draft,
             isRunning,
-            lastStatus: isRunning ? (runStatusByBranch.get(pr.branch) || 'Working...') : 'Waiting',
+            lastStatus: 'Starting...',
             updatedAt: pr.updatedAt,
             linkedTicketId: this.extractTicketId(pr.branch, pr.title),
+            lastRunName: runName,
+            commitCount: 0,
           };
           this.sessions.set(agentId, session);
 
@@ -130,7 +152,6 @@ export class CopilotAgentMonitor {
             taskArea: pr.title,
           });
 
-          // Link to ticket if available
           if (session.linkedTicketId) {
             this.onMessage({
               type: 'agentLinkedTicket',
@@ -140,52 +161,57 @@ export class CopilotAgentMonitor {
             } as any);
           }
 
-          // Set initial status
           this.onMessage({
             type: 'agentStatus',
             agentId,
             status: isRunning ? 'active' : 'idle',
           });
 
-          if (isRunning) {
-            this.onMessage({
-              type: 'agentTool',
-              agentId,
-              toolName: 'CopilotAgent',
-              displayText: session.lastStatus,
-            });
-          }
+          // Fetch initial activity snapshot
+          const activity = await this.getActivitySnapshot(session, isRunning, runName);
+          session.lastStatus = activity.displayText;
+          this.onMessage({
+            type: 'agentTool',
+            agentId,
+            toolName: 'CopilotAgent',
+            displayText: activity.displayText,
+          });
 
-          console.log(`[CopilotMonitor] New agent: ${displayName} (PR #${pr.number}, ${isRunning ? 'running' : 'idle'})`);
+          console.log(`[CopilotMonitor] New agent: ${displayName} (PR #${pr.number}, ${activity.displayText})`);
         } else {
           // Existing session — check for state changes
           const wasRunning = existing.isRunning;
           existing.isRunning = isRunning;
           existing.prState = pr.state;
           existing.updatedAt = pr.updatedAt;
+          existing.lastRunName = runName;
 
-          if (isRunning && !wasRunning) {
-            // Agent started working
-            existing.lastStatus = runStatusByBranch.get(pr.branch) || 'Working...';
-            this.onMessage({ type: 'agentStatus', agentId, status: 'active' });
-            this.onMessage({
-              type: 'agentTool',
-              agentId,
-              toolName: 'CopilotAgent',
-              displayText: existing.lastStatus,
-            });
-            console.log(`[CopilotMonitor] Agent active: PR #${pr.number}`);
-          } else if (!isRunning && wasRunning) {
-            // Agent stopped working
-            existing.lastStatus = 'Waiting for review';
-            this.onMessage({ type: 'agentStatus', agentId, status: 'idle' });
-            console.log(`[CopilotMonitor] Agent idle: PR #${pr.number}`);
+          // Always refresh activity when running, or on state transition
+          if (isRunning || isRunning !== wasRunning) {
+            const activity = await this.getActivitySnapshot(existing, isRunning, runName);
+
+            // Only emit if the display text actually changed
+            if (activity.displayText !== existing.lastStatus) {
+              existing.lastStatus = activity.displayText;
+              this.onMessage({
+                type: 'agentStatus',
+                agentId,
+                status: isRunning ? 'active' : 'idle',
+              });
+              this.onMessage({
+                type: 'agentTool',
+                agentId,
+                toolName: 'CopilotAgent',
+                displayText: activity.displayText,
+              });
+              console.log(`[CopilotMonitor] PR #${pr.number}: ${activity.displayText}`);
+            }
           }
         }
       }
 
       // Remove sessions for PRs that are no longer open
-      for (const [agentId, session] of this.sessions) {
+      for (const [agentId] of this.sessions) {
         if (!currentIds.has(agentId)) {
           this.onMessage({ type: 'agentRemoved', agentId });
           this.sessions.delete(agentId);
@@ -195,6 +221,143 @@ export class CopilotAgentMonitor {
     } catch (err) {
       console.warn('[CopilotMonitor] Poll failed:', (err as Error).message);
     }
+  }
+
+  /**
+   * Build a detailed activity snapshot by combining:
+   * - Workflow run name (what phase: initial coding vs responding to feedback)
+   * - Latest commits (what the agent actually did)
+   */
+  private async getActivitySnapshot(
+    session: CopilotAgentSession,
+    isRunning: boolean,
+    runName?: string,
+  ): Promise<ActivitySnapshot> {
+    if (!isRunning) {
+      // Not running — summarise what happened based on latest commits
+      const commits = await this.fetchPRCommits(session.prNumber);
+      if (commits.length === 0) {
+        return { displayText: 'Waiting for review', phase: 'waiting' };
+      }
+
+      const latest = commits[commits.length - 1];
+      const msg = this.shortenCommitMessage(latest.message);
+      const commitWord = commits.length === 1 ? 'commit' : 'commits';
+      return {
+        displayText: `Done — ${commits.length} ${commitWord}: "${msg}"`,
+        phase: 'waiting',
+      };
+    }
+
+    // Running — determine phase from run name and commits
+    const phase = this.detectPhase(runName);
+    const commits = await this.fetchPRCommits(session.prNumber);
+    const newCommits = commits.length - session.commitCount;
+    session.commitCount = commits.length;
+
+    if (newCommits > 0) {
+      // Agent just pushed — show what it committed
+      const latest = commits[commits.length - 1];
+      const msg = this.shortenCommitMessage(latest.message);
+      session.lastCommitSha = latest.sha;
+
+      const prefix = phase === 'responding' ? 'Responding' : 'Working';
+      return {
+        displayText: `${prefix}: pushed "${msg}"`,
+        phase,
+      };
+    }
+
+    // Running but no new commits yet — show phase + context
+    switch (phase) {
+      case 'responding':
+        return { displayText: 'Responding to feedback...', phase };
+      case 'planning':
+        return { displayText: 'Planning approach...', phase };
+      case 'testing':
+        return { displayText: 'Running tests...', phase };
+      case 'coding':
+      default: {
+        if (commits.length === 0) {
+          return { displayText: 'Analyzing codebase...', phase: 'planning' };
+        }
+        const latest = commits[commits.length - 1];
+        const msg = this.shortenCommitMessage(latest.message);
+        return {
+          displayText: `Coding... (last: "${msg}")`,
+          phase: 'coding',
+        };
+      }
+    }
+  }
+
+  /**
+   * Detect the agent's phase from the workflow run name.
+   * GitHub uses specific names for different Copilot agent activities.
+   */
+  private detectPhase(runName?: string): ActivitySnapshot['phase'] {
+    if (!runName) return 'coding';
+    const lower = runName.toLowerCase();
+    if (lower.includes('addressing comment') || lower.includes('addressing review')) {
+      return 'responding';
+    }
+    if (lower.includes('running copilot')) {
+      return 'coding';
+    }
+    if (lower.includes('test')) {
+      return 'testing';
+    }
+    if (lower.includes('plan')) {
+      return 'planning';
+    }
+    return 'coding';
+  }
+
+  /** Shorten a commit message for display in a speech bubble */
+  private shortenCommitMessage(msg: string): string {
+    // Take first line only
+    const firstLine = msg.split('\n')[0];
+    // Strip conventional commit prefix
+    const stripped = firstLine.replace(/^(feat|fix|chore|refactor|test|docs|style|ci|perf)(\(.+?\))?:\s*/i, '');
+    // Truncate
+    if (stripped.length > 50) {
+      return stripped.slice(0, 47) + '...';
+    }
+    return stripped;
+  }
+
+  private async fetchPRCommits(prNumber: number): Promise<Array<{
+    sha: string;
+    message: string;
+    date: string;
+  }>> {
+    const url = `https://api.github.com/repos/${this.owner}/${this.repo}/pulls/${prNumber}/commits?per_page=100`;
+    const res = await fetch(url, {
+      headers: {
+        'Authorization': `Bearer ${this.token}`,
+        'Accept': 'application/vnd.github+json',
+        'X-GitHub-Api-Version': '2022-11-28',
+      },
+    });
+
+    if (!res.ok) {
+      console.warn(`[CopilotMonitor] Commits fetch failed for PR #${prNumber}: ${res.status}`);
+      return [];
+    }
+
+    const commits = await res.json() as Array<{
+      sha: string;
+      commit: {
+        message: string;
+        author: { date: string };
+      };
+    }>;
+
+    return commits.map(c => ({
+      sha: c.sha,
+      message: c.commit.message,
+      date: c.commit.author.date,
+    }));
   }
 
   private async fetchCopilotPRs(): Promise<Array<{
@@ -282,13 +445,10 @@ export class CopilotAgentMonitor {
 
   /** Extract Azure DevOps ticket ID from branch name or PR title */
   private extractTicketId(branch: string, title: string): string | undefined {
-    // Match patterns like AB#123 (Azure DevOps link syntax) or #123
     const abMatch = title.match(/AB#(\d+)/);
     if (abMatch) return abMatch[1];
-
     const hashMatch = title.match(/#(\d+)/);
     if (hashMatch) return hashMatch[1];
-
     return undefined;
   }
 
