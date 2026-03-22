@@ -36,6 +36,9 @@ const WALK_FRAMES = 6;
 /** Idle (breathing) animation: 4 frames per cycle */
 const IDLE_FRAMES = 4;
 
+/** Sitting (breathing) animation: 4 frames per cycle (same count as idle) */
+const SIT_FRAMES = 4;
+
 /** Time per walk animation frame (ms) */
 const WALK_FRAME_DURATION_MS = 150;
 
@@ -45,8 +48,8 @@ const IDLE_FRAME_DURATION_MS = 250;
 /** Vertical offset applied to avatar ground position */
 const AVATAR_GROUND_Y = 0;
 
-/** Additional Y offset applied when avatar is sitting to lower the sprite onto the chair seat */
-const SIT_Y_OFFSET = 30;
+/** Additional Y offset applied when avatar is sitting (legs-cropped sprite lowered onto chair seat) */
+const SIT_Y_OFFSET = 12;
 
 /**
  * PixelLab avatar renderer implementation.
@@ -55,6 +58,7 @@ const SIT_Y_OFFSET = 30;
  * - pl_rot_{dir}            — static rotation (spawn/despawn fallback)
  * - pl_idle_{dir}_{frame}   — breathing idle (4 frames)
  * - pl_walk_{dir}_{frame}   — walking (6 frames)
+ * - pl_sit_{dir}_{frame}    — sitting breathing (4 frames, legs cropped)
  * - pl_run_{dir}_{frame}    — running (6 frames)
  */
 export const pixelLabRenderer: AvatarRenderer = {
@@ -75,11 +79,20 @@ export const pixelLabRenderer: AvatarRenderer = {
       }
     }
 
-    // Idle/sit: breathing animation (4 frames)
-    if (spec.state === "idle" || spec.state === "sit") {
+    // Idle: breathing animation (4 frames)
+    if (spec.state === "idle") {
       const idleElapsed = currentTimeMs - (spec.pixelLabIdleLastMs || spec.lastUpdateMs);
       if (idleElapsed >= IDLE_FRAME_DURATION_MS) {
         spec.pixelLabIdleFrame = ((spec.pixelLabIdleFrame || 0) + 1) % IDLE_FRAMES;
+        spec.pixelLabIdleLastMs = currentTimeMs;
+      }
+    }
+
+    // Sit: breathing animation on sitting sprites (4 frames)
+    if (spec.state === "sit") {
+      const idleElapsed = currentTimeMs - (spec.pixelLabIdleLastMs || spec.lastUpdateMs);
+      if (idleElapsed >= IDLE_FRAME_DURATION_MS) {
+        spec.pixelLabIdleFrame = ((spec.pixelLabIdleFrame || 0) + 1) % SIT_FRAMES;
         spec.pixelLabIdleLastMs = currentTimeMs;
       }
     }
@@ -121,7 +134,10 @@ export const pixelLabRenderer: AvatarRenderer = {
         let frameKey: string;
         if (spec.state === "walk") {
           frameKey = `pl_walk_${spec.direction}_${spec.frame}`;
-        } else if (spec.state === "idle" || spec.state === "sit") {
+        } else if (spec.state === "sit") {
+          const sitFrame = spec.pixelLabIdleFrame || 0;
+          frameKey = `pl_sit_${spec.direction}_${sitFrame}`;
+        } else if (spec.state === "idle") {
           const idleFrame = spec.pixelLabIdleFrame || 0;
           frameKey = `pl_idle_${spec.direction}_${idleFrame}`;
         } else {
