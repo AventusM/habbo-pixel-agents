@@ -40,7 +40,7 @@
 
 ## Tasks
 
-- [ ] **T01: Incremental SSE parser and streaming connection manager** `est:1.5h`
+- [x] **T01: Incremental SSE parser and streaming connection manager** `est:1.5h`
   - Why: The current `fetchLiveActivity()` method fetches the entire SSE body on every poll cycle and re-parses it from the end. For real-time updates, we need to maintain an open connection and parse events incrementally as they arrive.
   - Files: `src/web/copilotMonitor.ts`
   - Do:
@@ -56,7 +56,7 @@
   - Verify: `npx vitest run --grep "SSE"` — unit tests for the incremental parser with mock SSE data
   - Done when: SSE connections open/close based on agent running state, tool call events emit within seconds of arriving on the stream
 
-- [ ] **T02: Integration wiring and verification** `est:30m`
+- [x] **T02: Integration wiring and verification** `est:30m`
   - Why: Wire the SSE manager into the existing poll lifecycle and verify end-to-end with a running server.
   - Files: `src/web/copilotMonitor.ts`
   - Do:

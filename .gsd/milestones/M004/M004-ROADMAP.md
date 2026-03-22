@@ -57,7 +57,7 @@ This milestone is complete only when all are true:
 - [x] **S08: Copilot Agent Rich Activity Display** `risk:low` `depends:[S06]`
   > After this: The Copilot agent avatar speech bubble on localhost:3000 shows detailed activity — commit messages, phase (coding/responding/planning), and progress — instead of a generic "Working..." message.
 
-- [ ] **S10: Real-Time SSE Streaming for Copilot Agent Activity** `risk:low` `depends:[S09]`
+- [x] **S10: Real-Time SSE Streaming for Copilot Agent Activity** `risk:low` `depends:[S09]`
   > After this: Copilot agent speech bubbles update within ~2s of agent activity via persistent SSE connections to the Copilot sessions API, instead of polling every 15s.
 
 - [x] **S01: Standalone Room Renderer** `risk:high` `depends:[]`
