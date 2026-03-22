@@ -259,6 +259,23 @@ describe('extractTicketId', () => {
   it('returns undefined when no ticket ref found', () => {
     expect(extractTicketId('copilot/update-docs', 'Update documentation')).toBeUndefined();
   });
+
+  it('extracts AB# ticket from PR body when not in title', () => {
+    expect(extractTicketId('copilot/fix', '[WIP] Fix something', 'Resolves AB#77')).toBe('77');
+  });
+
+  it('prefers title AB# over body AB#', () => {
+    expect(extractTicketId('copilot/fix', 'Fix AB#10', 'Also see AB#20')).toBe('10');
+  });
+
+  it('does not extract plain # from body (too many false positives)', () => {
+    expect(extractTicketId('copilot/fix', 'No ticket', 'See issue #5 and PR #8')).toBeUndefined();
+  });
+
+  it('extracts AB# from body even when title has plain #', () => {
+    // Title has #NNN but body has AB#NNN — AB# in body should win over #NNN in title
+    expect(extractTicketId('copilot/fix', 'Fix PR #99 issue', 'Linked to AB#55')).toBe('55');
+  });
 });
 
 // ---------------------------------------------------------------------------

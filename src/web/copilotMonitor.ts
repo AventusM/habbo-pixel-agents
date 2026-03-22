@@ -201,9 +201,16 @@ export function formatCopilotToolCall(tool: ParsedToolCall): string {
 }
 
 /** Extract Azure DevOps ticket ID from PR title (AB#NNN) or generic #NNN reference */
-export function extractTicketId(branch: string, title: string): string | undefined {
-  const abMatch = title.match(/AB#(\d+)/);
-  if (abMatch) return abMatch[1];
+export function extractTicketId(branch: string, title: string, body?: string): string | undefined {
+  // Check title first
+  const abMatchTitle = title.match(/AB#(\d+)/);
+  if (abMatchTitle) return abMatchTitle[1];
+  // Check body for AB#NNN (Copilot agent includes this when triggered from ADO)
+  if (body) {
+    const abMatchBody = body.match(/AB#(\d+)/);
+    if (abMatchBody) return abMatchBody[1];
+  }
+  // Fallback: generic #NNN in title only (body has too many false positives)
   const hashMatch = title.match(/#(\d+)/);
   if (hashMatch) return hashMatch[1];
   return undefined;
@@ -692,7 +699,7 @@ export class CopilotAgentMonitor {
             isRunning,
             lastStatus: 'Starting...',
             updatedAt: pr.updatedAt,
-            linkedTicketId: this.extractTicketId(pr.branch, pr.title),
+            linkedTicketId: this.extractTicketId(pr.branch, pr.title, pr.body),
             lastRunName: runName,
             commitCount: 0,
             feedMode: 'poll',
@@ -740,9 +747,11 @@ export class CopilotAgentMonitor {
 
           console.log(`[CopilotMonitor] New agent: ${displayName} (PR #${pr.number}, ${activity.displayText})`);
 
-          // Sync ADO state to "Doing" for new PRs with linked tickets
-          if (session.linkedTicketId && isRunning && !this.adoTransitionedToDoing.has(session.linkedTicketId)) {
+          // Sync ADO state to "Doing" for new Copilot PRs with linked tickets
+          // A Copilot PR existing means the agent is working — don't require isRunning
+          if (session.linkedTicketId && !this.adoTransitionedToDoing.has(session.linkedTicketId)) {
             this.adoTransitionedToDoing.add(session.linkedTicketId);
+            console.log(`[CopilotMonitor] New Copilot PR #${pr.number} linked to ADO #${session.linkedTicketId} — syncing to Doing`);
             void this.updateAdoWorkItemState(session.linkedTicketId, 'Doing');
           }
 
@@ -1093,9 +1102,9 @@ export class CopilotAgentMonitor {
     return t;
   }
 
-  /** Extract Azure DevOps ticket ID from branch name or PR title */
-  private extractTicketId(branch: string, title: string): string | undefined {
-    return extractTicketId(branch, title);
+  /** Extract Azure DevOps ticket ID from branch name, PR title, or PR body */
+  private extractTicketId(branch: string, title: string, body?: string): string | undefined {
+    return extractTicketId(branch, title, body);
   }
 
   /** Convert branch name to a display-friendly name */
@@ -1140,6 +1149,7 @@ export class CopilotAgentMonitor {
   private async fetchCopilotPRs(): Promise<Array<{
     number: number;
     title: string;
+    body: string;
     branch: string;
     state: string;
     draft: boolean;
@@ -1162,6 +1172,7 @@ export class CopilotAgentMonitor {
     const prs = await res.json() as Array<{
       number: number;
       title: string;
+      body: string | null;
       head: { ref: string };
       state: string;
       draft: boolean;
@@ -1174,6 +1185,7 @@ export class CopilotAgentMonitor {
       .map(pr => ({
         number: pr.number,
         title: pr.title,
+        body: pr.body || '',
         branch: pr.head.ref,
         state: pr.state,
         draft: pr.draft,
