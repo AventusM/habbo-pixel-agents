@@ -8,6 +8,7 @@ import {
   TILE_W_HALF,
   TILE_H_HALF,
   WALL_HEIGHT,
+  FLOOR_THICKNESS,
   tileToScreen,
 } from './isometricMath.js';
 import type { TileGrid, HsbColor, Renderable } from './isoTypes.js';
@@ -297,15 +298,36 @@ function drawFloorTile(
   sy: number,
   hsb: HsbColor,
 ): void {
-  const { top, right: borderColor } = tileColors(hsb);
+  const { top, left, right: borderColor } = tileColors(hsb);
+  const d = FLOOR_THICKNESS;
 
+  // Left side face (bottom-left edge → bottom vertex, extruded downward)
   ctx.beginPath();
-  ctx.moveTo(sx, sy); // top vertex
-  ctx.lineTo(sx + TILE_W_HALF, sy + TILE_H_HALF); // right vertex
-  ctx.lineTo(sx, sy + TILE_H); // bottom vertex
-  ctx.lineTo(sx - TILE_W_HALF, sy + TILE_H_HALF); // left vertex
+  ctx.moveTo(sx - TILE_W_HALF, sy + TILE_H_HALF);           // left vertex
+  ctx.lineTo(sx, sy + TILE_H);                               // bottom vertex
+  ctx.lineTo(sx, sy + TILE_H + d);                           // bottom vertex + depth
+  ctx.lineTo(sx - TILE_W_HALF, sy + TILE_H_HALF + d);       // left vertex + depth
   ctx.closePath();
+  ctx.fillStyle = left;
+  ctx.fill();
 
+  // Right side face (bottom vertex → bottom-right edge, extruded downward)
+  ctx.beginPath();
+  ctx.moveTo(sx, sy + TILE_H);                               // bottom vertex
+  ctx.lineTo(sx + TILE_W_HALF, sy + TILE_H_HALF);           // right vertex
+  ctx.lineTo(sx + TILE_W_HALF, sy + TILE_H_HALF + d);       // right vertex + depth
+  ctx.lineTo(sx, sy + TILE_H + d);                           // bottom vertex + depth
+  ctx.closePath();
+  ctx.fillStyle = borderColor;
+  ctx.fill();
+
+  // Top face (rhombus)
+  ctx.beginPath();
+  ctx.moveTo(sx, sy);                                        // top vertex
+  ctx.lineTo(sx + TILE_W_HALF, sy + TILE_H_HALF);           // right vertex
+  ctx.lineTo(sx, sy + TILE_H);                               // bottom vertex
+  ctx.lineTo(sx - TILE_W_HALF, sy + TILE_H_HALF);           // left vertex
+  ctx.closePath();
   ctx.fillStyle = top;
   ctx.fill();
 
