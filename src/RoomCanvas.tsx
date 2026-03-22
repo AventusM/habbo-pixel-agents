@@ -1498,7 +1498,7 @@ function drawAgentPopup(
   const cardW = 120;
   const cardH = 48;
   const cardX = screenX + offsetX - cardW / 2;
-  const cardY = headY - cardH - 20; // Above name tag
+  const cardY = headY - cardH - 90; // Above speech bubble (bubble anchor is headY-30, bubble body extends ~60px above that)
 
   const team = sectionManager?.getAgentTeam(avatar.id) || 'core-dev';
   const teamColor = TEAM_COLORS[team] || '#666';
