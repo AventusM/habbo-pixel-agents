@@ -142,16 +142,16 @@ export function drawWallPanels(
 }
 
 /**
- * Draw wall front-face and top-face thickness edges.
+ * Draw wall thickness edges — bottom-face strip and border lines.
  *
- * Must be called AFTER floor tiles so the edge strips render on top.
+ * Must be called AFTER floor tiles so the edges render on top.
  *
- * Left wall gets:
- * - A front face (parallelogram) running the full length of the wall's bottom edge,
- *   offset outward by WALL_DEPTH pixels (camera-facing side).
- * - A top face strip along the ceiling line.
- *
- * Right wall gets the same treatment on its camera-facing side.
+ * Each wall gets:
+ * - A bottom-face strip along the floor junction (the underside of the wall
+ *   "ledge" — visible where wall meets floor). This is offset inward toward
+ *   the room.
+ * - A darker border line along the bottom edge of the wall panel.
+ * - A lighter border line along the top edge (ceiling line).
  */
 export function drawWallEdges(
   ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D,
@@ -160,11 +160,11 @@ export function drawWallEdges(
   hsb: HsbColor,
   tileColorMap?: Map<string, HsbColor>,
 ): void {
-  const WALL_DEPTH = 4;
+  const DEPTH = 6;
   const tileHsb = (tileColorMap && tileColorMap.get('0,0')) || hsb;
   const colors = tileColors(tileHsb);
 
-  // --- LEFT WALL edges ---
+  // --- LEFT WALL bottom-face + borders ---
   const leftEdge: Array<{ tx: number; ty: number; height: number }> = [];
   for (let ty = 0; ty < grid.height; ty++) {
     for (let tx = 0; tx < grid.width; tx++) {
@@ -178,7 +178,6 @@ export function drawWallEdges(
   }
 
   if (leftEdge.length > 0) {
-    // Build the bottom edge points (same as drawWallPanels)
     const pts: Array<{ x: number; y: number }> = [];
     const first = leftEdge[0];
     const { x: fsx, y: fsy } = tileToScreen(first.tx, first.ty, first.height);
@@ -188,32 +187,40 @@ export function drawWallEdges(
       pts.push({ x: sx + cameraOrigin.x - TILE_W_HALF, y: sy + cameraOrigin.y + TILE_H_HALF });
     }
 
-    // Front face: full-length parallelogram along the bottom edge, offset outward
+    // Bottom-face strip: offset inward (right+up in iso) from wall bottom edge
     ctx.beginPath();
     for (let i = 0; i < pts.length; i++) {
       ctx[i === 0 ? 'moveTo' : 'lineTo'](pts[i].x, pts[i].y);
     }
     for (let i = pts.length - 1; i >= 0; i--) {
-      ctx.lineTo(pts[i].x - WALL_DEPTH, pts[i].y + WALL_DEPTH / 2);
+      ctx.lineTo(pts[i].x + DEPTH, pts[i].y - DEPTH / 2);
     }
     ctx.closePath();
-    ctx.fillStyle = colors.right;
+    ctx.fillStyle = colors.right; // darkest shade for underside
     ctx.fill();
 
-    // Top face: strip along the ceiling line
+    // Border line along bottom edge
     ctx.beginPath();
-    for (let i = 0; i < pts.length; i++) {
-      ctx[i === 0 ? 'moveTo' : 'lineTo'](pts[i].x, pts[i].y - WALL_HEIGHT);
+    ctx.moveTo(pts[0].x, pts[0].y);
+    for (let i = 1; i < pts.length; i++) {
+      ctx.lineTo(pts[i].x, pts[i].y);
     }
-    for (let i = pts.length - 1; i >= 0; i--) {
-      ctx.lineTo(pts[i].x - WALL_DEPTH, pts[i].y - WALL_HEIGHT + WALL_DEPTH / 2);
+    ctx.strokeStyle = colors.right;
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    // Border line along top edge (ceiling)
+    ctx.beginPath();
+    ctx.moveTo(pts[0].x, pts[0].y - WALL_HEIGHT);
+    for (let i = 1; i < pts.length; i++) {
+      ctx.lineTo(pts[i].x, pts[i].y - WALL_HEIGHT);
     }
-    ctx.closePath();
-    ctx.fillStyle = colors.top;
-    ctx.fill();
+    ctx.strokeStyle = colors.right;
+    ctx.lineWidth = 0.5;
+    ctx.stroke();
   }
 
-  // --- RIGHT WALL edges ---
+  // --- RIGHT WALL bottom-face + borders ---
   const rightEdge: Array<{ tx: number; ty: number; height: number }> = [];
   for (let tx = 0; tx < grid.width; tx++) {
     for (let ty = 0; ty < grid.height; ty++) {
@@ -236,28 +243,36 @@ export function drawWallEdges(
       pts.push({ x: sx + cameraOrigin.x + TILE_W_HALF, y: sy + cameraOrigin.y + TILE_H_HALF });
     }
 
-    // Front face: full-length parallelogram along the bottom edge, offset outward
+    // Bottom-face strip: offset inward (left+up in iso) from wall bottom edge
     ctx.beginPath();
     for (let i = 0; i < pts.length; i++) {
       ctx[i === 0 ? 'moveTo' : 'lineTo'](pts[i].x, pts[i].y);
     }
     for (let i = pts.length - 1; i >= 0; i--) {
-      ctx.lineTo(pts[i].x + WALL_DEPTH, pts[i].y + WALL_DEPTH / 2);
+      ctx.lineTo(pts[i].x - DEPTH, pts[i].y - DEPTH / 2);
     }
     ctx.closePath();
-    ctx.fillStyle = colors.left;
+    ctx.fillStyle = colors.left; // medium shade for underside
     ctx.fill();
 
-    // Top face: strip along the ceiling line
+    // Border line along bottom edge
     ctx.beginPath();
-    for (let i = 0; i < pts.length; i++) {
-      ctx[i === 0 ? 'moveTo' : 'lineTo'](pts[i].x, pts[i].y - WALL_HEIGHT);
+    ctx.moveTo(pts[0].x, pts[0].y);
+    for (let i = 1; i < pts.length; i++) {
+      ctx.lineTo(pts[i].x, pts[i].y);
     }
-    for (let i = pts.length - 1; i >= 0; i--) {
-      ctx.lineTo(pts[i].x + WALL_DEPTH, pts[i].y - WALL_HEIGHT + WALL_DEPTH / 2);
+    ctx.strokeStyle = colors.left;
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    // Border line along top edge (ceiling)
+    ctx.beginPath();
+    ctx.moveTo(pts[0].x, pts[0].y - WALL_HEIGHT);
+    for (let i = 1; i < pts.length; i++) {
+      ctx.lineTo(pts[i].x, pts[i].y - WALL_HEIGHT);
     }
-    ctx.closePath();
-    ctx.fillStyle = colors.top;
-    ctx.fill();
+    ctx.strokeStyle = colors.left;
+    ctx.lineWidth = 0.5;
+    ctx.stroke();
   }
 }
