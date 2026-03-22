@@ -880,15 +880,8 @@ export class CopilotAgentMonitor {
       if (isInitialDiscovery) {
         return { displayText: `Starting: ${topic}`, phase: 'waiting' };
       }
-      if (liveActivity) {
-        // Completed — prefix with "Done" but show what was last done
-        return { displayText: `Done: ${liveActivity.displayText}`, phase: 'waiting' };
-      }
-      const commits = await this.fetchPRCommits(session.prNumber);
-      if (commits.length === 0) {
-        return { displayText: `Waiting: ${topic}`, phase: 'waiting' };
-      }
-      return { displayText: `Done: ${topic}`, phase: 'waiting' };
+      // Agent finished — awaiting human review
+      return { displayText: 'Done: Awaiting user feedback', phase: 'waiting' };
     }
 
     // Running — use live activity if available
