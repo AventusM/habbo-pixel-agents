@@ -4,7 +4,7 @@
  * Polls the GitHub API for Copilot coding agent activity:
  * - PRs authored by Copilot (user "Copilot" or branches matching copilot/*)
  * - Workflow runs named "Running Copilot coding agent"
- * - Latest commits on Copilot PRs (for detailed activity display)
+ * - Live session logs from the Copilot sessions API for real-time activity
  *
  * Emits agent lifecycle events (created, status, tool, removed) via callback,
  * using the same ExtensionMessage protocol as the JSONL-based AgentManager.
@@ -38,6 +38,17 @@ export interface CopilotAgentSession {
   lastRunName?: string;
   /** Total commit count at last check */
   commitCount: number;
+  /** Copilot session UUID (from api.githubcopilot.com) */
+  copilotSessionId?: string;
+}
+
+/** A parsed tool call from the Copilot session SSE stream */
+interface ParsedToolCall {
+  name: string;
+  description?: string;
+  path?: string;
+  pattern?: string;
+  command?: string;
 }
 
 /** Summarised activity for display */
@@ -57,6 +68,10 @@ export class CopilotAgentMonitor {
   private onMessage: (msg: ExtensionMessage) => void;
   private pollIntervalMs: number;
   private variant = 0;
+  /** Cache of PR number → Copilot session ID */
+  private sessionIdCache = new Map<number, string>();
+  /** Whether the Copilot sessions API is available (avoids repeated 401s) */
+  private sessionApiAvailable = true;
 
   constructor(
     owner: string,
@@ -224,70 +239,317 @@ export class CopilotAgentMonitor {
   }
 
   /**
-   * Build a detailed activity snapshot by combining:
-   * - Workflow run name (what phase: initial coding vs responding to feedback)
-   * - Latest commits (what the agent actually did)
+   * Build a detailed activity snapshot using the Copilot session logs API.
+   *
+   * When available, fetches live tool calls from the session SSE stream
+   * to show exactly what the agent is doing: "Reading isoSpriteCache.ts",
+   * "Running tests", "Searching for: sit|chair".
+   *
+   * Falls back to phase + PR title when the session API is unavailable.
    */
   private async getActivitySnapshot(
     session: CopilotAgentSession,
     isRunning: boolean,
     runName?: string,
   ): Promise<ActivitySnapshot> {
+    const topic = this.shortenTitle(session.title);
+
+    // Try to get live/recent activity from Copilot session logs
+    // Works for both running (shows current tool) and completed (shows last tool)
+    const liveActivity = await this.fetchLiveActivity(session);
+
     if (!isRunning) {
-      // Not running — summarise what happened based on latest commits
+      if (liveActivity) {
+        // Completed — prefix with "Done" but show what was last done
+        return { displayText: `Done: ${liveActivity.displayText}`, phase: 'waiting' };
+      }
       const commits = await this.fetchPRCommits(session.prNumber);
       if (commits.length === 0) {
-        return { displayText: 'Waiting for review', phase: 'waiting' };
+        return { displayText: `Waiting: ${topic}`, phase: 'waiting' };
       }
-
-      const latest = commits[commits.length - 1];
-      const msg = this.shortenCommitMessage(latest.message);
-      const commitWord = commits.length === 1 ? 'commit' : 'commits';
-      return {
-        displayText: `Done — ${commits.length} ${commitWord}: "${msg}"`,
-        phase: 'waiting',
-      };
+      return { displayText: `Done: ${topic}`, phase: 'waiting' };
     }
 
-    // Running — determine phase from run name and commits
+    // Running — use live activity if available
+    if (liveActivity) {
+      return liveActivity;
+    }
+
+    // Fallback: determine phase from run name
     const phase = this.detectPhase(runName);
     const commits = await this.fetchPRCommits(session.prNumber);
     const newCommits = commits.length - session.commitCount;
     session.commitCount = commits.length;
-
     if (newCommits > 0) {
-      // Agent just pushed — show what it committed
-      const latest = commits[commits.length - 1];
-      const msg = this.shortenCommitMessage(latest.message);
-      session.lastCommitSha = latest.sha;
-
-      const prefix = phase === 'responding' ? 'Responding' : 'Working';
-      return {
-        displayText: `${prefix}: pushed "${msg}"`,
-        phase,
-      };
+      session.lastCommitSha = commits[commits.length - 1].sha;
     }
 
-    // Running but no new commits yet — show phase + context
     switch (phase) {
       case 'responding':
-        return { displayText: 'Responding to feedback...', phase };
+        return { displayText: `Reviewing feedback: ${topic}`, phase };
       case 'planning':
-        return { displayText: 'Planning approach...', phase };
+        return { displayText: `Planning: ${topic}`, phase };
       case 'testing':
-        return { displayText: 'Running tests...', phase };
+        return { displayText: `Testing: ${topic}`, phase };
       case 'coding':
-      default: {
+      default:
         if (commits.length === 0) {
-          return { displayText: 'Analyzing codebase...', phase: 'planning' };
+          return { displayText: `Analyzing: ${topic}`, phase: 'planning' };
         }
-        const latest = commits[commits.length - 1];
-        const msg = this.shortenCommitMessage(latest.message);
-        return {
-          displayText: `Coding... (last: "${msg}")`,
-          phase: 'coding',
-        };
+        return { displayText: `Coding: ${topic}`, phase: 'coding' };
+    }
+  }
+
+  /**
+   * Fetch the latest activity from the Copilot session logs API.
+   *
+   * Returns null if the API is unavailable or no session is found.
+   */
+  private async fetchLiveActivity(
+    session: CopilotAgentSession,
+  ): Promise<ActivitySnapshot | null> {
+    if (!this.sessionApiAvailable) return null;
+
+    try {
+      // Resolve the Copilot session ID for this PR
+      const sessionId = await this.resolveCopilotSessionId(session.prNumber);
+      if (!sessionId) {
+        console.log(`[CopilotMonitor] No session ID found for PR #${session.prNumber}`);
+        return null;
       }
+      session.copilotSessionId = sessionId;
+
+      // Fetch the session logs SSE stream
+      const res = await fetch(
+        `https://api.githubcopilot.com/agents/sessions/${sessionId}/logs`,
+        {
+          headers: {
+            'Authorization': `Bearer ${this.token}`,
+            'Content-Type': 'application/json',
+            'Copilot-Integration-Id': 'copilot-4-cli',
+            'X-Github-Api-Version': '2026-01-09',
+          },
+        },
+      );
+
+      if (!res.ok) {
+        if (res.status === 401 || res.status === 403) {
+          console.warn('[CopilotMonitor] Session logs API not authorized, disabling');
+          this.sessionApiAvailable = false;
+        }
+        return null;
+      }
+
+      const body = await res.text();
+      const toolCall = this.parseLastToolCall(body);
+      if (!toolCall) return null;
+
+      const displayText = this.formatCopilotToolCall(toolCall);
+      const phase = this.detectPhaseFromTool(toolCall);
+      return { displayText, phase };
+    } catch (err) {
+      console.warn('[CopilotMonitor] Live activity fetch failed:', (err as Error).message);
+      return null;
+    }
+  }
+
+  /**
+   * Look up the Copilot session UUID for a PR via the sessions list API.
+   */
+  private async resolveCopilotSessionId(prNumber: number): Promise<string | null> {
+    // Check cache first
+    const cached = this.sessionIdCache.get(prNumber);
+    if (cached) return cached;
+
+    try {
+      const res = await fetch(
+        'https://api.githubcopilot.com/agents/sessions?page_number=1&page_size=50&sort=last_updated_at%2Cdesc',
+        {
+          headers: {
+            'Authorization': `Bearer ${this.token}`,
+            'Content-Type': 'application/json',
+            'Copilot-Integration-Id': 'copilot-4-cli',
+            'X-Github-Api-Version': '2026-01-09',
+          },
+        },
+      );
+
+      if (!res.ok) {
+        if (res.status === 401 || res.status === 403) {
+          this.sessionApiAvailable = false;
+        }
+        return null;
+      }
+
+      const wrapper = await res.json() as {
+        sessions: Array<{
+          id: string;
+          resource_number: number;
+          state: string;
+          repo_id: number;
+          head_ref: string;
+        }>;
+        has_next_page: boolean;
+      };
+      const sessions = wrapper.sessions || [];
+
+      // Match by PR number and head_ref branch prefix
+      for (const s of sessions) {
+        if (s.resource_number === prNumber && s.head_ref?.startsWith('copilot/')) {
+          this.sessionIdCache.set(prNumber, s.id);
+          return s.id;
+        }
+      }
+    } catch {
+      // Silently ignore — will fall back
+    }
+
+    return null;
+  }
+
+  /**
+   * Parse the last meaningful tool call from the SSE stream body.
+   *
+   * The stream contains `data: {json}\n\n` lines. We scan from the end
+   * to find the most recent agent tool call (skipping setup steps and
+   * PR metadata generation).
+   */
+  private parseLastToolCall(sseBody: string): ParsedToolCall | null {
+    const lines = sseBody.split('\n');
+    const skipTools = new Set(['run_custom_setup_step', 'run_setup', 'report_progress']);
+    let lastThinking: ParsedToolCall | null = null;
+
+    // Scan from the end for the last real tool call
+    for (let i = lines.length - 1; i >= 0; i--) {
+      const line = lines[i];
+      if (!line.startsWith('data: ')) continue;
+
+      try {
+        const json = JSON.parse(line.slice(6));
+        const choices = json.choices || [];
+        for (const choice of choices) {
+          const delta = choice.delta || {};
+
+          // Check for tool calls — prefer these over thinking
+          const toolCalls = delta.tool_calls || [];
+          for (const tc of toolCalls) {
+            const fn = tc.function || {};
+            const name = fn.name as string;
+            if (!name || skipTools.has(name)) continue;
+
+            let args: Record<string, unknown> = {};
+            try {
+              args = JSON.parse(fn.arguments || '{}');
+            } catch {
+              // Arguments might not be valid JSON
+            }
+
+            return {
+              name,
+              description: args.description as string | undefined,
+              path: (args.path || args.file_path) as string | undefined,
+              pattern: args.pattern as string | undefined,
+              command: args.command as string | undefined,
+            };
+          }
+
+          // Check for agent reasoning (content without tool calls)
+          // Only keep the first (most recent) meaningful one as fallback
+          if (!lastThinking && delta.content && toolCalls.length === 0) {
+            const content = (delta.content as string).trim();
+            // Skip PR metadata, empty content, and very short content
+            if (
+              content.length > 10 &&
+              !content.includes('<pr_title>') &&
+              !content.includes('<pr_description>') &&
+              !content.startsWith('$') // skip shell output
+            ) {
+              lastThinking = {
+                name: '_thinking',
+                description: content,
+              };
+            }
+          }
+        }
+      } catch {
+        // Skip unparseable lines
+      }
+    }
+
+    return lastThinking;
+  }
+
+  /**
+   * Format a Copilot tool call into a human-readable display string.
+   * Similar to formatToolStatus in transcriptParser.ts.
+   */
+  private formatCopilotToolCall(tool: ParsedToolCall): string {
+    switch (tool.name) {
+      case 'bash': {
+        if (tool.description) return this.truncate(tool.description, 50);
+        if (tool.command) return `Running: ${this.truncate(tool.command, 40)}`;
+        return 'Running command...';
+      }
+      case 'view':
+        return `Reading ${this.extractFilename(tool.path)}`;
+      case 'glob':
+        return `Searching: ${this.truncate(tool.pattern, 40)}`;
+      case 'grep':
+        return `Searching for: ${this.truncate(tool.pattern, 35)}`;
+      case 'edit':
+        return `Editing ${this.extractFilename(tool.path)}`;
+      case 'write':
+      case 'create':
+        return `Writing ${this.extractFilename(tool.path)}`;
+      case 'task':
+        return tool.description
+          ? `Task: ${this.truncate(tool.description, 40)}`
+          : 'Running sub-task...';
+      case 'reply_to_comment':
+        return 'Replying to review comment';
+      case 'codeql_checker':
+        return 'Running security analysis';
+      case '_thinking': {
+        // Agent reasoning — extract first sentence
+        const text = tool.description || '';
+        const firstSentence = text.split(/[.!?\n]/)[0].trim();
+        return this.truncate(firstSentence, 50);
+      }
+      default: {
+        // Handle prefixed tools like playwright-browser_navigate
+        const name = tool.name;
+        if (name.startsWith('playwright-')) {
+          const action = name.replace('playwright-', '').replace(/_/g, ' ');
+          return `Browser: ${action}`;
+        }
+        return `Using ${name}`;
+      }
+    }
+  }
+
+  /**
+   * Detect phase from the tool the agent is currently using.
+   */
+  private detectPhaseFromTool(tool: ParsedToolCall): ActivitySnapshot['phase'] {
+    switch (tool.name) {
+      case 'bash': {
+        const cmd = (tool.command || tool.description || '').toLowerCase();
+        if (cmd.includes('test') || cmd.includes('vitest') || cmd.includes('jest')) {
+          return 'testing';
+        }
+        return 'coding';
+      }
+      case 'view':
+      case 'glob':
+      case 'grep':
+      case '_thinking':
+        return 'planning';
+      case 'edit':
+      case 'write':
+      case 'create':
+        return 'coding';
+      default:
+        return 'coding';
     }
   }
 
@@ -315,15 +577,39 @@ export class CopilotAgentMonitor {
 
   /** Shorten a commit message for display in a speech bubble */
   private shortenCommitMessage(msg: string): string {
-    // Take first line only
     const firstLine = msg.split('\n')[0];
-    // Strip conventional commit prefix
     const stripped = firstLine.replace(/^(feat|fix|chore|refactor|test|docs|style|ci|perf)(\(.+?\))?:\s*/i, '');
-    // Truncate
     if (stripped.length > 50) {
       return stripped.slice(0, 47) + '...';
     }
     return stripped;
+  }
+
+  /** Shorten a PR title for the speech bubble — strip ticket refs, prefixes, truncate */
+  private shortenTitle(title: string): string {
+    let t = title
+      .replace(/\bAB#\d+\b/g, '')
+      .replace(/^(feat|fix|chore|refactor|test|docs|style|ci|perf)(\(.+?\))?:\s*/i, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+    if (t.length > 40) {
+      t = t.slice(0, 37) + '...';
+    }
+    return t;
+  }
+
+  /** Extract just the filename from a path */
+  private extractFilename(path?: string): string {
+    if (!path) return 'file';
+    const parts = path.split('/');
+    return parts[parts.length - 1] || path;
+  }
+
+  /** Truncate text with ellipsis */
+  private truncate(text?: string, maxLen = 50): string {
+    if (!text) return '';
+    if (text.length <= maxLen) return text;
+    return text.slice(0, maxLen - 3) + '...';
   }
 
   private async fetchPRCommits(prNumber: number): Promise<Array<{
