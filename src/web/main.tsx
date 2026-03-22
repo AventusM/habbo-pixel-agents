@@ -157,6 +157,21 @@ const spriteCache = new SpriteCache();
       // Connect to WebSocket for real agent data
       connectWs();
 
+      // Track feed modes per agent for status bar display
+      const agentFeedModes = new Map<string, { mode: string; reason: string }>();
+
+      // Listen for agentFeedMode messages
+      window.addEventListener('extensionMessage', ((e: CustomEvent) => {
+        const msg = e.detail;
+        if (msg.type === 'agentFeedMode') {
+          agentFeedModes.set(msg.agentId, { mode: msg.feedMode, reason: msg.feedReason });
+          updateStatusBar(getWsState());
+        } else if (msg.type === 'agentRemoved') {
+          agentFeedModes.delete(msg.agentId);
+          updateStatusBar(getWsState());
+        }
+      }) as EventListener);
+
       // Create status bar
       const statusBar = document.createElement('div');
       statusBar.id = 'status-bar';
@@ -165,11 +180,37 @@ const spriteCache = new SpriteCache();
 
       let isDemoMode = false;
 
+      function buildFeedModeIndicators(): string {
+        if (agentFeedModes.size === 0) return '';
+        const indicators: string[] = [];
+        for (const [agentId, { mode }] of agentFeedModes) {
+          // Extract short PR label from agentId like "copilot-pr-42"
+          const prMatch = agentId.match(/pr-(\d+)/);
+          const label = prMatch ? `#${prMatch[1]}` : agentId.slice(0, 10);
+
+          let dot: string;
+          let modeLabel: string;
+          if (mode === 'sse') {
+            dot = '🟢';
+            modeLabel = 'live';
+          } else if (mode === 'fast-poll') {
+            dot = '🟠';
+            modeLabel = '3s';
+          } else {
+            dot = '🟡';
+            modeLabel = '15s';
+          }
+          indicators.push(`<span title="${mode}">${dot} ${label}:${modeLabel}</span>`);
+        }
+        return `<span style="display:flex;gap:6px;margin-left:8px;color:#aaa">${indicators.join('')}</span>`;
+      }
+
       function updateStatusBar(wsState: WsState) {
         const dot = wsState === 'connected' ? '🟢' : wsState === 'connecting' ? '🟡' : '🔴';
         const label = wsState === 'connected' ? 'Connected' : wsState === 'connecting' ? 'Connecting...' : 'Disconnected';
         const demoLabel = isDemoMode ? '<span style="color:#f59e0b;margin-left:8px">● DEMO MODE</span>' : '';
-        statusBar.innerHTML = `<span>${dot} ${label}</span>${demoLabel}<span style="margin-left:auto;color:#555">localhost:${window.location.port || '3000'}</span>`;
+        const feedIndicators = buildFeedModeIndicators();
+        statusBar.innerHTML = `<span>${dot} ${label}</span>${demoLabel}${feedIndicators}<span style="margin-left:auto;color:#555">localhost:${window.location.port || '3000'}</span>`;
       }
 
       onWsStateChange(updateStatusBar);
