@@ -512,7 +512,7 @@ export class CopilotAgentMonitor {
               type: 'agentTool',
               agentId,
               toolName: 'CopilotAgent',
-              displayText,
+              displayText: this.withTicketPrefix(session, displayText),
             });
             console.log(`[CopilotMonitor] SSE PR #${session.prNumber}: ${displayText}`);
           }
@@ -607,7 +607,7 @@ export class CopilotAgentMonitor {
             type: 'agentTool',
             agentId,
             toolName: 'CopilotAgent',
-            displayText: activity.displayText,
+            displayText: this.withTicketPrefix(session, activity.displayText),
           });
           console.log(`[CopilotMonitor] Fast-poll PR #${session.prNumber}: ${activity.displayText}`);
         }
@@ -757,7 +757,7 @@ export class CopilotAgentMonitor {
             type: 'agentTool',
             agentId,
             toolName: 'CopilotAgent',
-            displayText: activity.displayText,
+            displayText: this.withTicketPrefix(session, activity.displayText),
           });
 
           console.log(`[CopilotMonitor] New agent: ${displayName} (PR #${pr.number}, ${activity.displayText})`);
@@ -831,7 +831,7 @@ export class CopilotAgentMonitor {
                 type: 'agentTool',
                 agentId,
                 toolName: 'CopilotAgent',
-                displayText: activity.displayText,
+                displayText: this.withTicketPrefix(existing, activity.displayText),
               });
               console.log(`[CopilotMonitor] PR #${pr.number}: ${activity.displayText}`);
             }
@@ -1129,6 +1129,14 @@ export class CopilotAgentMonitor {
   /** Convert branch name to a display-friendly name */
   getDisplayName(branch: string): string {
     return formatDisplayName(branch);
+  }
+
+  /** Prefix display text with the linked ADO ticket ID if present */
+  private withTicketPrefix(session: CopilotAgentSession, text: string): string {
+    if (session.linkedTicketId) {
+      return `AB#${session.linkedTicketId} · ${text}`;
+    }
+    return text;
   }
 
   private async fetchPRCommits(prNumber: number): Promise<Array<{
