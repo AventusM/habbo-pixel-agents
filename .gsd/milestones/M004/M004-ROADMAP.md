@@ -51,6 +51,12 @@ This milestone is complete only when all are true:
 
 ## Slices
 
+- [ ] **S07: Copilot Agent Activity Monitor Workflow** `risk:low` `depends:[S06]`
+  > After this: A GitHub Actions workflow watches Copilot agent PR activity and posts status updates as PR comments + syncs ADO work item state (To Do → Doing → Done) automatically. No human watching required.
+
+- [x] **S08: Copilot Agent Rich Activity Display** `risk:low` `depends:[S06]`
+  > After this: The Copilot agent avatar speech bubble on localhost:3000 shows detailed activity — commit messages, phase (coding/responding/planning), and progress — instead of a generic "Working..." message.
+
 - [x] **S01: Standalone Room Renderer** `risk:high` `depends:[]`
   > After this: Opening a local HTML page in a browser shows the full isometric Habbo room with furniture, camera controls, and placeholder avatars — no VS Code required.
 
