@@ -6,6 +6,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   parseLastToolCall,
+  parseSingleSSEEvent,
   formatCopilotToolCall,
   extractTicketId,
   formatDisplayName,
@@ -274,5 +275,116 @@ describe('formatDisplayName', () => {
 
   it('handles branch without copilot/ prefix', () => {
     expect(formatDisplayName('feat/my-feature')).toBe('Feat/My Feature');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// parseSingleSSEEvent — incremental SSE parser for streaming
+// ---------------------------------------------------------------------------
+describe('parseSingleSSEEvent', () => {
+  it('returns null for empty string', () => {
+    expect(parseSingleSSEEvent('')).toBeNull();
+  });
+
+  it('returns null for non-data lines', () => {
+    expect(parseSingleSSEEvent('event: ping')).toBeNull();
+    expect(parseSingleSSEEvent(': comment')).toBeNull();
+  });
+
+  it('parses a view tool call from a single data line', () => {
+    const line = `data: ${JSON.stringify({
+      choices: [{ delta: { tool_calls: [{ function: { name: 'view', arguments: '{"path":"src/foo.ts"}' } }] } }],
+    })}`;
+    const result = parseSingleSSEEvent(line);
+    expect(result).not.toBeNull();
+    expect(result!.name).toBe('view');
+    expect(result!.path).toBe('src/foo.ts');
+  });
+
+  it('parses a bash tool call', () => {
+    const line = `data: ${JSON.stringify({
+      choices: [{ delta: { tool_calls: [{ function: { name: 'bash', arguments: '{"command":"npm test"}' } }] } }],
+    })}`;
+    const result = parseSingleSSEEvent(line);
+    expect(result!.name).toBe('bash');
+    expect(result!.command).toBe('npm test');
+  });
+
+  it('parses an edit tool call', () => {
+    const line = `data: ${JSON.stringify({
+      choices: [{ delta: { tool_calls: [{ function: { name: 'edit', arguments: '{"path":"src/bar.ts"}' } }] } }],
+    })}`;
+    const result = parseSingleSSEEvent(line);
+    expect(result!.name).toBe('edit');
+    expect(result!.path).toBe('src/bar.ts');
+  });
+
+  it('skips setup tools', () => {
+    const line = `data: ${JSON.stringify({
+      choices: [{ delta: { tool_calls: [{ function: { name: 'run_setup', arguments: '{}' } }] } }],
+    })}`;
+    expect(parseSingleSSEEvent(line)).toBeNull();
+  });
+
+  it('skips report_progress', () => {
+    const line = `data: ${JSON.stringify({
+      choices: [{ delta: { tool_calls: [{ function: { name: 'report_progress', arguments: '{}' } }] } }],
+    })}`;
+    expect(parseSingleSSEEvent(line)).toBeNull();
+  });
+
+  it('returns thinking content for reasoning', () => {
+    const line = `data: ${JSON.stringify({
+      choices: [{ delta: { content: 'I need to check the test suite first.', tool_calls: [] } }],
+    })}`;
+    const result = parseSingleSSEEvent(line);
+    expect(result!.name).toBe('_thinking');
+    expect(result!.description).toContain('I need to check');
+  });
+
+  it('ignores short content', () => {
+    const line = `data: ${JSON.stringify({
+      choices: [{ delta: { content: 'ok', tool_calls: [] } }],
+    })}`;
+    expect(parseSingleSSEEvent(line)).toBeNull();
+  });
+
+  it('ignores PR metadata content', () => {
+    const line = `data: ${JSON.stringify({
+      choices: [{ delta: { content: '<pr_title>Fix</pr_title>', tool_calls: [] } }],
+    })}`;
+    expect(parseSingleSSEEvent(line)).toBeNull();
+  });
+
+  it('handles malformed JSON gracefully', () => {
+    expect(parseSingleSSEEvent('data: {broken json')).toBeNull();
+  });
+
+  it('accepts file_path alias', () => {
+    const line = `data: ${JSON.stringify({
+      choices: [{ delta: { tool_calls: [{ function: { name: 'view', arguments: '{"file_path":"alt.ts"}' } }] } }],
+    })}`;
+    const result = parseSingleSSEEvent(line);
+    expect(result!.path).toBe('alt.ts');
+  });
+
+  it('handles tool call with invalid arguments JSON', () => {
+    const line = `data: ${JSON.stringify({
+      choices: [{ delta: { tool_calls: [{ function: { name: 'bash', arguments: '{invalid' } }] } }],
+    })}`;
+    const result = parseSingleSSEEvent(line);
+    expect(result!.name).toBe('bash');
+    // Arguments couldn't be parsed, so fields are undefined
+    expect(result!.command).toBeUndefined();
+  });
+
+  it('returns consistent results with parseLastToolCall for single events', () => {
+    // A single-event body should produce the same result from both parsers
+    const body = `data: ${JSON.stringify({
+      choices: [{ delta: { tool_calls: [{ function: { name: 'grep', arguments: '{"pattern":"TODO"}' } }] } }],
+    })}\n`;
+    const fromFull = parseLastToolCall(body);
+    const fromSingle = parseSingleSSEEvent(body.trim());
+    expect(fromSingle).toEqual(fromFull);
   });
 });
