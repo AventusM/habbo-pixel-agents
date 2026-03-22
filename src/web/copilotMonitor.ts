@@ -876,8 +876,14 @@ export class CopilotAgentMonitor {
     const liveActivity = await this.fetchLiveActivity(session);
 
     if (!isRunning) {
-      // For newly discovered PRs that aren't running yet, show "Starting" not "Done"
+      // Distinguish "hasn't started yet" from "already finished" on initial discovery
       if (isInitialDiscovery) {
+        const commits = await this.fetchPRCommits(session.prNumber);
+        if (commits.length > 0) {
+          // Has commits — agent already ran and finished
+          return { displayText: 'Done: Awaiting user feedback', phase: 'waiting' };
+        }
+        // No commits yet — genuinely hasn't started
         return { displayText: `Starting: ${topic}`, phase: 'waiting' };
       }
       // Agent finished — awaiting human review
