@@ -75,7 +75,7 @@ export interface ActivitySnapshot {
  */
 export function parseLastToolCall(sseBody: string): ParsedToolCall | null {
   const lines = sseBody.split('\n');
-  const skipTools = new Set(['run_custom_setup_step', 'run_setup', 'report_progress']);
+  const skipTools = new Set(['run_setup']);
   let lastThinking: ParsedToolCall | null = null;
 
   // Scan from the end for the last real tool call
@@ -182,6 +182,17 @@ export function formatCopilotToolCall(tool: ParsedToolCall): string {
       return 'Replying to review comment';
     case 'codeql_checker':
       return 'Running security analysis';
+    case 'report_progress': {
+      // Agent progress update — extract the message
+      const msg = tool.description || tool.command || '';
+      if (msg) return truncate(msg, 50);
+      return 'Updating progress...';
+    }
+    case 'run_custom_setup_step': {
+      const step = tool.description || tool.command || '';
+      if (step) return `Setup: ${truncate(step, 42)}`;
+      return 'Setting up environment...';
+    }
     case '_thinking': {
       // Agent reasoning — extract first sentence
       const text = tool.description || '';
@@ -246,7 +257,7 @@ export interface SSEConnection {
 export function parseSingleSSEEvent(dataLine: string): ParsedToolCall | null {
   if (!dataLine.startsWith('data: ')) return null;
 
-  const skipTools = new Set(['run_custom_setup_step', 'run_setup', 'report_progress']);
+  const skipTools = new Set(['run_setup']);
 
   try {
     const json = JSON.parse(dataLine.slice(6));
