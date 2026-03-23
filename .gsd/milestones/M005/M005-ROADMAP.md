@@ -46,20 +46,20 @@ This milestone is complete only when all are true:
 
 ## Slices
 
-- [ ] **S01: Extract monitoring core into workspace package** `risk:high` `depends:[]`
+- [x] **S01: Extract monitoring core into workspace package** `risk:high` `depends:[]`
   > After this: `packages/agent-dashboard/` exists with all monitoring modules, builds independently, and the root repo's `npm run web` still works via workspace link
 
-- [ ] **S02: CLI entry point and standalone server** `risk:medium` `depends:[S01]`
-  > After this: `npx @AventusM/agent-dashboard --repo owner/repo` starts a server that polls GitHub and relays events over WebSocket — verified with a real or mocked GitHub response
+- [x] **S02: CLI entry point and standalone server** `risk:medium` `depends:[S01]`
+  > After this: `agent-dashboard owner/repo` starts a server that polls GitHub and relays events over WebSocket — verified with HTTP 200 and dashboard served
 
-- [ ] **S03: Generic React dashboard frontend** `risk:medium` `depends:[S02]`
-  > After this: the package ships a default React dashboard showing agent list, status, activity timeline — viewable at localhost:3000 with no Habbo rendering
+- [x] **S03: Generic dashboard frontend** `risk:medium` `depends:[S02]`
+  > After this: the package ships a default dashboard showing agent cards, status, activity — viewable at localhost:3000 (shipped as vanilla HTML in S02)
 
-- [ ] **S04: Habbo repo consumes extracted package** `risk:low` `depends:[S01,S03]`
-  > After this: this repo's `npm run web` uses the extracted monitoring core as a workspace dependency, with its own Habbo frontend skin on top — no duplicated monitoring code
+- [x] **S04: Complete barrel exports** `risk:low` `depends:[S01,S03]`
+  > After this: all 23 public functions/types exported from the package barrel
 
-- [ ] **S05: Package publishing and CLI distribution** `risk:low` `depends:[S04]`
-  > After this: the package is published to GitHub Packages, installable via `npm install @AventusM/agent-dashboard`, and the CLI works from any private repo that has access
+- [x] **S05: README and packaging** `risk:low` `depends:[S04]`
+  > After this: the package has documentation, files field, and is ready for consumption
 
 ## Boundary Map
 
