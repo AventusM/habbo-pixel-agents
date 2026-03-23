@@ -9,10 +9,10 @@
  * Emits agent lifecycle events (created, status, tool, removed) via callback,
  * using the same ExtensionMessage protocol as the JSONL-based AgentManager.
  */
-import type { ExtensionMessage, TeamSection } from './agentTypes.js';
+import type { ExtensionMessage, TeamSection } from "./agentTypes.js";
 
 /** How agent activity data is currently being delivered */
-export type FeedMode = 'sse' | 'fast-poll' | 'poll';
+export type FeedMode = "sse" | "fast-poll" | "poll";
 
 export interface CopilotAgentSession {
   /** PR number as string — used as agentId */
@@ -65,7 +65,7 @@ export interface ActivitySnapshot {
   /** Primary display text for speech bubble */
   displayText: string;
   /** What phase the agent is in */
-  phase: 'planning' | 'coding' | 'responding' | 'testing' | 'waiting';
+  phase: "planning" | "coding" | "responding" | "testing" | "waiting";
 }
 
 /**
@@ -76,14 +76,14 @@ export interface ActivitySnapshot {
  * PR metadata generation).
  */
 export function parseLastToolCall(sseBody: string): ParsedToolCall | null {
-  const lines = sseBody.split('\n');
-  const skipTools = new Set(['run_setup']);
+  const lines = sseBody.split("\n");
+  const skipTools = new Set(["run_setup"]);
   let lastThinking: ParsedToolCall | null = null;
 
   // Scan from the end for the last real tool call
   for (let i = lines.length - 1; i >= 0; i--) {
     const line = lines[i];
-    if (!line.startsWith('data: ')) continue;
+    if (!line.startsWith("data: ")) continue;
 
     try {
       const json = JSON.parse(line.slice(6));
@@ -100,7 +100,7 @@ export function parseLastToolCall(sseBody: string): ParsedToolCall | null {
 
           let args: Record<string, unknown> = {};
           try {
-            args = JSON.parse(fn.arguments || '{}');
+            args = JSON.parse(fn.arguments || "{}");
           } catch {
             // Arguments might not be valid JSON
           }
@@ -122,12 +122,12 @@ export function parseLastToolCall(sseBody: string): ParsedToolCall | null {
           // Skip PR metadata, empty content, and very short content
           if (
             content.length > 10 &&
-            !content.includes('<pr_title>') &&
-            !content.includes('<pr_description>') &&
-            !content.startsWith('$') // skip shell output
+            !content.includes("<pr_title>") &&
+            !content.includes("<pr_description>") &&
+            !content.startsWith("$") // skip shell output
           ) {
             lastThinking = {
-              name: '_thinking',
+              name: "_thinking",
               description: content,
             };
           }
@@ -143,16 +143,16 @@ export function parseLastToolCall(sseBody: string): ParsedToolCall | null {
 
 /** Extract just the filename from a path */
 function extractFilename(path?: string): string {
-  if (!path) return 'file';
-  const parts = path.split('/');
+  if (!path) return "file";
+  const parts = path.split("/");
   return parts[parts.length - 1] || path;
 }
 
 /** Truncate text with ellipsis */
 function truncate(text?: string, maxLen = 50): string {
-  if (!text) return '';
+  if (!text) return "";
   if (text.length <= maxLen) return text;
-  return text.slice(0, maxLen - 3) + '...';
+  return text.slice(0, maxLen - 3) + "...";
 }
 
 /**
@@ -161,52 +161,52 @@ function truncate(text?: string, maxLen = 50): string {
  */
 export function formatCopilotToolCall(tool: ParsedToolCall): string {
   switch (tool.name) {
-    case 'bash': {
+    case "bash": {
       if (tool.description) return truncate(tool.description, 50);
       if (tool.command) return `Running: ${truncate(tool.command, 40)}`;
-      return 'Running command...';
+      return "Running command...";
     }
-    case 'view':
+    case "view":
       return `Reading ${extractFilename(tool.path)}`;
-    case 'glob':
+    case "glob":
       return `Searching: ${truncate(tool.pattern, 40)}`;
-    case 'grep':
+    case "grep":
       return `Searching for: ${truncate(tool.pattern, 35)}`;
-    case 'edit':
+    case "edit":
       return `Editing ${extractFilename(tool.path)}`;
-    case 'write':
-    case 'create':
+    case "write":
+    case "create":
       return `Writing ${extractFilename(tool.path)}`;
-    case 'task':
+    case "task":
       return tool.description
         ? `Task: ${truncate(tool.description, 40)}`
-        : 'Running sub-task...';
-    case 'reply_to_comment':
-      return 'Replying to review comment';
-    case 'codeql_checker':
-      return 'Running security analysis';
-    case 'report_progress': {
+        : "Running sub-task...";
+    case "reply_to_comment":
+      return "Replying to review comment";
+    case "codeql_checker":
+      return "Running security analysis";
+    case "report_progress": {
       // Agent progress update — message field has the main content
-      const msg = tool.message || tool.description || tool.command || '';
+      const msg = tool.message || tool.description || tool.command || "";
       if (msg) return truncate(msg, 50);
-      return 'Updating progress...';
+      return "Updating progress...";
     }
-    case 'run_custom_setup_step': {
-      const step = tool.description || tool.command || '';
+    case "run_custom_setup_step": {
+      const step = tool.description || tool.command || "";
       if (step) return `Setup: ${truncate(step, 42)}`;
-      return 'Setting up environment...';
+      return "Setting up environment...";
     }
-    case '_thinking': {
+    case "_thinking": {
       // Agent reasoning — extract first sentence
-      const text = tool.description || '';
+      const text = tool.description || "";
       const firstSentence = text.split(/[.!?\n]/)[0].trim();
       return truncate(firstSentence, 50);
     }
     default: {
       // Handle prefixed tools like playwright-browser_navigate
       const name = tool.name;
-      if (name.startsWith('playwright-')) {
-        const action = name.replace('playwright-', '').replace(/_/g, ' ');
+      if (name.startsWith("playwright-")) {
+        const action = name.replace("playwright-", "").replace(/_/g, " ");
         return `Browser: ${action}`;
       }
       return `Using ${name}`;
@@ -215,7 +215,11 @@ export function formatCopilotToolCall(tool: ParsedToolCall): string {
 }
 
 /** Extract Azure DevOps ticket ID from PR title (AB#NNN) or generic #NNN reference */
-export function extractTicketId(branch: string, title: string, body?: string): string | undefined {
+export function extractTicketId(
+  branch: string,
+  title: string,
+  body?: string,
+): string | undefined {
   // Check title first
   const abMatchTitle = title.match(/AB#(\d+)/);
   if (abMatchTitle) return abMatchTitle[1];
@@ -233,9 +237,9 @@ export function extractTicketId(branch: string, title: string, body?: string): s
 /** Convert a Copilot branch name to a display-friendly short name */
 export function formatDisplayName(branch: string): string {
   return branch
-    .replace('copilot/', '')
-    .replace(/-/g, ' ')
-    .replace(/\b\w/g, c => c.toUpperCase())
+    .replace("copilot/", "")
+    .replace(/-/g, " ")
+    .replace(/\b\w/g, (c) => c.toUpperCase())
     .slice(0, 20);
 }
 
@@ -258,9 +262,9 @@ export interface SSEConnection {
  * content that isn't a meaningful tool call or thinking.
  */
 export function parseSingleSSEEvent(dataLine: string): ParsedToolCall | null {
-  if (!dataLine.startsWith('data: ')) return null;
+  if (!dataLine.startsWith("data: ")) return null;
 
-  const skipTools = new Set(['run_setup']);
+  const skipTools = new Set(["run_setup"]);
 
   try {
     const json = JSON.parse(dataLine.slice(6));
@@ -277,7 +281,7 @@ export function parseSingleSSEEvent(dataLine: string): ParsedToolCall | null {
 
         let args: Record<string, unknown> = {};
         try {
-          args = JSON.parse(fn.arguments || '{}');
+          args = JSON.parse(fn.arguments || "{}");
         } catch {
           // Arguments might not be valid JSON
         }
@@ -297,12 +301,12 @@ export function parseSingleSSEEvent(dataLine: string): ParsedToolCall | null {
         const content = (delta.content as string).trim();
         if (
           content.length > 10 &&
-          !content.includes('<pr_title>') &&
-          !content.includes('<pr_description>') &&
-          !content.startsWith('$')
+          !content.includes("<pr_title>") &&
+          !content.includes("<pr_description>") &&
+          !content.startsWith("$")
         ) {
           return {
-            name: '_thinking',
+            name: "_thinking",
             description: content,
           };
         }
@@ -364,7 +368,9 @@ export class CopilotAgentMonitor {
 
   /** Start polling for Copilot agent activity */
   start(): void {
-    console.log(`[CopilotMonitor] Starting — polling ${this.owner}/${this.repo} every ${this.pollIntervalMs / 1000}s`);
+    console.log(
+      `[CopilotMonitor] Starting — polling ${this.owner}/${this.repo} every ${this.pollIntervalMs / 1000}s`,
+    );
     void this.poll();
     this.pollTimer = setInterval(() => void this.poll(), this.pollIntervalMs);
   }
@@ -403,7 +409,7 @@ export class CopilotAgentMonitor {
     // Don't open duplicate connections
     if (this.sseConnections.has(agentId)) return;
     if (!this.sessionApiAvailable) {
-      this.setFeedMode(session, 'poll', 'sessions API disabled (auth failure)');
+      this.setFeedMode(session, "poll", "sessions API disabled (auth failure)");
       this.startFastPoll(session);
       return;
     }
@@ -411,7 +417,11 @@ export class CopilotAgentMonitor {
     // Resolve the Copilot session ID
     const sessionId = await this.resolveCopilotSessionId(session.prNumber);
     if (!sessionId) {
-      this.setFeedMode(session, 'poll', `no session ID found for PR #${session.prNumber}`);
+      this.setFeedMode(
+        session,
+        "poll",
+        `no session ID found for PR #${session.prNumber}`,
+      );
       this.startFastPoll(session);
       return;
     }
@@ -443,10 +453,10 @@ export class CopilotAgentMonitor {
         `https://api.githubcopilot.com/agents/sessions/${sessionId}/logs`,
         {
           headers: {
-            'Authorization': `Bearer ${this.token}`,
-            'Content-Type': 'application/json',
-            'Copilot-Integration-Id': 'copilot-4-cli',
-            'X-Github-Api-Version': '2026-01-09',
+            Authorization: `Bearer ${this.token}`,
+            "Content-Type": "application/json",
+            "Copilot-Integration-Id": "copilot-4-cli",
+            "X-Github-Api-Version": "2026-01-09",
           },
           signal: conn.controller.signal,
         },
@@ -454,36 +464,44 @@ export class CopilotAgentMonitor {
 
       if (!res.ok) {
         if (res.status === 401 || res.status === 403) {
-          console.warn(`[CopilotMonitor] SSE: session logs API returned ${res.status}, disabling`);
+          console.warn(
+            `[CopilotMonitor] SSE: session logs API returned ${res.status}, disabling`,
+          );
           this.sessionApiAvailable = false;
         } else {
-          console.warn(`[CopilotMonitor] SSE: failed for PR #${session.prNumber}: HTTP ${res.status}`);
+          console.warn(
+            `[CopilotMonitor] SSE: failed for PR #${session.prNumber}: HTTP ${res.status}`,
+          );
         }
         this.sseConnections.delete(agentId);
-        this.setFeedMode(session, 'fast-poll', `SSE HTTP ${res.status}`);
+        this.setFeedMode(session, "fast-poll", `SSE HTTP ${res.status}`);
         this.startFastPoll(session);
         return;
       }
 
       if (!res.body) {
-        console.warn(`[CopilotMonitor] SSE: no response body for PR #${session.prNumber}`);
+        console.warn(
+          `[CopilotMonitor] SSE: no response body for PR #${session.prNumber}`,
+        );
         this.sseConnections.delete(agentId);
-        this.setFeedMode(session, 'fast-poll', 'SSE response had no body');
+        this.setFeedMode(session, "fast-poll", "SSE response had no body");
         this.startFastPoll(session);
         return;
       }
 
       // Log response headers for diagnostics
-      const contentType = res.headers.get('content-type') || 'unknown';
-      const transferEncoding = res.headers.get('transfer-encoding') || 'none';
-      console.log(`[CopilotMonitor] SSE connected for PR #${session.prNumber} (content-type: ${contentType}, transfer-encoding: ${transferEncoding})`);
+      const contentType = res.headers.get("content-type") || "unknown";
+      const transferEncoding = res.headers.get("transfer-encoding") || "none";
+      console.log(
+        `[CopilotMonitor] SSE connected for PR #${session.prNumber} (content-type: ${contentType}, transfer-encoding: ${transferEncoding})`,
+      );
 
       conn.connected = true;
-      this.setFeedMode(session, 'sse', 'connected');
+      this.setFeedMode(session, "sse", "connected");
 
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
-      let buffer = '';
+      let buffer = "";
       let eventCount = 0;
 
       while (true) {
@@ -494,11 +512,11 @@ export class CopilotAgentMonitor {
 
         // Process complete lines from the buffer
         let newlineIdx: number;
-        while ((newlineIdx = buffer.indexOf('\n')) !== -1) {
+        while ((newlineIdx = buffer.indexOf("\n")) !== -1) {
           const line = buffer.slice(0, newlineIdx).trim();
           buffer = buffer.slice(newlineIdx + 1);
 
-          if (!line.startsWith('data: ')) continue;
+          if (!line.startsWith("data: ")) continue;
 
           const toolCall = parseSingleSSEEvent(line);
           if (!toolCall) continue;
@@ -511,36 +529,52 @@ export class CopilotAgentMonitor {
           if (displayText !== session.lastStatus) {
             session.lastStatus = displayText;
             this.onMessage({
-              type: 'agentStatus',
+              type: "agentStatus",
               agentId,
-              status: 'active',
+              status: "active",
             });
             this.onMessage({
-              type: 'agentTool',
+              type: "agentTool",
               agentId,
-              toolName: 'CopilotAgent',
+              toolName: "CopilotAgent",
               displayText: this.withTicketPrefix(session, displayText),
             });
-            console.log(`[CopilotMonitor] SSE PR #${session.prNumber}: ${displayText}`);
+            console.log(
+              `[CopilotMonitor] SSE PR #${session.prNumber}: ${displayText}`,
+            );
           }
         }
       }
 
       // Stream ended — check if it was a real persistent connection or a body dump
       const streamDurationMs = Date.now() - streamStartTime;
-      console.log(`[CopilotMonitor] SSE stream ended for PR #${session.prNumber} after ${Math.round(streamDurationMs / 1000)}s (${eventCount} events)`);
+      console.log(
+        `[CopilotMonitor] SSE stream ended for PR #${session.prNumber} after ${Math.round(streamDurationMs / 1000)}s (${eventCount} events)`,
+      );
 
       // If stream ended quickly (< 10s) and agent is still running, it was a body dump, not persistent SSE
       if (streamDurationMs < 10_000 && session.isRunning) {
-        console.log(`[CopilotMonitor] SSE stream was not persistent for PR #${session.prNumber} — switching to fast-poll`);
-        this.setFeedMode(session, 'fast-poll', `stream closed after ${Math.round(streamDurationMs / 1000)}s`);
+        console.log(
+          `[CopilotMonitor] SSE stream was not persistent for PR #${session.prNumber} — switching to fast-poll`,
+        );
+        this.setFeedMode(
+          session,
+          "fast-poll",
+          `stream closed after ${Math.round(streamDurationMs / 1000)}s`,
+        );
         this.startFastPoll(session);
       }
     } catch (err) {
       // AbortError is expected when we close the connection
-      if ((err as Error).name !== 'AbortError') {
-        console.warn(`[CopilotMonitor] SSE error for PR #${session.prNumber}: ${(err as Error).message}`);
-        this.setFeedMode(session, 'fast-poll', `SSE error: ${(err as Error).message}`);
+      if ((err as Error).name !== "AbortError") {
+        console.warn(
+          `[CopilotMonitor] SSE error for PR #${session.prNumber}: ${(err as Error).message}`,
+        );
+        this.setFeedMode(
+          session,
+          "fast-poll",
+          `SSE error: ${(err as Error).message}`,
+        );
         this.startFastPoll(session);
       }
     } finally {
@@ -568,13 +602,19 @@ export class CopilotAgentMonitor {
   }
 
   /** Update the feed mode for a session and broadcast to clients */
-  private setFeedMode(session: CopilotAgentSession, mode: FeedMode, reason: string): void {
+  private setFeedMode(
+    session: CopilotAgentSession,
+    mode: FeedMode,
+    reason: string,
+  ): void {
     if (session.feedMode === mode && session.feedReason === reason) return;
     session.feedMode = mode;
     session.feedReason = reason;
-    console.log(`[CopilotMonitor] PR #${session.prNumber}: feed=${mode} (${reason})`);
+    console.log(
+      `[CopilotMonitor] PR #${session.prNumber}: feed=${mode} (${reason})`,
+    );
     this.onMessage({
-      type: 'agentFeedMode',
+      type: "agentFeedMode",
       agentId: session.id,
       feedMode: mode,
       feedReason: reason,
@@ -593,7 +633,9 @@ export class CopilotAgentMonitor {
     if (!session.isRunning) return;
 
     const FAST_POLL_MS = 3_000;
-    console.log(`[CopilotMonitor] Starting fast-poll (${FAST_POLL_MS / 1000}s) for PR #${session.prNumber}`);
+    console.log(
+      `[CopilotMonitor] Starting fast-poll (${FAST_POLL_MS / 1000}s) for PR #${session.prNumber}`,
+    );
 
     const timer = setInterval(async () => {
       // Stop if agent is no longer running
@@ -606,20 +648,24 @@ export class CopilotAgentMonitor {
         if (activity && activity.displayText !== session.lastStatus) {
           session.lastStatus = activity.displayText;
           this.onMessage({
-            type: 'agentStatus',
+            type: "agentStatus",
             agentId,
-            status: 'active',
+            status: "active",
           });
           this.onMessage({
-            type: 'agentTool',
+            type: "agentTool",
             agentId,
-            toolName: 'CopilotAgent',
+            toolName: "CopilotAgent",
             displayText: this.withTicketPrefix(session, activity.displayText),
           });
-          console.log(`[CopilotMonitor] Fast-poll PR #${session.prNumber}: ${activity.displayText}`);
+          console.log(
+            `[CopilotMonitor] Fast-poll PR #${session.prNumber}: ${activity.displayText}`,
+          );
         }
       } catch (err) {
-        console.warn(`[CopilotMonitor] Fast-poll error PR #${session.prNumber}: ${(err as Error).message}`);
+        console.warn(
+          `[CopilotMonitor] Fast-poll error PR #${session.prNumber}: ${(err as Error).message}`,
+        );
       }
     }, FAST_POLL_MS);
 
@@ -647,22 +693,25 @@ export class CopilotAgentMonitor {
    * Transition an Azure DevOps work item to a target state.
    * Used to move tickets to "Doing" when a Copilot PR is first detected.
    */
-  async updateAdoWorkItemState(ticketId: string, targetState: string): Promise<boolean> {
+  async updateAdoWorkItemState(
+    ticketId: string,
+    targetState: string,
+  ): Promise<boolean> {
     if (!this.adoConfig) return false;
     const { organization, project, pat } = this.adoConfig;
 
     try {
-      const authHeader = `Basic ${Buffer.from(':' + pat).toString('base64')}`;
+      const authHeader = `Basic ${Buffer.from(":" + pat).toString("base64")}`;
       const res = await fetch(
         `https://dev.azure.com/${organization}/${project}/_apis/wit/workitems/${ticketId}?api-version=7.1`,
         {
-          method: 'PATCH',
+          method: "PATCH",
           headers: {
-            'Authorization': authHeader,
-            'Content-Type': 'application/json-patch+json',
+            Authorization: authHeader,
+            "Content-Type": "application/json-patch+json",
           },
           body: JSON.stringify([
-            { op: 'replace', path: '/fields/System.State', value: targetState },
+            { op: "replace", path: "/fields/System.State", value: targetState },
           ]),
         },
       );
@@ -672,11 +721,15 @@ export class CopilotAgentMonitor {
         this.onAdoStateChange?.();
         return true;
       } else {
-        console.warn(`[CopilotMonitor] ADO #${ticketId} update failed: HTTP ${res.status}`);
+        console.warn(
+          `[CopilotMonitor] ADO #${ticketId} update failed: HTTP ${res.status}`,
+        );
         return false;
       }
     } catch (err) {
-      console.warn(`[CopilotMonitor] ADO #${ticketId} update error: ${(err as Error).message}`);
+      console.warn(
+        `[CopilotMonitor] ADO #${ticketId} update error: ${(err as Error).message}`,
+      );
       return false;
     }
   }
@@ -692,7 +745,7 @@ export class CopilotAgentMonitor {
       const activeBranches = new Set<string>();
       const runNameByBranch = new Map<string, string>();
       for (const run of runs) {
-        if (run.status === 'in_progress' || run.status === 'queued') {
+        if (run.status === "in_progress" || run.status === "queued") {
           activeBranches.add(run.branch);
         }
         // Keep the most recent run name per branch (runs are sorted newest first)
@@ -720,13 +773,13 @@ export class CopilotAgentMonitor {
             prState: pr.state,
             draft: pr.draft,
             isRunning,
-            lastStatus: 'Starting...',
+            lastStatus: "Starting...",
             updatedAt: pr.updatedAt,
             linkedTicketId: this.extractTicketId(pr.branch, pr.title, pr.body),
             lastRunName: runName,
             commitCount: 0,
-            feedMode: 'poll',
-            feedReason: 'initializing',
+            feedMode: "poll",
+            feedReason: "initializing",
           };
           this.sessions.set(agentId, session);
 
@@ -734,18 +787,18 @@ export class CopilotAgentMonitor {
           const displayName = this.getDisplayName(pr.branch);
 
           this.onMessage({
-            type: 'agentCreated',
+            type: "agentCreated",
             agentId,
             terminalName: displayName,
             variant: v,
-            team: 'core-dev' as TeamSection,
-            role: 'Copilot',
+            team: "core-dev" as TeamSection,
+            role: "Copilot",
             taskArea: pr.title,
           });
 
           if (session.linkedTicketId) {
             this.onMessage({
-              type: 'agentLinkedTicket',
+              type: "agentLinkedTicket",
               agentId,
               ticketId: session.linkedTicketId,
               ticketTitle: pr.title,
@@ -753,36 +806,48 @@ export class CopilotAgentMonitor {
           }
 
           this.onMessage({
-            type: 'agentStatus',
+            type: "agentStatus",
             agentId,
-            status: isRunning ? 'active' : 'idle',
+            status: isRunning ? "active" : "idle",
           });
 
           // Fetch initial activity snapshot
-          const activity = await this.getActivitySnapshot(session, isRunning, runName, true);
+          const activity = await this.getActivitySnapshot(
+            session,
+            isRunning,
+            runName,
+            true,
+          );
           session.lastStatus = activity.displayText;
           this.onMessage({
-            type: 'agentTool',
+            type: "agentTool",
             agentId,
-            toolName: 'CopilotAgent',
+            toolName: "CopilotAgent",
             displayText: this.withTicketPrefix(session, activity.displayText),
           });
 
-          console.log(`[CopilotMonitor] New agent: ${displayName} (PR #${pr.number}, ${activity.displayText})`);
+          console.log(
+            `[CopilotMonitor] New agent: ${displayName} (PR #${pr.number}, ${activity.displayText})`,
+          );
 
           // Sync ADO state to "Doing" for new Copilot PRs with linked tickets
           // A Copilot PR existing means the agent is working — don't require isRunning
-          if (session.linkedTicketId && !this.adoTransitionedToDoing.has(session.linkedTicketId)) {
+          if (
+            session.linkedTicketId &&
+            !this.adoTransitionedToDoing.has(session.linkedTicketId)
+          ) {
             this.adoTransitionedToDoing.add(session.linkedTicketId);
-            console.log(`[CopilotMonitor] New Copilot PR #${pr.number} linked to ADO #${session.linkedTicketId} — syncing to Doing`);
-            void this.updateAdoWorkItemState(session.linkedTicketId, 'Doing');
+            console.log(
+              `[CopilotMonitor] New Copilot PR #${pr.number} linked to ADO #${session.linkedTicketId} — syncing to Doing`,
+            );
+            void this.updateAdoWorkItemState(session.linkedTicketId, "Doing");
           }
 
           // Open SSE stream for real-time updates if agent is running
           if (isRunning) {
             void this.openSSEStream(session);
           } else {
-            this.setFeedMode(session, 'poll', 'agent not running');
+            this.setFeedMode(session, "poll", "agent not running");
           }
         } else {
           // Existing session — check for state changes
@@ -799,15 +864,21 @@ export class CopilotAgentMonitor {
             void this.openSSEStream(existing);
 
             // Sync ADO to "Doing" if not already done
-            if (existing.linkedTicketId && !this.adoTransitionedToDoing.has(existing.linkedTicketId)) {
+            if (
+              existing.linkedTicketId &&
+              !this.adoTransitionedToDoing.has(existing.linkedTicketId)
+            ) {
               this.adoTransitionedToDoing.add(existing.linkedTicketId);
-              void this.updateAdoWorkItemState(existing.linkedTicketId, 'Doing');
+              void this.updateAdoWorkItemState(
+                existing.linkedTicketId,
+                "Doing",
+              );
             }
           } else if (!isRunning && wasRunning) {
             // Agent stopped running — close SSE stream and fast-poll
             this.closeSSEConnection(agentId);
             this.stopFastPoll(agentId);
-            this.setFeedMode(existing, 'poll', 'agent stopped');
+            this.setFeedMode(existing, "poll", "agent stopped");
           }
 
           // Skip activity snapshot if SSE or fast-poll is handling updates
@@ -815,9 +886,9 @@ export class CopilotAgentMonitor {
             // Real-time feed is handling updates — just emit status if it changed
             if (isRunning !== wasRunning) {
               this.onMessage({
-                type: 'agentStatus',
+                type: "agentStatus",
                 agentId,
-                status: isRunning ? 'active' : 'idle',
+                status: isRunning ? "active" : "idle",
               });
             }
             continue;
@@ -825,23 +896,32 @@ export class CopilotAgentMonitor {
 
           // No active SSE or fast-poll — fall back to main poll-based activity snapshot
           if (isRunning || isRunning !== wasRunning) {
-            const activity = await this.getActivitySnapshot(existing, isRunning, runName);
+            const activity = await this.getActivitySnapshot(
+              existing,
+              isRunning,
+              runName,
+            );
 
             // Only emit if the display text actually changed
             if (activity.displayText !== existing.lastStatus) {
               existing.lastStatus = activity.displayText;
               this.onMessage({
-                type: 'agentStatus',
+                type: "agentStatus",
                 agentId,
-                status: isRunning ? 'active' : 'idle',
+                status: isRunning ? "active" : "idle",
               });
               this.onMessage({
-                type: 'agentTool',
+                type: "agentTool",
                 agentId,
-                toolName: 'CopilotAgent',
-                displayText: this.withTicketPrefix(existing, activity.displayText),
+                toolName: "CopilotAgent",
+                displayText: this.withTicketPrefix(
+                  existing,
+                  activity.displayText,
+                ),
               });
-              console.log(`[CopilotMonitor] PR #${pr.number}: ${activity.displayText}`);
+              console.log(
+                `[CopilotMonitor] PR #${pr.number}: ${activity.displayText}`,
+              );
             }
           }
         }
@@ -856,17 +936,17 @@ export class CopilotAgentMonitor {
             console.log(
               `[CopilotMonitor] PR #${session.prNumber} closed/merged — syncing ADO #${session.linkedTicketId} to Done`,
             );
-            void this.updateAdoWorkItemState(session.linkedTicketId, 'Done');
+            void this.updateAdoWorkItemState(session.linkedTicketId, "Done");
           }
           this.closeSSEConnection(agentId);
           this.stopFastPoll(agentId);
-          this.onMessage({ type: 'agentRemoved', agentId });
+          this.onMessage({ type: "agentRemoved", agentId });
           this.sessions.delete(agentId);
           console.log(`[CopilotMonitor] Agent removed: ${agentId}`);
         }
       }
     } catch (err) {
-      console.warn('[CopilotMonitor] Poll failed:', (err as Error).message);
+      console.warn("[CopilotMonitor] Poll failed:", (err as Error).message);
     }
   }
 
@@ -897,13 +977,13 @@ export class CopilotAgentMonitor {
         const commits = await this.fetchPRCommits(session.prNumber);
         if (commits.length > 0) {
           // Has commits — agent already ran and finished
-          return { displayText: 'Done: Awaiting user feedback', phase: 'waiting' };
+          return { displayText: "Awaiting user feedback", phase: "waiting" };
         }
         // No commits yet — genuinely hasn't started
-        return { displayText: `Starting: ${topic}`, phase: 'waiting' };
+        return { displayText: `Starting: ${topic}`, phase: "waiting" };
       }
       // Agent finished — awaiting human review
-      return { displayText: 'Done: Awaiting user feedback', phase: 'waiting' };
+      return { displayText: "Awaiting user feedback", phase: "waiting" };
     }
 
     // Running — use live activity if available
@@ -921,18 +1001,18 @@ export class CopilotAgentMonitor {
     }
 
     switch (phase) {
-      case 'responding':
+      case "responding":
         return { displayText: `Reviewing feedback: ${topic}`, phase };
-      case 'planning':
+      case "planning":
         return { displayText: `Planning: ${topic}`, phase };
-      case 'testing':
+      case "testing":
         return { displayText: `Testing: ${topic}`, phase };
-      case 'coding':
+      case "coding":
       default:
         if (commits.length === 0) {
-          return { displayText: `Analyzing: ${topic}`, phase: 'planning' };
+          return { displayText: `Analyzing: ${topic}`, phase: "planning" };
         }
-        return { displayText: `Coding: ${topic}`, phase: 'coding' };
+        return { displayText: `Coding: ${topic}`, phase: "coding" };
     }
   }
 
@@ -950,7 +1030,9 @@ export class CopilotAgentMonitor {
       // Resolve the Copilot session ID for this PR
       const sessionId = await this.resolveCopilotSessionId(session.prNumber);
       if (!sessionId) {
-        console.log(`[CopilotMonitor] No session ID found for PR #${session.prNumber}`);
+        console.log(
+          `[CopilotMonitor] No session ID found for PR #${session.prNumber}`,
+        );
         return null;
       }
       session.copilotSessionId = sessionId;
@@ -960,17 +1042,19 @@ export class CopilotAgentMonitor {
         `https://api.githubcopilot.com/agents/sessions/${sessionId}/logs`,
         {
           headers: {
-            'Authorization': `Bearer ${this.token}`,
-            'Content-Type': 'application/json',
-            'Copilot-Integration-Id': 'copilot-4-cli',
-            'X-Github-Api-Version': '2026-01-09',
+            Authorization: `Bearer ${this.token}`,
+            "Content-Type": "application/json",
+            "Copilot-Integration-Id": "copilot-4-cli",
+            "X-Github-Api-Version": "2026-01-09",
           },
         },
       );
 
       if (!res.ok) {
         if (res.status === 401 || res.status === 403) {
-          console.warn('[CopilotMonitor] Session logs API not authorized, disabling');
+          console.warn(
+            "[CopilotMonitor] Session logs API not authorized, disabling",
+          );
           this.sessionApiAvailable = false;
         }
         return null;
@@ -984,7 +1068,10 @@ export class CopilotAgentMonitor {
       const phase = this.detectPhaseFromTool(toolCall);
       return { displayText, phase };
     } catch (err) {
-      console.warn('[CopilotMonitor] Live activity fetch failed:', (err as Error).message);
+      console.warn(
+        "[CopilotMonitor] Live activity fetch failed:",
+        (err as Error).message,
+      );
       return null;
     }
   }
@@ -992,33 +1079,37 @@ export class CopilotAgentMonitor {
   /**
    * Look up the Copilot session UUID for a PR via the sessions list API.
    */
-  private async resolveCopilotSessionId(prNumber: number): Promise<string | null> {
+  private async resolveCopilotSessionId(
+    prNumber: number,
+  ): Promise<string | null> {
     // Check cache first
     const cached = this.sessionIdCache.get(prNumber);
     if (cached) return cached;
 
     try {
       const res = await fetch(
-        'https://api.githubcopilot.com/agents/sessions?page_number=1&page_size=50&sort=last_updated_at%2Cdesc',
+        "https://api.githubcopilot.com/agents/sessions?page_number=1&page_size=50&sort=last_updated_at%2Cdesc",
         {
           headers: {
-            'Authorization': `Bearer ${this.token}`,
-            'Content-Type': 'application/json',
-            'Copilot-Integration-Id': 'copilot-4-cli',
-            'X-Github-Api-Version': '2026-01-09',
+            Authorization: `Bearer ${this.token}`,
+            "Content-Type": "application/json",
+            "Copilot-Integration-Id": "copilot-4-cli",
+            "X-Github-Api-Version": "2026-01-09",
           },
         },
       );
 
       if (!res.ok) {
-        console.warn(`[CopilotMonitor] Sessions list API returned HTTP ${res.status}`);
+        console.warn(
+          `[CopilotMonitor] Sessions list API returned HTTP ${res.status}`,
+        );
         if (res.status === 401 || res.status === 403) {
           this.sessionApiAvailable = false;
         }
         return null;
       }
 
-      const wrapper = await res.json() as {
+      const wrapper = (await res.json()) as {
         sessions: Array<{
           id: string;
           resource_number: number;
@@ -1032,25 +1123,36 @@ export class CopilotAgentMonitor {
 
       // Match by PR number and head_ref branch prefix
       for (const s of sessions) {
-        if (s.resource_number === prNumber && s.head_ref?.startsWith('copilot/')) {
+        if (
+          s.resource_number === prNumber &&
+          s.head_ref?.startsWith("copilot/")
+        ) {
           this.sessionIdCache.set(prNumber, s.id);
-          console.log(`[CopilotMonitor] Resolved session for PR #${prNumber}: ${s.id.slice(0, 8)}...`);
+          console.log(
+            `[CopilotMonitor] Resolved session for PR #${prNumber}: ${s.id.slice(0, 8)}...`,
+          );
           return s.id;
         }
       }
 
       // Log why we didn't find a match
-      const prNumbers = sessions.map(s => s.resource_number);
-      const hasPrMatch = sessions.some(s => s.resource_number === prNumber);
+      const prNumbers = sessions.map((s) => s.resource_number);
+      const hasPrMatch = sessions.some((s) => s.resource_number === prNumber);
       if (hasPrMatch) {
-        const matching = sessions.filter(s => s.resource_number === prNumber);
-        const branches = matching.map(s => s.head_ref).join(', ');
-        console.log(`[CopilotMonitor] PR #${prNumber} found in sessions but no copilot/ branch match (branches: ${branches})`);
+        const matching = sessions.filter((s) => s.resource_number === prNumber);
+        const branches = matching.map((s) => s.head_ref).join(", ");
+        console.log(
+          `[CopilotMonitor] PR #${prNumber} found in sessions but no copilot/ branch match (branches: ${branches})`,
+        );
       } else {
-        console.log(`[CopilotMonitor] PR #${prNumber} not in ${sessions.length} sessions (has_next_page: ${wrapper.has_next_page})`);
+        console.log(
+          `[CopilotMonitor] PR #${prNumber} not in ${sessions.length} sessions (has_next_page: ${wrapper.has_next_page})`,
+        );
       }
     } catch (err) {
-      console.warn(`[CopilotMonitor] Sessions list API error: ${(err as Error).message}`);
+      console.warn(
+        `[CopilotMonitor] Sessions list API error: ${(err as Error).message}`,
+      );
     }
 
     return null;
@@ -1069,26 +1171,30 @@ export class CopilotAgentMonitor {
   /**
    * Detect phase from the tool the agent is currently using.
    */
-  private detectPhaseFromTool(tool: ParsedToolCall): ActivitySnapshot['phase'] {
+  private detectPhaseFromTool(tool: ParsedToolCall): ActivitySnapshot["phase"] {
     switch (tool.name) {
-      case 'bash': {
-        const cmd = (tool.command || tool.description || '').toLowerCase();
-        if (cmd.includes('test') || cmd.includes('vitest') || cmd.includes('jest')) {
-          return 'testing';
+      case "bash": {
+        const cmd = (tool.command || tool.description || "").toLowerCase();
+        if (
+          cmd.includes("test") ||
+          cmd.includes("vitest") ||
+          cmd.includes("jest")
+        ) {
+          return "testing";
         }
-        return 'coding';
+        return "coding";
       }
-      case 'view':
-      case 'glob':
-      case 'grep':
-      case '_thinking':
-        return 'planning';
-      case 'edit':
-      case 'write':
-      case 'create':
-        return 'coding';
+      case "view":
+      case "glob":
+      case "grep":
+      case "_thinking":
+        return "planning";
+      case "edit":
+      case "write":
+      case "create":
+        return "coding";
       default:
-        return 'coding';
+        return "coding";
     }
   }
 
@@ -1096,30 +1202,36 @@ export class CopilotAgentMonitor {
    * Detect the agent's phase from the workflow run name.
    * GitHub uses specific names for different Copilot agent activities.
    */
-  private detectPhase(runName?: string): ActivitySnapshot['phase'] {
-    if (!runName) return 'coding';
+  private detectPhase(runName?: string): ActivitySnapshot["phase"] {
+    if (!runName) return "coding";
     const lower = runName.toLowerCase();
-    if (lower.includes('addressing comment') || lower.includes('addressing review')) {
-      return 'responding';
+    if (
+      lower.includes("addressing comment") ||
+      lower.includes("addressing review")
+    ) {
+      return "responding";
     }
-    if (lower.includes('running copilot')) {
-      return 'coding';
+    if (lower.includes("running copilot")) {
+      return "coding";
     }
-    if (lower.includes('test')) {
-      return 'testing';
+    if (lower.includes("test")) {
+      return "testing";
     }
-    if (lower.includes('plan')) {
-      return 'planning';
+    if (lower.includes("plan")) {
+      return "planning";
     }
-    return 'coding';
+    return "coding";
   }
 
   /** Shorten a commit message for display in a speech bubble */
   private shortenCommitMessage(msg: string): string {
-    const firstLine = msg.split('\n')[0];
-    const stripped = firstLine.replace(/^(feat|fix|chore|refactor|test|docs|style|ci|perf)(\(.+?\))?:\s*/i, '');
+    const firstLine = msg.split("\n")[0];
+    const stripped = firstLine.replace(
+      /^(feat|fix|chore|refactor|test|docs|style|ci|perf)(\(.+?\))?:\s*/i,
+      "",
+    );
     if (stripped.length > 50) {
-      return stripped.slice(0, 47) + '...';
+      return stripped.slice(0, 47) + "...";
     }
     return stripped;
   }
@@ -1127,18 +1239,25 @@ export class CopilotAgentMonitor {
   /** Shorten a PR title for the speech bubble — strip ticket refs, prefixes, truncate */
   private shortenTitle(title: string): string {
     let t = title
-      .replace(/\bAB#\d+\b/g, '')
-      .replace(/^(feat|fix|chore|refactor|test|docs|style|ci|perf)(\(.+?\))?:\s*/i, '')
-      .replace(/\s+/g, ' ')
+      .replace(/\bAB#\d+\b/g, "")
+      .replace(
+        /^(feat|fix|chore|refactor|test|docs|style|ci|perf)(\(.+?\))?:\s*/i,
+        "",
+      )
+      .replace(/\s+/g, " ")
       .trim();
     if (t.length > 40) {
-      t = t.slice(0, 37) + '...';
+      t = t.slice(0, 37) + "...";
     }
     return t;
   }
 
   /** Extract Azure DevOps ticket ID from branch name, PR title, or PR body */
-  private extractTicketId(branch: string, title: string, body?: string): string | undefined {
+  private extractTicketId(
+    branch: string,
+    title: string,
+    body?: string,
+  ): string | undefined {
     return extractTicketId(branch, title, body);
   }
 
@@ -1155,26 +1274,30 @@ export class CopilotAgentMonitor {
     return text;
   }
 
-  private async fetchPRCommits(prNumber: number): Promise<Array<{
-    sha: string;
-    message: string;
-    date: string;
-  }>> {
+  private async fetchPRCommits(prNumber: number): Promise<
+    Array<{
+      sha: string;
+      message: string;
+      date: string;
+    }>
+  > {
     const url = `https://api.github.com/repos/${this.owner}/${this.repo}/pulls/${prNumber}/commits?per_page=100`;
     const res = await fetch(url, {
       headers: {
-        'Authorization': `Bearer ${this.token}`,
-        'Accept': 'application/vnd.github+json',
-        'X-GitHub-Api-Version': '2022-11-28',
+        Authorization: `Bearer ${this.token}`,
+        Accept: "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
       },
     });
 
     if (!res.ok) {
-      console.warn(`[CopilotMonitor] Commits fetch failed for PR #${prNumber}: ${res.status}`);
+      console.warn(
+        `[CopilotMonitor] Commits fetch failed for PR #${prNumber}: ${res.status}`,
+      );
       return [];
     }
 
-    const commits = await res.json() as Array<{
+    const commits = (await res.json()) as Array<{
       sha: string;
       commit: {
         message: string;
@@ -1182,28 +1305,30 @@ export class CopilotAgentMonitor {
       };
     }>;
 
-    return commits.map(c => ({
+    return commits.map((c) => ({
       sha: c.sha,
       message: c.commit.message,
       date: c.commit.author.date,
     }));
   }
 
-  private async fetchCopilotPRs(): Promise<Array<{
-    number: number;
-    title: string;
-    body: string;
-    branch: string;
-    state: string;
-    draft: boolean;
-    updatedAt: string;
-  }>> {
+  private async fetchCopilotPRs(): Promise<
+    Array<{
+      number: number;
+      title: string;
+      body: string;
+      branch: string;
+      state: string;
+      draft: boolean;
+      updatedAt: string;
+    }>
+  > {
     const url = `https://api.github.com/repos/${this.owner}/${this.repo}/pulls?state=open&per_page=30`;
     const res = await fetch(url, {
       headers: {
-        'Authorization': `Bearer ${this.token}`,
-        'Accept': 'application/vnd.github+json',
-        'X-GitHub-Api-Version': '2022-11-28',
+        Authorization: `Bearer ${this.token}`,
+        Accept: "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
       },
     });
 
@@ -1212,7 +1337,7 @@ export class CopilotAgentMonitor {
       return [];
     }
 
-    const prs = await res.json() as Array<{
+    const prs = (await res.json()) as Array<{
       number: number;
       title: string;
       body: string | null;
@@ -1224,11 +1349,14 @@ export class CopilotAgentMonitor {
     }>;
 
     return prs
-      .filter(pr => pr.user.login === 'Copilot' || pr.head.ref.startsWith('copilot/'))
-      .map(pr => ({
+      .filter(
+        (pr) =>
+          pr.user.login === "Copilot" || pr.head.ref.startsWith("copilot/"),
+      )
+      .map((pr) => ({
         number: pr.number,
         title: pr.title,
-        body: pr.body || '',
+        body: pr.body || "",
         branch: pr.head.ref,
         state: pr.state,
         draft: pr.draft,
@@ -1236,18 +1364,20 @@ export class CopilotAgentMonitor {
       }));
   }
 
-  private async fetchCopilotRuns(): Promise<Array<{
-    id: number;
-    status: string;
-    branch: string;
-    name: string;
-  }>> {
+  private async fetchCopilotRuns(): Promise<
+    Array<{
+      id: number;
+      status: string;
+      branch: string;
+      name: string;
+    }>
+  > {
     const url = `https://api.github.com/repos/${this.owner}/${this.repo}/actions/runs?per_page=20`;
     const res = await fetch(url, {
       headers: {
-        'Authorization': `Bearer ${this.token}`,
-        'Accept': 'application/vnd.github+json',
-        'X-GitHub-Api-Version': '2022-11-28',
+        Authorization: `Bearer ${this.token}`,
+        Accept: "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
       },
     });
 
@@ -1256,7 +1386,7 @@ export class CopilotAgentMonitor {
       return [];
     }
 
-    const data = await res.json() as {
+    const data = (await res.json()) as {
       workflow_runs: Array<{
         id: number;
         status: string;
@@ -1266,8 +1396,8 @@ export class CopilotAgentMonitor {
     };
 
     return (data.workflow_runs || [])
-      .filter(run => run.head_branch.startsWith('copilot/'))
-      .map(run => ({
+      .filter((run) => run.head_branch.startsWith("copilot/"))
+      .map((run) => ({
         id: run.id,
         status: run.status,
         branch: run.head_branch,

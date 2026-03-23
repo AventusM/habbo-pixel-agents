@@ -24,11 +24,15 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DIST_DIR = path.resolve(__dirname, '..', 'dist', 'web');
 const PORT = parseInt(process.env.PORT || '3000', 10);
 
-// Parse --project flag
+// Parse flags
 let projectDir = process.cwd();
+let skipLocalAgents = false;
 const projectIdx = process.argv.indexOf('--project');
 if (projectIdx !== -1 && process.argv[projectIdx + 1]) {
   projectDir = path.resolve(process.argv[projectIdx + 1]);
+}
+if (process.argv.includes('--no-local')) {
+  skipLocalAgents = true;
 }
 
 const MIME_TYPES = {
@@ -212,15 +216,15 @@ async function startAgentManager() {
 
     const { createAgentManager, readAzureDevOpsEnv, fetchEnrichedCards, createCopilotMonitor, readGitHubEnv } = await import(serverBundle);
 
-    // Start local JSONL agent watcher (skip if SKIP_LOCAL_AGENTS is set)
-    if (!process.env.SKIP_LOCAL_AGENTS) {
+    // Start local JSONL agent watcher (skip with --no-local flag)
+    if (!skipLocalAgents) {
       agentManager = createAgentManager(projectDir, (msg) => {
         broadcast(msg);
       });
       agentManager.discoverAgents();
       console.log(`[Server] AgentManager started, watching: ${projectDir}`);
     } else {
-      console.log('[Server] Local agent watching skipped (SKIP_LOCAL_AGENTS)');
+      console.log('[Server] Local agent watching skipped (--no-local)');
     }
 
     // Start Azure DevOps kanban polling if configured

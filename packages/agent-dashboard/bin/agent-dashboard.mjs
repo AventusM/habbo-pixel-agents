@@ -25,7 +25,7 @@ const PACKAGE_ROOT = path.resolve(__dirname, '..');
 // --- Argument parsing ---
 function parseArgs() {
   const args = process.argv.slice(2);
-  let repo = process.env.GITHUB_REPO || '';
+  let repo = '';
   let token = process.env.GITHUB_TOKEN || '';
   let port = parseInt(process.env.PORT || '3000', 10);
   let projectDir = process.cwd();
@@ -48,6 +48,9 @@ function parseArgs() {
       repo = arg;
     }
   }
+
+  // CLI args take priority; fall back to env var
+  if (!repo) repo = process.env.GITHUB_REPO || '';
 
   return { repo, token, port, projectDir, help };
 }

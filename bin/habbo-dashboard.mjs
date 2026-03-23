@@ -99,7 +99,6 @@ const env = {
   GITHUB_REPO: repo,
   GITHUB_TOKEN: token,
   PORT: port,
-  SKIP_LOCAL_AGENTS: '1',
 };
 
 // CLI ADO flags override whatever was in .env
@@ -107,7 +106,7 @@ if (adoOrg) { env.AZDO_ORG = adoOrg; env.AZURE_DEVOPS_ORG = adoOrg; }
 if (adoProject) { env.AZDO_PROJECT = adoProject; env.AZURE_DEVOPS_PROJECT = adoProject; }
 if (adoPat) { env.AZDO_PAT = adoPat; env.AZURE_DEVOPS_PAT = adoPat; }
 
-const child = fork(serverScript, [], { cwd: ROOT, env, stdio: 'inherit' });
+const child = fork(serverScript, ['--no-local'], { cwd: ROOT, env, stdio: 'inherit' });
 
 child.on('exit', (code) => process.exit(code ?? 0));
 process.on('SIGINT', () => child.kill('SIGINT'));
