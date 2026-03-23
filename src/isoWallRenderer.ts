@@ -223,46 +223,6 @@ export function drawWallPanels(
     ctx.lineWidth = 0.5;
     ctx.stroke();
 
-    // --- LEFT WALL FRONT FACE (visible cross-section at the open end) ---
-    // Extends down past the floor slab so the wall covers the floor edge.
-    // The outer bottom extends slightly past the floor slab's side face corner.
-    const lastPt = bottomPoints[bottomPoints.length - 1];
-    const floorOverlap = FLOOR_THICKNESS + 2; // extra 2px to fully cover floor slab corner
-    ctx.beginPath();
-    ctx.moveTo(lastPt.x, lastPt.y + floorOverlap);
-    ctx.lineTo(lastPt.x, lastPt.y - WALL_HEIGHT);
-    ctx.lineTo(lastPt.x + capD, lastPt.y - WALL_HEIGHT + capD / 2);
-    ctx.lineTo(lastPt.x + capD, lastPt.y + floorOverlap + capD / 2);
-    ctx.closePath();
-    ctx.fillStyle = topColors.capFront;
-    ctx.fill();
-
-    // --- LEFT WALL OUTLINE (dark border — outer edges only, no bottom/floor line) ---
-    ctx.strokeStyle = topColors.outline;
-    ctx.lineWidth = 1;
-    // Front face outer edge (bottom to top)
-    ctx.beginPath();
-    ctx.moveTo(lastPt.x, lastPt.y + floorOverlap);
-    ctx.lineTo(lastPt.x, lastPt.y - WALL_HEIGHT);
-    // Ceiling outer edge (front to back)
-    for (let i = bottomPoints.length - 2; i >= 0; i--) {
-      ctx.lineTo(bottomPoints[i].x, bottomPoints[i].y - WALL_HEIGHT);
-    }
-    ctx.stroke();
-    // Cap top edge (back to front, inner)
-    ctx.beginPath();
-    ctx.moveTo(bottomPoints[0].x + capD, bottomPoints[0].y - WALL_HEIGHT + capD / 2);
-    for (let i = 1; i < bottomPoints.length; i++) {
-      ctx.lineTo(bottomPoints[i].x + capD, bottomPoints[i].y - WALL_HEIGHT + capD / 2);
-    }
-    // Down the front face inner edge
-    ctx.lineTo(lastPt.x + capD, lastPt.y + floorOverlap + capD / 2);
-    ctx.stroke();
-    // Back corner vertical
-    ctx.beginPath();
-    ctx.moveTo(bottomPoints[0].x, bottomPoints[0].y);
-    ctx.lineTo(bottomPoints[0].x, bottomPoints[0].y - WALL_HEIGHT);
-    ctx.stroke();
   }
   const rightEdge: Array<{ tx: number; ty: number; height: number }> = [];
   for (let tx = 0; tx < grid.width; tx++) {
@@ -341,45 +301,8 @@ export function drawWallPanels(
     ctx.lineWidth = 0.5;
     ctx.stroke();
 
-    // --- RIGHT WALL FRONT FACE (visible cross-section at the open end) ---
-    const lastPt = bottomPoints[bottomPoints.length - 1];
-    const floorOverlap = FLOOR_THICKNESS + 2;
-    ctx.beginPath();
-    ctx.moveTo(lastPt.x, lastPt.y + floorOverlap);
-    ctx.lineTo(lastPt.x, lastPt.y - WALL_HEIGHT);
-    ctx.lineTo(lastPt.x - capD, lastPt.y - WALL_HEIGHT + capD / 2);
-    ctx.lineTo(lastPt.x - capD, lastPt.y + floorOverlap + capD / 2);
-    ctx.closePath();
-    ctx.fillStyle = topColors.capFront;
-    ctx.fill();
-
-    // --- RIGHT WALL OUTLINE (dark border — outer edges only, no bottom/floor line) ---
-    ctx.strokeStyle = topColors.outline;
-    ctx.lineWidth = 1;
-    // Front face outer edge (bottom to top)
-    ctx.beginPath();
-    ctx.moveTo(lastPt.x, lastPt.y + floorOverlap);
-    ctx.lineTo(lastPt.x, lastPt.y - WALL_HEIGHT);
-    // Ceiling outer edge (front to back)
-    for (let i = bottomPoints.length - 2; i >= 0; i--) {
-      ctx.lineTo(bottomPoints[i].x, bottomPoints[i].y - WALL_HEIGHT);
-    }
-    ctx.stroke();
-    // Cap top edge (back to front, inner)
-    ctx.beginPath();
-    ctx.moveTo(bottomPoints[0].x - capD, bottomPoints[0].y - WALL_HEIGHT + capD / 2);
-    for (let i = 1; i < bottomPoints.length; i++) {
-      ctx.lineTo(bottomPoints[i].x - capD, bottomPoints[i].y - WALL_HEIGHT + capD / 2);
-    }
-    // Down the front face inner edge
-    ctx.lineTo(lastPt.x - capD, lastPt.y + floorOverlap + capD / 2);
-    ctx.stroke();
-    // Back corner vertical
-    ctx.beginPath();
-    ctx.moveTo(bottomPoints[0].x, bottomPoints[0].y);
-    ctx.lineTo(bottomPoints[0].x, bottomPoints[0].y - WALL_HEIGHT);
-    ctx.stroke();
   }
+  // --- BACK CORNER POST ---
   const cornerTile = grid.tiles[0]?.[0];
   if (cornerTile != null) {
     const { x: sx, y: sy } = tileToScreen(0, 0, cornerTile.height);
@@ -483,5 +406,115 @@ export function drawWallEdges(
     ctx.strokeStyle = colors.left;
     ctx.lineWidth = 0.5;
     ctx.stroke();
+  }
+
+  // --- FRONT FACES + OUTLINES (drawn after floor so wall is on top) ---
+  const capD = WALL_THICKNESS;
+  const floorOverlap = FLOOR_THICKNESS + 2;
+
+  // Left wall front face + outline
+  {
+    const leftPts: Array<{ x: number; y: number }> = [];
+    for (let ty = 0; ty < grid.height; ty++) {
+      for (let tx = 0; tx < grid.width; tx++) {
+        const tile = grid.tiles[ty][tx];
+        if (tile == null) continue;
+        if (tx === 0 || grid.tiles[ty][tx - 1] == null) {
+          const { x: sx, y: sy } = tileToScreen(tx, ty, tile.height);
+          if (leftPts.length === 0) {
+            leftPts.push({ x: sx + cameraOrigin.x, y: sy + cameraOrigin.y });
+          }
+          leftPts.push({ x: sx + cameraOrigin.x - TILE_W_HALF, y: sy + cameraOrigin.y + TILE_H_HALF });
+          break;
+        }
+      }
+    }
+    if (leftPts.length > 1) {
+      const lColors = wallPanelColors(tileHsb, 'left');
+      const lastPt = leftPts[leftPts.length - 1];
+      // Front face fill
+      ctx.beginPath();
+      ctx.moveTo(lastPt.x, lastPt.y + floorOverlap);
+      ctx.lineTo(lastPt.x, lastPt.y - WALL_HEIGHT);
+      ctx.lineTo(lastPt.x + capD, lastPt.y - WALL_HEIGHT + capD / 2);
+      ctx.lineTo(lastPt.x + capD, lastPt.y + floorOverlap + capD / 2);
+      ctx.closePath();
+      ctx.fillStyle = lColors.capFront;
+      ctx.fill();
+      // Outline
+      ctx.strokeStyle = lColors.outline;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(lastPt.x, lastPt.y + floorOverlap);
+      ctx.lineTo(lastPt.x, lastPt.y - WALL_HEIGHT);
+      for (let i = leftPts.length - 2; i >= 0; i--) {
+        ctx.lineTo(leftPts[i].x, leftPts[i].y - WALL_HEIGHT);
+      }
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(leftPts[0].x + capD, leftPts[0].y - WALL_HEIGHT + capD / 2);
+      for (let i = 1; i < leftPts.length; i++) {
+        ctx.lineTo(leftPts[i].x + capD, leftPts[i].y - WALL_HEIGHT + capD / 2);
+      }
+      ctx.lineTo(lastPt.x + capD, lastPt.y + floorOverlap + capD / 2);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(leftPts[0].x, leftPts[0].y);
+      ctx.lineTo(leftPts[0].x, leftPts[0].y - WALL_HEIGHT);
+      ctx.stroke();
+    }
+  }
+
+  // Right wall front face + outline
+  {
+    const rightPts: Array<{ x: number; y: number }> = [];
+    for (let tx = 0; tx < grid.width; tx++) {
+      for (let ty = 0; ty < grid.height; ty++) {
+        const tile = grid.tiles[ty][tx];
+        if (tile == null) continue;
+        if (ty === 0 || grid.tiles[ty - 1]?.[tx] == null) {
+          const { x: sx, y: sy } = tileToScreen(tx, ty, tile.height);
+          if (rightPts.length === 0) {
+            rightPts.push({ x: sx + cameraOrigin.x, y: sy + cameraOrigin.y });
+          }
+          rightPts.push({ x: sx + cameraOrigin.x + TILE_W_HALF, y: sy + cameraOrigin.y + TILE_H_HALF });
+          break;
+        }
+      }
+    }
+    if (rightPts.length > 1) {
+      const rColors = wallPanelColors(tileHsb, 'right');
+      const lastPt = rightPts[rightPts.length - 1];
+      // Front face fill
+      ctx.beginPath();
+      ctx.moveTo(lastPt.x, lastPt.y + floorOverlap);
+      ctx.lineTo(lastPt.x, lastPt.y - WALL_HEIGHT);
+      ctx.lineTo(lastPt.x - capD, lastPt.y - WALL_HEIGHT + capD / 2);
+      ctx.lineTo(lastPt.x - capD, lastPt.y + floorOverlap + capD / 2);
+      ctx.closePath();
+      ctx.fillStyle = rColors.capFront;
+      ctx.fill();
+      // Outline
+      ctx.strokeStyle = rColors.outline;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(lastPt.x, lastPt.y + floorOverlap);
+      ctx.lineTo(lastPt.x, lastPt.y - WALL_HEIGHT);
+      for (let i = rightPts.length - 2; i >= 0; i--) {
+        ctx.lineTo(rightPts[i].x, rightPts[i].y - WALL_HEIGHT);
+      }
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(rightPts[0].x - capD, rightPts[0].y - WALL_HEIGHT + capD / 2);
+      for (let i = 1; i < rightPts.length; i++) {
+        ctx.lineTo(rightPts[i].x - capD, rightPts[i].y - WALL_HEIGHT + capD / 2);
+      }
+      ctx.lineTo(lastPt.x - capD, lastPt.y + floorOverlap + capD / 2);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(rightPts[0].x, rightPts[0].y);
+      ctx.lineTo(rightPts[0].x, rightPts[0].y - WALL_HEIGHT);
+      ctx.stroke();
+    }
   }
 }
