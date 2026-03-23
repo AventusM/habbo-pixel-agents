@@ -223,6 +223,17 @@ export function drawWallPanels(
     ctx.lineWidth = 0.5;
     ctx.stroke();
 
+    // --- LEFT WALL FRONT FACE (pre-floor: behind floor tiles) ---
+    const lastPt = bottomPoints[bottomPoints.length - 1];
+    const floorOverlapL = FLOOR_THICKNESS + 2;
+    ctx.beginPath();
+    ctx.moveTo(lastPt.x, lastPt.y + floorOverlapL);
+    ctx.lineTo(lastPt.x, lastPt.y - WALL_HEIGHT);
+    ctx.lineTo(lastPt.x + capD, lastPt.y - WALL_HEIGHT + capD / 2);
+    ctx.lineTo(lastPt.x + capD, lastPt.y + floorOverlapL + capD / 2);
+    ctx.closePath();
+    ctx.fillStyle = topColors.capFront;
+    ctx.fill();
   }
   const rightEdge: Array<{ tx: number; ty: number; height: number }> = [];
   for (let tx = 0; tx < grid.width; tx++) {
@@ -301,6 +312,17 @@ export function drawWallPanels(
     ctx.lineWidth = 0.5;
     ctx.stroke();
 
+    // --- RIGHT WALL FRONT FACE (pre-floor: behind floor tiles) ---
+    const lastPt = bottomPoints[bottomPoints.length - 1];
+    const floorOverlapR = FLOOR_THICKNESS + 2;
+    ctx.beginPath();
+    ctx.moveTo(lastPt.x, lastPt.y + floorOverlapR);
+    ctx.lineTo(lastPt.x, lastPt.y - WALL_HEIGHT);
+    ctx.lineTo(lastPt.x - capD, lastPt.y - WALL_HEIGHT + capD / 2);
+    ctx.lineTo(lastPt.x - capD, lastPt.y + floorOverlapR + capD / 2);
+    ctx.closePath();
+    ctx.fillStyle = topColors.capFront;
+    ctx.fill();
   }
   // --- BACK CORNER POST ---
   const cornerTile = grid.tiles[0]?.[0];
@@ -432,16 +454,7 @@ export function drawWallEdges(
     if (leftPts.length > 1) {
       const lColors = wallPanelColors(tileHsb, 'left');
       const lastPt = leftPts[leftPts.length - 1];
-      // Front face fill
-      ctx.beginPath();
-      ctx.moveTo(lastPt.x, lastPt.y + floorOverlap);
-      ctx.lineTo(lastPt.x, lastPt.y - WALL_HEIGHT);
-      ctx.lineTo(lastPt.x + capD, lastPt.y - WALL_HEIGHT + capD / 2);
-      ctx.lineTo(lastPt.x + capD, lastPt.y + floorOverlap + capD / 2);
-      ctx.closePath();
-      ctx.fillStyle = lColors.capFront;
-      ctx.fill();
-      // Outline
+      // Outline only (front face fill is in pre-floor drawWallPanels)
       ctx.strokeStyle = lColors.outline;
       ctx.lineWidth = 1;
       ctx.beginPath();
@@ -485,16 +498,7 @@ export function drawWallEdges(
     if (rightPts.length > 1) {
       const rColors = wallPanelColors(tileHsb, 'right');
       const lastPt = rightPts[rightPts.length - 1];
-      // Front face fill
-      ctx.beginPath();
-      ctx.moveTo(lastPt.x, lastPt.y + floorOverlap);
-      ctx.lineTo(lastPt.x, lastPt.y - WALL_HEIGHT);
-      ctx.lineTo(lastPt.x - capD, lastPt.y - WALL_HEIGHT + capD / 2);
-      ctx.lineTo(lastPt.x - capD, lastPt.y + floorOverlap + capD / 2);
-      ctx.closePath();
-      ctx.fillStyle = rColors.capFront;
-      ctx.fill();
-      // Outline
+      // Outline only (front face fill is in pre-floor drawWallPanels)
       ctx.strokeStyle = rColors.outline;
       ctx.lineWidth = 1;
       ctx.beginPath();
