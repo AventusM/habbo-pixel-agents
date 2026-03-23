@@ -28,21 +28,21 @@
 
 ## Tasks
 
-- [ ] **T01: Extend KanbanCard type and Azure DevOps fetcher** `est:1h`
+- [x] **T01: Extend KanbanCard type and Azure DevOps fetcher** `est:1h`
   - Why: Need richer data model and API calls for sub-tasks, assignees, and PRs
   - Files: `src/agentTypes.ts`, `src/azureDevOpsBoards.ts`
   - Do: Add optional fields to KanbanCard (children, linkedPrs, assignee, workItemType). Extend fetchAzureDevOpsCards to request additional fields (AssignedTo, WorkItemType) and fetch child relations. Add a separate fetchWorkItemRelations function for PRs and parent/child links.
   - Verify: `npx vitest run` passes with updated/new tests
   - Done when: KanbanCard includes enriched data from Azure DevOps
 
-- [ ] **T02: Render enriched expanded notes** `est:45m`
+- [x] **T02: Render enriched expanded notes** `est:45m`
   - Why: The expanded note view needs to show sub-tasks and PRs
   - Files: `src/isoKanbanRenderer.ts`
   - Do: Update drawExpandedNote to show assignee, work item type badge, sub-task list with checkmarks, and linked PR list with status. Expand panel height dynamically based on content.
   - Verify: Visual inspection in browser — expanded note shows enriched data
   - Done when: Clicking a sticky note shows sub-tasks with completion status and linked PRs
 
-- [ ] **T03: Wire kanban data through WebSocket server** `est:30m`
+- [x] **T03: Wire kanban data through WebSocket server** `est:30m`
   - Why: The standalone server needs to fetch and relay Azure DevOps data
   - Files: `src/web/server.ts`, `scripts/web-server.mjs`
   - Do: Add kanban polling to the server — read Azure DevOps config from .env, fetch cards periodically, broadcast kanbanCards messages over WebSocket. Support AZDO_ORG, AZDO_PROJECT, AZDO_PAT env vars.

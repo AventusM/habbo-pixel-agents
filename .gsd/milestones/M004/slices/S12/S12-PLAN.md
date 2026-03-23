@@ -32,7 +32,7 @@
 
 ## Tasks
 
-- [ ] **T01: Add floor tile side faces (slab depth)** `est:45m`
+- [x] **T01: Add floor tile side faces (slab depth)** `est:45m`
   - Why: Floor tiles are currently flat rhombuses with no visible thickness. Habbo floors have a visible edge — darker left and right parallelogram faces hanging below the front edges of each tile, typically 4-6px deep.
   - Files: `src/isoTileRenderer.ts`, `src/isometricMath.ts`
   - Do:
@@ -44,7 +44,7 @@
   - Verify: `npx vitest run` — all existing tests pass; visually verify in browser that tiles have depth
   - Done when: Floor tiles show visible darker side faces along their front edges
 
-- [ ] **T02: Add wall edge thickness** `est:30m`
+- [x] **T02: Add wall edge thickness** `est:30m`
   - Why: Walls currently terminate as flat panels where they meet the floor. Habbo walls have a visible front edge strip showing their depth, making them look like real walls rather than wallpaper.
   - Files: `src/isoWallRenderer.ts`
   - Do:

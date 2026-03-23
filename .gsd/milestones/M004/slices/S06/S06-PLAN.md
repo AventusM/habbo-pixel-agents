@@ -28,14 +28,14 @@
 
 ## Tasks
 
-- [ ] **T01: Copilot agent monitor module and server wiring** `est:1h`
+- [x] **T01: Copilot agent monitor module and server wiring** `est:1h`
   - Why: Need a poller that watches GitHub for Copilot agent PRs and workflow runs, emitting agent lifecycle events
   - Files: `src/web/copilotMonitor.ts`, `src/web/server.ts`, `scripts/web-server.mjs`
   - Do: Create CopilotAgentMonitor class that polls GitHub REST API for Copilot PRs and Actions runs. Wire into server.ts exports. Start in web-server.mjs alongside AgentManager. Read GITHUB_TOKEN and GITHUB_REPO from env.
   - Verify: `npm run web` shows Copilot monitor log messages, avatar appears for existing PR #11
   - Done when: Copilot agent avatar spawns in room based on real GitHub data
 
-- [ ] **T02: Verify and commit** `est:15m`
+- [x] **T02: Verify and commit** `est:15m`
   - Why: Ensure no regressions
   - Files: none (verification only)
   - Do: Run builds and tests, verify visually

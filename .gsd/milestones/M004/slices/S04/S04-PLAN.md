@@ -24,7 +24,7 @@
 
 ## Tasks
 
-- [ ] **T01: Agent-ticket correlation and visual link** `est:1h`
+- [x] **T01: Agent-ticket correlation and visual link** `est:1h`
   - Why: Need to map agents to tickets and show the connection visually
   - Files: `src/web/demoData.ts`, `src/isoKanbanRenderer.ts`, `src/agentTypes.ts`, `src/isoOrchestrationOverlay.ts`
   - Do: Add `linkedTicketId` to agent state. In demo mode, set linkedTicketId for demo agents. In kanban renderer, highlight notes whose card.id matches an active agent's linkedTicketId. In orchestration overlay, show linked ticket title next to agent name. Add a "WORKING" badge on linked sticky notes.

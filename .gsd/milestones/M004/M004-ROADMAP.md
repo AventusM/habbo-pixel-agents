@@ -44,24 +44,27 @@ This milestone is complete only when all are true:
 
 ## Requirement Coverage
 
-- Covers: (new requirements to be created for M004)
-- Partially covers: existing kanban rendering (R-kanban from M002/S04, S16)
+- Covers: standalone room website delivery, live agent feeds, Azure DevOps deep ticket rendering, Copilot monitor activity, feed-mode visibility, and Habbo-style room depth (tracked in M004 artifacts; `REQUIREMENTS.md` is still legacy-weighted)
+- Partially covers: existing kanban rendering contract from earlier room work
 - Leaves for later: cloud deployment, multi-user access, authentication UI
-- Orphan risks: none
+- Orphan risks: M004-specific capability IDs have not yet been migrated into `REQUIREMENTS.md`
 
 ## Slices
 
-- [ ] **S11: Fix Copilot Agent Streaming Fallback & ADO PR-Opened State Sync** `risk:medium` `depends:[S10, S07]`
+- [x] **S11: Fix Copilot Agent Streaming Fallback & ADO PR-Opened State Sync** `risk:medium` `depends:[S10, S07]`
   > After this: Copilot agent speech bubbles update in real time (not 15s stale polls) with visible feed mode indicators, and opening a Copilot PR reliably moves the linked ADO ticket to "Doing" via server-side sync.
 
-- [ ] **S12: Floor & Wall Thickness for Habbo-Authentic Room Depth** `risk:low` `depends:[S01]`
+- [x] **S12: Floor & Wall Thickness for Habbo-Authentic Room Depth** `risk:low` `depends:[S01]`
   > After this: Floor tiles show visible darker side faces (slab depth) and walls have edge thickness strips, giving the room a constructed 3D feel matching the classic Habbo look.
 
-- [ ] **S07: Copilot Agent Activity Monitor Workflow** `risk:low` `depends:[S06]`
+- [x] **S07: Copilot Agent Activity Monitor Workflow** `risk:low` `depends:[S06]`
   > After this: A GitHub Actions workflow watches Copilot agent PR activity and posts status updates as PR comments + syncs ADO work item state (To Do → Doing → Done) automatically. No human watching required.
 
 - [x] **S08: Copilot Agent Rich Activity Display** `risk:low` `depends:[S06]`
   > After this: The Copilot agent avatar speech bubble on localhost:3000 shows detailed activity — commit messages, phase (coding/responding/planning), and progress — instead of a generic "Working..." message.
+
+- [x] **S09: Live Session Activity in Speech Bubbles** `risk:medium` `depends:[S06]`
+  > After this: Copilot agent speech bubbles show live file, test, search, and edit activity from the Copilot sessions API instead of generic commit summaries.
 
 - [x] **S10: Real-Time SSE Streaming for Copilot Agent Activity** `risk:low` `depends:[S09]`
   > After this: Copilot agent speech bubbles update within ~2s of agent activity via persistent SSE connections to the Copilot sessions API, instead of polling every 15s.

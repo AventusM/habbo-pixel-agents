@@ -49,6 +49,9 @@ _migrate.mjs
 .gsd/auto.lock
 .gsd/metrics.json
 .gsd/STATE.md
+.gsd/gsd.db
+.gsd/gsd.db-shm
+.gsd/gsd.db-wal
 Thumbs.db
 *.swp
 *.swo

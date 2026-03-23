@@ -1,80 +1,74 @@
 ---
-status: complete
-started: 2026-03-21
-completed: 2026-03-21
+id: M004
+provides:
+  - Standalone Habbo room website with live Azure DevOps and Copilot agent visibility
+key_decisions:
+  - Reuse the existing room renderer and extensionMessage protocol across VS Code and standalone web surfaces
+  - Keep Azure DevOps and GitHub/Copilot integrations in a local Node server so secrets stay out of browser code
+  - Use the Copilot sessions API for fine-grained activity, with explicit SSE and fallback feed modes instead of generic commit summaries
+patterns_established:
+  - Browser and webview surfaces can consume the same extensionMessage stream
+  - Static room geometry uses wall-panels-before-floors and wall-ledges-after-floors two-pass rendering
+observability_surfaces:
+  - scripts/web-server.mjs console logs for WS, Kanban, Copilot monitor, feed mode, and ADO sync
+  - Browser status bar and per-agent feed-mode indicators at http://localhost:3000
+requirement_outcomes: []
+duration: 2026-03-21 → 2026-03-23
+verification_result: passed
+completed_at: 2026-03-23
 ---
 
-# M004 Summary: Azure DevOps Board → Habbo Room Website
+# M004: Azure DevOps Board → Habbo Room Website
 
-## What Was Built
+**A standalone Habbo room website now mirrors Azure DevOps ticket state and Copilot or Claude coding-agent activity without breaking the original VS Code extension.**
 
-A standalone website that renders the Habbo isometric room visualisation — previously locked inside a VS Code webview — as a live dashboard accessible via `http://localhost:3000`. It shows Azure DevOps ticket progress through animated agents and visual state.
+## What Happened
 
-## Slices Completed
+M004 started by extracting the existing room renderer out of the VS Code webview and proving it could run as a standalone browser surface with the same Canvas 2D modules and event protocol. From there, the milestone added a local HTTP and WebSocket server so real agent events could flow into the browser without duplicating the extension’s renderer logic.
 
-### S01: Standalone Room Renderer ✅
-Extracted the Canvas 2D room renderer from VS Code webview into a standalone browser page. Created `src/web/main.tsx`, `index.html`, and a zero-dependency dev server. All rendering code shared with VS Code extension — no duplication.
+Once the standalone surface existed, the milestone deepened the room’s data model and visuals in layers that still produced live demos at each step: enriched Azure DevOps work items with children and linked PRs, visual linking between agents and tickets, and a more legible website shell with connection state and demo indicators.
 
-### S02: Local WebSocket Server & Agent Feed ✅
-Added WebSocket server that relays agent events from JSONL file watching to connected browsers. Reuses existing AgentManager, fileWatcher, transcriptParser, and agentClassifier modules directly. Browser client auto-reconnects and falls back to demo mode.
+The second half of the milestone focused on Copilot visibility. It added a GitHub-backed Copilot monitor, then evolved speech bubbles from generic commit summaries to richer phase and commit text, then to live sessions-API activity, then to low-latency SSE streaming with explicit fast-poll and poll fallbacks. That work also added feed-mode indicators in the browser and server-side Azure DevOps state sync when Copilot opens a PR.
 
-### S03: Azure DevOps Deep Ticket Integration ✅
-Extended KanbanCard with workItemType, assignee, children (sub-tasks), and linkedPrs. Azure DevOps fetcher retrieves child work items and linked PRs via the relations API. Expanded sticky note view shows sub-task progress bars and PR status.
+The final slice brought the room visuals closer to classic Habbo depth by adding floor slab faces and visible wall ledges. That left the milestone with a room that not only carries the live ticket and agent data, but also reads more like a constructed space than a flat board.
 
-### S04: Coding Agent ↔ Ticket Linking ✅
-Added visual linking between agent avatars and tickets. Linked sticky notes glow green with a "WORKING" badge. Orchestration overlay shows linked ticket title next to agent name.
+## Cross-Slice Verification
 
-### S05: Website Polish & Integrated Experience ✅
-Connection status bar, DEMO MODE indicator, emoji favicon. All features integrated.
+- `node esbuild.config.mjs && node esbuild.config.mjs web` passed on 2026-03-23, proving both the VS Code extension bundle and the standalone web bundle still build
+- `npx vitest run` passed 442/442 on 2026-03-23
+- `http://localhost:3000` loaded successfully on 2026-03-23 and showed the live room with connection state, Copilot feed-mode indicator, Azure DevOps polling, and the S12 floor and wall depth changes
+- Server runtime logs during local verification showed WebSocket startup, Kanban polling, Copilot monitor startup, PR session resolution, and feed-mode reporting
 
-## Key Architecture Decisions
+## Requirement Changes
 
-| Decision | Rationale |
-|----------|-----------|
-| Share renderer code, don't duplicate | RoomCanvas.tsx imports work unchanged — only the entry point differs |
-| `ws` as only new dependency | Minimal, well-maintained WebSocket library for Node.js |
-| extensionMessage CustomEvent protocol | RoomCanvas already listens for this — no changes to rendering code needed |
-| Demo fallback after 5s | Website always shows something interesting, even without active agents |
-| AZDO_ORG/PROJECT/PAT env vars | Simple configuration without settings UI for v1 |
+- None recorded in `REQUIREMENTS.md` — M004 shipped new website capabilities without migrating them into formal requirement IDs, so the roadmap and slice summaries remain the authoritative proof trail for this milestone
 
-## Files Created
+## Forward Intelligence
 
-- `src/web/main.tsx` — Standalone entry point
-- `src/web/index.html` — HTML shell with favicon
-- `src/web/demoData.ts` — Demo agent + kanban simulator
-- `src/web/server.ts` — AgentManager wrapper + kanban polling
-- `src/web/wsClient.ts` — Browser WebSocket client with auto-reconnect
-- `scripts/web-server.mjs` — HTTP + WebSocket dev server
+### What the next milestone should know
+- The website path is now real and complete; future work can treat `scripts/web-server.mjs` + `src/web/main.tsx` as a supported surface rather than a side demo
+- `REQUIREMENTS.md` still needs a dedicated contract pass if future web milestones need formal capability IDs instead of milestone-level tracking
 
-## Files Modified
+### What's fragile
+- `src/web/copilotMonitor.ts` is the highest-churn module in the codebase — it mixes PR polling, workflow status, sessions API integration, feed-mode fallback, and ADO sync
+- Live Azure DevOps proof still depends on valid runtime credentials, so auth failures show up as runtime logs rather than compile-time failures
 
-- `esbuild.config.mjs` — Added web build target
-- `package.json` — Added build:web, web, web:serve scripts + ws dependency
-- `src/agentTypes.ts` — Extended KanbanCard, added agentLinkedTicket message
-- `src/azureDevOpsBoards.ts` — Deep ticket fetching with relations
-- `src/isoKanbanRenderer.ts` — Enriched expanded notes, linked ticket highlighting
-- `src/isoOrchestrationOverlay.ts` — Linked ticket display, getLinkedTicketIds
-- `src/RoomCanvas.tsx` — agentLinkedTicket handler, linked ticket IDs to kanban renderer
+### Authoritative diagnostics
+- `scripts/web-server.mjs` console output — the fastest place to confirm WS health, Kanban polling, Copilot monitor lifecycle, feed mode, and ADO sync outcomes
+- Browser status bar at `http://localhost:3000` — the quickest user-visible signal for connection health and per-agent feed mode
 
-## Verification
+### What assumptions changed
+- The earlier M004 summary assumed the milestone ended at website polish; in practice the meaningful end-to-end milestone required Copilot monitoring, low-latency live activity, feed-mode visibility, ADO sync on PR-opened, and final room depth work before it was actually complete
 
-- All 373 existing tests pass — zero regressions
-- VS Code extension build (`npm run build`) succeeds unchanged
-- Website builds and serves correctly (`npm run web`)
-- Room renders with floor, walls, furniture, camera controls, demo avatars
-- WebSocket connects, demo mode activates, kanban sticky notes display
-- End-to-end flow verified in browser
+## Files Created/Modified
 
-## How to Use
-
-```bash
-# Build and start the website
-npm run web
-
-# Or build separately
-npm run build:web
-npm run web:serve
-
-# With Azure DevOps (optional)
-AZDO_ORG=myorg AZDO_PROJECT=myproject AZDO_PAT=*** npm run web
-```
+- `src/web/main.tsx` — standalone browser entry point and browser-side status/feed-mode handling
+- `src/web/wsClient.ts` — WebSocket client bridge into the shared `extensionMessage` protocol
+- `src/web/server.ts` — local web server orchestration for agent events, Kanban polling, and Copilot monitor wiring
+- `scripts/web-server.mjs` — runtime server entrypoint for the standalone website
+- `src/web/copilotMonitor.ts` — Copilot PR, workflow, sessions API, SSE, feed-mode, and ADO sync logic
+- `src/azureDevOpsBoards.ts` — enriched Azure DevOps work-item fetching and relations support
+- `src/isoKanbanRenderer.ts` — richer sticky notes and linked-ticket rendering
+- `src/isoWallRenderer.ts` — visible wall ledges and ceiling-line depth geometry
+- `src/isoTileRenderer.ts` — front slab faces for floor depth
+- `src/isometricMath.ts` — shared floor thickness constant used by room geometry

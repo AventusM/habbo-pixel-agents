@@ -27,7 +27,7 @@
 
 ## Tasks
 
-- [ ] **T01: Connection status and demo label overlay** `est:30m`
+- [x] **T01: Connection status and demo label overlay** `est:30m`
   - Why: Users need to know if they're seeing live or demo data, and connection health
   - Files: `src/web/main.tsx`, `src/web/wsClient.ts`, `src/web/index.html`
   - Do: Add a small status bar at the bottom of the page showing WS connection state and "DEMO MODE" label. Update page title and add a simple favicon.
