@@ -32,6 +32,7 @@ function wallPanelColors(hsb: HsbColor, face: 'left' | 'right'): {
   capTop: string;
   capFront: string;
   capLine: string;
+  outline: string;
 } {
   const { h, s, l } = hsbToHsl(hsb);
   // Left wall is l-10, right wall is l-20 (from tileColors)
@@ -47,6 +48,8 @@ function wallPanelColors(hsb: HsbColor, face: 'left' | 'right'): {
     capFront: `hsl(${h}, ${s}%, ${Math.max(0, baseL - 18)}%)`,
     // Cap edge line
     capLine: `hsl(${h}, ${s}%, ${Math.max(0, baseL - 22)}%)`,
+    // Dark outline border — separates wall from floor/background
+    outline: `hsl(${h}, ${Math.min(100, s + 10)}%, ${Math.max(0, baseL - 30)}%)`,
   };
 }
 
@@ -232,9 +235,31 @@ export function drawWallPanels(
     ctx.closePath();
     ctx.fillStyle = topColors.capFront;
     ctx.fill();
-  }
 
-  // --- RIGHT WALL (rises above the right/top edge of the floor) ---
+    // --- LEFT WALL OUTLINE (dark border around entire wall perimeter) ---
+    ctx.beginPath();
+    // Bottom edge (floor line, back to front)
+    ctx.moveTo(bottomPoints[0].x, bottomPoints[0].y);
+    for (let i = 1; i < bottomPoints.length; i++) {
+      ctx.lineTo(bottomPoints[i].x, bottomPoints[i].y);
+    }
+    // Up the front face outer edge
+    ctx.lineTo(lastPt.x, lastPt.y - WALL_HEIGHT);
+    // Across the cap inner edge (front to back)
+    ctx.lineTo(bottomPoints[0].x, bottomPoints[0].y - WALL_HEIGHT);
+    // Back corner to cap outer
+    ctx.lineTo(bottomPoints[0].x + capD, bottomPoints[0].y - WALL_HEIGHT + capD / 2);
+    // Cap inner edge (back to front)
+    for (let i = 1; i < bottomPoints.length; i++) {
+      ctx.lineTo(bottomPoints[i].x + capD, bottomPoints[i].y - WALL_HEIGHT + capD / 2);
+    }
+    // Down the front face inner edge
+    ctx.lineTo(lastPt.x + capD, lastPt.y + capD / 2);
+    ctx.closePath();
+    ctx.strokeStyle = topColors.outline;
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  }
   const rightEdge: Array<{ tx: number; ty: number; height: number }> = [];
   for (let tx = 0; tx < grid.width; tx++) {
     for (let ty = 0; ty < grid.height; ty++) {
@@ -322,8 +347,31 @@ export function drawWallPanels(
     ctx.closePath();
     ctx.fillStyle = topColors.capFront;
     ctx.fill();
+
+    // --- RIGHT WALL OUTLINE (dark border around entire wall perimeter) ---
+    ctx.beginPath();
+    // Bottom edge (floor line, back to front)
+    ctx.moveTo(bottomPoints[0].x, bottomPoints[0].y);
+    for (let i = 1; i < bottomPoints.length; i++) {
+      ctx.lineTo(bottomPoints[i].x, bottomPoints[i].y);
+    }
+    // Up the front face outer edge
+    ctx.lineTo(lastPt.x, lastPt.y - WALL_HEIGHT);
+    // Across the ceiling (front to back)
+    ctx.lineTo(bottomPoints[0].x, bottomPoints[0].y - WALL_HEIGHT);
+    // Back corner to cap outer
+    ctx.lineTo(bottomPoints[0].x - capD, bottomPoints[0].y - WALL_HEIGHT + capD / 2);
+    // Cap inner edge (back to front)
+    for (let i = 1; i < bottomPoints.length; i++) {
+      ctx.lineTo(bottomPoints[i].x - capD, bottomPoints[i].y - WALL_HEIGHT + capD / 2);
+    }
+    // Down the front face inner edge
+    ctx.lineTo(lastPt.x - capD, lastPt.y + capD / 2);
+    ctx.closePath();
+    ctx.strokeStyle = topColors.outline;
+    ctx.lineWidth = 1;
+    ctx.stroke();
   }
-  // --- BACK CORNER POST ---
   const cornerTile = grid.tiles[0]?.[0];
   if (cornerTile != null) {
     const { x: sx, y: sy } = tileToScreen(0, 0, cornerTile.height);
