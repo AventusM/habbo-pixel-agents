@@ -225,12 +225,14 @@ export function drawWallPanels(
 
     // --- LEFT WALL FRONT FACE (visible cross-section at the open end) ---
     // Extends down past the floor slab so the wall covers the floor edge.
+    // The outer bottom extends slightly past the floor slab's side face corner.
     const lastPt = bottomPoints[bottomPoints.length - 1];
+    const floorOverlap = FLOOR_THICKNESS + 2; // extra 2px to fully cover floor slab corner
     ctx.beginPath();
-    ctx.moveTo(lastPt.x, lastPt.y + FLOOR_THICKNESS);
+    ctx.moveTo(lastPt.x, lastPt.y + floorOverlap);
     ctx.lineTo(lastPt.x, lastPt.y - WALL_HEIGHT);
     ctx.lineTo(lastPt.x + capD, lastPt.y - WALL_HEIGHT + capD / 2);
-    ctx.lineTo(lastPt.x + capD, lastPt.y + FLOOR_THICKNESS + capD / 2);
+    ctx.lineTo(lastPt.x + capD, lastPt.y + floorOverlap + capD / 2);
     ctx.closePath();
     ctx.fillStyle = topColors.capFront;
     ctx.fill();
@@ -240,7 +242,7 @@ export function drawWallPanels(
     ctx.lineWidth = 1;
     // Front face outer edge (bottom to top)
     ctx.beginPath();
-    ctx.moveTo(lastPt.x, lastPt.y + FLOOR_THICKNESS);
+    ctx.moveTo(lastPt.x, lastPt.y + floorOverlap);
     ctx.lineTo(lastPt.x, lastPt.y - WALL_HEIGHT);
     // Ceiling outer edge (front to back)
     for (let i = bottomPoints.length - 2; i >= 0; i--) {
@@ -254,7 +256,7 @@ export function drawWallPanels(
       ctx.lineTo(bottomPoints[i].x + capD, bottomPoints[i].y - WALL_HEIGHT + capD / 2);
     }
     // Down the front face inner edge
-    ctx.lineTo(lastPt.x + capD, lastPt.y + FLOOR_THICKNESS + capD / 2);
+    ctx.lineTo(lastPt.x + capD, lastPt.y + floorOverlap + capD / 2);
     ctx.stroke();
     // Back corner vertical
     ctx.beginPath();
@@ -341,11 +343,12 @@ export function drawWallPanels(
 
     // --- RIGHT WALL FRONT FACE (visible cross-section at the open end) ---
     const lastPt = bottomPoints[bottomPoints.length - 1];
+    const floorOverlap = FLOOR_THICKNESS + 2;
     ctx.beginPath();
-    ctx.moveTo(lastPt.x, lastPt.y + FLOOR_THICKNESS);
+    ctx.moveTo(lastPt.x, lastPt.y + floorOverlap);
     ctx.lineTo(lastPt.x, lastPt.y - WALL_HEIGHT);
     ctx.lineTo(lastPt.x - capD, lastPt.y - WALL_HEIGHT + capD / 2);
-    ctx.lineTo(lastPt.x - capD, lastPt.y + FLOOR_THICKNESS + capD / 2);
+    ctx.lineTo(lastPt.x - capD, lastPt.y + floorOverlap + capD / 2);
     ctx.closePath();
     ctx.fillStyle = topColors.capFront;
     ctx.fill();
@@ -355,7 +358,7 @@ export function drawWallPanels(
     ctx.lineWidth = 1;
     // Front face outer edge (bottom to top)
     ctx.beginPath();
-    ctx.moveTo(lastPt.x, lastPt.y + FLOOR_THICKNESS);
+    ctx.moveTo(lastPt.x, lastPt.y + floorOverlap);
     ctx.lineTo(lastPt.x, lastPt.y - WALL_HEIGHT);
     // Ceiling outer edge (front to back)
     for (let i = bottomPoints.length - 2; i >= 0; i--) {
@@ -369,7 +372,7 @@ export function drawWallPanels(
       ctx.lineTo(bottomPoints[i].x - capD, bottomPoints[i].y - WALL_HEIGHT + capD / 2);
     }
     // Down the front face inner edge
-    ctx.lineTo(lastPt.x - capD, lastPt.y + FLOOR_THICKNESS + capD / 2);
+    ctx.lineTo(lastPt.x - capD, lastPt.y + floorOverlap + capD / 2);
     ctx.stroke();
     // Back corner vertical
     ctx.beginPath();
