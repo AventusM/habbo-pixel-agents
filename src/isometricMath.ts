@@ -27,7 +27,7 @@ export const FLOOR_THICKNESS = 6;
  * Wall slab thickness in pixels.
  * Draws a visible top cap and front face on wall panels for 3D depth.
  */
-export const WALL_THICKNESS = 7;
+export const WALL_THICKNESS = 10;
 
 /**
  * Convert isometric tile coordinates to screen pixel coordinates.
