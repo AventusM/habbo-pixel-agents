@@ -340,6 +340,8 @@ export class CopilotAgentMonitor {
   private adoTransitionedToDoing = new Set<string>();
   /** Azure DevOps config for server-side state sync */
   private adoConfig?: { organization: string; project: string; pat: string };
+  /** Callback when ADO state is changed — server uses this to refresh kanban */
+  private onAdoStateChange?: () => void;
 
   constructor(
     owner: string,
@@ -357,6 +359,11 @@ export class CopilotAgentMonitor {
     if (adoConfig?.organization && adoConfig?.project && adoConfig?.pat) {
       this.adoConfig = adoConfig;
     }
+  }
+
+  /** Register a callback to fire after any ADO state change (e.g. to refresh kanban) */
+  setOnAdoStateChange(cb: () => void): void {
+    this.onAdoStateChange = cb;
   }
 
   /** Start polling for Copilot agent activity */
@@ -711,6 +718,7 @@ export class CopilotAgentMonitor {
 
       if (res.ok) {
         console.log(`[CopilotMonitor] ADO #${ticketId} → ${targetState}`);
+        this.onAdoStateChange?.();
         return true;
       } else {
         console.warn(

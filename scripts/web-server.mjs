@@ -261,6 +261,21 @@ async function startAgentManager() {
         ghConfig.pollIntervalSeconds * 1000,
         adoForCopilot,
       );
+
+      // When ADO state changes (Doing/Done), immediately re-fetch kanban cards
+      if (adoConfig.organization && adoConfig.project && adoConfig.pat) {
+        copilotMonitor.setOnAdoStateChange(async () => {
+          try {
+            const cards = await fetchEnrichedCards(adoConfig.organization, adoConfig.project, adoConfig.pat);
+            lastKanbanCards = cards;
+            broadcast({ type: 'kanbanCards', cards });
+            console.log(`[Kanban] Refreshed after ADO state change: ${cards.length} cards`);
+          } catch (err) {
+            console.warn('[Kanban] Refresh after ADO change failed:', err.message);
+          }
+        });
+      }
+
       copilotMonitor.start();
       console.log(`[Copilot] Monitor started: ${ghConfig.owner}/${ghConfig.repo} (every ${ghConfig.pollIntervalSeconds}s)`);
       if (adoForCopilot) {
