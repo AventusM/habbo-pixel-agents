@@ -236,28 +236,31 @@ export function drawWallPanels(
     ctx.fillStyle = topColors.capFront;
     ctx.fill();
 
-    // --- LEFT WALL OUTLINE (dark border around entire wall perimeter) ---
+    // --- LEFT WALL OUTLINE (dark border — outer edges only, no bottom/floor line) ---
+    ctx.strokeStyle = topColors.outline;
+    ctx.lineWidth = 1;
+    // Front face outer edge (bottom to top)
     ctx.beginPath();
-    // Bottom edge (floor line, back to front)
-    ctx.moveTo(bottomPoints[0].x, bottomPoints[0].y);
-    for (let i = 1; i < bottomPoints.length; i++) {
-      ctx.lineTo(bottomPoints[i].x, bottomPoints[i].y);
-    }
-    // Up the front face outer edge
+    ctx.moveTo(lastPt.x, lastPt.y);
     ctx.lineTo(lastPt.x, lastPt.y - WALL_HEIGHT);
-    // Across the cap inner edge (front to back)
-    ctx.lineTo(bottomPoints[0].x, bottomPoints[0].y - WALL_HEIGHT);
-    // Back corner to cap outer
-    ctx.lineTo(bottomPoints[0].x + capD, bottomPoints[0].y - WALL_HEIGHT + capD / 2);
-    // Cap inner edge (back to front)
+    // Ceiling outer edge (front to back)
+    for (let i = bottomPoints.length - 2; i >= 0; i--) {
+      ctx.lineTo(bottomPoints[i].x, bottomPoints[i].y - WALL_HEIGHT);
+    }
+    ctx.stroke();
+    // Cap top edge (back to front, inner)
+    ctx.beginPath();
+    ctx.moveTo(bottomPoints[0].x + capD, bottomPoints[0].y - WALL_HEIGHT + capD / 2);
     for (let i = 1; i < bottomPoints.length; i++) {
       ctx.lineTo(bottomPoints[i].x + capD, bottomPoints[i].y - WALL_HEIGHT + capD / 2);
     }
     // Down the front face inner edge
     ctx.lineTo(lastPt.x + capD, lastPt.y + capD / 2);
-    ctx.closePath();
-    ctx.strokeStyle = topColors.outline;
-    ctx.lineWidth = 1;
+    ctx.stroke();
+    // Back corner vertical
+    ctx.beginPath();
+    ctx.moveTo(bottomPoints[0].x, bottomPoints[0].y);
+    ctx.lineTo(bottomPoints[0].x, bottomPoints[0].y - WALL_HEIGHT);
     ctx.stroke();
   }
   const rightEdge: Array<{ tx: number; ty: number; height: number }> = [];
@@ -348,28 +351,31 @@ export function drawWallPanels(
     ctx.fillStyle = topColors.capFront;
     ctx.fill();
 
-    // --- RIGHT WALL OUTLINE (dark border around entire wall perimeter) ---
+    // --- RIGHT WALL OUTLINE (dark border — outer edges only, no bottom/floor line) ---
+    ctx.strokeStyle = topColors.outline;
+    ctx.lineWidth = 1;
+    // Front face outer edge (bottom to top)
     ctx.beginPath();
-    // Bottom edge (floor line, back to front)
-    ctx.moveTo(bottomPoints[0].x, bottomPoints[0].y);
-    for (let i = 1; i < bottomPoints.length; i++) {
-      ctx.lineTo(bottomPoints[i].x, bottomPoints[i].y);
-    }
-    // Up the front face outer edge
+    ctx.moveTo(lastPt.x, lastPt.y);
     ctx.lineTo(lastPt.x, lastPt.y - WALL_HEIGHT);
-    // Across the ceiling (front to back)
-    ctx.lineTo(bottomPoints[0].x, bottomPoints[0].y - WALL_HEIGHT);
-    // Back corner to cap outer
-    ctx.lineTo(bottomPoints[0].x - capD, bottomPoints[0].y - WALL_HEIGHT + capD / 2);
-    // Cap inner edge (back to front)
+    // Ceiling outer edge (front to back)
+    for (let i = bottomPoints.length - 2; i >= 0; i--) {
+      ctx.lineTo(bottomPoints[i].x, bottomPoints[i].y - WALL_HEIGHT);
+    }
+    ctx.stroke();
+    // Cap top edge (back to front, inner)
+    ctx.beginPath();
+    ctx.moveTo(bottomPoints[0].x - capD, bottomPoints[0].y - WALL_HEIGHT + capD / 2);
     for (let i = 1; i < bottomPoints.length; i++) {
       ctx.lineTo(bottomPoints[i].x - capD, bottomPoints[i].y - WALL_HEIGHT + capD / 2);
     }
     // Down the front face inner edge
     ctx.lineTo(lastPt.x - capD, lastPt.y + capD / 2);
-    ctx.closePath();
-    ctx.strokeStyle = topColors.outline;
-    ctx.lineWidth = 1;
+    ctx.stroke();
+    // Back corner vertical
+    ctx.beginPath();
+    ctx.moveTo(bottomPoints[0].x, bottomPoints[0].y);
+    ctx.lineTo(bottomPoints[0].x, bottomPoints[0].y - WALL_HEIGHT);
     ctx.stroke();
   }
   const cornerTile = grid.tiles[0]?.[0];
