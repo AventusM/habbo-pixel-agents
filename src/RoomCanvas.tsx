@@ -257,6 +257,15 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
       const sectionManager = sectionManagerRef.current;
 
       switch (msg.type) {
+        case 'clearAgents': {
+          // Remove all avatars on reconnect — server will re-send current sessions
+          const allIds = avatarManager.getAllAvatarIds();
+          for (const id of allIds) {
+            avatarManager.removeAvatar(id);
+          }
+          console.log(`[Room] Cleared ${allIds.length} stale agents on reconnect`);
+          break;
+        }
         case 'agentCreated': {
           // Guard: skip if avatar already exists (prevents duplicate side effects from re-broadcast)
           if (avatarManager.getAvatar(msg.agentId)) {

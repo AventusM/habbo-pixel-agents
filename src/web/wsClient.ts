@@ -60,6 +60,9 @@ export function connectWs(url?: string): void {
     setState('connected');
     console.log('[WS] Connected to server');
 
+    // Signal room to clear stale agents — server will re-send current sessions
+    window.dispatchEvent(new CustomEvent('extensionMessage', { detail: { type: 'clearAgents' } }));
+
     // Clear any pending reconnect
     if (reconnectTimer) {
       clearTimeout(reconnectTimer);

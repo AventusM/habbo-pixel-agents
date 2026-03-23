@@ -118,6 +118,13 @@ export class AvatarManager {
   }
 
   /**
+   * Get all avatar IDs currently tracked.
+   */
+  getAllAvatarIds(): string[] {
+    return Array.from(this.avatars.keys());
+  }
+
+  /**
    * Remove a fully despawned avatar from the pool.
    */
   removeAvatar(agentId: string): void {
