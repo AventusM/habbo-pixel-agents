@@ -332,6 +332,8 @@ export class CopilotAgentMonitor {
   private sessionIdCache = new Map<number, string>();
   /** Whether the Copilot sessions API is available (avoids repeated 401s) */
   private sessionApiAvailable = true;
+  /** OAuth token for api.githubcopilot.com sessions API (separate from GitHub PAT) */
+  private copilotToken: string;
   /** Active SSE connections per agent ID */
   private sseConnections = new Map<string, SSEConnection>();
   /** Active fast-poll timers per agent ID (when SSE fails) */
@@ -350,10 +352,12 @@ export class CopilotAgentMonitor {
     onMessage: (msg: ExtensionMessage) => void,
     pollIntervalMs = 15_000,
     adoConfig?: { organization: string; project: string; pat: string },
+    copilotToken?: string,
   ) {
     this.owner = owner;
     this.repo = repo;
     this.token = token;
+    this.copilotToken = copilotToken || token;
     this.onMessage = onMessage;
     this.pollIntervalMs = pollIntervalMs;
     if (adoConfig?.organization && adoConfig?.project && adoConfig?.pat) {
@@ -453,7 +457,7 @@ export class CopilotAgentMonitor {
         `https://api.githubcopilot.com/agents/sessions/${sessionId}/logs`,
         {
           headers: {
-            Authorization: `Bearer ${this.token}`,
+            Authorization: `Bearer ${this.copilotToken}`,
             "Content-Type": "application/json",
             "Copilot-Integration-Id": "copilot-4-cli",
             "X-Github-Api-Version": "2026-01-09",
@@ -1045,7 +1049,7 @@ export class CopilotAgentMonitor {
         `https://api.githubcopilot.com/agents/sessions/${sessionId}/logs`,
         {
           headers: {
-            Authorization: `Bearer ${this.token}`,
+            Authorization: `Bearer ${this.copilotToken}`,
             "Content-Type": "application/json",
             "Copilot-Integration-Id": "copilot-4-cli",
             "X-Github-Api-Version": "2026-01-09",
@@ -1094,7 +1098,7 @@ export class CopilotAgentMonitor {
         "https://api.githubcopilot.com/agents/sessions?page_number=1&page_size=50&sort=last_updated_at%2Cdesc",
         {
           headers: {
-            Authorization: `Bearer ${this.token}`,
+            Authorization: `Bearer ${this.copilotToken}`,
             "Content-Type": "application/json",
             "Copilot-Integration-Id": "copilot-4-cli",
             "X-Github-Api-Version": "2026-01-09",

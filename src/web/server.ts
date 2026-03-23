@@ -30,8 +30,9 @@ export function createCopilotMonitor(
   onMessage: (msg: ExtensionMessage) => void,
   pollIntervalMs?: number,
   adoConfig?: { organization: string; project: string; pat: string },
+  copilotToken?: string,
 ): CopilotAgentMonitor {
-  return new CopilotAgentMonitor(owner, repo, token, onMessage, pollIntervalMs, adoConfig);
+  return new CopilotAgentMonitor(owner, repo, token, onMessage, pollIntervalMs, adoConfig, copilotToken);
 }
 
 /**
@@ -41,6 +42,7 @@ export function readGitHubEnv(): {
   owner: string;
   repo: string;
   token: string;
+  copilotToken: string;
   pollIntervalSeconds: number;
 } {
   const fullRepo = process.env.GITHUB_REPO || '';
@@ -49,6 +51,7 @@ export function readGitHubEnv(): {
     owner,
     repo,
     token: process.env.GITHUB_TOKEN || '',
+    copilotToken: process.env.COPILOT_OAUTH_TOKEN || '',
     pollIntervalSeconds: parseInt(process.env.GITHUB_POLL_INTERVAL || '15', 10),
   };
 }

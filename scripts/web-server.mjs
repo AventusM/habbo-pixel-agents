@@ -270,6 +270,7 @@ async function startAgentManager() {
         (msg) => { broadcast(msg); },
         ghConfig.pollIntervalSeconds * 1000,
         adoForCopilot,
+        ghConfig.copilotToken || undefined,
       );
 
       // When ADO state changes (Doing/Done), immediately re-fetch kanban cards
