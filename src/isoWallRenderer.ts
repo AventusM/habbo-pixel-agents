@@ -9,6 +9,7 @@ import {
   TILE_H_HALF,
   WALL_HEIGHT,
   WALL_THICKNESS,
+  FLOOR_THICKNESS,
   tileToScreen,
 } from './isometricMath.js';
 import type { TileGrid, HsbColor } from './isoTypes.js';
@@ -223,14 +224,13 @@ export function drawWallPanels(
     ctx.stroke();
 
     // --- LEFT WALL FRONT FACE (visible cross-section at the open end) ---
-    // The front face drawn here covers the wall panel area only (above floor line).
-    // The extension below the floor line is in drawWallEdges (post-floor pass).
+    // Extends down past the floor slab so the wall covers the floor edge.
     const lastPt = bottomPoints[bottomPoints.length - 1];
     ctx.beginPath();
-    ctx.moveTo(lastPt.x, lastPt.y);
+    ctx.moveTo(lastPt.x, lastPt.y + FLOOR_THICKNESS);
     ctx.lineTo(lastPt.x, lastPt.y - WALL_HEIGHT);
     ctx.lineTo(lastPt.x + capD, lastPt.y - WALL_HEIGHT + capD / 2);
-    ctx.lineTo(lastPt.x + capD, lastPt.y + capD / 2);
+    ctx.lineTo(lastPt.x + capD, lastPt.y + FLOOR_THICKNESS + capD / 2);
     ctx.closePath();
     ctx.fillStyle = topColors.capFront;
     ctx.fill();
@@ -240,7 +240,7 @@ export function drawWallPanels(
     ctx.lineWidth = 1;
     // Front face outer edge (bottom to top)
     ctx.beginPath();
-    ctx.moveTo(lastPt.x, lastPt.y);
+    ctx.moveTo(lastPt.x, lastPt.y + FLOOR_THICKNESS);
     ctx.lineTo(lastPt.x, lastPt.y - WALL_HEIGHT);
     // Ceiling outer edge (front to back)
     for (let i = bottomPoints.length - 2; i >= 0; i--) {
@@ -254,7 +254,7 @@ export function drawWallPanels(
       ctx.lineTo(bottomPoints[i].x + capD, bottomPoints[i].y - WALL_HEIGHT + capD / 2);
     }
     // Down the front face inner edge
-    ctx.lineTo(lastPt.x + capD, lastPt.y + capD / 2);
+    ctx.lineTo(lastPt.x + capD, lastPt.y + FLOOR_THICKNESS + capD / 2);
     ctx.stroke();
     // Back corner vertical
     ctx.beginPath();
@@ -342,10 +342,10 @@ export function drawWallPanels(
     // --- RIGHT WALL FRONT FACE (visible cross-section at the open end) ---
     const lastPt = bottomPoints[bottomPoints.length - 1];
     ctx.beginPath();
-    ctx.moveTo(lastPt.x, lastPt.y);
+    ctx.moveTo(lastPt.x, lastPt.y + FLOOR_THICKNESS);
     ctx.lineTo(lastPt.x, lastPt.y - WALL_HEIGHT);
     ctx.lineTo(lastPt.x - capD, lastPt.y - WALL_HEIGHT + capD / 2);
-    ctx.lineTo(lastPt.x - capD, lastPt.y + capD / 2);
+    ctx.lineTo(lastPt.x - capD, lastPt.y + FLOOR_THICKNESS + capD / 2);
     ctx.closePath();
     ctx.fillStyle = topColors.capFront;
     ctx.fill();
@@ -355,7 +355,7 @@ export function drawWallPanels(
     ctx.lineWidth = 1;
     // Front face outer edge (bottom to top)
     ctx.beginPath();
-    ctx.moveTo(lastPt.x, lastPt.y);
+    ctx.moveTo(lastPt.x, lastPt.y + FLOOR_THICKNESS);
     ctx.lineTo(lastPt.x, lastPt.y - WALL_HEIGHT);
     // Ceiling outer edge (front to back)
     for (let i = bottomPoints.length - 2; i >= 0; i--) {
@@ -369,7 +369,7 @@ export function drawWallPanels(
       ctx.lineTo(bottomPoints[i].x - capD, bottomPoints[i].y - WALL_HEIGHT + capD / 2);
     }
     // Down the front face inner edge
-    ctx.lineTo(lastPt.x - capD, lastPt.y + capD / 2);
+    ctx.lineTo(lastPt.x - capD, lastPt.y + FLOOR_THICKNESS + capD / 2);
     ctx.stroke();
     // Back corner vertical
     ctx.beginPath();
