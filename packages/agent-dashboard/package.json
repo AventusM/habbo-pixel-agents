@@ -7,6 +7,11 @@
   "bin": {
     "agent-dashboard": "./bin/agent-dashboard.mjs"
   },
+  "files": [
+    "bin/",
+    "dist/",
+    "src/"
+  ],
   "exports": {
     ".": {
       "import": "./dist/index.mjs",
