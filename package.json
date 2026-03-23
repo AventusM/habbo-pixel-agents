@@ -122,6 +122,7 @@
     "build": "node esbuild.config.mjs",
     "web": "node esbuild.config.mjs web && node scripts/web-server.mjs",
     "web:serve": "node scripts/web-server.mjs",
+    "dashboard": "node esbuild.config.mjs web && node bin/habbo-dashboard.mjs",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest"
