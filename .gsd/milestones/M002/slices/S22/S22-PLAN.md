@@ -20,7 +20,7 @@
 
 ## Tasks
 
-- [x] **T01: Place desk+chair combos in getSectionFurniture** `est:30m`
+- [ ] **T01: Place desk+chair combos in getSectionFurniture** `est:30m`
   - Why: Sections currently only get a lamp — agents work at invisible desks
   - Files: `src/roomLayoutEngine.ts`, `tests/roomLayoutEngine.test.ts`
   - Do: Modify `getSectionFurniture()` to place 2 `hc_dsk` + 2 `hc_chr` items per section. Position chairs adjacent to desks (one tile offset toward the section interior), direction facing the desk. Update `generateDeskTiles()` so the returned desk tile positions match the chair positions — this is what `getDeskTile()` uses to route agents. Ensure chairs use a direction recognized by the avatar sit system.

@@ -1,9 +1,9 @@
 {
   "machineId": "8731e5509d822462ba4fd76065758f107628da8995b7cc5cbe9b9212f52927b1",
-  "hostname": "Antons-Air-422",
+  "hostname": "Antons-MacBook-Air-422.local",
   "platform": "darwin",
   "arch": "arm64",
   "nodeVersion": "v22.22.0",
-  "vscodeVersion": "1.111.0",
-  "maultVersion": "0.12.2"
+  "vscodeVersion": "1.112.0",
+  "maultVersion": "0.15.0"
 }

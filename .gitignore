@@ -37,6 +37,9 @@ coverage/
 # Background shell state
 .bg-shell/
 
+# Claude Code worktrees (auto-generated, large)
+.claude/worktrees/
+
 # Migration temp files
 _migrate.ts
 _debug_migrate.ts

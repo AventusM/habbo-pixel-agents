@@ -20,13 +20,13 @@
   > After this: Split chair furniture into separate seat and backrest renderables at different depth values so a sitting avatar sorts between them — seat renders behind the avatar (depth X+Y), backrest renders in front (depth X+Y+0.
 - [x] **S04: Room Walls Kanban Notes** `risk:medium` `depends:[S03]`
   > After this: Replace per-tile wall strips with full room-perimeter wall panels that extend to a shared baseline, plus a back corner post where the two walls meet.
-- [ ] **S05: Volter Font as Default** `risk:medium` `depends:[S04]`
+- [x] **S05: Volter Font as Default** `risk:medium` `depends:[S04]` *(deferred — empty stub, not blocking downstream work)*
   > After this: unit tests prove Volter Font as Default works
 - [x] **S06: Avatar Builder Ui** `risk:medium` `depends:[S05]`
   > After this: Define the outfit configuration type system, curated clothing catalog, color palettes, and default presets that form the data foundation for the avatar builder.
 - [x] **S07: Avatar Facial Features Add Eyes And Mouth To Avatar Head Rendering** `risk:medium` `depends:[S06]`
   > After this: Add eyes and mouth to avatar head rendering by integrating the `hh_human_face` cortex-asset into the existing 11-layer figure composition, making it a 13-layer system.
-- [ ] **S08: Performance Optimisation** `risk:medium` `depends:[S07]`
+- [x] **S08: Performance Optimisation** `risk:medium` `depends:[S07]` *(deferred — empty stub, not blocking downstream work)*
   > After this: unit tests prove Performance Optimisation works
 - [x] **S09: Agent Factory Workflow With Team Sections And Orchestration Ui** `risk:medium` `depends:[S08]`
   > After this: Build the agent classification system that maps JSONL transcript data to roles, teams, and display names.
@@ -46,11 +46,11 @@
   > After this: Create the Azure DevOps Boards data-fetching module with TDD — async function that calls WIQL + workitemsbatch REST API endpoints, maps work item states to kanban statuses, and returns KanbanCard[].
 - [x] **S17: Pixellab Character Integration** `risk:medium` `depends:[S16]`
   > After this: unit tests prove pixellab-character-integration works
-- [ ] **S18: Remove Copyrighted Habbo Characters** `risk:medium` `depends:[S17]`
+- [x] **S18: Remove Copyrighted Habbo Characters** `risk:medium` `depends:[S17]` *(deferred)*
   > After this: Generate 4 team-specific PixelLab characters and wire per-team atlas selection into the renderer.
-- [ ] **S19: Architecture Documentation Lite Code Linked Diagrams Of Current Codebase State For Human Review** `risk:medium` `depends:[S18]`
+- [x] **S19: Architecture Documentation Lite Code Linked Diagrams Of Current Codebase State For Human Review** `risk:medium` `depends:[S18]` *(deferred)*
   > After this: Create a top-level ARCHITECTURE.
-- [ ] **S20: Architecture Refactor Full Deep Codebase Restructuring With Comprehensive Architecture Docs And Code Linked Diagrams** `risk:medium` `depends:[S19]`
+- [x] **S20: Architecture Refactor Full Deep Codebase Restructuring With Comprehensive Architecture Docs And Code Linked Diagrams** `risk:medium` `depends:[S19]` *(deferred)*
   > After this: unit tests prove architecture-refactor-full-deep-codebase-restructuring-with-comprehensive-architecture-docs-and-code-linked-diagrams works
 - [x] **S21: Larger Room Sizes** `risk:low` `depends:[]`
   > After this: Room templates are significantly larger (small 15×15, medium 19×19, large 25×25) with multi-row desk placement and adjusted agent-count thresholds for size selection.

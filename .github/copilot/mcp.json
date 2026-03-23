@@ -1,0 +1,36 @@
+{
+  "mcpServers": {
+    "pixellab": {
+      "type": "http",
+      "url": "https://api.pixellab.ai/mcp",
+      "headers": {
+        "Authorization": "Bearer $COPILOT_MCP_PIXELLAB_API_KEY"
+      },
+      "tools": [
+        "create_character",
+        "get_character",
+        "list_characters",
+        "delete_character",
+        "animate_character",
+        "create_isometric_tile",
+        "get_isometric_tile",
+        "list_isometric_tiles",
+        "delete_isometric_tile",
+        "create_topdown_tileset",
+        "get_topdown_tileset",
+        "list_topdown_tilesets",
+        "delete_topdown_tileset",
+        "create_sidescroller_tileset",
+        "get_sidescroller_tileset",
+        "list_sidescroller_tilesets",
+        "delete_sidescroller_tileset",
+        "create_tiles_pro",
+        "get_tiles_pro",
+        "list_tiles_pro",
+        "delete_tiles_pro",
+        "create_map_object",
+        "get_map_object"
+      ]
+    }
+  }
+}
