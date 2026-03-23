@@ -19,23 +19,33 @@ const WALL_PANEL_COUNT = 7;
 
 /**
  * Generate wall-specific color set from HSB.
- * Returns the base shade plus a slightly darker line color and a slightly
- * lighter highlight for alternating panel bands.
+ * Returns shades for the wall surface, panel bands, separator lines,
+ * top cap (lightest — faces up toward light), and front face (darkest — shadow side).
+ * Strong contrast between faces is critical for 3D readability at a distance.
  */
 function wallPanelColors(hsb: HsbColor, face: 'left' | 'right'): {
   base: string;
   line: string;
   bandLight: string;
   bandDark: string;
+  capTop: string;
+  capFront: string;
+  capLine: string;
 } {
   const { h, s, l } = hsbToHsl(hsb);
   // Left wall is l-10, right wall is l-20 (from tileColors)
   const baseL = face === 'left' ? Math.max(0, l - 10) : Math.max(0, l - 20);
   return {
     base: `hsl(${h}, ${s}%, ${baseL}%)`,
-    line: `hsl(${h}, ${s}%, ${Math.max(0, baseL - 8)}%)`,
-    bandLight: `hsl(${h}, ${s}%, ${Math.min(100, baseL + 2)}%)`,
-    bandDark: `hsl(${h}, ${s}%, ${Math.max(0, baseL - 3)}%)`,
+    line: `hsl(${h}, ${s}%, ${Math.max(0, baseL - 10)}%)`,
+    bandLight: `hsl(${h}, ${s}%, ${Math.min(100, baseL + 3)}%)`,
+    bandDark: `hsl(${h}, ${s}%, ${Math.max(0, baseL - 5)}%)`,
+    // Top cap: clearly lighter — it faces upward toward the light source
+    capTop: `hsl(${h}, ${Math.max(0, s - 5)}%, ${Math.min(100, baseL + 12)}%)`,
+    // Front face: clearly darker — it's the shadow/depth side
+    capFront: `hsl(${h}, ${s}%, ${Math.max(0, baseL - 18)}%)`,
+    // Cap edge line
+    capLine: `hsl(${h}, ${s}%, ${Math.max(0, baseL - 22)}%)`,
   };
 }
 
@@ -196,7 +206,7 @@ export function drawWallPanels(
       ctx.lineTo(bottomPoints[i].x + capD, bottomPoints[i].y - WALL_HEIGHT + capD / 2);
     }
     ctx.closePath();
-    ctx.fillStyle = topColors.base;
+    ctx.fillStyle = topColors.capTop;
     ctx.fill();
 
     // Highlight line along the outer ceiling edge
@@ -205,7 +215,7 @@ export function drawWallPanels(
     for (let i = 1; i < bottomPoints.length; i++) {
       ctx.lineTo(bottomPoints[i].x, bottomPoints[i].y - WALL_HEIGHT);
     }
-    ctx.strokeStyle = topColors.line;
+    ctx.strokeStyle = topColors.capLine;
     ctx.lineWidth = 0.5;
     ctx.stroke();
 
@@ -220,7 +230,7 @@ export function drawWallPanels(
     ctx.lineTo(lastPt.x + capD, lastPt.y - WALL_HEIGHT + capD / 2);
     ctx.lineTo(lastPt.x + capD, lastPt.y + capD / 2);
     ctx.closePath();
-    ctx.fillStyle = topColors.bandDark;
+    ctx.fillStyle = topColors.capFront;
     ctx.fill();
   }
 
@@ -289,7 +299,7 @@ export function drawWallPanels(
       ctx.lineTo(bottomPoints[i].x - capD, bottomPoints[i].y - WALL_HEIGHT + capD / 2);
     }
     ctx.closePath();
-    ctx.fillStyle = topColors.base;
+    ctx.fillStyle = topColors.capTop;
     ctx.fill();
 
     // Highlight line along the outer ceiling edge
@@ -298,7 +308,7 @@ export function drawWallPanels(
     for (let i = 1; i < bottomPoints.length; i++) {
       ctx.lineTo(bottomPoints[i].x, bottomPoints[i].y - WALL_HEIGHT);
     }
-    ctx.strokeStyle = topColors.line;
+    ctx.strokeStyle = topColors.capLine;
     ctx.lineWidth = 0.5;
     ctx.stroke();
 
@@ -312,7 +322,7 @@ export function drawWallPanels(
     ctx.lineTo(lastPt.x - capD, lastPt.y - WALL_HEIGHT + capD / 2);
     ctx.lineTo(lastPt.x - capD, lastPt.y + capD / 2);
     ctx.closePath();
-    ctx.fillStyle = topColors.bandDark;
+    ctx.fillStyle = topColors.capFront;
     ctx.fill();
   }
   // --- BACK CORNER POST ---
