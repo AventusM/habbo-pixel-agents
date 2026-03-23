@@ -9,6 +9,7 @@ import {
   TILE_H_HALF,
   WALL_HEIGHT,
   WALL_THICKNESS,
+  FLOOR_THICKNESS,
   tileToScreen,
 } from './isometricMath.js';
 import type { TileGrid, HsbColor } from './isoTypes.js';
@@ -220,13 +221,12 @@ export function drawWallPanels(
     ctx.stroke();
 
     // --- LEFT WALL FRONT FACE (visible cross-section at the open end) ---
-    // The front face is a vertical parallelogram at the last point of the wall
+    // The front face drawn here covers the wall panel area only (above floor line).
+    // The extension below the floor line is in drawWallEdges (post-floor pass).
     const lastPt = bottomPoints[bottomPoints.length - 1];
     ctx.beginPath();
-    // Outer edge (bottom to top)
     ctx.moveTo(lastPt.x, lastPt.y);
     ctx.lineTo(lastPt.x, lastPt.y - WALL_HEIGHT);
-    // Inner edge (top to bottom, offset inward)
     ctx.lineTo(lastPt.x + capD, lastPt.y - WALL_HEIGHT + capD / 2);
     ctx.lineTo(lastPt.x + capD, lastPt.y + capD / 2);
     ctx.closePath();
@@ -315,10 +315,8 @@ export function drawWallPanels(
     // --- RIGHT WALL FRONT FACE (visible cross-section at the open end) ---
     const lastPt = bottomPoints[bottomPoints.length - 1];
     ctx.beginPath();
-    // Outer edge (bottom to top)
     ctx.moveTo(lastPt.x, lastPt.y);
     ctx.lineTo(lastPt.x, lastPt.y - WALL_HEIGHT);
-    // Inner edge (top to bottom, offset inward)
     ctx.lineTo(lastPt.x - capD, lastPt.y - WALL_HEIGHT + capD / 2);
     ctx.lineTo(lastPt.x - capD, lastPt.y + capD / 2);
     ctx.closePath();
@@ -418,6 +416,33 @@ export function drawWallEdges(
     ctx.strokeStyle = colors.right;
     ctx.lineWidth = 0.5;
     ctx.stroke();
+
+    // --- Left wall outward-facing bottom strip (drawn after floor so it's visible) ---
+    // Dark strip along the wall's outer bottom edge, below the floor surface,
+    // showing the wall slab continues down alongside the floor slab.
+    const leftCapColors = wallPanelColors(tileHsb, 'left');
+    ctx.beginPath();
+    for (let i = 0; i < pts.length; i++) {
+      ctx[i === 0 ? 'moveTo' : 'lineTo'](pts[i].x, pts[i].y);
+    }
+    for (let i = pts.length - 1; i >= 0; i--) {
+      ctx.lineTo(pts[i].x, pts[i].y + FLOOR_THICKNESS);
+    }
+    ctx.closePath();
+    ctx.fillStyle = leftCapColors.capFront;
+    ctx.fill();
+
+    // --- Left wall front face extension below floor line ---
+    const lastLeft = pts[pts.length - 1];
+    const capDL = WALL_THICKNESS;
+    ctx.beginPath();
+    ctx.moveTo(lastLeft.x, lastLeft.y);
+    ctx.lineTo(lastLeft.x, lastLeft.y + FLOOR_THICKNESS);
+    ctx.lineTo(lastLeft.x + capDL, lastLeft.y + FLOOR_THICKNESS + capDL / 2);
+    ctx.lineTo(lastLeft.x + capDL, lastLeft.y + capDL / 2);
+    ctx.closePath();
+    ctx.fillStyle = leftCapColors.capFront;
+    ctx.fill();
   }
 
   // --- RIGHT WALL bottom-face + borders ---
@@ -474,5 +499,30 @@ export function drawWallEdges(
     ctx.strokeStyle = colors.left;
     ctx.lineWidth = 0.5;
     ctx.stroke();
+
+    // --- Right wall outward-facing bottom strip ---
+    const rightCapColors = wallPanelColors(tileHsb, 'right');
+    ctx.beginPath();
+    for (let i = 0; i < pts.length; i++) {
+      ctx[i === 0 ? 'moveTo' : 'lineTo'](pts[i].x, pts[i].y);
+    }
+    for (let i = pts.length - 1; i >= 0; i--) {
+      ctx.lineTo(pts[i].x, pts[i].y + FLOOR_THICKNESS);
+    }
+    ctx.closePath();
+    ctx.fillStyle = rightCapColors.capFront;
+    ctx.fill();
+
+    // --- Right wall front face extension below floor line ---
+    const lastRight = pts[pts.length - 1];
+    const capDR = WALL_THICKNESS;
+    ctx.beginPath();
+    ctx.moveTo(lastRight.x, lastRight.y);
+    ctx.lineTo(lastRight.x, lastRight.y + FLOOR_THICKNESS);
+    ctx.lineTo(lastRight.x - capDR, lastRight.y + FLOOR_THICKNESS + capDR / 2);
+    ctx.lineTo(lastRight.x - capDR, lastRight.y + capDR / 2);
+    ctx.closePath();
+    ctx.fillStyle = rightCapColors.capFront;
+    ctx.fill();
   }
 }
