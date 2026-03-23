@@ -7,6 +7,9 @@
   },
   "type": "module",
   "main": "./dist/extension.cjs",
+  "bin": {
+    "habbo-dashboard": "./bin/habbo-dashboard.mjs"
+  },
   "workspaces": [
     "packages/*"
   ],
