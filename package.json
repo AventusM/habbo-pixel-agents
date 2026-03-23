@@ -7,6 +7,9 @@
   },
   "type": "module",
   "main": "./dist/extension.cjs",
+  "workspaces": [
+    "packages/*"
+  ],
   "engines": {
     "vscode": "^1.109.0",
     "node": ">=22.0.0",
@@ -111,6 +114,7 @@
     "prebuild": "bash scripts/convert-audio-to-ogg.sh",
     "build:ext": "node esbuild.config.mjs extension",
     "build:webview": "node esbuild.config.mjs webview",
+    "build:dashboard": "npm run build -w packages/agent-dashboard",
     "build:web": "node esbuild.config.mjs web",
     "build": "node esbuild.config.mjs",
     "web": "node esbuild.config.mjs web && node scripts/web-server.mjs",
