@@ -211,11 +211,17 @@ async function startAgentManager() {
     }
 
     const { createAgentManager, readAzureDevOpsEnv, fetchEnrichedCards, createCopilotMonitor, readGitHubEnv } = await import(serverBundle);
-    agentManager = createAgentManager(projectDir, (msg) => {
-      broadcast(msg);
-    });
-    agentManager.discoverAgents();
-    console.log(`[Server] AgentManager started, watching: ${projectDir}`);
+
+    // Start local JSONL agent watcher (skip if SKIP_LOCAL_AGENTS is set)
+    if (!process.env.SKIP_LOCAL_AGENTS) {
+      agentManager = createAgentManager(projectDir, (msg) => {
+        broadcast(msg);
+      });
+      agentManager.discoverAgents();
+      console.log(`[Server] AgentManager started, watching: ${projectDir}`);
+    } else {
+      console.log('[Server] Local agent watching skipped (SKIP_LOCAL_AGENTS)');
+    }
 
     // Start Azure DevOps kanban polling if configured
     const adoConfig = readAzureDevOpsEnv();

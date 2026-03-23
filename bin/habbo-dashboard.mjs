@@ -99,6 +99,7 @@ const env = {
   GITHUB_REPO: repo,
   GITHUB_TOKEN: token,
   PORT: port,
+  SKIP_LOCAL_AGENTS: '1',
 };
 
 // CLI ADO flags override whatever was in .env
