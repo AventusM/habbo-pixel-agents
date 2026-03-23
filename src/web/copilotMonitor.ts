@@ -920,8 +920,16 @@ export class CopilotAgentMonitor {
       }
 
       // Remove sessions for PRs that are no longer open
-      for (const [agentId] of this.sessions) {
+      // and sync ADO ticket to "Done" if the PR was merged/closed
+      for (const [agentId, session] of this.sessions) {
         if (!currentIds.has(agentId)) {
+          // Sync linked ticket to "Done" before removing
+          if (session.linkedTicketId && this.adoConfig) {
+            console.log(
+              `[CopilotMonitor] PR #${session.prNumber} closed/merged — syncing ADO #${session.linkedTicketId} to Done`,
+            );
+            void this.updateAdoWorkItemState(session.linkedTicketId, "Done");
+          }
           this.closeSSEConnection(agentId);
           this.stopFastPoll(agentId);
           this.onMessage({ type: "agentRemoved", agentId });
