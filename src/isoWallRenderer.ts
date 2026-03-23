@@ -8,6 +8,7 @@ import {
   TILE_W_HALF,
   TILE_H_HALF,
   WALL_HEIGHT,
+  WALL_THICKNESS,
   tileToScreen,
 } from './isometricMath.js';
 import type { TileGrid, HsbColor } from './isoTypes.js';
@@ -178,6 +179,49 @@ export function drawWallPanels(
 
     // Draw panel lines and alternating bands on the left wall
     drawWallPanelLines(ctx, bottomPoints, panelColors);
+
+    // --- LEFT WALL TOP CAP (visible top surface of the wall slab) ---
+    // The cap is a parallelogram strip along the ceiling line, offset inward
+    // toward the room. "Inward" for the left wall = right+down in screen coords.
+    const capD = WALL_THICKNESS;
+    const topColors = wallPanelColors(tileHsb, 'left');
+    ctx.beginPath();
+    // Outer ceiling edge (back to front)
+    ctx.moveTo(bottomPoints[0].x, bottomPoints[0].y - WALL_HEIGHT);
+    for (let i = 1; i < bottomPoints.length; i++) {
+      ctx.lineTo(bottomPoints[i].x, bottomPoints[i].y - WALL_HEIGHT);
+    }
+    // Inner ceiling edge (front to back, shifted inward toward room)
+    for (let i = bottomPoints.length - 1; i >= 0; i--) {
+      ctx.lineTo(bottomPoints[i].x + capD, bottomPoints[i].y - WALL_HEIGHT + capD / 2);
+    }
+    ctx.closePath();
+    ctx.fillStyle = topColors.base;
+    ctx.fill();
+
+    // Highlight line along the outer ceiling edge
+    ctx.beginPath();
+    ctx.moveTo(bottomPoints[0].x, bottomPoints[0].y - WALL_HEIGHT);
+    for (let i = 1; i < bottomPoints.length; i++) {
+      ctx.lineTo(bottomPoints[i].x, bottomPoints[i].y - WALL_HEIGHT);
+    }
+    ctx.strokeStyle = topColors.line;
+    ctx.lineWidth = 0.5;
+    ctx.stroke();
+
+    // --- LEFT WALL FRONT FACE (visible cross-section at the open end) ---
+    // The front face is a vertical parallelogram at the last point of the wall
+    const lastPt = bottomPoints[bottomPoints.length - 1];
+    ctx.beginPath();
+    // Outer edge (bottom to top)
+    ctx.moveTo(lastPt.x, lastPt.y);
+    ctx.lineTo(lastPt.x, lastPt.y - WALL_HEIGHT);
+    // Inner edge (top to bottom, offset inward)
+    ctx.lineTo(lastPt.x + capD, lastPt.y - WALL_HEIGHT + capD / 2);
+    ctx.lineTo(lastPt.x + capD, lastPt.y + capD / 2);
+    ctx.closePath();
+    ctx.fillStyle = topColors.bandDark;
+    ctx.fill();
   }
 
   // --- RIGHT WALL (rises above the right/top edge of the floor) ---
@@ -229,6 +273,47 @@ export function drawWallPanels(
 
     // Draw panel lines and alternating bands on the right wall
     drawWallPanelLines(ctx, bottomPoints, panelColors);
+
+    // --- RIGHT WALL TOP CAP (visible top surface of the wall slab) ---
+    // "Inward" for the right wall = left+down in screen coords.
+    const capD = WALL_THICKNESS;
+    const topColors = wallPanelColors(tileHsb, 'right');
+    ctx.beginPath();
+    // Outer ceiling edge (back to front)
+    ctx.moveTo(bottomPoints[0].x, bottomPoints[0].y - WALL_HEIGHT);
+    for (let i = 1; i < bottomPoints.length; i++) {
+      ctx.lineTo(bottomPoints[i].x, bottomPoints[i].y - WALL_HEIGHT);
+    }
+    // Inner ceiling edge (front to back, shifted inward toward room)
+    for (let i = bottomPoints.length - 1; i >= 0; i--) {
+      ctx.lineTo(bottomPoints[i].x - capD, bottomPoints[i].y - WALL_HEIGHT + capD / 2);
+    }
+    ctx.closePath();
+    ctx.fillStyle = topColors.base;
+    ctx.fill();
+
+    // Highlight line along the outer ceiling edge
+    ctx.beginPath();
+    ctx.moveTo(bottomPoints[0].x, bottomPoints[0].y - WALL_HEIGHT);
+    for (let i = 1; i < bottomPoints.length; i++) {
+      ctx.lineTo(bottomPoints[i].x, bottomPoints[i].y - WALL_HEIGHT);
+    }
+    ctx.strokeStyle = topColors.line;
+    ctx.lineWidth = 0.5;
+    ctx.stroke();
+
+    // --- RIGHT WALL FRONT FACE (visible cross-section at the open end) ---
+    const lastPt = bottomPoints[bottomPoints.length - 1];
+    ctx.beginPath();
+    // Outer edge (bottom to top)
+    ctx.moveTo(lastPt.x, lastPt.y);
+    ctx.lineTo(lastPt.x, lastPt.y - WALL_HEIGHT);
+    // Inner edge (top to bottom, offset inward)
+    ctx.lineTo(lastPt.x - capD, lastPt.y - WALL_HEIGHT + capD / 2);
+    ctx.lineTo(lastPt.x - capD, lastPt.y + capD / 2);
+    ctx.closePath();
+    ctx.fillStyle = topColors.bandDark;
+    ctx.fill();
   }
   // --- BACK CORNER POST ---
   const cornerTile = grid.tiles[0]?.[0];
