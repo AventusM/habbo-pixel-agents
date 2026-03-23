@@ -9,7 +9,6 @@ import {
   TILE_H_HALF,
   WALL_HEIGHT,
   WALL_THICKNESS,
-  FLOOR_THICKNESS,
   tileToScreen,
 } from './isometricMath.js';
 import type { TileGrid, HsbColor } from './isoTypes.js';
@@ -412,7 +411,6 @@ export function drawWallEdges(
   hsb: HsbColor,
   tileColorMap?: Map<string, HsbColor>,
 ): void {
-  const DEPTH = 2;
   const tileHsb = (tileColorMap && tileColorMap.get('0,0')) || hsb;
   const colors = tileColors(tileHsb);
 
@@ -439,28 +437,6 @@ export function drawWallEdges(
       pts.push({ x: sx + cameraOrigin.x - TILE_W_HALF, y: sy + cameraOrigin.y + TILE_H_HALF });
     }
 
-    // Bottom-face strip: offset inward (right+up in iso) from wall bottom edge
-    ctx.beginPath();
-    for (let i = 0; i < pts.length; i++) {
-      ctx[i === 0 ? 'moveTo' : 'lineTo'](pts[i].x, pts[i].y);
-    }
-    for (let i = pts.length - 1; i >= 0; i--) {
-      ctx.lineTo(pts[i].x + DEPTH, pts[i].y - DEPTH / 2);
-    }
-    ctx.closePath();
-    ctx.fillStyle = colors.right; // darkest shade for underside
-    ctx.fill();
-
-    // Border line along bottom edge
-    ctx.beginPath();
-    ctx.moveTo(pts[0].x, pts[0].y);
-    for (let i = 1; i < pts.length; i++) {
-      ctx.lineTo(pts[i].x, pts[i].y);
-    }
-    ctx.strokeStyle = colors.right;
-    ctx.lineWidth = 1;
-    ctx.stroke();
-
     // Border line along top edge (ceiling)
     ctx.beginPath();
     ctx.moveTo(pts[0].x, pts[0].y - WALL_HEIGHT);
@@ -470,33 +446,6 @@ export function drawWallEdges(
     ctx.strokeStyle = colors.right;
     ctx.lineWidth = 0.5;
     ctx.stroke();
-
-    // --- Left wall outward-facing bottom strip (drawn after floor so it's visible) ---
-    // Dark strip along the wall's outer bottom edge, below the floor surface,
-    // showing the wall slab continues down alongside the floor slab.
-    const leftCapColors = wallPanelColors(tileHsb, 'left');
-    ctx.beginPath();
-    for (let i = 0; i < pts.length; i++) {
-      ctx[i === 0 ? 'moveTo' : 'lineTo'](pts[i].x, pts[i].y);
-    }
-    for (let i = pts.length - 1; i >= 0; i--) {
-      ctx.lineTo(pts[i].x, pts[i].y + FLOOR_THICKNESS);
-    }
-    ctx.closePath();
-    ctx.fillStyle = leftCapColors.capFront;
-    ctx.fill();
-
-    // --- Left wall front face extension below floor line ---
-    const lastLeft = pts[pts.length - 1];
-    const capDL = WALL_THICKNESS;
-    ctx.beginPath();
-    ctx.moveTo(lastLeft.x, lastLeft.y);
-    ctx.lineTo(lastLeft.x, lastLeft.y + FLOOR_THICKNESS);
-    ctx.lineTo(lastLeft.x + capDL, lastLeft.y + FLOOR_THICKNESS + capDL / 2);
-    ctx.lineTo(lastLeft.x + capDL, lastLeft.y + capDL / 2);
-    ctx.closePath();
-    ctx.fillStyle = leftCapColors.capFront;
-    ctx.fill();
   }
 
   // --- RIGHT WALL bottom-face + borders ---
@@ -522,28 +471,6 @@ export function drawWallEdges(
       pts.push({ x: sx + cameraOrigin.x + TILE_W_HALF, y: sy + cameraOrigin.y + TILE_H_HALF });
     }
 
-    // Bottom-face strip: offset inward (left+up in iso) from wall bottom edge
-    ctx.beginPath();
-    for (let i = 0; i < pts.length; i++) {
-      ctx[i === 0 ? 'moveTo' : 'lineTo'](pts[i].x, pts[i].y);
-    }
-    for (let i = pts.length - 1; i >= 0; i--) {
-      ctx.lineTo(pts[i].x - DEPTH, pts[i].y - DEPTH / 2);
-    }
-    ctx.closePath();
-    ctx.fillStyle = colors.left; // medium shade for underside
-    ctx.fill();
-
-    // Border line along bottom edge
-    ctx.beginPath();
-    ctx.moveTo(pts[0].x, pts[0].y);
-    for (let i = 1; i < pts.length; i++) {
-      ctx.lineTo(pts[i].x, pts[i].y);
-    }
-    ctx.strokeStyle = colors.left;
-    ctx.lineWidth = 1;
-    ctx.stroke();
-
     // Border line along top edge (ceiling)
     ctx.beginPath();
     ctx.moveTo(pts[0].x, pts[0].y - WALL_HEIGHT);
@@ -553,30 +480,5 @@ export function drawWallEdges(
     ctx.strokeStyle = colors.left;
     ctx.lineWidth = 0.5;
     ctx.stroke();
-
-    // --- Right wall outward-facing bottom strip ---
-    const rightCapColors = wallPanelColors(tileHsb, 'right');
-    ctx.beginPath();
-    for (let i = 0; i < pts.length; i++) {
-      ctx[i === 0 ? 'moveTo' : 'lineTo'](pts[i].x, pts[i].y);
-    }
-    for (let i = pts.length - 1; i >= 0; i--) {
-      ctx.lineTo(pts[i].x, pts[i].y + FLOOR_THICKNESS);
-    }
-    ctx.closePath();
-    ctx.fillStyle = rightCapColors.capFront;
-    ctx.fill();
-
-    // --- Right wall front face extension below floor line ---
-    const lastRight = pts[pts.length - 1];
-    const capDR = WALL_THICKNESS;
-    ctx.beginPath();
-    ctx.moveTo(lastRight.x, lastRight.y);
-    ctx.lineTo(lastRight.x, lastRight.y + FLOOR_THICKNESS);
-    ctx.lineTo(lastRight.x - capDR, lastRight.y + FLOOR_THICKNESS + capDR / 2);
-    ctx.lineTo(lastRight.x - capDR, lastRight.y + capDR / 2);
-    ctx.closePath();
-    ctx.fillStyle = rightCapColors.capFront;
-    ctx.fill();
   }
 }
