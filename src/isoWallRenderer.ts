@@ -358,7 +358,7 @@ export function drawWallEdges(
   hsb: HsbColor,
   tileColorMap?: Map<string, HsbColor>,
 ): void {
-  const DEPTH = 6;
+  const DEPTH = 2;
   const tileHsb = (tileColorMap && tileColorMap.get('0,0')) || hsb;
   const colors = tileColors(tileHsb);
 
