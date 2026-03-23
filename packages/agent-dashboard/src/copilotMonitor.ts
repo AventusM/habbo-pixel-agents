@@ -638,9 +638,12 @@ export class CopilotAgentMonitor {
     );
 
     const timer = setInterval(async () => {
-      // Stop if agent is no longer running
-      if (!session.isRunning) {
+      // Stop if agent is no longer running or session API is unavailable
+      if (!session.isRunning || !this.sessionApiAvailable) {
         this.stopFastPoll(agentId);
+        if (!this.sessionApiAvailable) {
+          this.setFeedMode(session, "poll", "sessions API unavailable");
+        }
         return;
       }
       try {
@@ -1100,11 +1103,18 @@ export class CopilotAgentMonitor {
       );
 
       if (!res.ok) {
-        console.warn(
-          `[CopilotMonitor] Sessions list API returned HTTP ${res.status}`,
-        );
-        if (res.status === 401 || res.status === 403) {
+        if (res.status === 400 || res.status === 401 || res.status === 403) {
+          // Token doesn't support sessions API — stop trying
+          if (this.sessionApiAvailable) {
+            console.warn(
+              `[CopilotMonitor] Sessions API unavailable (HTTP ${res.status}) — live activity disabled`,
+            );
+          }
           this.sessionApiAvailable = false;
+        } else {
+          console.warn(
+            `[CopilotMonitor] Sessions list API returned HTTP ${res.status}`,
+          );
         }
         return null;
       }
