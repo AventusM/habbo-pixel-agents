@@ -432,9 +432,8 @@ export function drawWallEdges(
 
   // --- FRONT FACES + OUTLINES (drawn after floor so wall is on top) ---
   const capD = WALL_THICKNESS;
-  const floorOverlap = FLOOR_THICKNESS + 2;
 
-  // Left wall front face + outline
+  // Left wall outline
   {
     const leftPts: Array<{ x: number; y: number }> = [];
     for (let ty = 0; ty < grid.height; ty++) {
@@ -454,23 +453,25 @@ export function drawWallEdges(
     if (leftPts.length > 1) {
       const lColors = wallPanelColors(tileHsb, 'left');
       const lastPt = leftPts[leftPts.length - 1];
-      // Outline only (front face fill is in pre-floor drawWallPanels)
+      // Outline: ceiling + cap edges only (no vertical front face lines — those
+      // would draw on top of floor tiles). Front face fill is behind floor.
       ctx.strokeStyle = lColors.outline;
       ctx.lineWidth = 1;
+      // Ceiling outer edge
       ctx.beginPath();
-      ctx.moveTo(lastPt.x, lastPt.y + floorOverlap);
-      ctx.lineTo(lastPt.x, lastPt.y - WALL_HEIGHT);
+      ctx.moveTo(leftPts[leftPts.length - 1].x, leftPts[leftPts.length - 1].y - WALL_HEIGHT);
       for (let i = leftPts.length - 2; i >= 0; i--) {
         ctx.lineTo(leftPts[i].x, leftPts[i].y - WALL_HEIGHT);
       }
       ctx.stroke();
+      // Cap inner edge
       ctx.beginPath();
       ctx.moveTo(leftPts[0].x + capD, leftPts[0].y - WALL_HEIGHT + capD / 2);
       for (let i = 1; i < leftPts.length; i++) {
         ctx.lineTo(leftPts[i].x + capD, leftPts[i].y - WALL_HEIGHT + capD / 2);
       }
-      ctx.lineTo(lastPt.x + capD, lastPt.y + floorOverlap + capD / 2);
       ctx.stroke();
+      // Back corner vertical
       ctx.beginPath();
       ctx.moveTo(leftPts[0].x, leftPts[0].y);
       ctx.lineTo(leftPts[0].x, leftPts[0].y - WALL_HEIGHT);
@@ -497,24 +498,24 @@ export function drawWallEdges(
     }
     if (rightPts.length > 1) {
       const rColors = wallPanelColors(tileHsb, 'right');
-      const lastPt = rightPts[rightPts.length - 1];
-      // Outline only (front face fill is in pre-floor drawWallPanels)
+      // Outline: ceiling + cap edges only
       ctx.strokeStyle = rColors.outline;
       ctx.lineWidth = 1;
+      // Ceiling outer edge
       ctx.beginPath();
-      ctx.moveTo(lastPt.x, lastPt.y + floorOverlap);
-      ctx.lineTo(lastPt.x, lastPt.y - WALL_HEIGHT);
+      ctx.moveTo(rightPts[rightPts.length - 1].x, rightPts[rightPts.length - 1].y - WALL_HEIGHT);
       for (let i = rightPts.length - 2; i >= 0; i--) {
         ctx.lineTo(rightPts[i].x, rightPts[i].y - WALL_HEIGHT);
       }
       ctx.stroke();
+      // Cap inner edge
       ctx.beginPath();
       ctx.moveTo(rightPts[0].x - capD, rightPts[0].y - WALL_HEIGHT + capD / 2);
       for (let i = 1; i < rightPts.length; i++) {
         ctx.lineTo(rightPts[i].x - capD, rightPts[i].y - WALL_HEIGHT + capD / 2);
       }
-      ctx.lineTo(lastPt.x - capD, lastPt.y + floorOverlap + capD / 2);
       ctx.stroke();
+      // Back corner vertical
       ctx.beginPath();
       ctx.moveTo(rightPts[0].x, rightPts[0].y);
       ctx.lineTo(rightPts[0].x, rightPts[0].y - WALL_HEIGHT);
