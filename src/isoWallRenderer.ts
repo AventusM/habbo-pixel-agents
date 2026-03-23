@@ -11,7 +11,104 @@ import {
   tileToScreen,
 } from './isometricMath.js';
 import type { TileGrid, HsbColor } from './isoTypes.js';
-import { tileColors } from './isoTypes.js';
+import { tileColors, hsbToHsl } from './isoTypes.js';
+
+/** Number of horizontal panel bands on each wall. */
+const WALL_PANEL_COUNT = 7;
+
+/**
+ * Generate wall-specific color set from HSB.
+ * Returns the base shade plus a slightly darker line color and a slightly
+ * lighter highlight for alternating panel bands.
+ */
+function wallPanelColors(hsb: HsbColor, face: 'left' | 'right'): {
+  base: string;
+  line: string;
+  bandLight: string;
+  bandDark: string;
+} {
+  const { h, s, l } = hsbToHsl(hsb);
+  // Left wall is l-10, right wall is l-20 (from tileColors)
+  const baseL = face === 'left' ? Math.max(0, l - 10) : Math.max(0, l - 20);
+  return {
+    base: `hsl(${h}, ${s}%, ${baseL}%)`,
+    line: `hsl(${h}, ${s}%, ${Math.max(0, baseL - 8)}%)`,
+    bandLight: `hsl(${h}, ${s}%, ${Math.min(100, baseL + 2)}%)`,
+    bandDark: `hsl(${h}, ${s}%, ${Math.max(0, baseL - 3)}%)`,
+  };
+}
+
+/**
+ * Draw horizontal panel stripes and separator lines within a wall polygon.
+ * The wall polygon is defined by `bottomPoints` (floor edge) which is the
+ * bottom boundary, shifted up by WALL_HEIGHT for the top boundary.
+ *
+ * Panel lines run parallel to the bottom edge (following isometric slope).
+ * Each band is a parallelogram stripe clipped to the wall polygon.
+ */
+function drawWallPanelLines(
+  ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D,
+  bottomPoints: Array<{ x: number; y: number }>,
+  colors: { base: string; line: string; bandLight: string; bandDark: string },
+): void {
+  // Save/restore so the clip doesn't leak
+  ctx.save();
+
+  // Build the wall polygon path for clipping
+  ctx.beginPath();
+  ctx.moveTo(bottomPoints[0].x, bottomPoints[0].y);
+  for (let i = 1; i < bottomPoints.length; i++) {
+    ctx.lineTo(bottomPoints[i].x, bottomPoints[i].y);
+  }
+  for (let i = bottomPoints.length - 1; i >= 0; i--) {
+    ctx.lineTo(bottomPoints[i].x, bottomPoints[i].y - WALL_HEIGHT);
+  }
+  ctx.closePath();
+  ctx.clip();
+
+  // Draw alternating band stripes (parallelograms running parallel to floor edge)
+  const bandHeight = WALL_HEIGHT / WALL_PANEL_COUNT;
+  for (let band = 0; band < WALL_PANEL_COUNT; band++) {
+    const yOff = band * bandHeight;
+    const isLight = band % 2 === 0;
+
+    ctx.beginPath();
+    // Bottom edge of this band (offset up from floor edge)
+    for (let i = 0; i < bottomPoints.length; i++) {
+      ctx[i === 0 ? 'moveTo' : 'lineTo'](
+        bottomPoints[i].x,
+        bottomPoints[i].y - yOff,
+      );
+    }
+    // Top edge of this band
+    for (let i = bottomPoints.length - 1; i >= 0; i--) {
+      ctx.lineTo(
+        bottomPoints[i].x,
+        bottomPoints[i].y - yOff - bandHeight,
+      );
+    }
+    ctx.closePath();
+    ctx.fillStyle = isLight ? colors.bandLight : colors.bandDark;
+    ctx.fill();
+  }
+
+  // Draw separator lines between panels
+  ctx.lineWidth = 0.5;
+  ctx.strokeStyle = colors.line;
+  for (let band = 1; band < WALL_PANEL_COUNT; band++) {
+    const yOff = band * bandHeight;
+    ctx.beginPath();
+    for (let i = 0; i < bottomPoints.length; i++) {
+      ctx[i === 0 ? 'moveTo' : 'lineTo'](
+        bottomPoints[i].x,
+        bottomPoints[i].y - yOff,
+      );
+    }
+    ctx.stroke();
+  }
+
+  ctx.restore();
+}
 
 /**
  * Draw continuous wall panels rising above the floor along left and right edges,
@@ -46,6 +143,7 @@ export function drawWallPanels(
 
   if (leftEdge.length > 0) {
     const { left } = tileColors(tileHsb);
+    const panelColors = wallPanelColors(tileHsb, 'left');
     const bottomPoints: Array<{ x: number; y: number }> = [];
 
     // Start at back corner: top vertex of first left-edge tile
@@ -77,6 +175,9 @@ export function drawWallPanels(
     ctx.closePath();
     ctx.fillStyle = left;
     ctx.fill();
+
+    // Draw panel lines and alternating bands on the left wall
+    drawWallPanelLines(ctx, bottomPoints, panelColors);
   }
 
   // --- RIGHT WALL (rises above the right/top edge of the floor) ---
@@ -94,6 +195,7 @@ export function drawWallPanels(
 
   if (rightEdge.length > 0) {
     const { right } = tileColors(tileHsb);
+    const panelColors = wallPanelColors(tileHsb, 'right');
     const bottomPoints: Array<{ x: number; y: number }> = [];
 
     // Start at back corner: top vertex of first right-edge tile
@@ -124,6 +226,9 @@ export function drawWallPanels(
     ctx.closePath();
     ctx.fillStyle = right;
     ctx.fill();
+
+    // Draw panel lines and alternating bands on the right wall
+    drawWallPanelLines(ctx, bottomPoints, panelColors);
   }
   // --- BACK CORNER POST ---
   const cornerTile = grid.tiles[0]?.[0];

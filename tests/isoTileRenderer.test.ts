@@ -1,10 +1,19 @@
 // @vitest-environment happy-dom
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeAll } from 'vitest';
 import { parseHeightmap } from '../src/isoTypes.js';
 import { depthSort } from '../src/isoTypes.js';
 import type { Renderable } from '../src/isoTypes.js';
 import { computeCameraOrigin, preRenderRoom } from '../src/isoTileRenderer.js';
+
+// happy-dom's OffscreenCanvasRenderingContext2D lacks clip() — polyfill it for tests
+beforeAll(() => {
+  const oc = new OffscreenCanvas(1, 1);
+  const ctx = oc.getContext('2d');
+  if (ctx && typeof ctx.clip !== 'function') {
+    (ctx as any).__proto__.clip = function () {};
+  }
+});
 
 describe('isoTileRenderer', () => {
   describe('computeCameraOrigin', () => {

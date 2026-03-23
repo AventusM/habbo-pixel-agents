@@ -16,6 +16,10 @@ function makeMockCtx() {
     fill: vi.fn(),
     fillRect: vi.fn(),
     fillStyle: '' as string,
+    stroke: vi.fn(),
+    strokeStyle: '' as string,
+    lineWidth: 1,
+    clip: vi.fn(),
     save: vi.fn(),
     restore: vi.fn(),
   } as unknown as CanvasRenderingContext2D;
