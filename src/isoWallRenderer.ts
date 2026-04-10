@@ -366,10 +366,9 @@ export function drawWallPanels(
     ctx.fill();
   }
   // --- BACK CORNER FILL (cross-section between the two walls) ---
-  // The left wall is recessed by (-WALL_THICKNESS, -WALL_THICKNESS/2) and the right
-  // wall by (+WALL_THICKNESS, -WALL_THICKNESS/2). This leaves a gap at the corner
-  // where the background shows through. Fill it with a quad that spans the full
-  // wall height.
+  // The left wall is recessed by (-capD, -capD/2) and the right wall by
+  // (+capD, -capD/2). Fill the gap and draw a proper diamond cap that
+  // bridges the two wall caps seamlessly.
   const cornerTile = grid.tiles[0]?.[0];
   if (cornerTile != null) {
     const { x: sx, y: sy } = tileToScreen(0, 0, cornerTile.height);
@@ -387,29 +386,60 @@ export function drawWallPanels(
     // Right wall recessed edge at corner
     const rx = screenX + capD;
     const ry = screenY - capD / 2;
+    // Back vertex — where the two outer wall edges meet behind the corner
+    const bx = screenX;
+    const by = screenY - capD;
 
     // Fill the gap quad from floor to ceiling
     ctx.beginPath();
     ctx.moveTo(lx, ly);
     ctx.lineTo(screenX, screenY);
     ctx.lineTo(rx, ry);
-    ctx.lineTo(rx, ry - WALL_HEIGHT);
-    ctx.lineTo(screenX, screenY - WALL_HEIGHT);
+    ctx.lineTo(bx, by);
+    ctx.closePath();
+    // Extrude vertically for the full wall height
+    ctx.moveTo(lx, ly);
     ctx.lineTo(lx, ly - WALL_HEIGHT);
+    ctx.lineTo(bx, by - WALL_HEIGHT);
+    ctx.lineTo(rx, ry - WALL_HEIGHT);
+    ctx.lineTo(rx, ry);
+    ctx.lineTo(bx, by);
+    ctx.lineTo(lx, ly);
     ctx.closePath();
     ctx.fillStyle = left;
     ctx.fill();
 
-    // Top cap for the corner fill
-    const topColors = wallPanelColors(cornerHsb, 'left');
+    // Also fill the front faces of the corner (visible sides)
+    // Left face of corner (faces left wall direction)
     ctx.beginPath();
-    ctx.moveTo(lx, ly - WALL_HEIGHT);
+    ctx.moveTo(screenX, screenY);
+    ctx.lineTo(screenX, screenY - WALL_HEIGHT);
+    ctx.lineTo(lx, ly - WALL_HEIGHT);
+    ctx.lineTo(lx, ly);
+    ctx.closePath();
+    ctx.fillStyle = left;
+    ctx.fill();
+
+    // Right face of corner (faces right wall direction)
+    const { right } = tileColors(cornerHsb);
+    ctx.beginPath();
+    ctx.moveTo(screenX, screenY);
     ctx.lineTo(screenX, screenY - WALL_HEIGHT);
     ctx.lineTo(rx, ry - WALL_HEIGHT);
-    // The cap top extends inward by capD toward the room
-    ctx.lineTo(rx, ry - WALL_HEIGHT + capD / 2);
-    ctx.lineTo(screenX, screenY - WALL_HEIGHT + capD / 2);
-    ctx.lineTo(lx, ly - WALL_HEIGHT + capD / 2);
+    ctx.lineTo(rx, ry);
+    ctx.closePath();
+    ctx.fillStyle = right;
+    ctx.fill();
+
+    // Diamond top cap — bridges the two wall caps
+    // 4 vertices: left-outer, back, right-outer, inner (floor edge)
+    const topColors = wallPanelColors(cornerHsb, 'left');
+    const capY = -WALL_HEIGHT;
+    ctx.beginPath();
+    ctx.moveTo(lx, ly + capY);
+    ctx.lineTo(bx, by + capY);
+    ctx.lineTo(rx, ry + capY);
+    ctx.lineTo(screenX, screenY + capY);
     ctx.closePath();
     ctx.fillStyle = topColors.capTop;
     ctx.fill();
