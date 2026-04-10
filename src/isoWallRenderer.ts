@@ -629,11 +629,6 @@ export function drawWallEdges(
         ctx.lineTo(leftPts[i].x, leftPts[i].y - WALL_HEIGHT);
       }
       ctx.stroke();
-      // Back corner vertical (recessed)
-      ctx.beginPath();
-      ctx.moveTo(recessedPts[0].x, recessedPts[0].y);
-      ctx.lineTo(recessedPts[0].x, recessedPts[0].y - WALL_HEIGHT);
-      ctx.stroke();
     }
   }
 
@@ -672,11 +667,6 @@ export function drawWallEdges(
       for (let i = 1; i < rightPts.length; i++) {
         ctx.lineTo(rightPts[i].x - capD, rightPts[i].y - WALL_HEIGHT + capD / 2);
       }
-      ctx.stroke();
-      // Back corner vertical
-      ctx.beginPath();
-      ctx.moveTo(rightPts[0].x, rightPts[0].y);
-      ctx.lineTo(rightPts[0].x, rightPts[0].y - WALL_HEIGHT);
       ctx.stroke();
     }
   }
