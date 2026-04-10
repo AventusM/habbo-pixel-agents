@@ -141,7 +141,9 @@ export function drawWallPanels(
   hsb: HsbColor,
   tileColorMap?: Map<string, HsbColor>,
 ): void {
-  const tileHsb = (tileColorMap && tileColorMap.get('0,0')) || hsb;
+  const rawHsb = (tileColorMap && tileColorMap.get('0,0')) || hsb;
+  // Walls are always neutral gray — strip saturation, keep brightness.
+  const tileHsb: HsbColor = { h: rawHsb.h, s: 0, b: rawHsb.b };
 
   // --- LEFT WALL (rises above the left edge of the floor) ---
   const leftEdge: Array<{ tx: number; ty: number; height: number }> = [];
@@ -201,9 +203,6 @@ export function drawWallPanels(
     ctx.fillStyle = left;
     ctx.fill();
 
-    // Draw panel lines and alternating bands on the left wall
-    drawWallPanelLines(ctx, bottomPoints, panelColors);
-
     // --- LEFT WALL TOP CAP (visible top surface of the wall slab) ---
     // The cap runs from the recessed wall outer edge to the floor edge (inner).
     const topColors = wallPanelColors(tileHsb, 'left');
@@ -242,7 +241,7 @@ export function drawWallPanels(
       ctx.lineTo(floorEdgePoints[i].x, floorEdgePoints[i].y);
     }
     ctx.closePath();
-    ctx.fillStyle = topColors.capTop;
+    ctx.fillStyle = topColors.base;
     ctx.fill();
 
     // --- LEFT WALL FRONT FACE (pre-floor: behind floor tiles) ---
@@ -313,9 +312,6 @@ export function drawWallPanels(
     ctx.fillStyle = right;
     ctx.fill();
 
-    // Draw panel lines and alternating bands on the right wall
-    drawWallPanelLines(ctx, bottomPoints, panelColors);
-
     // --- RIGHT WALL TOP CAP (visible top surface of the wall slab) ---
     // The cap runs from the recessed wall outer edge to the floor edge (inner).
     const topColors = wallPanelColors(tileHsb, 'right');
@@ -353,7 +349,7 @@ export function drawWallPanels(
       ctx.lineTo(floorEdgePoints[i].x, floorEdgePoints[i].y);
     }
     ctx.closePath();
-    ctx.fillStyle = topColors.capTop;
+    ctx.fillStyle = topColors.base;
     ctx.fill();
 
     // --- RIGHT WALL FRONT FACE (pre-floor: behind floor tiles) ---
@@ -376,7 +372,8 @@ export function drawWallPanels(
     const screenX = sx + cameraOrigin.x;
     const screenY = sy + cameraOrigin.y;
 
-    const cornerHsb = (tileColorMap && tileColorMap.get('0,0')) || hsb;
+    const rawCornerHsb = (tileColorMap && tileColorMap.get('0,0')) || hsb;
+    const cornerHsb: HsbColor = { h: rawCornerHsb.h, s: 0, b: rawCornerHsb.b };
     const { left } = tileColors(cornerHsb);
 
     // Post rises UPWARD from tile top vertex
@@ -404,7 +401,9 @@ export function drawWallEdges(
   hsb: HsbColor,
   tileColorMap?: Map<string, HsbColor>,
 ): void {
-  const tileHsb = (tileColorMap && tileColorMap.get('0,0')) || hsb;
+  const rawHsb = (tileColorMap && tileColorMap.get('0,0')) || hsb;
+  // Walls are always neutral gray — strip saturation, keep brightness.
+  const tileHsb: HsbColor = { h: rawHsb.h, s: 0, b: rawHsb.b };
   const colors = tileColors(tileHsb);
 
   // --- LEFT WALL bottom-face + borders ---
