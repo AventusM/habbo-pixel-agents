@@ -661,13 +661,6 @@ export function drawWallEdges(
         ctx.lineTo(rightPts[i].x, rightPts[i].y - WALL_HEIGHT);
       }
       ctx.stroke();
-      // Cap inner edge
-      ctx.beginPath();
-      ctx.moveTo(rightPts[0].x - capD, rightPts[0].y - WALL_HEIGHT + capD / 2);
-      for (let i = 1; i < rightPts.length; i++) {
-        ctx.lineTo(rightPts[i].x - capD, rightPts[i].y - WALL_HEIGHT + capD / 2);
-      }
-      ctx.stroke();
     }
   }
 }
