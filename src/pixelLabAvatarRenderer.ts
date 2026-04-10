@@ -24,14 +24,14 @@ export function getAtlasForTeam(team?: string): string {
   }
 }
 
-/** Scale factor: 48px sprites scaled up to match furniture proportions */
-const SCALE = 2.5;
+/** Scale factor: 104px sprites scaled to match furniture proportions */
+const SCALE = 1.6;
 
 /** Vertical offset to align character feet with tile surface */
-const Y_OFFSET = 30;
+const Y_OFFSET = 45;
 
-/** Walk animation: 6 frames per cycle */
-const WALK_FRAMES = 6;
+/** Walk animation: 4 frames per cycle */
+const WALK_FRAMES = 4;
 
 /** Idle (breathing) animation: 4 frames per cycle */
 const IDLE_FRAMES = 4;

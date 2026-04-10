@@ -1,0 +1,6 @@
+# S01: Download & pack spritesheet — UAT
+
+**Milestone:** M007
+**Written:** 2026-04-10T19:59:01.171Z
+
+## UAT: M007/S01 — Download & pack spritesheet\n\n### Verify spritesheet exists and is valid\n\n```\nnode -e \"\nconst fs = require('fs');\nconst j = JSON.parse(fs.readFileSync('assets/pixellab/habbo-inspiration-new.json','utf8'));\nconst keys = Object.keys(j.frames);\nconsole.log('total keys:', keys.length);        // expect 72\nconsole.log('rot keys:', keys.filter(k=>k.includes('_rot_')).length);   // expect 8\nconsole.log('idle keys:', keys.filter(k=>k.includes('_idle_')).length); // expect 32\nconsole.log('walk keys:', keys.filter(k=>k.includes('_walk_')).length); // expect 32\nconsole.log('cell size:', j.frames[keys[0]].frame.w, 'x', j.frames[keys[0]].frame.h); // expect 104 x 104\nconsole.log('sheet:', j.meta.size.w, 'x', j.meta.size.h); // expect 936 x 832\n\"\n```\n\nExpected output:\n```\ntotal keys: 72\nrot keys: 8\nidle keys: 32\nwalk keys: 32\ncell size: 104 x 104\nsheet: 936 x 832\n```\n\n### Verify PNG file exists\n```\nls -lh assets/pixellab/habbo-inspiration-new.png\n```\n\n### Verify --frame-size still works for 48px characters\n```\nnode scripts/pack-pixellab-sprites.mjs 2>&1 | head -2\n# Should show usage with --frame-size mention\n```"
