@@ -424,12 +424,13 @@ export function drawWallPanels(
     ctx.closePath();
     ctx.fillStyle = cornerLeft;
     ctx.fill();
-    // White cap-height strip at top of left face
+    // White cap-height strip at top of left face (thin edge to match wall cap line)
+    const capEdge = 2;
     ctx.beginPath();
-    ctx.moveTo(screenX, screenY - WALL_HEIGHT + capD);
+    ctx.moveTo(screenX, screenY - WALL_HEIGHT + capEdge);
     ctx.lineTo(screenX, screenY - WALL_HEIGHT);
     ctx.lineTo(lx, ly - WALL_HEIGHT);
-    ctx.lineTo(lx, ly - WALL_HEIGHT + capD);
+    ctx.lineTo(lx, ly - WALL_HEIGHT + capEdge);
     ctx.closePath();
     ctx.fillStyle = sharedCapTop;
     ctx.fill();
@@ -445,10 +446,10 @@ export function drawWallPanels(
     ctx.fill();
     // White cap-height strip at top of right face
     ctx.beginPath();
-    ctx.moveTo(screenX, screenY - WALL_HEIGHT + capD);
+    ctx.moveTo(screenX, screenY - WALL_HEIGHT + capEdge);
     ctx.lineTo(screenX, screenY - WALL_HEIGHT);
     ctx.lineTo(rx, ry - WALL_HEIGHT);
-    ctx.lineTo(rx, ry - WALL_HEIGHT + capD);
+    ctx.lineTo(rx, ry - WALL_HEIGHT + capEdge);
     ctx.closePath();
     ctx.fillStyle = sharedCapTop;
     ctx.fill();
