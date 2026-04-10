@@ -465,6 +465,29 @@ export function drawWallPanels(
     ctx.closePath();
     ctx.fillStyle = sharedCapTop;
     ctx.fill();
+
+    // Fill the small cap-front faces at the corner junction.
+    // These are the vertical drops between the diamond top cap and the
+    // wall surface, visible on each side of the pillar.
+    // Left side: from diamond inner vertex down to left wall cap inner edge
+    ctx.beginPath();
+    ctx.moveTo(screenX, screenY + capY);           // diamond inner top
+    ctx.lineTo(lx, ly + capY);                     // diamond left-outer top
+    ctx.lineTo(lx, ly + capY + capD / 2);          // left-outer bottom (cap thickness)
+    ctx.lineTo(screenX, screenY + capY + capD / 2); // inner bottom
+    ctx.closePath();
+    ctx.fillStyle = sharedCapTop;
+    ctx.fill();
+
+    // Right side
+    ctx.beginPath();
+    ctx.moveTo(screenX, screenY + capY);
+    ctx.lineTo(rx, ry + capY);
+    ctx.lineTo(rx, ry + capY + capD / 2);
+    ctx.lineTo(screenX, screenY + capY + capD / 2);
+    ctx.closePath();
+    ctx.fillStyle = sharedCapTop;
+    ctx.fill();
   }
 }
 
