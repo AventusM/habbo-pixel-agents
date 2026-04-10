@@ -1,20 +1,46 @@
 #!/usr/bin/env node
 // scripts/pack-pixellab-sprites.mjs
 // Packs individual PixelLab character PNGs into a single spritesheet + JSON manifest
-// Usage: node scripts/pack-pixellab-sprites.mjs <extracted-zip-dir> <output-name>
+// Usage: node scripts/pack-pixellab-sprites.mjs <extracted-zip-dir> <output-name> [--frame-size=N]
 // Example: node scripts/pack-pixellab-sprites.mjs /tmp/beanie-hoodie-guy beanie-hoodie-guy
+// Example: node scripts/pack-pixellab-sprites.mjs /tmp/habbo_inspiration_new habbo-inspiration-new --frame-size=104
 
 import fs from 'fs';
 import path from 'path';
 import { PNG } from 'pngjs';
 
-const inputDir = process.argv[2];
-const outputName = process.argv[3] || 'pixellab-character';
-const outputDir = path.resolve('assets/pixellab');
+// Parse args — allow flags anywhere after the positional args
+const rawArgs = process.argv.slice(2);
+const flagArgs = rawArgs.filter(a => a.startsWith('--'));
+const posArgs  = rawArgs.filter(a => !a.startsWith('--'));
+
+const inputDir   = posArgs[0];
+const outputName = posArgs[1] || 'pixellab-character';
+const outputDir  = path.resolve('assets/pixellab');
+
+// --frame-size=N  (default 48 to preserve existing behaviour)
+const frameSizeArg = flagArgs.find(a => a.startsWith('--frame-size='));
+const CELL_SIZE = frameSizeArg ? parseInt(frameSizeArg.split('=')[1], 10) : 48;
 
 if (!inputDir) {
-  console.error('Usage: node scripts/pack-pixellab-sprites.mjs <extracted-zip-dir> [output-name]');
+  console.error('Usage: node scripts/pack-pixellab-sprites.mjs <extracted-zip-dir> [output-name] [--frame-size=N]');
   process.exit(1);
+}
+
+/**
+ * Normalise a PixelLab animation directory name to a lowercase-hyphen key
+ * that can be looked up in ANIM_MAP.
+ *
+ * PixelLab generates dirs with hashes and varying capitalisation, e.g.:
+ *   Breathing_Idle-98af97b4  →  breathing-idle
+ *   Walking-e4b169a3         →  walking
+ *   running-6-frames         →  running-6-frames  (unchanged)
+ */
+function normaliseAnimName(raw) {
+  // Strip trailing -[hex hash] (8 hex chars)
+  const withoutHash = raw.replace(/-[0-9a-f]{8}$/, '');
+  // Lowercase and replace underscores with hyphens
+  return withoutHash.toLowerCase().replace(/_/g, '-');
 }
 
 // PixelLab direction → Habbo direction (0-7 clockwise from NE)
@@ -98,7 +124,8 @@ for (const [mirrorDir, sourceDir] of Object.entries(MIRROR_MAP)) {
 const animsDir = path.join(inputDir, 'animations');
 if (fs.existsSync(animsDir)) {
   for (const plAnimName of fs.readdirSync(animsDir)) {
-    const animName = ANIM_MAP[plAnimName] || plAnimName;
+    const normName = normaliseAnimName(plAnimName);
+    const animName = ANIM_MAP[normName] || normName;
     const animDir = path.join(animsDir, plAnimName);
     if (!fs.statSync(animDir).isDirectory()) continue;
 
@@ -169,7 +196,7 @@ if (fs.existsSync(animsDir)) {
 }
 
 // 3. Pack into spritesheet
-const CELL_SIZE = 48;
+// CELL_SIZE is set from --frame-size arg at top of file (default 48)
 const cols = Math.ceil(Math.sqrt(frames.length));
 const rows = Math.ceil(frames.length / cols);
 const sheetW = cols * CELL_SIZE;
