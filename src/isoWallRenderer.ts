@@ -145,6 +145,10 @@ export function drawWallPanels(
   // Walls are always neutral gray — strip saturation, keep brightness.
   const tileHsb: HsbColor = { h: rawHsb.h, s: 0, b: rawHsb.b };
 
+  // Shared cap color for all wall tops — use the lightest (left) shade
+  // so the ceiling strip is uniform white across both walls and corner.
+  const sharedCapTop = wallPanelColors(tileHsb, 'left').capTop;
+
   // --- LEFT WALL (rises above the left edge of the floor) ---
   const leftEdge: Array<{ tx: number; ty: number; height: number }> = [];
   for (let ty = 0; ty < grid.height; ty++) {
@@ -217,7 +221,7 @@ export function drawWallPanels(
       ctx.lineTo(floorEdgePoints[i].x, floorEdgePoints[i].y - WALL_HEIGHT);
     }
     ctx.closePath();
-    ctx.fillStyle = topColors.capTop;
+    ctx.fillStyle = sharedCapTop;
     ctx.fill();
 
     // Highlight line along the outer ceiling edge
@@ -326,7 +330,7 @@ export function drawWallPanels(
       ctx.lineTo(floorEdgePoints[i].x, floorEdgePoints[i].y - WALL_HEIGHT);
     }
     ctx.closePath();
-    ctx.fillStyle = topColors.capTop;
+    ctx.fillStyle = sharedCapTop;
     ctx.fill();
 
     // Highlight line along the outer ceiling edge
@@ -441,7 +445,7 @@ export function drawWallPanels(
     ctx.lineTo(rx, ry + capY);
     ctx.lineTo(screenX, screenY + capY);
     ctx.closePath();
-    ctx.fillStyle = topColors.capTop;
+    ctx.fillStyle = sharedCapTop;
     ctx.fill();
   }
 }
