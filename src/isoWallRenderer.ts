@@ -379,6 +379,11 @@ export function drawWallPanels(
     const screenX = sx + cameraOrigin.x;
     const screenY = sy + cameraOrigin.y;
 
+    // Corner wall colors — same shading as main walls
+    const rawCornerHsb = (tileColorMap && tileColorMap.get('0,0')) || hsb;
+    const cornerHsb: HsbColor = { h: rawCornerHsb.h, s: 0, b: rawCornerHsb.b };
+    const { left: cornerLeft, right: cornerRight } = tileColors(cornerHsb);
+
     const capD = WALL_THICKNESS;
     // Left wall recessed edge at corner
     const lx = screenX - capD;
@@ -406,7 +411,7 @@ export function drawWallPanels(
     ctx.lineTo(bx, by);
     ctx.lineTo(lx, ly);
     ctx.closePath();
-    ctx.fillStyle = sharedCapTop;
+    ctx.fillStyle = cornerLeft;
     ctx.fill();
 
     // Also fill the front faces of the corner (visible sides)
@@ -417,7 +422,7 @@ export function drawWallPanels(
     ctx.lineTo(lx, ly - WALL_HEIGHT);
     ctx.lineTo(lx, ly);
     ctx.closePath();
-    ctx.fillStyle = sharedCapTop;
+    ctx.fillStyle = cornerLeft;
     ctx.fill();
 
     // Right face of corner (faces right wall direction)
@@ -427,7 +432,7 @@ export function drawWallPanels(
     ctx.lineTo(rx, ry - WALL_HEIGHT);
     ctx.lineTo(rx, ry);
     ctx.closePath();
-    ctx.fillStyle = sharedCapTop;
+    ctx.fillStyle = cornerRight;
     ctx.fill();
 
     // Diamond top cap — bridges the two wall caps
