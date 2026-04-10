@@ -385,110 +385,70 @@ export function drawWallPanels(
     const bx = screenX;
     const by = screenY - capD;
 
-    // Fill the gap quad from floor to ceiling
+    // Split the exposed front slit so each half matches its adjacent wall.
+    const slitTopY = ly - WALL_HEIGHT + 10;
+    const slitMidX = screenX;
+
     ctx.beginPath();
     ctx.moveTo(lx, ly);
-    ctx.lineTo(screenX, screenY);
-    ctx.lineTo(rx, ry);
-    ctx.lineTo(bx, by);
-    ctx.closePath();
-    // Extrude vertically for the full wall height
-    ctx.moveTo(lx, ly);
-    ctx.lineTo(lx, ly - WALL_HEIGHT);
-    ctx.lineTo(bx, by - WALL_HEIGHT);
-    ctx.lineTo(rx, ry - WALL_HEIGHT);
-    ctx.lineTo(rx, ry);
-    ctx.lineTo(bx, by);
-    ctx.lineTo(lx, ly);
+    ctx.lineTo(lx, slitTopY);
+    ctx.lineTo(slitMidX, slitTopY);
+    ctx.lineTo(slitMidX, ly);
     ctx.closePath();
     ctx.fillStyle = cornerLeft;
     ctx.fill();
 
-    // Also fill the front faces of the corner (visible sides)
-    // Left face of corner (faces left wall direction)
     ctx.beginPath();
-    ctx.moveTo(screenX, screenY);
-    ctx.lineTo(screenX, screenY - WALL_HEIGHT);
-    ctx.lineTo(lx, ly - WALL_HEIGHT);
-    ctx.lineTo(lx, ly);
-    ctx.closePath();
-    ctx.fillStyle = cornerLeft;
-    ctx.fill();
-    // White cap-height strip at top of left face — must match wall cap depth
-    // so it aligns with the left wall's top cap.
-    ctx.beginPath();
-    ctx.moveTo(screenX, screenY - WALL_HEIGHT + capD);
-    ctx.lineTo(screenX, screenY - WALL_HEIGHT);
-    ctx.lineTo(lx, ly - WALL_HEIGHT);
-    ctx.lineTo(lx, ly - WALL_HEIGHT + capD);
-    ctx.closePath();
-    ctx.fillStyle = sharedCapTop;
-    ctx.fill();
-
-    // Right face of corner (faces right wall direction)
-    ctx.beginPath();
-    ctx.moveTo(screenX, screenY);
-    ctx.lineTo(screenX, screenY - WALL_HEIGHT);
-    ctx.lineTo(rx, ry - WALL_HEIGHT);
+    ctx.moveTo(slitMidX, ly);
+    ctx.lineTo(slitMidX, slitTopY);
+    ctx.lineTo(rx, slitTopY);
     ctx.lineTo(rx, ry);
     ctx.closePath();
     ctx.fillStyle = cornerRight;
     ctx.fill();
-    // White cap-height strip at top of right face — must match wall cap depth
-    // so it aligns with the right wall's top cap.
+
+    // Fill the small top and bottom wedges created by the slit cut so the
+    // corner stays sealed while preserving the left/right color split.
     ctx.beginPath();
-    ctx.moveTo(screenX, screenY - WALL_HEIGHT + capD);
-    ctx.lineTo(screenX, screenY - WALL_HEIGHT);
-    ctx.lineTo(rx, ry - WALL_HEIGHT);
-    ctx.lineTo(rx, ry - WALL_HEIGHT + capD);
+    ctx.moveTo(lx, slitTopY);
+    ctx.lineTo(slitMidX, screenY - WALL_HEIGHT);
+    ctx.lineTo(slitMidX, slitTopY);
     ctx.closePath();
-    ctx.fillStyle = sharedCapTop;
+    ctx.fillStyle = cornerLeft;
     ctx.fill();
 
+    ctx.beginPath();
+    ctx.moveTo(slitMidX, slitTopY);
+    ctx.lineTo(slitMidX, screenY - WALL_HEIGHT);
+    ctx.lineTo(rx, slitTopY);
+    ctx.closePath();
+    ctx.fillStyle = cornerRight;
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.moveTo(lx, ly);
+    ctx.lineTo(slitMidX, ly);
+    ctx.lineTo(slitMidX, screenY);
+    ctx.closePath();
+    ctx.fillStyle = cornerLeft;
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.moveTo(slitMidX, ly);
+    ctx.lineTo(rx, ry);
+    ctx.lineTo(slitMidX, screenY);
+    ctx.closePath();
+    ctx.fillStyle = cornerRight;
+    ctx.fill();
+
+    const capY = -WALL_HEIGHT;
     // Diamond top cap — bridges the two wall caps
     // 4 vertices: left-outer, back, right-outer, inner (floor edge)
-    const capY = -WALL_HEIGHT;
     ctx.beginPath();
     ctx.moveTo(lx, ly + capY);
     ctx.lineTo(bx, by + capY);
     ctx.lineTo(rx, ry + capY);
     ctx.lineTo(screenX, screenY + capY);
-    ctx.closePath();
-    ctx.fillStyle = sharedCapTop;
-    ctx.fill();
-
-    // Fill the small wedge above the diamond cap.
-    // The left and right wall top caps start at their bottomPoints[1],
-    // skipping index 0 (the corner point). This leaves a small triangular
-    // gap above the diamond back vertex. Fill it with the cap color.
-    // The triangle: back vertex at top, left-outer and right-outer at base.
-    ctx.beginPath();
-    ctx.moveTo(bx, by + capY);           // back vertex (topmost point)
-    ctx.lineTo(lx, ly + capY);           // left-outer
-    ctx.lineTo(rx, ry + capY);           // right-outer
-    ctx.closePath();
-    ctx.fillStyle = sharedCapTop;
-    ctx.fill();
-
-    // Fill the small cap-front faces at the corner junction.
-    // These are the vertical drops between the diamond top cap and the
-    // wall surface, visible on each side of the pillar.
-    // Left side: from diamond inner vertex down to left wall cap inner edge
-    ctx.beginPath();
-    ctx.moveTo(screenX, screenY + capY);           // diamond inner top
-    ctx.lineTo(lx, ly + capY);                     // diamond left-outer top
-    ctx.lineTo(lx, ly + capY + capD / 2);          // left-outer bottom (cap thickness)
-    ctx.lineTo(screenX, screenY + capY + capD / 2); // inner bottom
-    ctx.closePath();
-    ctx.fillStyle = sharedCapTop;
-    ctx.fill();
-
-    // Right side
-    ctx.beginPath();
-    ctx.moveTo(screenX, screenY + capY);
-    ctx.lineTo(rx, ry + capY);
-    ctx.lineTo(rx, ry + capY + capD / 2);
-    ctx.lineTo(screenX, screenY + capY + capD / 2);
     ctx.closePath();
     ctx.fillStyle = sharedCapTop;
     ctx.fill();
