@@ -3,7 +3,7 @@
   "hostname": "Antons-MacBook-Air-422.local",
   "platform": "darwin",
   "arch": "arm64",
-  "nodeVersion": "v22.22.0",
-  "vscodeVersion": "1.112.0",
-  "maultVersion": "0.15.0"
+  "nodeVersion": "v22.22.1",
+  "vscodeVersion": "1.115.0",
+  "maultVersion": "0.15.4"
 }
