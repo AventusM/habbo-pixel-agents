@@ -226,6 +226,10 @@ export function drawWallPanels(
       ctx.closePath();
       ctx.fillStyle = sharedCapTop;
       ctx.fill();
+      // Thin black outline on the cap
+      ctx.strokeStyle = '#555';
+      ctx.lineWidth = 0.5;
+      ctx.stroke();
     }
 
 
@@ -330,6 +334,10 @@ export function drawWallPanels(
       ctx.closePath();
       ctx.fillStyle = sharedCapTop;
       ctx.fill();
+      // Thin black outline on the cap
+      ctx.strokeStyle = '#555';
+      ctx.lineWidth = 0.5;
+      ctx.stroke();
     }
 
 
@@ -452,6 +460,14 @@ export function drawWallPanels(
     ctx.closePath();
     ctx.fillStyle = sharedCapTop;
     ctx.fill();
+    // Stroke only bottom two edges to cover wall line overlap without adding top border
+    ctx.strokeStyle = sharedCapTop;
+    ctx.lineWidth = 0.5;
+    ctx.beginPath();
+    ctx.moveTo(lx, ly + capY);
+    ctx.lineTo(screenX, screenY + capY);
+    ctx.lineTo(rx, ry + capY);
+    ctx.stroke();
   }
 }
 
