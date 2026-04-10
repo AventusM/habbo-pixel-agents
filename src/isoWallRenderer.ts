@@ -365,7 +365,11 @@ export function drawWallPanels(
     ctx.fillStyle = topColors.capFront;
     ctx.fill();
   }
-  // --- BACK CORNER POST ---
+  // --- BACK CORNER FILL (cross-section between the two walls) ---
+  // The left wall is recessed by (-WALL_THICKNESS, -WALL_THICKNESS/2) and the right
+  // wall by (+WALL_THICKNESS, -WALL_THICKNESS/2). This leaves a gap at the corner
+  // where the background shows through. Fill it with a quad that spans the full
+  // wall height.
   const cornerTile = grid.tiles[0]?.[0];
   if (cornerTile != null) {
     const { x: sx, y: sy } = tileToScreen(0, 0, cornerTile.height);
@@ -376,9 +380,39 @@ export function drawWallPanels(
     const cornerHsb: HsbColor = { h: rawCornerHsb.h, s: 0, b: rawCornerHsb.b };
     const { left } = tileColors(cornerHsb);
 
-    // Post rises UPWARD from tile top vertex
+    const capD = WALL_THICKNESS;
+    // Left wall recessed edge at corner
+    const lx = screenX - capD;
+    const ly = screenY - capD / 2;
+    // Right wall recessed edge at corner
+    const rx = screenX + capD;
+    const ry = screenY - capD / 2;
+
+    // Fill the gap quad from floor to ceiling
+    ctx.beginPath();
+    ctx.moveTo(lx, ly);
+    ctx.lineTo(screenX, screenY);
+    ctx.lineTo(rx, ry);
+    ctx.lineTo(rx, ry - WALL_HEIGHT);
+    ctx.lineTo(screenX, screenY - WALL_HEIGHT);
+    ctx.lineTo(lx, ly - WALL_HEIGHT);
+    ctx.closePath();
     ctx.fillStyle = left;
-    ctx.fillRect(screenX - 2, screenY - WALL_HEIGHT, 4, WALL_HEIGHT);
+    ctx.fill();
+
+    // Top cap for the corner fill
+    const topColors = wallPanelColors(cornerHsb, 'left');
+    ctx.beginPath();
+    ctx.moveTo(lx, ly - WALL_HEIGHT);
+    ctx.lineTo(screenX, screenY - WALL_HEIGHT);
+    ctx.lineTo(rx, ry - WALL_HEIGHT);
+    // The cap top extends inward by capD toward the room
+    ctx.lineTo(rx, ry - WALL_HEIGHT + capD / 2);
+    ctx.lineTo(screenX, screenY - WALL_HEIGHT + capD / 2);
+    ctx.lineTo(lx, ly - WALL_HEIGHT + capD / 2);
+    ctx.closePath();
+    ctx.fillStyle = topColors.capTop;
+    ctx.fill();
   }
 }
 
