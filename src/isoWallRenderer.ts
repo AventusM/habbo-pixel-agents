@@ -209,20 +209,23 @@ export function drawWallPanels(
 
     // --- LEFT WALL TOP CAP (visible top surface of the wall slab) ---
     // The cap runs from the recessed wall outer edge to the floor edge (inner).
+    // Start from index 1 to avoid extending past the corner into the right wall.
     const topColors = wallPanelColors(tileHsb, 'left');
-    ctx.beginPath();
-    // Outer ceiling edge (recessed wall top, back to front)
-    ctx.moveTo(bottomPoints[0].x, bottomPoints[0].y - WALL_HEIGHT);
-    for (let i = 1; i < bottomPoints.length; i++) {
-      ctx.lineTo(bottomPoints[i].x, bottomPoints[i].y - WALL_HEIGHT);
+    if (bottomPoints.length > 1) {
+      ctx.beginPath();
+      // Outer ceiling edge (recessed wall top, back to front)
+      ctx.moveTo(bottomPoints[1].x, bottomPoints[1].y - WALL_HEIGHT);
+      for (let i = 2; i < bottomPoints.length; i++) {
+        ctx.lineTo(bottomPoints[i].x, bottomPoints[i].y - WALL_HEIGHT);
+      }
+      // Inner ceiling edge (floor edge top, front to back)
+      for (let i = floorEdgePoints.length - 1; i >= 1; i--) {
+        ctx.lineTo(floorEdgePoints[i].x, floorEdgePoints[i].y - WALL_HEIGHT);
+      }
+      ctx.closePath();
+      ctx.fillStyle = sharedCapTop;
+      ctx.fill();
     }
-    // Inner ceiling edge (floor edge top, front to back)
-    for (let i = floorEdgePoints.length - 1; i >= 0; i--) {
-      ctx.lineTo(floorEdgePoints[i].x, floorEdgePoints[i].y - WALL_HEIGHT);
-    }
-    ctx.closePath();
-    ctx.fillStyle = sharedCapTop;
-    ctx.fill();
 
 
     // --- LEFT WALL BOTTOM FACE (baseboard strip bridging wall to floor) ---
@@ -309,20 +312,23 @@ export function drawWallPanels(
 
     // --- RIGHT WALL TOP CAP (visible top surface of the wall slab) ---
     // The cap runs from the recessed wall outer edge to the floor edge (inner).
+    // Start from index 1 to avoid extending past the corner into the left wall.
     const topColors = wallPanelColors(tileHsb, 'right');
-    ctx.beginPath();
-    // Outer ceiling edge (recessed wall top, back to front)
-    ctx.moveTo(bottomPoints[0].x, bottomPoints[0].y - WALL_HEIGHT);
-    for (let i = 1; i < bottomPoints.length; i++) {
-      ctx.lineTo(bottomPoints[i].x, bottomPoints[i].y - WALL_HEIGHT);
+    if (bottomPoints.length > 1) {
+      ctx.beginPath();
+      // Outer ceiling edge (recessed wall top, back to front)
+      ctx.moveTo(bottomPoints[1].x, bottomPoints[1].y - WALL_HEIGHT);
+      for (let i = 2; i < bottomPoints.length; i++) {
+        ctx.lineTo(bottomPoints[i].x, bottomPoints[i].y - WALL_HEIGHT);
+      }
+      // Inner ceiling edge (floor edge top, front to back)
+      for (let i = floorEdgePoints.length - 1; i >= 1; i--) {
+        ctx.lineTo(floorEdgePoints[i].x, floorEdgePoints[i].y - WALL_HEIGHT);
+      }
+      ctx.closePath();
+      ctx.fillStyle = sharedCapTop;
+      ctx.fill();
     }
-    // Inner ceiling edge (floor edge top, front to back)
-    for (let i = floorEdgePoints.length - 1; i >= 0; i--) {
-      ctx.lineTo(floorEdgePoints[i].x, floorEdgePoints[i].y - WALL_HEIGHT);
-    }
-    ctx.closePath();
-    ctx.fillStyle = sharedCapTop;
-    ctx.fill();
 
 
     // --- RIGHT WALL BOTTOM FACE (baseboard strip bridging wall to floor) ---
