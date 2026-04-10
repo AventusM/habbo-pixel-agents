@@ -424,6 +424,15 @@ export function drawWallPanels(
     ctx.closePath();
     ctx.fillStyle = cornerLeft;
     ctx.fill();
+    // White cap-height strip at top of left face
+    ctx.beginPath();
+    ctx.moveTo(screenX, screenY - WALL_HEIGHT + capD);
+    ctx.lineTo(screenX, screenY - WALL_HEIGHT);
+    ctx.lineTo(lx, ly - WALL_HEIGHT);
+    ctx.lineTo(lx, ly - WALL_HEIGHT + capD);
+    ctx.closePath();
+    ctx.fillStyle = sharedCapTop;
+    ctx.fill();
 
     // Right face of corner (faces right wall direction)
     ctx.beginPath();
@@ -433,6 +442,15 @@ export function drawWallPanels(
     ctx.lineTo(rx, ry);
     ctx.closePath();
     ctx.fillStyle = cornerRight;
+    ctx.fill();
+    // White cap-height strip at top of right face
+    ctx.beginPath();
+    ctx.moveTo(screenX, screenY - WALL_HEIGHT + capD);
+    ctx.lineTo(screenX, screenY - WALL_HEIGHT);
+    ctx.lineTo(rx, ry - WALL_HEIGHT);
+    ctx.lineTo(rx, ry - WALL_HEIGHT + capD);
+    ctx.closePath();
+    ctx.fillStyle = sharedCapTop;
     ctx.fill();
 
     // Diamond top cap — bridges the two wall caps
