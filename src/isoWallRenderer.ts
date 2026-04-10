@@ -209,17 +209,18 @@ export function drawWallPanels(
 
     // --- LEFT WALL TOP CAP (visible top surface of the wall slab) ---
     // The cap runs from the recessed wall outer edge to the floor edge (inner).
-    // Start from index 1 to avoid extending past the corner into the right wall.
+    // Includes index 0 (the corner point) so the cap fully covers the wall top
+    // all the way to the corner — the corner diamond overlaps but uses the same color.
     const topColors = wallPanelColors(tileHsb, 'left');
     if (bottomPoints.length > 1) {
       ctx.beginPath();
       // Outer ceiling edge (recessed wall top, back to front)
-      ctx.moveTo(bottomPoints[1].x, bottomPoints[1].y - WALL_HEIGHT);
-      for (let i = 2; i < bottomPoints.length; i++) {
+      ctx.moveTo(bottomPoints[0].x, bottomPoints[0].y - WALL_HEIGHT);
+      for (let i = 1; i < bottomPoints.length; i++) {
         ctx.lineTo(bottomPoints[i].x, bottomPoints[i].y - WALL_HEIGHT);
       }
       // Inner ceiling edge (floor edge top, front to back)
-      for (let i = floorEdgePoints.length - 1; i >= 1; i--) {
+      for (let i = floorEdgePoints.length - 1; i >= 0; i--) {
         ctx.lineTo(floorEdgePoints[i].x, floorEdgePoints[i].y - WALL_HEIGHT);
       }
       ctx.closePath();
@@ -312,17 +313,18 @@ export function drawWallPanels(
 
     // --- RIGHT WALL TOP CAP (visible top surface of the wall slab) ---
     // The cap runs from the recessed wall outer edge to the floor edge (inner).
-    // Start from index 1 to avoid extending past the corner into the left wall.
+    // Includes index 0 (the corner point) so the cap fully covers the wall top
+    // all the way to the corner — the corner diamond overlaps but uses the same color.
     const topColors = wallPanelColors(tileHsb, 'right');
     if (bottomPoints.length > 1) {
       ctx.beginPath();
       // Outer ceiling edge (recessed wall top, back to front)
-      ctx.moveTo(bottomPoints[1].x, bottomPoints[1].y - WALL_HEIGHT);
-      for (let i = 2; i < bottomPoints.length; i++) {
+      ctx.moveTo(bottomPoints[0].x, bottomPoints[0].y - WALL_HEIGHT);
+      for (let i = 1; i < bottomPoints.length; i++) {
         ctx.lineTo(bottomPoints[i].x, bottomPoints[i].y - WALL_HEIGHT);
       }
       // Inner ceiling edge (floor edge top, front to back)
-      for (let i = floorEdgePoints.length - 1; i >= 1; i--) {
+      for (let i = floorEdgePoints.length - 1; i >= 0; i--) {
         ctx.lineTo(floorEdgePoints[i].x, floorEdgePoints[i].y - WALL_HEIGHT);
       }
       ctx.closePath();
@@ -412,13 +414,13 @@ export function drawWallPanels(
     ctx.closePath();
     ctx.fillStyle = cornerLeft;
     ctx.fill();
-    // White cap-height strip at top of left face (thin edge to match wall cap line)
-    const capEdge = 2;
+    // White cap-height strip at top of left face — must match wall cap depth
+    // so it aligns with the left wall's top cap.
     ctx.beginPath();
-    ctx.moveTo(screenX, screenY - WALL_HEIGHT + capEdge);
+    ctx.moveTo(screenX, screenY - WALL_HEIGHT + capD);
     ctx.lineTo(screenX, screenY - WALL_HEIGHT);
     ctx.lineTo(lx, ly - WALL_HEIGHT);
-    ctx.lineTo(lx, ly - WALL_HEIGHT + capEdge);
+    ctx.lineTo(lx, ly - WALL_HEIGHT + capD);
     ctx.closePath();
     ctx.fillStyle = sharedCapTop;
     ctx.fill();
@@ -432,12 +434,13 @@ export function drawWallPanels(
     ctx.closePath();
     ctx.fillStyle = cornerRight;
     ctx.fill();
-    // White cap-height strip at top of right face
+    // White cap-height strip at top of right face — must match wall cap depth
+    // so it aligns with the right wall's top cap.
     ctx.beginPath();
-    ctx.moveTo(screenX, screenY - WALL_HEIGHT + capEdge);
+    ctx.moveTo(screenX, screenY - WALL_HEIGHT + capD);
     ctx.lineTo(screenX, screenY - WALL_HEIGHT);
     ctx.lineTo(rx, ry - WALL_HEIGHT);
-    ctx.lineTo(rx, ry - WALL_HEIGHT + capEdge);
+    ctx.lineTo(rx, ry - WALL_HEIGHT + capD);
     ctx.closePath();
     ctx.fillStyle = sharedCapTop;
     ctx.fill();
@@ -450,6 +453,19 @@ export function drawWallPanels(
     ctx.lineTo(bx, by + capY);
     ctx.lineTo(rx, ry + capY);
     ctx.lineTo(screenX, screenY + capY);
+    ctx.closePath();
+    ctx.fillStyle = sharedCapTop;
+    ctx.fill();
+
+    // Fill the small wedge above the diamond cap.
+    // The left and right wall top caps start at their bottomPoints[1],
+    // skipping index 0 (the corner point). This leaves a small triangular
+    // gap above the diamond back vertex. Fill it with the cap color.
+    // The triangle: back vertex at top, left-outer and right-outer at base.
+    ctx.beginPath();
+    ctx.moveTo(bx, by + capY);           // back vertex (topmost point)
+    ctx.lineTo(lx, ly + capY);           // left-outer
+    ctx.lineTo(rx, ry + capY);           // right-outer
     ctx.closePath();
     ctx.fillStyle = sharedCapTop;
     ctx.fill();
