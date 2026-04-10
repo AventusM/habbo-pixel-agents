@@ -224,15 +224,6 @@ export function drawWallPanels(
     ctx.fillStyle = sharedCapTop;
     ctx.fill();
 
-    // Highlight line along the outer ceiling edge
-    ctx.beginPath();
-    ctx.moveTo(bottomPoints[0].x, bottomPoints[0].y - WALL_HEIGHT);
-    for (let i = 1; i < bottomPoints.length; i++) {
-      ctx.lineTo(bottomPoints[i].x, bottomPoints[i].y - WALL_HEIGHT);
-    }
-    ctx.strokeStyle = topColors.capLine;
-    ctx.lineWidth = 0.5;
-    ctx.stroke();
 
     // --- LEFT WALL BOTTOM FACE (baseboard strip bridging wall to floor) ---
     // Connects recessed wall bottom to the floor edge — fills the gap.
@@ -333,15 +324,6 @@ export function drawWallPanels(
     ctx.fillStyle = sharedCapTop;
     ctx.fill();
 
-    // Highlight line along the outer ceiling edge
-    ctx.beginPath();
-    ctx.moveTo(bottomPoints[0].x, bottomPoints[0].y - WALL_HEIGHT);
-    for (let i = 1; i < bottomPoints.length; i++) {
-      ctx.lineTo(bottomPoints[i].x, bottomPoints[i].y - WALL_HEIGHT);
-    }
-    ctx.strokeStyle = topColors.capLine;
-    ctx.lineWidth = 0.5;
-    ctx.stroke();
 
     // --- RIGHT WALL BOTTOM FACE (baseboard strip bridging wall to floor) ---
     ctx.beginPath();
@@ -541,15 +523,6 @@ export function drawWallEdges(
     // Recess to match drawWallPanels
     const recessedPts = pts.map(p => ({ x: p.x - WALL_THICKNESS, y: p.y - WALL_THICKNESS / 2 }));
 
-    // Border line along top edge (ceiling) — on recessed wall
-    ctx.beginPath();
-    ctx.moveTo(recessedPts[0].x, recessedPts[0].y - WALL_HEIGHT);
-    for (let i = 1; i < recessedPts.length; i++) {
-      ctx.lineTo(recessedPts[i].x, recessedPts[i].y - WALL_HEIGHT);
-    }
-    ctx.strokeStyle = colors.right;
-    ctx.lineWidth = 0.5;
-    ctx.stroke();
   }
 
   // --- RIGHT WALL bottom-face + borders ---
@@ -578,15 +551,6 @@ export function drawWallEdges(
     // Recess to match drawWallPanels
     const recessedPts = pts.map(p => ({ x: p.x + WALL_THICKNESS, y: p.y - WALL_THICKNESS / 2 }));
 
-    // Border line along top edge (ceiling) — on recessed wall
-    ctx.beginPath();
-    ctx.moveTo(recessedPts[0].x, recessedPts[0].y - WALL_HEIGHT);
-    for (let i = 1; i < recessedPts.length; i++) {
-      ctx.lineTo(recessedPts[i].x, recessedPts[i].y - WALL_HEIGHT);
-    }
-    ctx.strokeStyle = colors.left;
-    ctx.lineWidth = 0.5;
-    ctx.stroke();
   }
 
   // --- FRONT FACES + OUTLINES (drawn after floor so wall is on top) ---
@@ -615,20 +579,6 @@ export function drawWallEdges(
       const recessedPts = leftPts.map(p => ({ x: p.x - capD, y: p.y - capD / 2 }));
       ctx.strokeStyle = lColors.outline;
       ctx.lineWidth = 1;
-      // Ceiling outer edge (recessed)
-      ctx.beginPath();
-      ctx.moveTo(recessedPts[recessedPts.length - 1].x, recessedPts[recessedPts.length - 1].y - WALL_HEIGHT);
-      for (let i = recessedPts.length - 2; i >= 0; i--) {
-        ctx.lineTo(recessedPts[i].x, recessedPts[i].y - WALL_HEIGHT);
-      }
-      ctx.stroke();
-      // Cap inner edge (floor edge)
-      ctx.beginPath();
-      ctx.moveTo(leftPts[0].x, leftPts[0].y - WALL_HEIGHT);
-      for (let i = 1; i < leftPts.length; i++) {
-        ctx.lineTo(leftPts[i].x, leftPts[i].y - WALL_HEIGHT);
-      }
-      ctx.stroke();
     }
   }
 
@@ -654,13 +604,6 @@ export function drawWallEdges(
       // Outline: ceiling + cap edges only
       ctx.strokeStyle = rColors.outline;
       ctx.lineWidth = 1;
-      // Ceiling outer edge
-      ctx.beginPath();
-      ctx.moveTo(rightPts[rightPts.length - 1].x, rightPts[rightPts.length - 1].y - WALL_HEIGHT);
-      for (let i = rightPts.length - 2; i >= 0; i--) {
-        ctx.lineTo(rightPts[i].x, rightPts[i].y - WALL_HEIGHT);
-      }
-      ctx.stroke();
     }
   }
 }
