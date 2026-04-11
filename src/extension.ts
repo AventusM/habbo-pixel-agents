@@ -217,36 +217,37 @@ export function activate(context: vscode.ExtensionContext) {
     );
     // Generate webview URIs for PixelLab character sprites
     const pixellabPngUri = panel.webview.asWebviewUri(
-      vscode.Uri.joinPath(context.extensionUri, 'dist', 'webview-assets', 'pixellab', 'beanie-hoodie-guy.png')
+      vscode.Uri.joinPath(context.extensionUri, 'dist', 'webview-assets', 'pixellab', 'habbo-inspiration-new.png')
     );
     const pixellabJsonUri = panel.webview.asWebviewUri(
-      vscode.Uri.joinPath(context.extensionUri, 'dist', 'webview-assets', 'pixellab', 'beanie-hoodie-guy.json')
+      vscode.Uri.joinPath(context.extensionUri, 'dist', 'webview-assets', 'pixellab', 'habbo-inspiration-new.json')
     );
 
     // Generate webview URIs for team-specific PixelLab atlases
+    // All teams currently use the same habbo-inspiration-new character
     const plPlanningPngUri = panel.webview.asWebviewUri(
-      vscode.Uri.joinPath(context.extensionUri, 'dist', 'webview-assets', 'pixellab', 'pl-planning.png')
+      vscode.Uri.joinPath(context.extensionUri, 'dist', 'webview-assets', 'pixellab', 'habbo-inspiration-new.png')
     );
     const plPlanningJsonUri = panel.webview.asWebviewUri(
-      vscode.Uri.joinPath(context.extensionUri, 'dist', 'webview-assets', 'pixellab', 'pl-planning.json')
+      vscode.Uri.joinPath(context.extensionUri, 'dist', 'webview-assets', 'pixellab', 'habbo-inspiration-new.json')
     );
     const plCoreDevPngUri = panel.webview.asWebviewUri(
-      vscode.Uri.joinPath(context.extensionUri, 'dist', 'webview-assets', 'pixellab', 'pl-core-dev.png')
+      vscode.Uri.joinPath(context.extensionUri, 'dist', 'webview-assets', 'pixellab', 'habbo-inspiration-new.png')
     );
     const plCoreDevJsonUri = panel.webview.asWebviewUri(
-      vscode.Uri.joinPath(context.extensionUri, 'dist', 'webview-assets', 'pixellab', 'pl-core-dev.json')
+      vscode.Uri.joinPath(context.extensionUri, 'dist', 'webview-assets', 'pixellab', 'habbo-inspiration-new.json')
     );
     const plInfrastructurePngUri = panel.webview.asWebviewUri(
-      vscode.Uri.joinPath(context.extensionUri, 'dist', 'webview-assets', 'pixellab', 'pl-infrastructure.png')
+      vscode.Uri.joinPath(context.extensionUri, 'dist', 'webview-assets', 'pixellab', 'habbo-inspiration-new.png')
     );
     const plInfrastructureJsonUri = panel.webview.asWebviewUri(
-      vscode.Uri.joinPath(context.extensionUri, 'dist', 'webview-assets', 'pixellab', 'pl-infrastructure.json')
+      vscode.Uri.joinPath(context.extensionUri, 'dist', 'webview-assets', 'pixellab', 'habbo-inspiration-new.json')
     );
     const plSupportPngUri = panel.webview.asWebviewUri(
-      vscode.Uri.joinPath(context.extensionUri, 'dist', 'webview-assets', 'pixellab', 'pl-support.png')
+      vscode.Uri.joinPath(context.extensionUri, 'dist', 'webview-assets', 'pixellab', 'habbo-inspiration-new.png')
     );
     const plSupportJsonUri = panel.webview.asWebviewUri(
-      vscode.Uri.joinPath(context.extensionUri, 'dist', 'webview-assets', 'pixellab', 'pl-support.json')
+      vscode.Uri.joinPath(context.extensionUri, 'dist', 'webview-assets', 'pixellab', 'habbo-inspiration-new.json')
     );
 
     // --- Message Bridge: register room panel ---
