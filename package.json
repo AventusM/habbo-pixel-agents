@@ -24,6 +24,10 @@
   "contributes": {
     "commands": [
       {
+        "command": "habbo-pixel-agents.configure",
+        "title": "Habbo: Configure Integration"
+      },
+      {
         "command": "habbo-pixel-agents.openRoom",
         "title": "Open Habbo Room"
       },
@@ -123,6 +127,7 @@
     "web": "node esbuild.config.mjs web && node scripts/web-server.mjs",
     "web:serve": "node scripts/web-server.mjs",
     "dashboard": "node esbuild.config.mjs web && node bin/habbo-dashboard.mjs",
+    "configure": "node scripts/configure.mjs",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest"

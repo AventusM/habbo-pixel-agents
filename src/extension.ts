@@ -8,6 +8,7 @@ import type { WebviewMessage, ExtensionMessage, TeamSection } from './agentTypes
 import { fetchKanbanCards } from './githubProjects.js';
 import { fetchAzureDevOpsCards } from './azureDevOpsBoards.js';
 import { MessageBridge } from './messageBridge.js';
+import { readEnvFile, writeEnvFile } from './envConfig.js';
 import { OrchestrationPanelProvider } from './orchestrationPanel.js';
 
 interface KanbanConfig {
@@ -519,6 +520,132 @@ export function activate(context: vscode.ExtensionContext) {
       const count = debugAgents.size;
       debugAgents.clear();
       vscode.window.showInformationMessage(`Despawned all ${count} debug agents`);
+    }),
+  );
+
+  // ── Configure Integration command ──────────────────────────────────────────
+  context.subscriptions.push(
+    vscode.commands.registerCommand('habbo-pixel-agents.configure', async () => {
+      const wsRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+      if (!wsRoot) {
+        vscode.window.showErrorMessage('Habbo: No workspace folder open — cannot write .env');
+        return;
+      }
+
+      const existing = readEnvFile(wsRoot);
+      const def = (k: string) => existing.get(k) ?? '';
+      const updates = new Map<string, string>();
+
+      // Step 1: Kanban source
+      const kanbanSource = await vscode.window.showQuickPick(
+        [
+          { label: 'github', description: 'GitHub Projects board', picked: def('KANBAN_SOURCE') !== 'azuredevops' },
+          { label: 'azuredevops', description: 'Azure DevOps board', picked: def('KANBAN_SOURCE') === 'azuredevops' },
+        ],
+        { placeHolder: 'Kanban source — which board drives wall sticky notes?' },
+      );
+      if (!kanbanSource) return; // user cancelled
+      updates.set('KANBAN_SOURCE', kanbanSource.label);
+
+      // Step 2: GitHub Copilot monitoring (always required)
+      const githubRepo = await vscode.window.showInputBox({
+        prompt: 'GitHub repo to monitor for Copilot agent activity',
+        placeHolder: 'owner/repo',
+        value: def('GITHUB_REPO') || 'owner/repo',
+        validateInput: (v) => (v.includes('/') ? null : 'Must be in owner/repo format'),
+      });
+      if (githubRepo === undefined) return;
+      if (githubRepo && githubRepo !== 'owner/repo') updates.set('GITHUB_REPO', githubRepo);
+
+      const githubToken = await vscode.window.showInputBox({
+        prompt: 'GitHub Personal Access Token (read:repo + read:actions)',
+        placeHolder: 'ghp_...',
+        value: def('GITHUB_TOKEN'),
+        password: true,
+        validateInput: (v) => (!v ? 'Token is required for Copilot monitoring' : null),
+      });
+      if (githubToken === undefined) return;
+      if (githubToken) updates.set('GITHUB_TOKEN', githubToken);
+
+      // Step 3a: GitHub Projects kanban
+      if (kanbanSource.label === 'github') {
+        const ghOwner = await vscode.window.showInputBox({
+          prompt: 'GitHub Project owner (org or user login) — leave blank to skip kanban',
+          placeHolder: 'myorg',
+          value: def('GITHUB_PROJECT_OWNER'),
+        });
+        if (ghOwner === undefined) return;
+        if (ghOwner) {
+          updates.set('GITHUB_PROJECT_OWNER', ghOwner);
+
+          const ownerType = await vscode.window.showQuickPick(
+            [
+              { label: 'org', description: 'GitHub organization', picked: def('GITHUB_PROJECT_OWNER_TYPE') !== 'user' },
+              { label: 'user', description: 'Personal user account', picked: def('GITHUB_PROJECT_OWNER_TYPE') === 'user' },
+            ],
+            { placeHolder: 'Owner type' },
+          );
+          if (!ownerType) return;
+          updates.set('GITHUB_PROJECT_OWNER_TYPE', ownerType.label);
+
+          const projectNumber = await vscode.window.showInputBox({
+            prompt: 'GitHub Projects project number (from the project URL)',
+            placeHolder: '1',
+            value: def('GITHUB_PROJECT_NUMBER') || '0',
+            validateInput: (v) => (isNaN(Number(v)) ? 'Must be a number' : null),
+          });
+          if (projectNumber === undefined) return;
+          if (projectNumber && projectNumber !== '0') updates.set('GITHUB_PROJECT_NUMBER', projectNumber);
+        }
+      }
+
+      // Step 3b: Azure DevOps kanban
+      if (kanbanSource.label === 'azuredevops') {
+        const azdoOrg = await vscode.window.showInputBox({
+          prompt: 'Azure DevOps organization name (from https://dev.azure.com/ORG)',
+          placeHolder: 'mycompany',
+          value: def('AZDO_ORG'),
+        });
+        if (azdoOrg === undefined) return;
+        if (azdoOrg) updates.set('AZDO_ORG', azdoOrg);
+
+        const azdoProject = await vscode.window.showInputBox({
+          prompt: 'Azure DevOps project name',
+          placeHolder: 'MyProject',
+          value: def('AZDO_PROJECT'),
+        });
+        if (azdoProject === undefined) return;
+        if (azdoProject) updates.set('AZDO_PROJECT', azdoProject);
+
+        const azdoPat = await vscode.window.showInputBox({
+          prompt: 'Azure DevOps Personal Access Token (read:work items)',
+          placeHolder: 'your-pat-here',
+          value: def('AZDO_PAT'),
+          password: true,
+        });
+        if (azdoPat === undefined) return;
+        if (azdoPat) updates.set('AZDO_PAT', azdoPat);
+      }
+
+      if (updates.size === 0) {
+        vscode.window.showInformationMessage('Habbo: No changes — .env is already up to date.');
+        return;
+      }
+
+      try {
+        writeEnvFile(wsRoot, updates);
+      } catch (err: unknown) {
+        vscode.window.showErrorMessage(`Habbo: Failed to write .env — ${err instanceof Error ? err.message : String(err)}`);
+        return;
+      }
+
+      const action = await vscode.window.showInformationMessage(
+        `✅ .env updated (${updates.size} var${updates.size !== 1 ? 's' : ''} changed)`,
+        'Reload Window',
+      );
+      if (action === 'Reload Window') {
+        vscode.commands.executeCommand('workbench.action.reloadWindow');
+      }
     }),
   );
 

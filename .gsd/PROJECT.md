@@ -10,9 +10,10 @@ Agent and ticket activity should be understandable at a glance in an authentic H
 
 ## Current State
 
-- The VS Code extension still renders the Habbo room inside a webview and keeps the original JSONL-based agent monitoring flow.
+- The VS Code extension renders the Habbo room inside a webview, keeps the original JSONL-based agent monitoring flow, and now includes a **"Habbo: Configure Integration"** command (Command Palette) that guides contributors through all env vars via a QuickPick/InputBox wizard.
 - The standalone website is fully wired through a local Node server (`scripts/web-server.mjs`) and browser client (`src/web/main.tsx` + `src/web/wsClient.ts`).
-- Website capabilities now include:
+- A **CLI configuration wizard** (`scripts/configure.mjs` / `npm run configure`) walks contributors through KANBAN_SOURCE → source-specific credentials → PORT and writes `.env` — with `--dry-run` and `--yes` flags for CI use.
+- Website capabilities include:
   - shared room, furniture, and avatar rendering
   - WebSocket relay for live agent events
   - Azure DevOps ticket polling with enriched child-item and linked-PR data
@@ -21,15 +22,14 @@ Agent and ticket activity should be understandable at a glance in an authentic H
   - live Copilot speech bubble activity from the sessions API with `sse` / `fast-poll` / `poll` feed modes
   - server-side Azure DevOps "Doing" sync on new Copilot PRs
   - floor slab depth and wall ledge thickness for stronger Habbo-style room depth
-- `REQUIREMENTS.md` still reflects the legacy renderer contract more than the website contract; the M004 milestone artifacts are the current authoritative proof trail for the web work.
 
 ## Architecture / Key Patterns
 
-- Shared Canvas 2D renderer: the extension webview and standalone website consume the same room rendering modules instead of maintaining separate renderers.
-- Shared event protocol: the standalone browser still consumes `extensionMessage` events, which keeps `RoomCanvas` reuse straightforward.
+- Shared Canvas 2D renderer: the extension webview and standalone website consume the same room rendering modules.
+- Shared event protocol: the standalone browser consumes `extensionMessage` events, which keeps `RoomCanvas` reuse straightforward.
 - Local server owns secrets and live integrations: Azure DevOps auth, GitHub/Copilot polling, and WebSocket fanout stay server-side so tokens never enter browser code.
-- Room geometry is pre-rendered for static surfaces; wall panels render before floors, while visible wall ledges render after the floor pass so thickness remains visible.
-- Copilot activity combines multiple signals: PR/workflow polling for lifecycle, sessions API streaming or fallback polling for fine-grained activity, and explicit feed-mode diagnostics surfaced in both server logs and the browser status bar.
+- `.env` management: `src/envConfig.ts` provides `readEnvFile` / `writeEnvFile` helpers shared by the VS Code command and available for future scripts. The CLI wizard (`scripts/configure.mjs`) uses equivalent logic in plain JS.
+- Room geometry is pre-rendered for static surfaces; wall panels render before floors, while visible wall ledges render after the floor pass.
 
 ## Capability Contract
 
@@ -37,7 +37,11 @@ See `.gsd/REQUIREMENTS.md` for the explicit capability contract, requirement sta
 
 ## Milestone Sequence
 
-- [x] M001: Habbo isometric renderer foundation — replace the flat pixel-agents room with a faithful Habbo-style room, furniture, avatars, and audio
-- [x] M002: Polish & extended features — expand room interactions, layouts, builder/editor, orchestration, and overall fit-and-finish
-- [x] M003: PixelLab furniture replacement — swap selected furniture sprites with PixelLab-generated assets and keep the build pipeline working
-- [x] M004: Azure DevOps Board → Habbo Room Website — ship a standalone web dashboard with Azure DevOps tickets, Copilot activity, live speech bubbles, and the shared Habbo room renderer
+- [x] M001: Habbo isometric renderer foundation
+- [x] M002: Polish & extended features
+- [x] M003: PixelLab furniture replacement
+- [x] M004: Azure DevOps Board → Habbo Room Website
+- [x] M005: Extract private `agent-dashboard` package
+- [x] M006: Visual polish & room rendering fixes
+- [x] M007: PixelLab character import
+- [x] M008: Env var configuration wizard — CLI (`npm run configure`) + VS Code command ("Habbo: Configure Integration")
