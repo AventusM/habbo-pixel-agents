@@ -1,7 +1,7 @@
 # Codebase Map
 
-Generated: 2026-04-11T13:24:40Z | Files: 153 | Described: 0/153
-<!-- gsd:codebase-meta {"generatedAt":"2026-04-11T13:24:40Z","fingerprint":"c6e6474c03b5ec75b317b27d70e619c90f3d0c8c","fileCount":153,"truncated":false} -->
+Generated: 2026-04-11T13:39:24Z | Files: 155 | Described: 0/155
+<!-- gsd:codebase-meta {"generatedAt":"2026-04-11T13:39:24Z","fingerprint":"6b68bd2e360df7499a0bb85cd0276e7f64b564e6","fileCount":155,"truncated":false} -->
 
 ### (root)/
 - `.env.example`
@@ -111,6 +111,7 @@ Generated: 2026-04-11T13:24:40Z | Files: 153 | Described: 0/153
 - `packages/agent-dashboard/src/dashboard/index.html`
 
 ### scripts/
+- `scripts/configure.mjs`
 - `scripts/convert-audio-to-ogg.sh`
 - `scripts/convert-cortex-to-nitro.mjs`
 - `scripts/create-ado-template.sh`
@@ -125,7 +126,7 @@ Generated: 2026-04-11T13:24:40Z | Files: 153 | Described: 0/153
 - `scripts/web-server.mjs`
 
 ### src/
-- *(39 files: 36 .ts, 3 .tsx)*
+- *(40 files: 37 .ts, 3 .tsx)*
 
 ### src/web/
 - `src/web/copilotMonitor.ts`
