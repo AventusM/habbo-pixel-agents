@@ -1,0 +1,13 @@
+{"ts":"2026-04-11T13:11:22.187Z","flowId":"110410df-db9a-4992-8a27-20818982d624","seq":1,"eventType":"iteration-start","data":{"iteration":1}}
+{"ts":"2026-04-11T13:11:22.617Z","flowId":"110410df-db9a-4992-8a27-20818982d624","seq":2,"eventType":"dispatch-match","rule":"validating-milestone → validate-milestone","data":{"unitType":"validate-milestone","unitId":"M003"}}
+{"ts":"2026-04-11T13:11:22.635Z","flowId":"110410df-db9a-4992-8a27-20818982d624","seq":3,"eventType":"unit-start","data":{"unitType":"validate-milestone","unitId":"M003"}}
+{"ts":"2026-04-11T13:25:01.367Z","flowId":"e3b5604b-24ef-4630-bbeb-d0a0c907f5b4","seq":1,"eventType":"iteration-start","data":{"iteration":1}}
+{"ts":"2026-04-11T13:25:01.823Z","flowId":"e3b5604b-24ef-4630-bbeb-d0a0c907f5b4","seq":2,"eventType":"dispatch-match","rule":"completing-milestone → complete-milestone","data":{"unitType":"complete-milestone","unitId":"M005"}}
+{"ts":"2026-04-11T13:25:01.841Z","flowId":"e3b5604b-24ef-4630-bbeb-d0a0c907f5b4","seq":3,"eventType":"unit-start","data":{"unitType":"complete-milestone","unitId":"M005"}}
+{"ts":"2026-04-11T13:35:17.115Z","flowId":"09c37c3e-7eb0-48fb-8c75-15f6265e4110","seq":1,"eventType":"iteration-start","data":{"iteration":1}}
+{"ts":"2026-04-11T13:35:17.606Z","flowId":"09c37c3e-7eb0-48fb-8c75-15f6265e4110","seq":2,"eventType":"dispatch-match","rule":"completing-milestone → complete-milestone","data":{"unitType":"complete-milestone","unitId":"M005"}}
+{"ts":"2026-04-11T13:35:17.623Z","flowId":"09c37c3e-7eb0-48fb-8c75-15f6265e4110","seq":3,"eventType":"unit-start","data":{"unitType":"complete-milestone","unitId":"M005"}}
+{"ts":"2026-04-11T13:39:24.238Z","flowId":"09c37c3e-7eb0-48fb-8c75-15f6265e4110","seq":4,"eventType":"unit-end","data":{"unitType":"complete-milestone","unitId":"M005","status":"completed","artifactVerified":true},"causedBy":{"flowId":"09c37c3e-7eb0-48fb-8c75-15f6265e4110","seq":3}}
+{"ts":"2026-04-11T13:58:42.146Z","flowId":"d30f75ca-8e58-4621-b060-dce037d5d848","seq":1,"eventType":"iteration-start","data":{"iteration":1}}
+{"ts":"2026-04-11T13:58:42.538Z","flowId":"d30f75ca-8e58-4621-b060-dce037d5d848","seq":2,"eventType":"dispatch-match","rule":"planning (no research, not S01) → research-slice","data":{"unitType":"research-slice","unitId":"M007/S02"}}
+{"ts":"2026-04-11T13:58:42.565Z","flowId":"d30f75ca-8e58-4621-b060-dce037d5d848","seq":3,"eventType":"unit-start","data":{"unitType":"research-slice","unitId":"M007/S02"}}
