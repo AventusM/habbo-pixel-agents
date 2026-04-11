@@ -216,17 +216,27 @@ const spriteCache = new SpriteCache();
       onWsStateChange(updateStatusBar);
       updateStatusBar(getWsState());
 
-      // Fallback: if no real agents arrive within 5 seconds, start demo mode
-      setTimeout(() => {
-        if (!hasRealAgents()) {
-          console.log('[Web] No real agents detected — starting demo mode');
-          isDemoMode = true;
-          updateStatusBar(getWsState());
-          scheduleDemoEvents();
-        } else {
-          console.log('[Web] Real agents active — demo mode skipped');
-        }
-      }, 5000);
+      // Force demo mode with ?demo in the URL
+      const forceDemoMode = new URLSearchParams(window.location.search).has('demo');
+
+      if (forceDemoMode) {
+        console.log('[Web] Demo query param detected — starting demo mode immediately');
+        isDemoMode = true;
+        updateStatusBar(getWsState());
+        scheduleDemoEvents();
+      } else {
+        // Fallback: if no real agents arrive within 5 seconds, start demo mode
+        setTimeout(() => {
+          if (!hasRealAgents()) {
+            console.log('[Web] No real agents detected — starting demo mode');
+            isDemoMode = true;
+            updateStatusBar(getWsState());
+            scheduleDemoEvents();
+          } else {
+            console.log('[Web] Real agents active — demo mode skipped');
+          }
+        }, 5000);
+      }
     }
   } catch (error) {
     console.error('Asset loading failed:', error);
