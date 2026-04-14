@@ -24,6 +24,9 @@ coverage/
 # Environment variables (contains PATs)
 .env
 
+# MCP config (contains API keys)
+.mcp.json
+
 # macOS system files
 .DS_Store
 
