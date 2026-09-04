@@ -34,8 +34,15 @@ The pi TUI crashes if any single output line exceeds the terminal width (~144 ch
 
 ## Project State
 
-- **State files**: `.gsd/` directory (PROJECT.md, STATE.md, DECISIONS.md, REQUIREMENTS.md)
-- **Milestones**: `.gsd/milestones/M001/` (v1 complete), `.gsd/milestones/M002/` (v2 in progress)
+- **Framework**: GSD Pi (`@opengsd/gsd-pi`) v1.18+ — SQLite-authoritative state (`.gsd/gsd.db`) with markdown projections; migrated from legacy markdown-only GSD 2 on 2026-09-04
+- **State files**: `.gsd/` directory (PROJECT.md, DECISIONS.md, REQUIREMENTS.md, KNOWLEDGE.md); runtime DB is gitignored
+- **Legacy history**: `.gsd/archive/milestones-pre-gsd3-20260904/` (M001–M008 from GSD 2 era, read-only reference — all complete except M007/S02)
 - **Quick fixes**: `.gsd/quick/` (Q01-Q05, migrated from legacy `.planning/quick/`)
 - **Todos**: `.gsd/todos/` (done + pending)
-- **Archive**: `.gsd/archive/` (v1 roadmap and config, read-only reference)
+- **Diagnostics**: `/gsd doctor` validates DB/projection integrity; `gsd headless query` for non-interactive state snapshot
+
+### GSD migration notes (2026-09-04)
+
+- Legacy markdown import into the new DB was blocked by 222 `requires-user` diagnoses (`.planning`-era artifacts); v1.18.0 ships no resolution surface for them
+- Resolution: legacy state archived (git commit `73ca36e`), project restarted on a clean DB
+- Next step: re-register M007 (PixelLab Character Import) — S01 was complete (PR #48), S02 "Wire into renderer & calibrate" was pending
