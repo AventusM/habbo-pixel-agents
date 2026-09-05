@@ -214,7 +214,7 @@ async function startAgentManager() {
       return;
     }
 
-    const { createAgentManager, readAzureDevOpsEnv, fetchEnrichedCards, createCopilotMonitor, readGitHubEnv } = await import(serverBundle);
+    const { createAgentManager, readAzureDevOpsEnv, fetchEnrichedCards, createCopilotMonitor, readGitHubEnv, readGitHubProjectsEnv, fetchKanbanCards } = await import(serverBundle);
 
     // Start local JSONL agent watcher (skip with --no-local flag)
     if (!skipLocalAgents) {
@@ -227,9 +227,21 @@ async function startAgentManager() {
       console.log('[Server] Local agent watching skipped (--no-local)');
     }
 
-    // Start Azure DevOps kanban polling if configured
+    // Start Azure DevOps kanban polling if configured.
+    // Provider selection: KANBAN_SOURCE=github|azuredevops forces one; unset
+    // prefers ADO when fully configured, else falls back to GitHub Projects.
     const adoConfig = readAzureDevOpsEnv();
-    if (adoConfig.organization && adoConfig.project && adoConfig.pat) {
+    const ghProjectsConfig = readGitHubProjectsEnv();
+    const adoConfigured = !!(adoConfig.organization && adoConfig.project && adoConfig.pat);
+    const ghProjectsConfigured = !!(ghProjectsConfig.owner && ghProjectsConfig.projectNumber > 0);
+    const useAdoKanban =
+      ghProjectsConfig.kanbanSource === 'azuredevops' ||
+      (ghProjectsConfig.kanbanSource === '' && adoConfigured);
+    const useGitHubKanban =
+      ghProjectsConfig.kanbanSource === 'github' ||
+      (ghProjectsConfig.kanbanSource === '' && !adoConfigured && ghProjectsConfigured);
+
+    if (useAdoKanban && adoConfigured) {
       console.log(`[Kanban] Azure DevOps configured: ${adoConfig.organization}/${adoConfig.project}`);
 
       // Initial fetch
@@ -253,8 +265,42 @@ async function startAgentManager() {
         }, adoConfig.pollIntervalSeconds * 1000);
         console.log(`[Kanban] Polling every ${adoConfig.pollIntervalSeconds}s`);
       }
-    } else {
-      console.log('[Kanban] No Azure DevOps config (set AZDO_ORG, AZDO_PROJECT, AZDO_PAT)');
+    } else if (useGitHubKanban && ghProjectsConfigured) {
+      console.log(`[Kanban] GitHub Projects configured: ${ghProjectsConfig.owner}/${ghProjectsConfig.projectNumber}`);
+
+      // Initial fetch (fetchKanbanCards is synchronous, uses gh CLI, silent-fails to [])
+      const ghCards = fetchKanbanCards(
+        ghProjectsConfig.owner,
+        ghProjectsConfig.projectNumber,
+        ghProjectsConfig.ownerType,
+      );
+      if (ghCards.length > 0) {
+        lastKanbanCards = ghCards;
+        broadcast({ type: 'kanbanCards', cards: ghCards });
+        console.log(`[Kanban] Initial fetch: ${ghCards.length} cards`);
+      } else {
+        console.log('[Kanban] GitHub Projects initial fetch returned 0 cards (check gh auth: gh auth status)');
+      }
+
+      // Poll on interval
+      if (ghProjectsConfig.pollIntervalSeconds > 0) {
+        kanbanPollId = setInterval(() => {
+          try {
+            const polledCards = fetchKanbanCards(
+              ghProjectsConfig.owner,
+              ghProjectsConfig.projectNumber,
+              ghProjectsConfig.ownerType,
+            );
+            lastKanbanCards = polledCards;
+            broadcast({ type: 'kanbanCards', cards: polledCards });
+          } catch (err) {
+            console.warn('[Kanban] Poll failed:', err.message);
+          }
+        }, ghProjectsConfig.pollIntervalSeconds * 1000);
+        console.log(`[Kanban] Polling every ${ghProjectsConfig.pollIntervalSeconds}s`);
+      }
+    } else if (!adoConfigured) {
+      console.log('[Kanban] No kanban source configured (set AZDO_ORG/AZDO_PROJECT/AZDO_PAT, or KANBAN_SOURCE=github with GITHUB_PROJECT_OWNER/GITHUB_PROJECT_NUMBER)');
     }
 
     // Start GitHub Copilot coding agent monitor if configured
