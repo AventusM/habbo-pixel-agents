@@ -1,0 +1,16 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "gsd": {
+      "type": "local",
+      "command": [
+        "node",
+        "/Users/antonmoroz/.volta/tools/image/packages/@opengsd/gsd-pi/lib/node_modules/@opengsd/gsd-pi/packages/mcp-server/bin/gsd-mcp-server.js"
+      ],
+      "enabled": true,
+      "env": {
+        "GSD_CLI_PATH": "/Users/antonmoroz/.volta/bin/gsd"
+      }
+    }
+  }
+}
