@@ -47,7 +47,10 @@ const DEMO_AGENTS: Array<{
 export function scheduleDemoEvents(): void {
   console.log('[Demo] Scheduling demo agent events...');
 
-  // Send demo kanban cards with enriched data
+  // Send demo kanban cards with enriched data.
+  // Dispatched after a short delay: the room's extensionMessage listener
+  // attaches in a React effect after first paint — a synchronous dispatch
+  // here would fire before any listener exists and the cards would be lost.
   const demoCards: KanbanCard[] = [
     {
       id: '101', title: 'Implement room renderer', status: 'Doing',
@@ -74,7 +77,9 @@ export function scheduleDemoEvents(): void {
     { id: '105', title: 'Deploy to staging', status: 'Done', workItemType: 'Task', assignee: 'Carol' },
     { id: '106', title: 'Write tests for pathfinding', status: 'Done', workItemType: 'Task' },
   ];
-  dispatch({ type: 'kanbanCards', cards: demoCards });
+  setTimeout(() => {
+    dispatch({ type: 'kanbanCards', cards: demoCards });
+  }, 100);
 
   let delay = 500;
 
