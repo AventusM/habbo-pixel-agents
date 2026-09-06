@@ -213,6 +213,16 @@ habbo-pixel-agents/
 
 See [docs/guides/COPILOT-AGENT-MONITOR.md](docs/guides/COPILOT-AGENT-MONITOR.md) for the full GitHub Actions workflow that syncs Copilot PR events with Azure DevOps board state.
 
+## Architecture
+
+How the system really works — module graph, data flow, render pipeline, asset
+pipeline, event lifecycle, and the failure-mode inventory (each mapped to a
+real incident), plus the target architecture:
+
+**[docs/architecture/ARCHITECTURE.md](docs/architecture/ARCHITECTURE.md)**
+
+Regenerate the module graph with `npm run arch:graph`.
+
 ## Development
 
 ### Build and test

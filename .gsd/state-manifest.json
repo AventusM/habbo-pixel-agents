@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "exported_at": "2026-09-06T08:10:25.405Z",
+  "exported_at": "2026-09-06T17:30:43.988Z",
   "requirements": [],
   "artifacts": [
     {
@@ -52,6 +52,16 @@
       "full_content": "# M002: Restore Original Habbo Figure Avatar System\n\n**Vision:** Restore the Nitro multi-layer Habbo figure avatar system from git history (deleted in 17.8 for copyright): authentic 8-direction walks via 5 sprite directions + mirrors, layered body-part composition with outfit tinting, sitting, blinking, and the sprite-sheet debug grid. Figure assets are downloaded locally per dev machine and gitignored (never committed), matching the furniture asset posture that survived 17.8. The PixelLab/RD single-sprite renderer stays as the fallback when figure assets are absent.\n\n## Success Criteria\n\n- Agents render as original Habbo figures with authentic 8-direction walking (no perspective breaks)\n- Restored figure renderer + outfit config tests pass in the current codebase\n- Figure assets download locally, gitignored, never committed (verified)\n- AvatarDebugGrid (sprite-sheet debug view) restored and reachable\n- PixelLab/RD renderer remains the fallback when figure assets are absent\n\n## Slices\n\n- [ ] **S01: Recover & adapt figure renderer code** `risk:medium` `depends:[]`\n  > After this: Figure renderer module + outfit config compile in-tree with restored tests passing under vitest (no in-app wiring yet).\n\n- [ ] **S02: Restore figure asset pipeline (local-only assets)** `risk:low` `depends:[S01]`\n  > After this: Running the download script fetches figure assets into assets/habbo/ (local only), converts to Nitro sprites, and the manifest lists figures; git status stays clean of figure files.\n\n- [ ] **S03: Wire figure renderer into the room + debug grid** `risk:medium` `depends:[S01,S02]`\n  > After this: Agents in localhost:3000 render as original Habbo figures, walking in all 8 directions with correct perspective; debug grid viewable for the figure atlas.\n\n## Boundary Map\n\n| In scope | Out of scope |\n|---|---|\n| isoAvatarRenderer + avatarOutfitConfig restore from 586772b^ | AvatarBuilderModal/builder UI (follow-up) |\n| Figure asset download pipeline (local-only, gitignored) | Committing any figure assets (never) |\n| Renderer selection + fallback wiring | Changing the RD/PixelLab pipeline (stays as fallback) |\n| AvatarDebugGrid sprite-sheet debug view | Furniture pipeline changes |\n<!-- gsd:state-version=4:0 -->\n",
       "imported_at": "2026-09-06T08:10:24.976Z",
       "content_hash": "ee2ae651163d02fea711768f24def23378dbe887b2bf7fc5af84e139a130a96c"
+    },
+    {
+      "path": "phases/03-refactor-architecture-map-failure-mode-h/03-ROADMAP.md",
+      "artifact_type": "ROADMAP",
+      "milestone_id": "M003",
+      "slice_id": null,
+      "task_id": null,
+      "full_content": "# M003: Refactor: Architecture Map, Failure-Mode Hardening, Render Layers, State Store\n\n**Vision:** Make the current architecture visible, harden the places that demonstrably go wrong, and formalize the patterns that emerged ad hoc during feature work. Deliver an honest architecture map (module graph, data flow, render pipeline, event flow) as living docs; extract the canvas/asset/bootstrap concerns out of the 1,882-line RoomCanvas; turn the ad-hoc render-layer caches into an explicit layer pipeline; consolidate app state (agents, cards, camera, demo-vs-live) behind a typed store with explicit invalidation. Keep the room pixel-perfect and fast throughout (536-test suite + visual UAT as guardrails).\n\n## Success Criteria\n\n- Living architecture docs (generated module graph + hand-annotated data flow, render pipeline, event lifecycle, asset pipeline) committed and regenerable\n- Failure-mode inventory: every known incident mapped to root cause, guard, and residual risk\n- Single asset-bootstrap for web + extension; typed event bus with startup replay; degraded states visible in UI\n- CanvasStage + WorldLayer pipeline extracted from RoomCanvas; module-level renderer state eliminated\n- Typed app-state store with explicit demo/live mode machine; WS reconnect regression-tested\n- Suite green throughout; pan/zoom/idle render cadence not regressed (measured)\n\n## Slices\n\n- [ ] **S01: Architecture visualization + honest current-state map** `risk:low` `depends:[]`\n  > After this: docs/architecture/ with mermaid diagrams (module graph generated via madge, hand-annotated data-flow + render-pipeline + event-lifecycle diagrams), plus a documented failure-mode inventory with the concrete incidents that demonstrated each (canvas sizing races, demo event lost pre-listener, silent fallbacks, typecheck .tsx gap).\n\n- [ ] **S02: Failure-mode hardening: bootstrap, event bus, surfaced degradation** `risk:medium` `depends:[S01]`\n  > After this: Demo page with the network tab throttled: no lost cards; a degraded board fetch shows a visible indicator; both loaders share one bootstrap module (diff shows deletion of duplicated code).\n\n- [ ] **S03: Render layer pipeline: formalize room, notes, and dynamic layers** `risk:medium` `depends:[S01]`\n  > After this: CanvasStage owns canvas+layers; RoomCanvas shrank by the extracted code; pan/zoom/walk performance not worse (measured render cadence); behavior identical.\n\n- [ ] **S04: Typed app-state store: agents, cards, camera, mode** `risk:medium` `depends:[S03]`\n  > After this: WS drop + reconnect: agents clear/repopulate via store transitions; demo fallback triggers via an explicit mode transition; kanban filter/notes invalidation flows through store subscriptions.\n\n## Boundary Map\n\n| In scope | Out of scope |\n|---|---|\n| RoomCanvas decomposition (CanvasStage, layer pipeline) | Avatar builder UI (separate follow-up) |\n| Shared asset bootstrap + typed event bus + replay | New features on the room (visual changes) |\n| Typed app-state store (agents/cards/mode/camera) | Changing asset formats or the RD/PixelLab pipelines |\n| Failure-mode inventory + degraded-state surfacing | Rewriting renderers (draw functions stay, signatures may widen) |\n<!-- gsd:state-version=5:0 -->\n",
+      "imported_at": "2026-09-06T17:30:43.453Z",
+      "content_hash": "d2f8583904d28e68cfd7afd81501b19634426350a6e1f3cddd8f1a65207857f9"
     }
   ],
   "milestones": [
@@ -172,6 +182,72 @@
       ],
       "requirement_coverage": "Not provided.",
       "boundary_map_markdown": "| In scope | Out of scope |\n|---|---|\n| isoAvatarRenderer + avatarOutfitConfig restore from 586772b^ | AvatarBuilderModal/builder UI (follow-up) |\n| Figure asset download pipeline (local-only, gitignored) | Committing any figure assets (never) |\n| Renderer selection + fallback wiring | Changing the RD/PixelLab pipeline (stays as fallback) |\n| AvatarDebugGrid sprite-sheet debug view | Furniture pipeline changes |",
+      "sequence": 0
+    },
+    {
+      "id": "M003",
+      "title": "Refactor: Architecture Map, Failure-Mode Hardening, Render Layers, State Store",
+      "status": "planned",
+      "depends_on": [],
+      "created_at": "2026-09-06T17:20:48.723Z",
+      "completed_at": null,
+      "vision": "Make the current architecture visible, harden the places that demonstrably go wrong, and formalize the patterns that emerged ad hoc during feature work. Deliver an honest architecture map (module graph, data flow, render pipeline, event flow) as living docs; extract the canvas/asset/bootstrap concerns out of the 1,882-line RoomCanvas; turn the ad-hoc render-layer caches into an explicit layer pipeline; consolidate app state (agents, cards, camera, demo-vs-live) behind a typed store with explicit invalidation. Keep the room pixel-perfect and fast throughout (536-test suite + visual UAT as guardrails).",
+      "success_criteria": [
+        "Living architecture docs (generated module graph + hand-annotated data flow, render pipeline, event lifecycle, asset pipeline) committed and regenerable",
+        "Failure-mode inventory: every known incident mapped to root cause, guard, and residual risk",
+        "Single asset-bootstrap for web + extension; typed event bus with startup replay; degraded states visible in UI",
+        "CanvasStage + WorldLayer pipeline extracted from RoomCanvas; module-level renderer state eliminated",
+        "Typed app-state store with explicit demo/live mode machine; WS reconnect regression-tested",
+        "Suite green throughout; pan/zoom/idle render cadence not regressed (measured)"
+      ],
+      "key_risks": [
+        {
+          "risk": "Refactoring the render loop regresses the carefully tuned perf (Q13)",
+          "whyItMatters": "Visible jank on mobile would undo user-approved behavior; every extraction needs cadence measurements"
+        },
+        {
+          "risk": "Behavioral drift in VS Code extension vs standalone web paths",
+          "whyItMatters": "Two consumers of shared modules; a bootstrap/store change can silently break one side"
+        },
+        {
+          "risk": "Big-bang extraction of RoomCanvas",
+          "whyItMatters": "1,882 lines with interwoven effects; must be incremental (extract, verify, commit) or the suite will not catch breakage"
+        }
+      ],
+      "proof_strategy": [
+        {
+          "riskOrUnknown": "Architecture map reflects reality (not aspiration)",
+          "retireIn": "M003/S01",
+          "whatWillBeProven": "Generated module graph + diagrams cross-checked against actual call sites; each failure-mode row cites an incident"
+        },
+        {
+          "riskOrUnknown": "Event timing cannot lose messages",
+          "retireIn": "M003/S02",
+          "whatWillBeProven": "Regression test: dispatch before listener attach still delivers (replay)"
+        },
+        {
+          "riskOrUnknown": "Layer pipeline performs at least as well as Q13 hand-tuning",
+          "retireIn": "M003/S03",
+          "whatWillBeProven": "Render cadence + pan frame measurements before/after"
+        },
+        {
+          "riskOrUnknown": "Store migration does not change visible behavior",
+          "retireIn": "M003/S04",
+          "whatWillBeProven": "WS reconnect + demo transition tests; visual UAT"
+        }
+      ],
+      "verification_contract": "S01 artifact-verified (docs + inventory). S02/S03/S04 runtime-verified (tests + browser UAT); S03 additionally performance-measured. v2",
+      "verification_integration": "Web + extension boot paths both exercise the shared bootstrap; store subscriptions feed both the render loop and the overlay panel.",
+      "verification_operational": "Degraded-state chip; mode-transition logs; render counters (executed vs skipped).",
+      "verification_uat": "Human confirms room behavior identical (mobile + desktop) after each slice; docs read as accurate.",
+      "definition_of_done": [
+        "All slices runtime/artifact verified with human UAT on the Pages demo",
+        "RoomCanvas materially smaller; no duplicated loaders; no module-level mutable renderer state",
+        "Architecture docs committed with regeneration script",
+        "Failure-mode inventory lives next to the docs and is updated by future incidents"
+      ],
+      "requirement_coverage": "Not provided.",
+      "boundary_map_markdown": "| In scope | Out of scope |\n|---|---|\n| RoomCanvas decomposition (CanvasStage, layer pipeline) | Avatar builder UI (separate follow-up) |\n| Shared asset bootstrap + typed event bus + replay | New features on the room (visual changes) |\n| Typed app-state store (agents/cards/mode/camera) | Changing asset formats or the RD/PixelLab pipelines |\n| Failure-mode inventory + degraded-state surfacing | Rewriting renderers (draw functions stay, signatures may widen) |",
       "sequence": 0
     }
   ],
@@ -298,6 +374,104 @@
       "observability_impact": "Renderer selection logged at startup (which avatar system is active).",
       "target_repositories": [],
       "sequence": 3,
+      "replan_triggered_at": null,
+      "is_sketch": 0,
+      "sketch_scope": ""
+    },
+    {
+      "milestone_id": "M003",
+      "id": "S01",
+      "title": "Architecture visualization + honest current-state map",
+      "status": "pending",
+      "risk": "low",
+      "depends": [],
+      "demo": "docs/architecture/ with mermaid diagrams (module graph generated via madge, hand-annotated data-flow + render-pipeline + event-lifecycle diagrams), plus a documented failure-mode inventory with the concrete incidents that demonstrated each (canvas sizing races, demo event lost pre-listener, silent fallbacks, typecheck .tsx gap).",
+      "created_at": "2026-09-06T17:30:43.022Z",
+      "completed_at": null,
+      "full_summary_md": "",
+      "full_uat_md": "",
+      "goal": "Generate and commit living architecture documentation that shows how the system REALLY works today: module dependency graph, runtime data flow (WS/events -> store -> render loop -> layers), asset pipeline (download/convert/pack/dist), render-layer pipeline, and an event/message flow map including timing-sensitive spots.",
+      "success_criteria": "1) docs/architecture/ committed: module graph (generated), data-flow, render-pipeline, event-lifecycle, asset-pipeline diagrams. 2) Failure-mode inventory table: symptom, root cause, current guard, residual risk. 3) Diagrams regenerate via one npm script. 4) Each claim traceable to a real incident or code location.",
+      "proof_level": "artifact",
+      "integration_closure": "Docs committed and linked from README; diagrams referenced by later slices as the refactor target state.",
+      "observability_impact": "npm script for diagram regeneration.",
+      "target_repositories": [],
+      "sequence": 1,
+      "replan_triggered_at": null,
+      "is_sketch": 0,
+      "sketch_scope": ""
+    },
+    {
+      "milestone_id": "M003",
+      "id": "S02",
+      "title": "Failure-mode hardening: bootstrap, event bus, surfaced degradation",
+      "status": "pending",
+      "risk": "medium",
+      "depends": [
+        "S01"
+      ],
+      "demo": "Demo page with the network tab throttled: no lost cards; a degraded board fetch shows a visible indicator; both loaders share one bootstrap module (diff shows deletion of duplicated code).",
+      "created_at": "2026-09-06T17:30:43.023Z",
+      "completed_at": null,
+      "full_summary_md": "",
+      "full_uat_md": "",
+      "goal": "Fix the demonstrated failure classes at their root: (a) extract a single asset-bootstrap module used by BOTH web and extension loaders (kill the duplicated 7-call loaders), (b) make the extensionMessage event bus lifecycle-safe (typed dispatch, listener-ready gate or replay buffer so early events like demo cards cannot be lost), (c) surface silent degradation (11 return-[] sites) as observable states instead of console-only warnings.",
+      "success_criteria": "1) One asset-bootstrap module; web + extension loaders call it (duplicated loader code deleted). 2) Event bus: typed emit/on with startup replay (or attach-before-dispatch guarantee) + test proving a demo kanbanCards dispatch survives listener attachment timing. 3) Degraded data states visible in UI (e.g. status chip: board source live/demo/degraded). 4) Full suite green; no behavior change in healthy paths.",
+      "proof_level": "runtime",
+      "integration_closure": "Web + extension boot paths verified; demo and live agent paths both exercise the replay guarantee.",
+      "observability_impact": "Degraded-state chip in the status bar; bootstrap logs aggregated.",
+      "target_repositories": [],
+      "sequence": 2,
+      "replan_triggered_at": null,
+      "is_sketch": 0,
+      "sketch_scope": ""
+    },
+    {
+      "milestone_id": "M003",
+      "id": "S03",
+      "title": "Render layer pipeline: formalize room, notes, and dynamic layers",
+      "status": "pending",
+      "risk": "medium",
+      "depends": [
+        "S01"
+      ],
+      "demo": "CanvasStage owns canvas+layers; RoomCanvas shrank by the extracted code; pan/zoom/walk performance not worse (measured render cadence); behavior identical.",
+      "created_at": "2026-09-06T17:30:43.023Z",
+      "completed_at": null,
+      "full_summary_md": "",
+      "full_uat_md": "",
+      "goal": "Generalize the ad-hoc Q12/Q13 pattern (room buffer, notes layer, visible-slice blit, input-change invalidation, throttle) into an explicit WorldLayer pipeline with a frame scheduler, and extract it (plus camera/input handling) out of RoomCanvas into a CanvasStage module. Module-level mutable state in renderers (hit areas, action rects) becomes per-stage state.",
+      "success_criteria": "1) WorldLayer interface: render(invalidation inputs), blit(visible rect), invalidate() — room + notes + (new) any future layer. 2) Frame scheduler: throttle semantics from Q13 formalized (immediate on camera/motion, cadence when static). 3) CanvasStage extracted; RoomCanvas line count materially reduced; module-level renderer state moved into stage-owned structures. 4) Perf check: idle + pan cadence measured, no regression vs Q13. 5) Suite green.",
+      "proof_level": "runtime",
+      "integration_closure": "All world-space drawing flows through the layer pipeline; renderers expose pure draw functions taking (ctx, inputs).",
+      "observability_impact": "Debug counter: renders executed vs skipped per second (dev overlay or log).",
+      "target_repositories": [],
+      "sequence": 3,
+      "replan_triggered_at": null,
+      "is_sketch": 0,
+      "sketch_scope": ""
+    },
+    {
+      "milestone_id": "M003",
+      "id": "S04",
+      "title": "Typed app-state store: agents, cards, camera, mode",
+      "status": "pending",
+      "risk": "medium",
+      "depends": [
+        "S03"
+      ],
+      "demo": "WS drop + reconnect: agents clear/repopulate via store transitions; demo fallback triggers via an explicit mode transition; kanban filter/notes invalidation flows through store subscriptions.",
+      "created_at": "2026-09-06T17:30:43.024Z",
+      "completed_at": null,
+      "full_summary_md": "",
+      "full_uat_md": "",
+      "goal": "Consolidate scattered app state (kanbanCardsRef, orchStateRef, agent statuses, demo-vs-live flag, camera) behind a small typed store with explicit update/subscribe semantics that feeds the frame scheduler — replacing per-ref ad-hoc mutation and the implicit 5s demo fallback timer with an explicit mode state machine (booting -> live / demo).",
+      "success_criteria": "1) Typed store modules (agents, kanban, mode) with update + subscribe; RoomCanvas/overlay read via subscriptions. 2) Demo-vs-live is an explicit store state machine; the 5s fallback is a transition, not a timer side-effect. 3) WS reconnect semantics preserved (clearAgents path) with a regression test. 4) Suite green; visual behavior unchanged.",
+      "proof_level": "runtime",
+      "integration_closure": "Render loop consumes store snapshots; no direct ref mutation outside the store for migrated state.",
+      "observability_impact": "Mode transitions logged (booting -> live/demo/degraded).",
+      "target_repositories": [],
+      "sequence": 4,
       "replan_triggered_at": null,
       "is_sketch": 0,
       "sketch_scope": ""

@@ -130,7 +130,8 @@
     "configure": "node scripts/configure.mjs",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "arch:graph": "node scripts/generate-arch-graph.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
@@ -140,6 +141,7 @@
     "@types/ws": "^8.18.1",
     "esbuild": "^0.27.3",
     "happy-dom": "^20.7.0",
+    "madge": "^8.0.0",
     "pngjs": "^7.0.0",
     "typescript": "^5.7.0",
     "vitest": "^3.0.0"

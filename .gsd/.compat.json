@@ -1,7 +1,7 @@
 {
   "schema": 2,
   "lastWriter": "gsd-pi",
-  "lastProjectedAt": "2026-09-06T08:10:24.977Z",
+  "lastProjectedAt": "2026-09-06T18:14:29.460Z",
   "projections": {
     "phases/01-retrodiffusion-as-primary-pixel-art-sour/01-ROADMAP.md": {
       "sha": "82da4065ce32fabf",
@@ -10,7 +10,7 @@
       ]
     },
     "DECISIONS.md": {
-      "sha": "ef41eaf4da4b5f5b",
+      "sha": "585bce2eb214e302",
       "entities": []
     },
     "phases/01-retrodiffusion-as-primary-pixel-art-sour/01-01-RESEARCH.md": {
@@ -38,6 +38,12 @@
       "entities": [
         "M002",
         "M002/S01"
+      ]
+    },
+    "phases/03-refactor-architecture-map-failure-mode-h/03-ROADMAP.md": {
+      "sha": "d2f8583904d28e68",
+      "entities": [
+        "M003"
       ]
     }
   },
