@@ -7,6 +7,13 @@ import { writeFileSync, unlinkSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
 import type { KanbanCard } from './agentTypes.js';
+import { truncateText, parseChecklistSection } from './kanbanText.js';
+
+/** Max characters of issue description kept on the card (WS payload + panel budget) */
+const MAX_DESCRIPTION_CHARS = 600;
+
+/** Body sections treated as the card's done-checklist (epic "DoD", slice success criteria) */
+const DOD_SECTION_PATTERN = /(?:definition of done|\bdod\b|success criteria)/i;
 
 /**
  * Fetch kanban cards from a GitHub Projects v2 board via the gh CLI.
@@ -64,6 +71,14 @@ export function fetchKanbanCards(
                 content {
                   ... on Issue {
                     title
+                    body
+                    bodyText
+                    url
+                    labels(first: 10) {
+                      nodes {
+                        name
+                      }
+                    }
                   }
                   ... on PullRequest {
                     title
@@ -106,7 +121,13 @@ export function fetchKanbanCards(
             items: {
               nodes: Array<{
                 id: string;
-                content: { title?: string | null } | null;
+                content: {
+                  title?: string | null;
+                  body?: string | null;
+                  bodyText?: string | null;
+                  url?: string | null;
+                  labels?: { nodes: Array<{ name?: string | null }> };
+                } | null;
                 fieldValues: {
                   nodes: Array<{
                     name?: string;
@@ -130,7 +151,27 @@ export function fetchKanbanCards(
         );
         const status = statusFieldValue?.name ?? 'No Status';
 
-        return { id: item.id, title, status };
+        const labels = (item.content?.labels?.nodes ?? [])
+          .map((n) => n.name)
+          .filter((n): n is string => Boolean(n));
+
+        const bodyText = item.content?.bodyText ?? '';
+        const description = bodyText
+          ? truncateText(bodyText.trim(), MAX_DESCRIPTION_CHARS)
+          : undefined;
+
+        const body = item.content?.body ?? '';
+        const dod = body ? parseChecklistSection(body, DOD_SECTION_PATTERN) : [];
+
+        return {
+          id: item.id,
+          title,
+          status,
+          labels,
+          ...(description ? { description } : {}),
+          ...(item.content?.url ? { url: item.content.url } : {}),
+          ...(dod.length > 0 ? { dod } : {}),
+        };
       });
     } finally {
       try {

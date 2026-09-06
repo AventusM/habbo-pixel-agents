@@ -4,7 +4,6 @@
      To reverse a decision, add a new row that supersedes it.
      Read this file at the start of any planning or research phase. -->
 
-| # | When | Scope | Decision | Choice | Rationale | Revisable? |
-|---|------|-------|----------|--------|-----------|------------|
-| D001 | M005 | architecture | Where the extracted agent-dashboard package lives | Monorepo — packages/agent-dashboard/ inside this repo with npm workspaces | Simplest development workflow: one checkout, one PR, workspace link means the Habbo repo consumes it directly. No cross-repo coordination. Private package published from the same CI. | Yes |
-| D002 | M005 | architecture | Default frontend shipped with agent-dashboard package | Lightweight React app as the default dashboard frontend | User preference. React is already a dependency of this repo. Provides richer UI out of the box (component composition, state management) compared to vanilla DOM. | Yes |
+| # | When | Scope | Decision | Choice | Rationale | Revisable? | Made By |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| D001 | M001/S01 evaluation, 2026-09-05. Evidence: .gsd/reports/m001-s01-testgen/EVALUATION.md + base-104-a/b.png | asset-pipeline | Primary source of truth for generated character sprites | Adopt RetroDiffusion (rd_pro__default + animation styles) as the primary generation source; PixelLab archived. Pack-script manifest format retained as the renderer contract. | PixelLab is unavailable; RetroDiffusion is live with reference-image consistency, an exact 48px walk+idle style matching the legacy pack format, 8-dir rotation sets, per-frame advanced animations, free cost estimation, and measured Habbo-viable output quality (test generation 2026-09-05, $0.36). Cost: ~$0.86/char at 48px parity, ~$3.21/char at 104px parity. | Revisit if PixelLab returns or RD quality degrades; 48px-first S02 proof may reshape the 104px composition strategy. | collaborative |

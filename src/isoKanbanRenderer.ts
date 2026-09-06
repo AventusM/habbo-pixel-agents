@@ -8,6 +8,48 @@
 import type { TileGrid } from './isoTypes.js';
 import type { KanbanCard } from './agentTypes.js';
 import { tileToScreen, TILE_W_HALF, TILE_H_HALF, WALL_HEIGHT } from './isometricMath.js';
+import { wrapMonospace } from './kanbanText.js';
+
+// ---------------------------------------------------------------------------
+// Expanded-note action rect (click-to-open-in-browser)
+// ---------------------------------------------------------------------------
+
+/** Screen-space rect of the expanded note's footer action zone (set while drawing) */
+let expandedNoteActionRect: { x: number; y: number; w: number; h: number; url: string } | null = null;
+
+/** Hit rect for the expanded note's footer action (null when no note with URL is open) */
+export function getExpandedNoteActionRect(): { x: number; y: number; w: number; h: number; url: string } | null {
+  return expandedNoteActionRect;
+}
+
+/** Hit rects for rows in the expanded aggregate note list (set while drawing) */
+let aggregateRowHitAreas: Array<{ x: number; y: number; w: number; h: number; cardId: string }> = [];
+
+/** Row hit areas for the open aggregate list — clicking a row opens that card's detail panel */
+export function getAggregateRowHitAreas(): Array<{ x: number; y: number; w: number; h: number; cardId: string }> {
+  return aggregateRowHitAreas;
+}
+
+export interface KanbanNavRect {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+export interface KanbanNavRects {
+  prev: KanbanNavRect;
+  next: KanbanNavRect;
+  back: KanbanNavRect | null;
+}
+
+/** Hit rects for the expanded note's nav bar (prev/back/next), set while drawing */
+let expandedNoteNavRects: KanbanNavRects | null = null;
+
+/** Nav bar hit rects for the open detail panel (null when no detail is drawn) */
+export function getExpandedNoteNavRects(): KanbanNavRects | null {
+  return expandedNoteNavRects;
+}
 
 // Status column → sticky note background color
 const KANBAN_COLORS: Record<string, string> = {
@@ -488,15 +530,42 @@ export function drawExpandedNote(
   card: KanbanCard,
   canvasWidth: number,
   canvasHeight: number,
+  nav?: { canBack: boolean },
 ): void {
-  // Calculate dynamic panel height based on content
-  const baseHeight = 100;
-  const childrenHeight = card.children ? (card.children.length * 14 + 20) : 0;
-  const prsHeight = card.linkedPrs ? (card.linkedPrs.length * 14 + 20) : 0;
-  const assigneeHeight = card.assignee ? 16 : 0;
+  expandedNoteActionRect = null;
+  aggregateRowHitAreas = [];
+  expandedNoteNavRects = null;
 
-  const panelW = 240;
-  const panelH = Math.min(350, baseHeight + childrenHeight + prsHeight + assigneeHeight);
+  // Calculate dynamic panel height based on content
+  const baseHeight = 130;
+  const childrenHeight = card.children ? (card.children.length * 18 + 32) : 0;
+  const prsHeight = card.linkedPrs ? (card.linkedPrs.length * 18 + 30) : 0;
+  const assigneeHeight = card.assignee ? 26 : 0;
+
+  // Description: 9px Press Start 2P in a 560px panel → ~58 chars/line
+  const descLines = card.description
+    ? wrapMonospace(card.description, 58, 12)
+    : [];
+  const descHeight = descLines.length > 0 ? descLines.length * 16 + 18 : 0;
+
+  // Definition-of-done checklist: full text, wrapped per item (5 lines max each)
+  const dodItems = card.dod ? card.dod.slice(0, 10) : [];
+  const dodWrapped = dodItems.map((item) => wrapMonospace(item.text, 56, 5));
+  const dodLinesTotal = dodWrapped.reduce((sum, lines) => sum + lines.length, 0);
+  const dodHeight = dodWrapped.length > 0 ? dodLinesTotal * 16 + 22 : 0;
+
+  // Labels: one chip row (wraps to at most 2 rows)
+  const labelChips = card.labels && card.labels.length > 0 ? card.labels.slice(0, 6) : [];
+  const labelsHeight = labelChips.length > 0 ? 22 : 0;
+
+  // Nav strip (prev / back / next)
+  const navHeight = nav ? 28 : 0;
+
+  const panelW = 560;
+  const panelH = Math.min(
+    640,
+    baseHeight + descHeight + dodHeight + labelsHeight + childrenHeight + prsHeight + assigneeHeight + navHeight,
+  );
   const cx = canvasWidth / 2;
   const cy = canvasHeight / 2;
   const px = cx - panelW / 2;
@@ -504,7 +573,7 @@ export function drawExpandedNote(
 
   const color = statusToColor(card.status);
   const fold = foldColor(card.status);
-  const foldSize = 16;
+  const foldSize = 20;
 
   ctx.save();
 
@@ -535,110 +604,166 @@ export function drawExpandedNote(
   ctx.fillStyle = fold;
   ctx.fill();
 
-  let curY = py + 10;
+  let curY = py + 14;
 
   // Work item type badge + status badge (side by side)
-  ctx.font = '6px "Press Start 2P"';
+  ctx.font = '9px "Press Start 2P"';
   if (card.workItemType) {
     const typeText = card.workItemType.toUpperCase();
-    const typeW = ctx.measureText(typeText).width + 8;
+    const typeW = ctx.measureText(typeText).width + 10;
     ctx.fillStyle = workItemTypeColor(card.workItemType);
-    ctx.fillRect(px + 8, curY, typeW, 12);
+    ctx.fillRect(px + 12, curY, typeW, 18);
     ctx.fillStyle = '#fff';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
-    ctx.fillText(typeText, px + 12, curY + 3);
+    ctx.fillText(typeText, px + 17, curY + 5);
 
     // Status badge after type
     const badgeText = card.status.toUpperCase();
-    const badgeW = ctx.measureText(badgeText).width + 8;
+    const badgeW = ctx.measureText(badgeText).width + 10;
     ctx.fillStyle = 'rgba(0,0,0,0.5)';
-    ctx.fillRect(px + 8 + typeW + 4, curY, badgeW, 12);
+    ctx.fillRect(px + 12 + typeW + 6, curY, badgeW, 18);
     ctx.fillStyle = '#fff';
-    ctx.fillText(badgeText, px + 12 + typeW + 4, curY + 3);
+    ctx.fillText(badgeText, px + 17 + typeW + 6, curY + 5);
   } else {
     const badgeText = card.status.toUpperCase();
-    const badgeW = ctx.measureText(badgeText).width + 8;
+    const badgeW = ctx.measureText(badgeText).width + 10;
     ctx.fillStyle = 'rgba(0,0,0,0.5)';
-    ctx.fillRect(px + 8, curY, badgeW, 12);
+    ctx.fillRect(px + 12, curY, badgeW, 18);
     ctx.fillStyle = '#fff';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
-    ctx.fillText(badgeText, px + 12, curY + 3);
+    ctx.fillText(badgeText, px + 17, curY + 5);
   }
-  curY += 18;
+  curY += 26;
 
   // Title (word-wrapped)
-  ctx.font = '8px "Press Start 2P"';
+  ctx.font = '13px "Press Start 2P"';
   ctx.fillStyle = '#1a1a2e';
   ctx.textAlign = 'left';
   ctx.textBaseline = 'top';
-  const maxLineW = panelW - 24;
+  const maxLineW = panelW - 32;
   const words = card.title.split(' ');
   let line = '';
   for (const word of words) {
     const test = line ? line + ' ' + word : word;
     if (ctx.measureText(test).width > maxLineW && line) {
-      ctx.fillText(line, px + 12, curY);
+      ctx.fillText(line, px + 16, curY);
       line = word;
-      curY += 14;
+      curY += 20;
     } else {
       line = test;
     }
   }
   if (line) {
-    ctx.fillText(line, px + 12, curY);
-    curY += 14;
+    ctx.fillText(line, px + 16, curY);
+    curY += 20;
+  }
+
+  // Labels (chip row)
+  if (labelChips.length > 0) {
+    ctx.font = '8px "Press Start 2P"';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    let chipX = px + 16;
+    const chipY = curY;
+    for (const label of labelChips) {
+      const chipW = ctx.measureText(label.toUpperCase()).width + 10;
+      if (chipX + chipW > px + panelW - 16) break;
+      ctx.fillStyle = 'rgba(0,0,0,0.55)';
+      ctx.fillRect(chipX, chipY, chipW, 17);
+      ctx.fillStyle = '#e2e8f0';
+      ctx.fillText(label.toUpperCase(), chipX + 5, chipY + 5);
+      chipX += chipW + 6;
+    }
+    curY += labelsHeight;
+  }
+
+  // Description (plain text, word-wrapped, capped)
+  if (descLines.length > 0) {
+    curY += 6;
+    ctx.font = '9px "Press Start 2P"';
+    ctx.fillStyle = 'rgba(26,26,46,0.85)';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    for (const descLine of descLines) {
+      ctx.fillText(descLine, px + 16, curY);
+      curY += 16;
+    }
+    curY += 6;
+  }
+
+  // Definition-of-done / success-criteria checklist (full text, wrapped)
+  if (dodItems.length > 0) {
+    curY += 6;
+    ctx.font = '9px "Press Start 2P"';
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    ctx.fillText('DEFINITION OF DONE', px + 16, curY);
+    curY += 16;
+    for (let i = 0; i < dodItems.length; i++) {
+      const item = dodItems[i];
+      const lines = dodWrapped[i];
+      const mark = item.done ? '\u2713' : '\u25CB';
+      ctx.fillStyle = item.done ? '#15803d' : 'rgba(26,26,46,0.75)';
+      ctx.fillText(mark, px + 16, curY);
+      for (let j = 0; j < lines.length; j++) {
+        ctx.fillStyle = item.done ? 'rgba(0,0,0,0.35)' : '#1a1a2e';
+        ctx.fillText(lines[j], px + 34, curY);
+        curY += 16;
+      }
+    }
   }
 
   // Assignee
   if (card.assignee) {
     curY += 4;
-    ctx.font = '6px "Press Start 2P"';
+    ctx.font = '9px "Press Start 2P"';
     ctx.fillStyle = 'rgba(0,0,0,0.5)';
-    ctx.fillText(`👤 ${card.assignee}`, px + 12, curY);
-    curY += 14;
+    ctx.fillText(`👤 ${card.assignee}`, px + 16, curY);
+    curY += 20;
   }
 
   // Children (sub-tasks)
   if (card.children && card.children.length > 0) {
     curY += 6;
-    ctx.font = '6px "Press Start 2P"';
+    ctx.font = '9px "Press Start 2P"';
     ctx.fillStyle = 'rgba(0,0,0,0.6)';
     const completed = card.children.filter(c => c.completed).length;
-    ctx.fillText(`SUB-TASKS (${completed}/${card.children.length})`, px + 12, curY);
-    curY += 12;
+    ctx.fillText(`SUB-TASKS (${completed}/${card.children.length})`, px + 16, curY);
+    curY += 18;
 
     // Progress bar
-    const barW = panelW - 24;
+    const barW = panelW - 32;
     const barH = 4;
     ctx.fillStyle = 'rgba(0,0,0,0.15)';
-    ctx.fillRect(px + 12, curY, barW, barH);
+    ctx.fillRect(px + 16, curY, barW, barH);
     if (card.children.length > 0) {
       ctx.fillStyle = completed === card.children.length ? '#22c55e' : '#3b82f6';
-      ctx.fillRect(px + 12, curY, barW * (completed / card.children.length), barH);
+      ctx.fillRect(px + 16, curY, barW * (completed / card.children.length), barH);
     }
-    curY += 8;
+    curY += 10;
 
     for (const child of card.children) {
       const check = child.completed ? '✓' : '○';
       const childColor = child.completed ? 'rgba(0,0,0,0.35)' : '#1a1a2e';
       ctx.fillStyle = childColor;
-      const childTitle = child.title.length > 28
-        ? child.title.slice(0, 26) + '..'
+      const childTitle = child.title.length > 50
+        ? child.title.slice(0, 48) + '..'
         : child.title;
-      ctx.fillText(`${check} ${childTitle}`, px + 14, curY);
-      curY += 12;
+      ctx.fillText(`${check} ${childTitle}`, px + 18, curY);
+      curY += 18;
     }
   }
 
   // Linked PRs
   if (card.linkedPrs && card.linkedPrs.length > 0) {
     curY += 6;
-    ctx.font = '6px "Press Start 2P"';
+    ctx.font = '9px "Press Start 2P"';
     ctx.fillStyle = 'rgba(0,0,0,0.6)';
-    ctx.fillText(`PULL REQUESTS (${card.linkedPrs.length})`, px + 12, curY);
-    curY += 12;
+    ctx.fillText(`PULL REQUESTS (${card.linkedPrs.length})`, px + 16, curY);
+    curY += 18;
 
     for (const pr of card.linkedPrs) {
       const prIcon = pr.status === 'completed' ? '✓' : pr.status === 'abandoned' ? '✗' : '⬤';
@@ -646,25 +771,69 @@ export function drawExpandedNote(
                        pr.status === 'abandoned' ? '#ef4444' : '#3b82f6';
       ctx.fillStyle = prColor;
       ctx.beginPath();
-      ctx.arc(px + 18, curY + 4, 3, 0, Math.PI * 2);
+      ctx.arc(px + 24, curY + 6, 3, 0, Math.PI * 2);
       ctx.fill();
       ctx.fillStyle = '#1a1a2e';
-      const prTitle = pr.title.length > 26
-        ? pr.title.slice(0, 24) + '..'
+      const prTitle = pr.title.length > 48
+        ? pr.title.slice(0, 46) + '..'
         : pr.title;
-      ctx.fillText(prTitle, px + 24, curY);
-      curY += 12;
+      ctx.fillText(prTitle, px + 34, curY);
+      curY += 18;
     }
   }
 
-  // Close hint
-  ctx.font = '5px "Press Start 2P"';
-  ctx.fillStyle = 'rgba(0,0,0,0.4)';
+  // Nav strip: prev / back / next clickable zones
+  if (nav) {
+    const stripH = 22;
+    const stripY = py + panelH - 26 - 28;
+    const zoneW = nav.canBack ? Math.floor((panelW - 24) / 3) : Math.floor((panelW - 24) / 2);
+    ctx.font = '8px "Press Start 2P"';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+
+    const drawZone = (x: number, w: number, label: string): KanbanNavRect => {
+      ctx.fillStyle = 'rgba(0,0,0,0.5)';
+      ctx.fillRect(x, stripY, w, stripH);
+      ctx.fillStyle = '#e2e8f0';
+      ctx.fillText(label, x + w / 2, stripY + 7);
+      return { x, y: stripY, w, h: stripH };
+    };
+
+    const prevRect = drawZone(px + 8, zoneW, '\u25C0 PREV');
+    let backRect: KanbanNavRect | null = null;
+    let nextX: number;
+    if (nav.canBack) {
+      backRect = drawZone(px + 8 + zoneW + 4, zoneW, '\u25B2 BACK');
+      nextX = px + 8 + 2 * (zoneW + 4);
+    } else {
+      nextX = px + 8 + zoneW + 4;
+    }
+    const nextW = nav.canBack ? zoneW : zoneW * 2 - 8;
+    const nextRect = drawZone(nextX, nextW, 'NEXT \u25B6');
+    expandedNoteNavRects = { prev: prevRect, next: nextRect, back: backRect };
+  }
+
+  // Footer: clickable "open in browser" zone when the card has a URL, else plain hint
   ctx.textAlign = 'center';
-  ctx.fillText('click to close', cx, py + panelH - 10);
+  if (card.url) {
+    const footerH = 26;
+    const footerY = py + panelH - footerH;
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    ctx.fillRect(px + 8, footerY, panelW - 16, footerH - 8);
+    ctx.font = '9px "Press Start 2P"';
+    ctx.fillStyle = '#7dd3fc';
+    ctx.fillText('OPEN IN BROWSER ↗', cx, footerY + 9);
+    expandedNoteActionRect = { x: px + 8, y: footerY, w: panelW - 16, h: footerH - 2, url: card.url };
+  } else {
+    ctx.font = '7px "Press Start 2P"';
+    ctx.fillStyle = 'rgba(0,0,0,0.4)';
+    ctx.fillText('click to close', cx, py + panelH - 14);
+  }
 
   ctx.restore();
 }
+
+
 
 /**
  * Draw an expanded aggregate note overlay centered on the canvas.
@@ -677,6 +846,10 @@ export function drawExpandedAggregateNote(
   canvasWidth: number,
   canvasHeight: number,
 ): void {
+  expandedNoteActionRect = null;
+  aggregateRowHitAreas = [];
+  expandedNoteNavRects = null;
+
   const label = aggregateType === 'todo' ? 'TODO' : 'DONE';
   const color = aggregateType === 'todo' ? '#fef08a' : '#86efac';
   const fold = aggregateType === 'todo' ? '#eab308' : '#22c55e';
@@ -776,13 +949,20 @@ export function drawExpandedAggregateNote(
     }
     ctx.fillStyle = '#1a1a2e';
     ctx.fillText(title, px + 22, itemY + 2);
+
+    // Click affordance: chevron on the row's right edge
+    ctx.fillStyle = 'rgba(0,0,0,0.35)';
+    ctx.fillText('\u203A', px + panelW - 16, itemY + 2);
+
+    // Row hit area for click-through to the card's detail panel
+    aggregateRowHitAreas.push({ x: px, y: itemY, w: panelW, h: lineHeight, cardId: card.id });
   }
 
   // Close hint
   ctx.font = '5px "Press Start 2P"';
   ctx.fillStyle = 'rgba(0,0,0,0.4)';
   ctx.textAlign = 'center';
-  ctx.fillText('click to close', cx, py + panelH - 10);
+  ctx.fillText('click item for details · click to close', cx, py + panelH - 10);
 
   ctx.restore();
 }

@@ -58,6 +58,8 @@ _migrate.mjs
 .gsd/gsd.db
 .gsd/gsd.db-shm
 .gsd/gsd.db-wal
+.gsd/audit/
+.gsd/backups/
 Thumbs.db
 *.swp
 *.swo

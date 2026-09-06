@@ -30,11 +30,25 @@ export interface AgentState {
   displayName?: string;
 }
 
+/** A checklist item from a work item body (e.g. Definition of Done) */
+export interface KanbanCardChecklistItem {
+  text: string;
+  done: boolean;
+}
+
 /** A card from a GitHub Projects v2 kanban board or Azure DevOps */
 export interface KanbanCard {
   id: string;
   title: string;
   status: string; // raw status column name from GitHub Projects
+  /** GitHub labels on the issue (empty for draft issues and PRs) */
+  labels?: string[];
+  /** Plain-text issue description (truncated) */
+  description?: string;
+  /** Issue URL for opening the work item in the browser */
+  url?: string;
+  /** DoD / success-criteria checklist parsed from the issue body */
+  dod?: KanbanCardChecklistItem[];
   /** Work item type (e.g. "User Story", "Bug", "Task") */
   workItemType?: string;
   /** Assigned user display name */

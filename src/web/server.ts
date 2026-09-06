@@ -83,3 +83,28 @@ export async function fetchEnrichedCards(
 ): Promise<KanbanCard[]> {
   return fetchAzureDevOpsCards(organization, project, pat, { includeRelations: true });
 }
+
+/**
+ * Read GitHub Projects v2 kanban config from environment variables.
+ */
+export function readGitHubProjectsEnv(): {
+  owner: string;
+  ownerType: 'org' | 'user';
+  projectNumber: number;
+  pollIntervalSeconds: number;
+  kanbanSource: 'github' | 'azuredevops' | '';
+} {
+  const ownerType = process.env.GITHUB_PROJECT_OWNER_TYPE === 'org' ? 'org' : 'user';
+  const kanbanSourceRaw = process.env.KANBAN_SOURCE || '';
+  const kanbanSource =
+    kanbanSourceRaw === 'github' || kanbanSourceRaw === 'azuredevops' ? kanbanSourceRaw : '';
+  return {
+    owner: process.env.GITHUB_PROJECT_OWNER || '',
+    ownerType,
+    projectNumber: parseInt(process.env.GITHUB_PROJECT_NUMBER || '0', 10),
+    pollIntervalSeconds: parseInt(process.env.GITHUB_PROJECT_POLL_INTERVAL || '60', 10),
+    kanbanSource,
+  };
+}
+
+export { fetchKanbanCards } from '../githubProjects.js';

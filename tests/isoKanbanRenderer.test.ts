@@ -2,7 +2,7 @@
 // Unit tests for isoKanbanRenderer: color mapping, note rendering, aggregate notes
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { statusToColor, drawKanbanNotes, drawExpandedAggregateNote, getNoteHitAreas } from '../src/isoKanbanRenderer.js';
+import { statusToColor, drawKanbanNotes, drawExpandedNote, drawExpandedAggregateNote, getNoteHitAreas, getExpandedNoteNavRects, getAggregateRowHitAreas } from '../src/isoKanbanRenderer.js';
 import type { KanbanCard } from '../src/agentTypes.js';
 import type { TileGrid } from '../src/isoTypes.js';
 
@@ -213,6 +213,34 @@ describe('drawKanbanNotes', () => {
 // drawExpandedAggregateNote
 // ---------------------------------------------------------------------------
 
+describe('drawExpandedNote nav bar', () => {
+  const card: KanbanCard = { id: 'a', title: 'Card A', status: 'Backlog', url: 'https://x.y/1' };
+
+  it('draws prev/next zones and clears state between draws', () => {
+    const ctx = makeMockCtx();
+    drawExpandedNote(ctx, card, 900, 700, { canBack: false });
+    const nav = getExpandedNoteNavRects();
+    expect(nav).not.toBeNull();
+    expect(nav!.prev.w).toBeGreaterThan(0);
+    expect(nav!.next.w).toBeGreaterThan(0);
+    expect(nav!.back).toBeNull();
+
+    // Aggregate draw clears stale nav rects
+    drawExpandedAggregateNote(ctx, 'todo', [card], 900, 700);
+    expect(getExpandedNoteNavRects()).toBeNull();
+  });
+
+  it('draws a back zone when the note was opened from an aggregate', () => {
+    const ctx = makeMockCtx();
+    drawExpandedNote(ctx, card, 900, 700, { canBack: true });
+    const nav = getExpandedNoteNavRects();
+    expect(nav!.back).not.toBeNull();
+    // prev and next don't overlap
+    expect(nav!.prev.x + nav!.prev.w).toBeLessThanOrEqual(nav!.back!.x);
+    expect(nav!.back!.x + nav!.back!.w).toBeLessThanOrEqual(nav!.next.x);
+  });
+});
+
 describe('drawExpandedAggregateNote', () => {
   it('draws backlog aggregate overlay without throwing', () => {
     const ctx = makeMockCtx();
@@ -249,6 +277,30 @@ describe('drawExpandedAggregateNote', () => {
     drawExpandedAggregateNote(ctx, 'backlog', cards, 640, 480);
     // arc is called for each card's status dot
     expect(ctx.arc).toHaveBeenCalledTimes(3);
+  });
+
+  it('stores a row hit rect per card for click-through', () => {
+    const ctx = makeMockCtx();
+    const cards: KanbanCard[] = [
+      { id: 'a', title: 'Card A', status: 'Todo' },
+      { id: 'b', title: 'Card B', status: 'Done' },
+    ];
+    drawExpandedAggregateNote(ctx, 'todo', cards, 800, 600);
+    const rows = getAggregateRowHitAreas();
+    expect(rows.map((r) => r.cardId)).toEqual(['a', 'b']);
+    for (const r of rows) {
+      expect(r.w).toBeGreaterThan(0);
+      expect(r.x + r.w).toBeLessThanOrEqual(800);
+      expect(r.y + r.h).toBeLessThanOrEqual(600);
+    }
+  });
+
+  it('clears row hit areas when redrawn with no cards', () => {
+    const ctx = makeMockCtx();
+    drawExpandedAggregateNote(ctx, 'todo', [{ id: 'a', title: 'A', status: 'Todo' }], 800, 600);
+    expect(getAggregateRowHitAreas()).toHaveLength(1);
+    drawExpandedAggregateNote(ctx, 'todo', [], 800, 600);
+    expect(getAggregateRowHitAreas()).toEqual([]);
   });
 
   it('truncates long titles in aggregate overlay', () => {
