@@ -47,17 +47,19 @@ const DEFAULT_HSB: HsbColor = { h: 220, s: 25, b: 80 };
 export function initCanvas(canvas: HTMLCanvasElement): CanvasRenderingContext2D {
   const dpr = window.devicePixelRatio || 1;
 
+  // Re-assert container-relative CSS sizing so offsetWidth reflects the
+  // current layout (React inline styles are not re-applied after this runs)
+  canvas.style.width = '100%';
+  canvas.style.height = '100%';
+
   // Set physical pixel dimensions
   canvas.width = Math.floor(canvas.offsetWidth * dpr);
   canvas.height = Math.floor(canvas.offsetHeight * dpr);
 
-  // Keep CSS size
-  canvas.style.width = canvas.offsetWidth + 'px';
-  canvas.style.height = canvas.offsetHeight + 'px';
-
   const ctx = canvas.getContext('2d')!;
 
-  // Scale context for HiDPI
+  // Reset any previous transform, then scale for HiDPI (safe to re-run on resize)
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.scale(dpr, dpr);
 
   // Disable image smoothing for pixel-crisp rendering

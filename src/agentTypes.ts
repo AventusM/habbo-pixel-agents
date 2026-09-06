@@ -87,6 +87,7 @@ export type ExtensionMessage =
   | { type: 'kanbanCards'; cards: KanbanCard[] }
   | { type: 'devMode'; enabled: boolean }
   | { type: 'requestClassification'; agentId: string }
+  | { type: 'clearAgents' }
   // Sidebar control panel → room webview (relayed via extension host)
   | { type: 'jumpToSection'; team: string }
   | { type: 'toggleOverlay' }

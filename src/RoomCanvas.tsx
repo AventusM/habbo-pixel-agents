@@ -11,8 +11,7 @@ import type { SpriteCache } from './isoSpriteCache.js';
 import { drawSpeechBubble } from './isoBubbleRenderer.js';
 import { drawNameTag } from './isoNameTagRenderer.js';
 import { habboRenderer } from './isoAvatarRenderer.js';
-import type { AvatarRenderer } from './avatarRendererTypes.js';
-import { tileToScreen, TILE_W_HALF, TILE_H_HALF } from './isometricMath.js';
+import { tileToScreen, TILE_W_HALF, TILE_H_HALF, TILE_H, WALL_HEIGHT } from './isometricMath.js';
 import {
   filterKanbanCards,
   nextKanbanFilterMode,
@@ -43,7 +42,7 @@ import type { KanbanCard } from './agentTypes.js';
 import { computeBlockedTiles } from './isoPathfinding.js';
 import { drawKanbanNotes, drawExpandedNote, drawExpandedAggregateNote, getNoteHitAreas, getExpandedNoteActionRect, getExpandedNoteNavRects, getAggregateRowHitAreas, pointInQuad } from './isoKanbanRenderer.js';
 import type { CameraState } from './cameraController.js';
-import { createCameraState, applyZoom, applyCameraTransform, screenToWorld } from './cameraController.js';
+import { createCameraState, applyZoom, applyCameraTransform, screenToWorld, clampZoom, setZoomWithPivot } from './cameraController.js';
 import { screenToTile } from './isometricMath.js';
 import { SectionManager } from './sectionManager.js';
 import { type FloorTemplate, buildSectionColorMap } from './roomLayoutEngine.js';
@@ -66,6 +65,35 @@ interface RoomCanvasProps {
 
 // Avatar sprite height for name tag positioning (Nitro figure sprites)
 const AVATAR_HEIGHT = 65;
+
+/**
+ * Zoom level that fits the whole room (floor + walls) into the viewport.
+ * Uses the same bounding math as computeCameraOrigin; clamped ≤ 1 so desktop
+ * layouts that already fit are unaffected. Returns ≥ clampZoom minimum.
+ */
+function computeFitZoom(
+  grid: TileGrid,
+  viewportWidth: number,
+  viewportHeight: number,
+): number {
+  let minSx = Infinity, maxSx = -Infinity, minSy = Infinity, maxSy = -Infinity;
+  let hasTiles = false;
+  for (let ty = 0; ty < grid.height; ty++) {
+    for (let tx = 0; tx < grid.width; tx++) {
+      if (grid.tiles[ty][tx] == null) continue;
+      hasTiles = true;
+      const { x: sx, y: sy } = tileToScreen(tx, ty, 0);
+      minSx = Math.min(minSx, sx - TILE_W_HALF);
+      maxSx = Math.max(maxSx, sx + TILE_W_HALF);
+      minSy = Math.min(minSy, sy);
+      maxSy = Math.max(maxSy, sy + TILE_H);
+    }
+  }
+  if (!hasTiles) return 1;
+  const roomW = maxSx - minSx;
+  const roomH = (maxSy - minSy) + WALL_HEIGHT;
+  return clampZoom(Math.min(1, viewportWidth / roomW, viewportHeight / roomH));
+}
 
 export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: RoomCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -604,6 +632,12 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
       canvas.offsetHeight
     );
 
+    // Fit the room to the viewport on small screens (zoom clamps at 1 on desktop)
+    const fitZoom = computeFitZoom(grid, canvas.offsetWidth, canvas.offsetHeight);
+    if (fitZoom < renderState.current.cameraState.zoom) {
+      renderState.current.cameraState.zoom = fitZoom;
+    }
+
     const furniture: FurnitureSpec[] = [];
 
     // Initialize section manager, apply section floor colors, and place teleport booths
@@ -1117,6 +1151,103 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
     return () => canvas.removeEventListener('wheel', handler);
   }, []);
 
+  // Window resize: re-init the canvas backing store, recenter, and re-render
+  // the offscreen room buffer (otherwise enlarged windows show cropped areas)
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const onResize = () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        initCanvas(canvas);
+        if (renderState.current.grid) {
+          renderState.current.cameraOrigin = computeCameraOrigin(
+            renderState.current.grid,
+            canvas.offsetWidth,
+            canvas.offsetHeight,
+          );
+          reRenderRoom();
+        }
+      }, 150);
+    };
+    window.addEventListener('resize', onResize);
+    return () => {
+      window.removeEventListener('resize', onResize);
+      if (timer) clearTimeout(timer);
+    };
+  }, []);
+
+  // Touch: 1-finger pan, 2-finger pinch zoom (mobile viewport navigation)
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    let panStart: { x: number; y: number; panX: number; panY: number } | null = null;
+    let pinchStart: { dist: number; zoom: number; midX: number; midY: number } | null = null;
+
+    const canvasPoint = (clientX: number, clientY: number) => {
+      const rect = canvas.getBoundingClientRect();
+      return {
+        x: (clientX - rect.left) * (canvas.offsetWidth / rect.width),
+        y: (clientY - rect.top) * (canvas.offsetHeight / rect.height),
+      };
+    };
+    const touchDist = (t: Touch[]) => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
+    const touchMid = (t: Touch[]) => canvasPoint(
+      (t[0].clientX + t[1].clientX) / 2,
+      (t[0].clientY + t[1].clientY) / 2,
+    );
+
+    const onTouchStart = (e: TouchEvent) => {
+      if (e.touches.length === 1) {
+        const t = e.touches[0];
+        const p = canvasPoint(t.clientX, t.clientY);
+        panStart = { x: p.x, y: p.y, panX: renderState.current.cameraState.panX, panY: renderState.current.cameraState.panY };
+        pinchStart = null;
+      } else if (e.touches.length === 2) {
+        panStart = null;
+        pinchStart = {
+          dist: touchDist(Array.from(e.touches)),
+          zoom: renderState.current.cameraState.zoom,
+          midX: touchMid(Array.from(e.touches)).x,
+          midY: touchMid(Array.from(e.touches)).y,
+        };
+      }
+    };
+
+    const onTouchMove = (e: TouchEvent) => {
+      e.preventDefault();
+      const cam = renderState.current.cameraState;
+      if (e.touches.length === 2 && pinchStart) {
+        const dist = touchDist(Array.from(e.touches));
+        const mid = touchMid(Array.from(e.touches));
+        const target = pinchStart.zoom * (dist / Math.max(1, pinchStart.dist));
+        setZoomWithPivot(cam, target, pinchStart.midX, pinchStart.midY, canvas.offsetWidth, canvas.offsetHeight);
+      } else if (e.touches.length === 1 && panStart) {
+        const t = e.touches[0];
+        const p = canvasPoint(t.clientX, t.clientY);
+        cam.panX = panStart.panX + (p.x - panStart.x);
+        cam.panY = panStart.panY + (p.y - panStart.y);
+      }
+    };
+
+    const onTouchEnd = () => {
+      panStart = null;
+      pinchStart = null;
+    };
+
+    canvas.addEventListener('touchstart', onTouchStart, { passive: true });
+    canvas.addEventListener('touchmove', onTouchMove, { passive: false });
+    canvas.addEventListener('touchend', onTouchEnd, { passive: true });
+    canvas.addEventListener('touchcancel', onTouchEnd, { passive: true });
+    return () => {
+      canvas.removeEventListener('touchstart', onTouchStart);
+      canvas.removeEventListener('touchmove', onTouchMove);
+      canvas.removeEventListener('touchend', onTouchEnd);
+      canvas.removeEventListener('touchcancel', onTouchEnd);
+    };
+  }, []);
+
   const handleClick = async (event: React.MouseEvent<HTMLCanvasElement>) => {
     // Skip click if user was dragging the camera
     if (dragRef.current.didDrag) {
@@ -1564,7 +1695,7 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
       />}
       <canvas
         ref={canvasRef}
-        style={{ width: '100%', height: '100%', display: 'block' }}
+        style={{ width: '100%', height: '100%', display: 'block', touchAction: 'none' }}
         onMouseDown={handleMouseDown}
         onMouseUp={handleMouseUp}
         onMouseMove={handleMouseMove}
