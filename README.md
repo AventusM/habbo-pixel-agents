@@ -225,59 +225,98 @@ Regenerate the module graph with `npm run arch:graph`.
 
 ### At a glance
 
-Three hosts feed one room. The room only understands `extensionMessage` window
-events — hosts are aggregation adapters, and a demo driver plays synthetic
-events when no server is present.
+#### 1. Who feeds the room, with what
+
+Three hosts converge on one event bus. The room itself only understands
+`extensionMessage` window events (typed union in `src/agentTypes.ts`) — hosts
+are aggregation adapters.
 
 ```mermaid
 flowchart LR
-  subgraph hosts["Hosts"]
-    WEB["web server<br/>(static + WS + pollers)"]
-    EXT["VS Code extension<br/>(postMessage bridge)"]
-    DEMO["demo driver<br/>(timed synthetic events)"]
-  end
-  subgraph core["Room core"]
-    BUS["extensionMessage events"]
-    RC["RoomCanvas render loop<br/>(renderState + layers)"]
-    AM["avatarManager"]
-  end
-  WEB --> BUS
-  EXT --> BUS
-  DEMO --> BUS
+  WEB["web server — node scripts/web-server.mjs<br/>watches agent JSONL transcripts (Claude Code),<br/>polls GitHub Projects via gh CLI every 60s,<br/>serves dist/ + WS on :3000"]
+  EXT["VS Code extension — src/extension.ts<br/>same data surfaced via postMessage bridge"]
+  DEMO["demo driver — src/web/demoData.ts<br/>synthetic Alice/Bob agents + 6 demo tickets<br/>(cards at t+100ms, agents from t+500ms)"]
+  BUS["window extensionMessage events<br/>agentCreated · agentStatus · agentTool ·<br/>agentLinkedTicket · kanbanCards · devMode ·<br/>clearAgents (on WS reconnect)"]
+  RC["RoomCanvas render loop"]
+  AM["avatarManager (BFS movement)"]
+  WEB -->|"agentCreated/Status/Tool,<br/>kanbanCards, clearAgents"| BUS
+  EXT -->|"same types via postMessage"| BUS
+  DEMO -->|"same types, timed"| BUS
   BUS --> RC
   BUS --> AM
 ```
 
-Per frame: ticks (paths, wander, effects) → a render throttle → then a draw
-pass that blits cached world-space layers (room, kanban notes) and draws
-furniture/avatars/overlays live. Avatars render via the original Habbo figure
-renderer when those assets are loaded locally, else as RetroDiffusion/PixelLab
-single sprites.
+#### 2. What the render loop does per frame
+
+`RoomCanvas.frame()` runs at rAF. Ticks update agent positions/animation
+state; a throttle gate (Q13) skips the expensive draw pass unless the camera
+moved or an agent is walking/spawning. The draw pass blits two **cached
+world-space layers** and draws dynamic elements live.
+
+| Step | What happens | Where |
+|---|---|---|
+| tick — paths | `avatarManager.tick`: BFS pathfinding; agents step one tile per ~350ms, direction from `getDirection` (Habbo 0–7 clockwise from NE) | `src/avatarManager.ts` |
+| tick — wander | idle agents pick random nearby walk targets per section | `src/idleWander.ts` |
+| tick — effects | teleport spawn/despawn effects, booth door open/close | `src/teleportEffect.ts` |
+| gate | render immediately if camera moved or any agent walks/spawns; else at most every 50ms | `src/RoomCanvas.tsx` |
+| draw 1 | **room layer blit** (visible slice, 1:1): floor rhombuses + section colors + walls, pre-rendered once by `preRenderRoom()` into a buffer sized to the room's extent | `src/isoTileRenderer.ts` |
+| draw 2 | **kanban notes layer blit**: 60+ wall stickies + Todo/Done aggregates, re-rendered into a cache only when cards/filter/expand change | `src/isoKanbanRenderer.ts` |
+| draw 3 | live furniture renderables (sprite frames, multi-tile support) | `src/isoFurnitureRenderer.ts` |
+| draw 4 | avatars: `habboRenderer` (13-layer Nitro parts, tint-cached) when figure assets are loaded locally — else `pixelLabRenderer` (single sprites from the RD/PixelLab atlas) | `src/isoAvatarRenderer.ts`, `src/pixelLabAvatarRenderer.ts` |
+| draw 5 | selection highlight, teleport FX, speech bubbles, name tags | `src/RoomCanvas.tsx` |
+| draw 6 | screen-space: expanded note detail, aggregate list, orchestration HUD, kanban filter chip | `src/isoKanbanRenderer.ts`, `src/isoOrchestrationOverlay.ts` |
+
+#### 3. Where the art comes from — step by step
+
+Two independent pipelines produce the sprites; both end in the same runtime
+cache (`SpriteCache`) that renderers read frames from.
+
+**Pipeline A — original Habbo assets** (furniture + figures; furniture is
+committed, figures are local-only/CI-time — see copyright posture in
+[docs/architecture/ARCHITECTURE.md](docs/architecture/ARCHITECTURE.md)):
 
 ```mermaid
-flowchart TB
-  TICK["tick: paths, wander, effects"] --> THR{"camera moved or<br/>agents walking?"}
-  THR -->|"no, <50ms"| SKIP["skip render"]
-  THR -->|"yes"| DRAW["clear + camera transform"]
-  DRAW --> ROOM[("room layer<br/>(cached world buffer)")]
-  DRAW --> NOTES[("kanban notes layer<br/>(cached world layer)")]
-  DRAW --> SPR["furniture + avatars + overlays<br/>(live draw, tint-cached)"]
+flowchart TD
+  CAKE["source: CakeChloe/cortex-assets (GitHub raw)<br/>sprite-sheet JSONs + PNGs per item"]
+  DL["step 1 — node scripts/download-habbo-assets.mjs<br/>fetches 26 furniture + 21 figure items<br/>into assets/habbo-raw/ (gitignored)"]
+  CV["step 2 — node scripts/convert-cortex-to-nitro.mjs<br/>cortex sprite-sheet JSON -> Nitro per-item format:<br/>manifest.json + furniture/*.json+png + figures/*.json+png<br/>(keys like h_std_bd_1_1_0 / h_wlk_...)"]
+  HABBO[("assets/habbo/<br/>gitignored — never committed")]
+  ESB["step 3 — node esbuild.config.mjs (copyAssets)<br/>copies manifest + furniture + figures -> dist/"]
+  DIST[("dist/web/assets/<br/>dist/webview-assets/")]
+  RUN["step 4 — runtime: spriteCache.loadNitroAsset(name, png, json)<br/>per item at page load; frames fetched by key"]
+  CAKE --> DL --> CV --> HABBO --> ESB --> DIST --> RUN
 ```
 
-Assets: original Habbo furniture + figures are downloaded (never committed —
-figures only at CI time for the demo), RetroDiffusion/PixelLab output is
-generated by us and committed.
+**Pipeline B — generated characters** (RetroDiffusion; PixelLab archived):
 
 ```mermaid
-flowchart LR
-  CAKE["cortex-assets<br/>(Habbo originals)"] --> DL["download +<br/>convert"] --> HABBO[("assets/habbo<br/>gitignored")]
-  RD["RetroDiffusion MCP"] --> GEN["generate +<br/>pack"] --> RDASSETS[("assets/rd + pixellab<br/>committed")]
-  HABBO --> ESB["esbuild"] --> DIST[("dist/ web + webview")]
-  RDASSETS --> ESB
+flowchart TD
+  RDMCP["source: RetroDiffusion MCP<br/>styles: rd_pro__default (base),<br/>four_angle_walking_idle (48px walk+idle),<br/>8_dir_rotation (80px poses, uses base as reference),<br/>advanced walking per diagonal direction"]
+  GEN["step 1 — generate via MCP (paid, ~$1/character)<br/>base character + 4-dir walk/idle sheet + diagonal walk cycles"]
+  RAW[("assets/rd/eval-char/*.png<br/>downloaded sheets")]
+  PACK["step 2 — node scripts/pack-rd-sprites.mjs --out=rd-eval-char<br/>cuts the 4x4 walk/idle sheet, 3x3 rotation poses and<br/>2x2 diagonal sheets into ONE atlas + manifest:<br/>72 pl_rot_N / pl_idle_N_F / pl_walk_N_F frames, cell 48"]
+  RDASSETS[("assets/pixellab/rd-eval-char.png + .json<br/>COMMITTED (we generate it)")]
+  ESB2["step 3 — esbuild copyAssets -> dist/"]
+  RUN2["step 4 — runtime: spriteCache.loadAtlas('pixellab', png, json)"]
+  RDMCP --> GEN --> RAW --> PACK --> RDASSETS --> ESB2 --> DIST2[("dist/web/assets + webview-assets")] --> RUN2
 ```
 
-Module clusters (generated, 50 modules — full detail in
-[docs/architecture/module-graph.md](docs/architecture/module-graph.md)):
+The manifest contract (`pl_*` keys, Texture-Packer JSON) is the single point
+where generated art meets the renderer — the same keys the original Habbo
+figure renderer maps for Nitro parts (`h_std_*`/`h_wlk_*`).
+
+#### 4. Module clusters (generated — 50 modules, `npm run arch:graph`)
+
+| Cluster | Responsibility | Notable members |
+|---|---|---|
+| ui-react | React shells over the canvas | `RoomCanvas.tsx` (1,882 lines — S03 extraction target) |
+| room-engine | isometric rendering + sim helpers | `isoTile/Wall/Furniture/Kanban/NameTag/Bubble/OrchestrationOverlay`, `cameraController`, `idleWander` |
+| avatars | figure + sprite avatar backends | `isoAvatarRenderer`, `pixelLabAvatarRenderer`, `avatarManager`, `avatarOutfitConfig` |
+| agents | agent discovery/lifecycle | `agentManager`, `agentClassifier` |
+| kanban | card source + text helpers | `githubProjects`, `azureDevOpsBoards`, `kanbanText`, `kanbanFilter` |
+| integrations | external data fetchers | `githubProjects`, `azureDevOpsBoards`, `copilotMonitor` |
+| web-host / hosts | standalone web + extension entry | `main.tsx`, `webview.tsx`, `wsClient`, `demoData` |
+| env | config plumbing | `envConfig`, `global.d.ts` |
 
 ```mermaid
 graph LR;
