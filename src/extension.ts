@@ -216,39 +216,42 @@ export function activate(context: vscode.ExtensionContext) {
     const nitroFurnitureBaseUri = panel.webview.asWebviewUri(
       vscode.Uri.joinPath(context.extensionUri, 'dist', 'webview-assets', 'furniture')
     );
+    const nitroFigureBaseUri = panel.webview.asWebviewUri(
+      vscode.Uri.joinPath(context.extensionUri, 'dist', 'webview-assets', 'figures')
+    );
     // Generate webview URIs for PixelLab character sprites
     const pixellabPngUri = panel.webview.asWebviewUri(
-      vscode.Uri.joinPath(context.extensionUri, 'dist', 'webview-assets', 'pixellab', 'habbo-inspiration-new.png')
+      vscode.Uri.joinPath(context.extensionUri, 'dist', 'webview-assets', 'pixellab', 'rd-eval-char.png')
     );
     const pixellabJsonUri = panel.webview.asWebviewUri(
-      vscode.Uri.joinPath(context.extensionUri, 'dist', 'webview-assets', 'pixellab', 'habbo-inspiration-new.json')
+      vscode.Uri.joinPath(context.extensionUri, 'dist', 'webview-assets', 'pixellab', 'rd-eval-char.json')
     );
 
     // Generate webview URIs for team-specific PixelLab atlases
     // All teams currently use the same habbo-inspiration-new character
     const plPlanningPngUri = panel.webview.asWebviewUri(
-      vscode.Uri.joinPath(context.extensionUri, 'dist', 'webview-assets', 'pixellab', 'habbo-inspiration-new.png')
+      vscode.Uri.joinPath(context.extensionUri, 'dist', 'webview-assets', 'pixellab', 'rd-eval-char.png')
     );
     const plPlanningJsonUri = panel.webview.asWebviewUri(
-      vscode.Uri.joinPath(context.extensionUri, 'dist', 'webview-assets', 'pixellab', 'habbo-inspiration-new.json')
+      vscode.Uri.joinPath(context.extensionUri, 'dist', 'webview-assets', 'pixellab', 'rd-eval-char.json')
     );
     const plCoreDevPngUri = panel.webview.asWebviewUri(
-      vscode.Uri.joinPath(context.extensionUri, 'dist', 'webview-assets', 'pixellab', 'habbo-inspiration-new.png')
+      vscode.Uri.joinPath(context.extensionUri, 'dist', 'webview-assets', 'pixellab', 'rd-eval-char.png')
     );
     const plCoreDevJsonUri = panel.webview.asWebviewUri(
-      vscode.Uri.joinPath(context.extensionUri, 'dist', 'webview-assets', 'pixellab', 'habbo-inspiration-new.json')
+      vscode.Uri.joinPath(context.extensionUri, 'dist', 'webview-assets', 'pixellab', 'rd-eval-char.json')
     );
     const plInfrastructurePngUri = panel.webview.asWebviewUri(
-      vscode.Uri.joinPath(context.extensionUri, 'dist', 'webview-assets', 'pixellab', 'habbo-inspiration-new.png')
+      vscode.Uri.joinPath(context.extensionUri, 'dist', 'webview-assets', 'pixellab', 'rd-eval-char.png')
     );
     const plInfrastructureJsonUri = panel.webview.asWebviewUri(
-      vscode.Uri.joinPath(context.extensionUri, 'dist', 'webview-assets', 'pixellab', 'habbo-inspiration-new.json')
+      vscode.Uri.joinPath(context.extensionUri, 'dist', 'webview-assets', 'pixellab', 'rd-eval-char.json')
     );
     const plSupportPngUri = panel.webview.asWebviewUri(
-      vscode.Uri.joinPath(context.extensionUri, 'dist', 'webview-assets', 'pixellab', 'habbo-inspiration-new.png')
+      vscode.Uri.joinPath(context.extensionUri, 'dist', 'webview-assets', 'pixellab', 'rd-eval-char.png')
     );
     const plSupportJsonUri = panel.webview.asWebviewUri(
-      vscode.Uri.joinPath(context.extensionUri, 'dist', 'webview-assets', 'pixellab', 'habbo-inspiration-new.json')
+      vscode.Uri.joinPath(context.extensionUri, 'dist', 'webview-assets', 'pixellab', 'rd-eval-char.json')
     );
 
     // --- Message Bridge: register room panel ---
@@ -438,6 +441,7 @@ export function activate(context: vscode.ExtensionContext) {
         notificationSound: '${notificationSoundUri}',
         nitroManifest: '${nitroManifestUri}',
         nitroFurnitureBase: '${nitroFurnitureBaseUri}',
+        nitroFigureBase: '${nitroFigureBaseUri}',
         pixellabPng: '${pixellabPngUri}',
         pixellabJson: '${pixellabJsonUri}',
         plPlanningPng: '${plPlanningPngUri}',

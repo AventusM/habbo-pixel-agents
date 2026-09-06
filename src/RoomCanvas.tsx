@@ -10,6 +10,8 @@ const AVATAR_GROUND_Y = 0;
 import type { SpriteCache } from './isoSpriteCache.js';
 import { drawSpeechBubble } from './isoBubbleRenderer.js';
 import { drawNameTag } from './isoNameTagRenderer.js';
+import { habboRenderer } from './isoAvatarRenderer.js';
+import type { AvatarRenderer } from './avatarRendererTypes.js';
 import { tileToScreen, TILE_W_HALF, TILE_H_HALF } from './isometricMath.js';
 import {
   filterKanbanCards,
@@ -121,6 +123,9 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
   // Kanban source filter (All / GSD only / Non-GSD) — toggle with the G key
   const [kanbanFilter, setKanbanFilter] = useState<KanbanFilterMode>('all');
   const kanbanFilterRef = useRef<KanbanFilterMode>('all');
+
+  // Active avatar renderer (logged on change; Habbo figures vs PixelLab/RD)
+  const lastActiveRendererRef = useRef<AvatarRenderer | null>(null);
   useEffect(() => {
     kanbanFilterRef.current = kanbanFilter;
   }, [kanbanFilter]);
@@ -715,9 +720,15 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
         }
       }
 
-      // PixelLab is the sole avatar renderer
+      // Avatar renderer selection: original Habbo figures when the figure
+      // assets are loaded locally, PixelLab/RD single-sprites otherwise
       const spriteCache = (window as any).spriteCache as SpriteCache | undefined;
-      const activeRenderer: AvatarRenderer = pixelLabRenderer;
+      const activeRenderer: AvatarRenderer =
+        spriteCache && habboRenderer.isAvailable(spriteCache) ? habboRenderer : pixelLabRenderer;
+      if (activeRenderer !== lastActiveRendererRef.current) {
+        console.log(`[Avatars] Renderer: ${activeRenderer.name}`);
+        lastActiveRendererRef.current = activeRenderer;
+      }
 
       // Update animation state for all avatars
       const avatars = avatarManagerRef.current.getAvatars();
