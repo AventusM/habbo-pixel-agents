@@ -19,6 +19,34 @@ export interface CameraState {
 const MIN_ZOOM = 0.3;
 const MAX_ZOOM = 2.0;
 
+/** Clamp a zoom value into the allowed range */
+export function clampZoom(z: number): number {
+  return Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, z));
+}
+
+/**
+ * Set an absolute zoom level with pivot correction (e.g. pinch gestures).
+ * Clamps zoom between MIN_ZOOM and MAX_ZOOM.
+ */
+export function setZoomWithPivot(
+  state: CameraState,
+  newZoom: number,
+  pivotX: number,
+  pivotY: number,
+  canvasWidth: number,
+  canvasHeight: number,
+): void {
+  const oldZoom = state.zoom;
+  const target = clampZoom(newZoom);
+  if (target === oldZoom) return;
+
+  const cx = canvasWidth / 2;
+  const cy = canvasHeight / 2;
+  state.panX += (pivotX - cx) * (1 / target - 1 / oldZoom);
+  state.panY += (pivotY - cy) * (1 / target - 1 / oldZoom);
+  state.zoom = target;
+}
+
 /**
  * Create default camera state: centered, no zoom, not dragging.
  */

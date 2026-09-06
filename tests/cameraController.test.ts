@@ -6,6 +6,8 @@ import {
   screenToWorld,
   applyCameraTransform,
   jumpToSection,
+  clampZoom,
+  setZoomWithPivot,
 } from '../src/cameraController.js';
 
 describe('cameraController', () => {
@@ -152,6 +154,40 @@ describe('cameraController', () => {
 
       expect(backX).toBeCloseTo(screenPt.x);
       expect(backY).toBeCloseTo(screenPt.y);
+    });
+  });
+
+  describe('clampZoom', () => {
+    it('clamps into the allowed range', () => {
+      expect(clampZoom(0.5)).toBe(0.5);
+      expect(clampZoom(0.1)).toBe(0.3);
+      expect(clampZoom(5)).toBe(2.0);
+    });
+  });
+
+  describe('setZoomWithPivot', () => {
+    const CW = 800;
+    const CH = 600;
+
+    it('sets absolute zoom values and clamps', () => {
+      const state = createCameraState();
+      setZoomWithPivot(state, 0.5, 400, 300, CW, CH);
+      expect(state.zoom).toBe(0.5);
+      setZoomWithPivot(state, 99, 400, 300, CW, CH);
+      expect(state.zoom).toBe(2.0);
+      setZoomWithPivot(state, 0.01, 400, 300, CW, CH);
+      expect(state.zoom).toBe(0.3);
+    });
+
+    it('keeps the world point under the pivot stationary', () => {
+      const state = createCameraState();
+      const pivot = { x: 650, y: 200 };
+      // World point under the pivot before zooming
+      const before = screenToWorld(pivot.x, pivot.y, state, CW, CH);
+      setZoomWithPivot(state, 1.6, pivot.x, pivot.y, CW, CH);
+      const after = screenToWorld(pivot.x, pivot.y, state, CW, CH);
+      expect(after.x).toBeCloseTo(before.x);
+      expect(after.y).toBeCloseTo(before.y);
     });
   });
 });
