@@ -8,6 +8,9 @@
 import type { TileGrid } from './isoTypes.js';
 import type { KanbanCard } from './agentTypes.js';
 import { tileToScreen, TILE_W_HALF, TILE_H_HALF, WALL_HEIGHT } from './isometricMath.js';
+
+/** Any 2D rendering context (main canvas or offscreen layer) */
+type AnyCanvasCtx = CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
 import { wrapMonospace } from './kanbanText.js';
 
 // ---------------------------------------------------------------------------
@@ -214,7 +217,7 @@ function computeSkewedCorners(
  * The note is drawn in local space with a canvas transform applied.
  */
 function drawStickyNote(
-  ctx: CanvasRenderingContext2D,
+  ctx: AnyCanvasCtx,
   anchorX: number,
   anchorY: number,
   title: string,
@@ -311,7 +314,7 @@ function drawStickyNote(
  * Displays a header label, list of card titles, and overflow indicator.
  */
 function drawLargeNote(
-  ctx: CanvasRenderingContext2D,
+  ctx: AnyCanvasCtx,
   anchorX: number,
   anchorY: number,
   label: string,
@@ -416,7 +419,7 @@ function drawLargeNote(
  * In Progress → small individual notes distributed across remaining edge tiles.
  */
 export function drawKanbanNotes(
-  ctx: CanvasRenderingContext2D,
+  ctx: AnyCanvasCtx,
   cards: KanbanCard[],
   grid: TileGrid,
   cameraOrigin: { x: number; y: number },
@@ -526,7 +529,7 @@ export function drawKanbanNotes(
  * Shows full title, status badge, and close hint.
  */
 export function drawExpandedNote(
-  ctx: CanvasRenderingContext2D,
+  ctx: AnyCanvasCtx,
   card: KanbanCard,
   canvasWidth: number,
   canvasHeight: number,
@@ -840,7 +843,7 @@ export function drawExpandedNote(
  * Shows all cards in the aggregate with status color dots and titles.
  */
 export function drawExpandedAggregateNote(
-  ctx: CanvasRenderingContext2D,
+  ctx: AnyCanvasCtx,
   aggregateType: 'todo' | 'done',
   cards: KanbanCard[],
   canvasWidth: number,

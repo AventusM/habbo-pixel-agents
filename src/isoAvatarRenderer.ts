@@ -275,17 +275,53 @@ function getPartColor(part: PartType, outfit: OutfitColors): string {
   }
 }
 
-/** Lazy-initialized offscreen canvas for per-part tinting */
-let _tintCanvas: OffscreenCanvas | null = null;
-let _tintCtx: OffscreenCanvasRenderingContext2D | null = null;
+/**
+ * Cache of fully tinted (and flip-baked) body-part sprites, keyed by the
+ * source NitroSpriteFrame object (stable per asset+frame) and variant.
+ * Avoids re-running the tint composite pipeline for every part every frame.
+ */
+const tintedSpriteCache = new WeakMap<NitroSpriteFrame, Map<string, OffscreenCanvas>>();
 
-function getTintCanvas(w: number, h: number): OffscreenCanvasRenderingContext2D {
-  if (!_tintCanvas || _tintCanvas.width < w || _tintCanvas.height < h) {
-    _tintCanvas = new OffscreenCanvas(Math.max(w, 128), Math.max(h, 128));
-    _tintCtx = _tintCanvas.getContext("2d")!;
-    _tintCtx.imageSmoothingEnabled = false;
+function getTintedSprite(frame: NitroSpriteFrame, flip: boolean, color: string): OffscreenCanvas {
+  let byVariant = tintedSpriteCache.get(frame);
+  if (!byVariant) {
+    byVariant = new Map();
+    tintedSpriteCache.set(frame, byVariant);
   }
-  return _tintCtx!;
+  const key = (flip ? "F|" : "N|") + color;
+  const hit = byVariant.get(key);
+  if (hit) return hit;
+
+  const canvas = new OffscreenCanvas(frame.w, frame.h);
+  const c = canvas.getContext("2d")!;
+  c.imageSmoothingEnabled = false;
+  if (flip) {
+    c.save();
+    c.translate(frame.w, 0);
+    c.scale(-1, 1);
+    c.drawImage(frame.bitmap, frame.x, frame.y, frame.w, frame.h, 0, 0, frame.w, frame.h);
+    c.restore();
+  } else {
+    c.drawImage(frame.bitmap, frame.x, frame.y, frame.w, frame.h, 0, 0, frame.w, frame.h);
+  }
+  c.globalCompositeOperation = "multiply";
+  c.fillStyle = color;
+  c.fillRect(0, 0, frame.w, frame.h);
+  c.globalCompositeOperation = "destination-in";
+  if (flip) {
+    c.save();
+    c.translate(frame.w, 0);
+    c.scale(-1, 1);
+    c.drawImage(frame.bitmap, frame.x, frame.y, frame.w, frame.h, 0, 0, frame.w, frame.h);
+    c.restore();
+  } else {
+    c.drawImage(frame.bitmap, frame.x, frame.y, frame.w, frame.h, 0, 0, frame.w, frame.h);
+  }
+  c.globalCompositeOperation = "source-over";
+
+  byVariant.set(key, canvas);
+  if (byVariant.size > 48) byVariant.clear(); // keep per-frame variant maps bounded
+  return canvas;
 }
 
 function drawTintedBodyPart(
@@ -302,37 +338,6 @@ function drawTintedBodyPart(
   const dx = Math.floor(regX - frame.offsetX);
   const dy = Math.floor(regY - frame.offsetY);
 
-  const tCtx = getTintCanvas(frame.w, frame.h);
-  tCtx.clearRect(0, 0, _tintCanvas!.width, _tintCanvas!.height);
-
-  tCtx.globalCompositeOperation = "source-over";
-  if (flip) {
-    tCtx.save();
-    tCtx.translate(frame.w, 0);
-    tCtx.scale(-1, 1);
-    tCtx.drawImage(frame.bitmap, frame.x, frame.y, frame.w, frame.h, 0, 0, frame.w, frame.h);
-    tCtx.restore();
-  } else {
-    tCtx.drawImage(frame.bitmap, frame.x, frame.y, frame.w, frame.h, 0, 0, frame.w, frame.h);
-  }
-
-  tCtx.globalCompositeOperation = "multiply";
-  tCtx.fillStyle = color;
-  tCtx.fillRect(0, 0, frame.w, frame.h);
-
-  tCtx.globalCompositeOperation = "destination-in";
-  if (flip) {
-    tCtx.save();
-    tCtx.translate(frame.w, 0);
-    tCtx.scale(-1, 1);
-    tCtx.drawImage(frame.bitmap, frame.x, frame.y, frame.w, frame.h, 0, 0, frame.w, frame.h);
-    tCtx.restore();
-  } else {
-    tCtx.drawImage(frame.bitmap, frame.x, frame.y, frame.w, frame.h, 0, 0, frame.w, frame.h);
-  }
-
-  tCtx.globalCompositeOperation = "source-over";
-
   let drawX: number;
   if (flip) {
     drawX = Math.floor(2 * regX - dx - frame.w);
@@ -341,7 +346,8 @@ function drawTintedBodyPart(
   }
   drawX += flip ? TILE_W_HALF : -TILE_W_HALF;
 
-  ctx.drawImage(_tintCanvas!, 0, 0, frame.w, frame.h, drawX, dy, frame.w, frame.h);
+  const sprite = getTintedSprite(frame, flip, color);
+  ctx.drawImage(sprite, 0, 0, frame.w, frame.h, drawX, dy, frame.w, frame.h);
 
   if (DEBUG_AVATAR_PARTS && partName) {
     const debugColor = DEBUG_PART_COLORS[partName] || "#FFFFFF";

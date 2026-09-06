@@ -156,6 +156,10 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
   const [kanbanFilter, setKanbanFilter] = useState<KanbanFilterMode>('all');
   const kanbanFilterRef = useRef<KanbanFilterMode>('all');
 
+  // Render throttle bookkeeping (see frame loop)
+  const lastRenderTimeRef = useRef(0);
+  const lastRenderCamRef = useRef({ panX: NaN, panY: NaN, zoom: NaN });
+
   // Active avatar renderer (logged on change; Habbo figures vs PixelLab/RD)
   const lastActiveRendererRef = useRef<AvatarRenderer | null>(null);
   useEffect(() => {
@@ -754,6 +758,35 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
       }
       renderState.current.lastFrameTimeMs = currentTimeMs;
 
+      // --- Render throttle ---
+      // Full rate while the camera moves or agents walk/spawn; when the scene
+      // is static, ~20fps is plenty (idle/blink animations tick slower anyway)
+      // and skips most of the per-frame rasterization cost.
+      const camNow = renderState.current.cameraState;
+      const camChanged =
+        camNow.panX !== lastRenderCamRef.current.panX ||
+        camNow.panY !== lastRenderCamRef.current.panY ||
+        camNow.zoom !== lastRenderCamRef.current.zoom;
+      let anyMoving = teleportEffectsRef.current.length > 0;
+      if (!anyMoving) {
+        for (const a of avatarManagerRef.current.getAvatars()) {
+          const s = a.state;
+          if (s === 'walk' || s === 'spawning' || s === 'despawning') {
+            anyMoving = true;
+            break;
+          }
+        }
+      }
+      const renderInterval = camChanged || anyMoving ? 0 : 50;
+      const nowMs = Date.now();
+      if (nowMs - lastRenderTimeRef.current < renderInterval) {
+        rafIdRef.current = requestAnimationFrame(frame);
+        return;
+      }
+      lastRenderTimeRef.current = nowMs;
+      lastRenderCamRef.current = { panX: camNow.panX, panY: camNow.panY, zoom: camNow.zoom };
+
+
       // Check pending step-outs: move agent out of booth once spawn animation ends
       if (pendingStepOutRef.current.size > 0 && renderState.current.grid) {
         for (const [agentId, boothPos] of pendingStepOutRef.current) {
@@ -835,26 +868,23 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
       ctx.save();
       applyCameraTransform(ctx, cam, canvas.offsetWidth, canvas.offsetHeight);
 
-      // Room buffer covers the full room extent; draw it at its world size so
-      // camera zoom/pan navigates it (zooming out reveals the whole room)
+      // Room buffer covers the full room extent; blit only the visible slice
+      // (1:1 copy) instead of scaling the whole buffer through the transform
       const bufSize = renderState.current.offscreenSize;
       if (bufSize) {
-        ctx.drawImage(offscreen, 0, 0, bufSize.w, bufSize.h);
+        blitWorldLayer(ctx, offscreen, bufSize, cam);
       } else {
         ctx.drawImage(offscreen, 0, 0, canvas.offsetWidth, canvas.offsetHeight);
       }
 
-      // Kanban sticky notes on walls (drawn right after walls/floor, before furniture/avatars)
+      // Kanban sticky notes on walls — drawn into a cached world-space layer
+      // (60+ text labels are far too expensive to re-rasterize every frame);
+      // the layer re-renders only when its inputs change, then is blitted.
       if (kanbanCardsRef.current.length > 0 && renderState.current.grid) {
-        drawKanbanNotes(
-          ctx,
-          filterKanbanCards(kanbanCardsRef.current, kanbanFilterRef.current),
-          renderState.current.grid,
-          renderState.current.cameraOrigin,
-          expandedNoteRef.current,
-          expandedAggregateRef.current,
-          getLinkedTicketIds(orchStateRef.current),
-        );
+        const layer = ensureNotesLayer(canvas.offsetWidth, canvas.offsetHeight);
+        if (layer) {
+          blitWorldLayer(ctx, layer.buffer, layer.size, cam);
+        }
       }
 
       // Draw hover highlight if tile is hovered (editor mode)
@@ -1536,7 +1566,8 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
     const canvas = canvasRef.current;
     const grid = renderState.current.grid;
     if (!canvas || !grid) return;
-    const dpr = window.devicePixelRatio || 1;
+    // Cap buffer DPR at 2 (pixel art; keeps the offscreen blit cheap on 3x phones)
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
     const PAD = 48;
     const { roomW, roomH } = computeRoomBounds(grid);
     const bufferCssW = Math.max(canvas.offsetWidth, Math.ceil(roomW) + PAD);
@@ -1571,6 +1602,79 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
 
   function reRenderRoom() {
     renderRoomBuffer();
+  }
+
+  /**
+   * Blit the visible slice of a world-space layer (room buffer or notes layer)
+   * under the current camera transform — 1:1 pixel copy of only what's on
+   * screen instead of scaling the entire layer every frame.
+   */
+  function blitWorldLayer(
+    ctx: CanvasRenderingContext2D,
+    layer: OffscreenCanvas | HTMLCanvasElement,
+    layerSize: { w: number; h: number },
+    cam: CameraState,
+  ) {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const cw = canvas.offsetWidth;
+    const ch = canvas.offsetHeight;
+    const tl = screenToWorld(0, 0, cam, cw, ch);
+    const br = screenToWorld(cw, ch, cam, cw, ch);
+    const sx = Math.max(0, Math.floor(tl.x));
+    const sy = Math.max(0, Math.floor(tl.y));
+    const ex = Math.min(layerSize.w, Math.ceil(br.x));
+    const ey = Math.min(layerSize.h, Math.ceil(br.y));
+    const sw = ex - sx;
+    const sh = ey - sy;
+    if (sw <= 0 || sh <= 0) return;
+    ctx.drawImage(layer, sx * dpr, sy * dpr, sw * dpr, sh * dpr, sx, sy, sw, sh);
+  }
+
+  // Cached kanban-notes layer (world space); rebuilt only when inputs change
+  const notesLayerRef = useRef<{
+    buffer: OffscreenCanvas;
+    size: { w: number; h: number };
+    sig: string;
+  } | null>(null);
+
+  function ensureNotesLayer(canvasCssW: number, canvasCssH: number) {
+    const grid = renderState.current.grid;
+    const origin = renderState.current.cameraOrigin;
+    const size = renderState.current.offscreenSize;
+    if (!grid || !origin || !size) return null;
+
+    const cards = filterKanbanCards(kanbanCardsRef.current, kanbanFilterRef.current);
+    const ticketIds = getLinkedTicketIds(orchStateRef.current);
+    const sig = [
+      cards.length,
+      cards.map(c => c.id).join(','),
+      expandedNoteRef.current ?? '',
+      expandedAggregateRef.current ?? '',
+      [...ticketIds].sort().join(','),
+      `${size.w}x${size.h}`,
+      `${origin.x},${origin.y}`,
+    ].join('|');
+
+    if (notesLayerRef.current?.sig === sig) return notesLayerRef.current;
+
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const buffer = new OffscreenCanvas(Math.floor(size.w * dpr), Math.floor(size.h * dpr));
+    const bctx = buffer.getContext('2d')!;
+    bctx.scale(dpr, dpr);
+    bctx.imageSmoothingEnabled = false;
+    drawKanbanNotes(
+      bctx,
+      cards,
+      grid,
+      origin,
+      expandedNoteRef.current,
+      expandedAggregateRef.current,
+      ticketIds,
+    );
+    notesLayerRef.current = { buffer, size: { ...size }, sig };
+    return notesLayerRef.current;
   }
 
   const handleSave = () => {
