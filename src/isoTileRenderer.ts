@@ -45,7 +45,9 @@ const DEFAULT_HSB: HsbColor = { h: 220, s: 25, b: 80 };
  * @returns CanvasRenderingContext2D ready for drawing
  */
 export function initCanvas(canvas: HTMLCanvasElement): CanvasRenderingContext2D {
-  const dpr = window.devicePixelRatio || 1;
+  // Cap effective DPR at 2 — pixel art gains nothing from 3x, and the fill
+  // cost of the backing store drops quadratically
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
 
   // Re-assert container-relative CSS sizing so offsetWidth reflects the
   // current layout (React inline styles are not re-applied after this runs)
