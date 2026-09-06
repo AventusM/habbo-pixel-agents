@@ -31,6 +31,15 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # Download original Habbo assets at CI time (furniture + figures).
+      # NEVER committed to the repo (gitignored) — same posture as furniture;
+      # they are only baked into the Pages deployment.
+      - name: Download Habbo assets (furniture + figures)
+        continue-on-error: true
+        run: |
+          node scripts/download-habbo-assets.mjs
+          node scripts/convert-cortex-to-nitro.mjs
+
       - name: Build web demo
         run: node esbuild.config.mjs web
 
