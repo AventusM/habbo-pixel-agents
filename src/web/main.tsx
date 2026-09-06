@@ -9,8 +9,12 @@ import { createRoot } from 'react-dom/client';
 import { RoomCanvas } from '../RoomCanvas.js';
 import { AvatarDebugGrid } from '../AvatarDebugGrid.js';
 import { SpriteCache } from '../isoSpriteCache.js';
+import { loadAllAssets, type AssetUris } from '../assetBootstrap.js';
+import { getDegradations, onDegradations } from '../degradations.js';
 import { generateFloorTemplate } from '../roomLayoutEngine.js';
 import { scheduleDemoEvents } from './demoData.js';
+import { onMessage } from '../bus.js';
+import type { ExtensionMessage } from '../agentTypes.js';
 import { connectWs, hasRealAgents, onWsStateChange, getWsState, type WsState } from './wsClient.js';
 
 // Console log interceptor — capture last 200 lines for dev capture
@@ -75,93 +79,14 @@ const spriteCache = new SpriteCache();
   try {
     const uris = (window as any).ASSET_URIS;
 
-    // Load core atlases
-    console.log('Loading chair atlas...');
-    await spriteCache.loadAtlas('chair', uris.chairPng, uris.chairJson);
-    console.log('✓ Chair atlas loaded');
-
-    console.log('Loading furniture atlas...');
-    await spriteCache.loadAtlas('furniture', uris.furniturePng, uris.furnitureJson);
-    console.log('✓ Furniture atlas loaded');
-
-    console.log('Loading avatar atlas...');
-    await spriteCache.loadAtlas('avatar', uris.avatarPng, uris.avatarJson);
-    console.log('✓ Avatar atlas loaded');
-
-    // Load PixelLab character atlas (default fallback)
-    if (uris.pixellabPng && uris.pixellabJson) {
-      try {
-        await spriteCache.loadAtlas('pixellab', uris.pixellabPng, uris.pixellabJson);
-        console.log('✓ PixelLab character atlas loaded');
-      } catch (err) {
-        console.warn('⚠ Failed to load PixelLab character atlas:', err);
-      }
-    }
-
-    // Load per-team PixelLab atlases
-    const teamAtlases: Array<{ name: string; png: string; json: string }> = [
-      { name: 'pl-planning',       png: uris.plPlanningPng,       json: uris.plPlanningJson },
-      { name: 'pl-core-dev',       png: uris.plCoreDevPng,        json: uris.plCoreDevJson },
-      { name: 'pl-infrastructure', png: uris.plInfrastructurePng, json: uris.plInfrastructureJson },
-      { name: 'pl-support',        png: uris.plSupportPng,        json: uris.plSupportJson },
-    ];
-    for (const atlas of teamAtlases) {
-      if (atlas.png && atlas.json) {
-        try {
-          await spriteCache.loadAtlas(atlas.name, atlas.png, atlas.json);
-          console.log(`✓ Team atlas loaded: ${atlas.name}`);
-        } catch (err) {
-          console.warn(`⚠ Failed to load team atlas ${atlas.name}:`, err);
-        }
-      }
-    }
-
-    // Load Nitro per-item furniture assets
-    if (uris.nitroManifest) {
-      try {
-        const manifestRes = await fetch(uris.nitroManifest);
-        if (manifestRes.ok) {
-          const manifest = await manifestRes.json();
-          console.log('Nitro manifest loaded:', manifest);
-
-          if (manifest.furniture && uris.nitroFurnitureBase) {
-            await Promise.all(manifest.furniture.map(async (name: string) => {
-              try {
-                await spriteCache.loadNitroAsset(
-                  name,
-                  `${uris.nitroFurnitureBase}/${name}.png`,
-                  `${uris.nitroFurnitureBase}/${name}.json`
-                );
-              } catch (err) {
-                console.warn(`⚠ Failed to load Nitro furniture ${name}:`, err);
-              }
-            }));
-            console.log(`✓ Loaded ${manifest.furniture.length} Nitro furniture items`);
-          }
-
-          if (manifest.figures && uris.nitroFigureBase) {
-            let loaded = 0;
-            await Promise.all(manifest.figures.map(async (name: string) => {
-              try {
-                await spriteCache.loadNitroAsset(
-                  name,
-                  `${uris.nitroFigureBase}/${name}.png`,
-                  `${uris.nitroFigureBase}/${name}.json`
-                );
-                loaded += 1;
-              } catch (err) {
-                console.warn(`⚠ Failed to load Nitro figure ${name}:`, err);
-              }
-            }));
-            console.log(`✓ Loaded ${loaded}/${manifest.figures.length} Nitro figures (original Habbo avatar system available)`);
-          }
-        } else {
-          console.log('⚠ Nitro manifest not found, using placeholder sprites only');
-        }
-      } catch (err) {
-        console.log('⚠ Nitro assets unavailable, using placeholder sprites:', err);
-      }
-    }
+    // Shared asset bootstrap (web + extension hosts use the same module)
+    const report = await loadAllAssets(spriteCache, uris as AssetUris);
+    console.log(
+      [`✓ Bootstrap: atlases=${Object.entries(report.atlases).map(([k, v]) => k + ':' + v).join(',')}`,
+       report.nitroFurniture ? `furniture=${report.nitroFurniture.loaded}/${report.nitroFurniture.total}` : null,
+       report.nitroFigures ? `figures=${report.nitroFigures.loaded}/${report.nitroFigures.total}` : null,
+       `figuresAvailable=${report.figuresAvailable}`].filter(Boolean).join(' | '),
+    );
 
     // Make sprite cache globally available for RoomCanvas
     (window as any).spriteCache = spriteCache;
@@ -183,12 +108,15 @@ const spriteCache = new SpriteCache();
       // Connect to WebSocket for real agent data
       connectWs();
 
+      let isDemoMode = false;
+
       // Track feed modes per agent for status bar display
       const agentFeedModes = new Map<string, { mode: string; reason: string }>();
 
+
+
       // Listen for agentFeedMode messages
-      window.addEventListener('extensionMessage', ((e: CustomEvent) => {
-        const msg = e.detail;
+      onMessage((msg: ExtensionMessage) => {
         if (msg.type === 'agentFeedMode') {
           agentFeedModes.set(msg.agentId, { mode: msg.feedMode, reason: msg.feedReason });
           updateStatusBar(getWsState());
@@ -196,15 +124,13 @@ const spriteCache = new SpriteCache();
           agentFeedModes.delete(msg.agentId);
           updateStatusBar(getWsState());
         }
-      }) as EventListener);
+      });
 
       // Create status bar
       const statusBar = document.createElement('div');
       statusBar.id = 'status-bar';
       statusBar.style.cssText = 'position:fixed;bottom:0;left:0;right:0;height:20px;background:rgba(26,26,46,0.9);display:flex;align-items:center;padding:0 8px;font:6px "Press Start 2P",monospace;color:#888;z-index:100;gap:12px;';
       document.body.appendChild(statusBar);
-
-      let isDemoMode = false;
 
       function buildFeedModeIndicators(): string {
         if (agentFeedModes.size === 0) return '';
@@ -231,17 +157,46 @@ const spriteCache = new SpriteCache();
         return `<span style="display:flex;gap:6px;margin-left:8px;color:#aaa">${indicators.join('')}</span>`;
       }
 
+      let boardSource = 'none';
+      let figuresAvailable = false;
+
       function updateStatusBar(wsState: WsState) {
         const dot = wsState === 'connected' ? '🟢' : wsState === 'connecting' ? '🟡' : '🔴';
         const label = wsState === 'connected' ? 'Connected' : wsState === 'connecting' ? 'Connecting...' : 'Disconnected';
         const demoLabel = isDemoMode ? '<span style="color:#f59e0b;margin-left:8px">● DEMO MODE</span>' : '';
         const feedIndicators = buildFeedModeIndicators();
-        statusBar.innerHTML = `<span>${dot} ${label}</span>${demoLabel}${feedIndicators}<span style="margin-left:auto;color:#555">localhost:${window.location.port || '3000'}</span>`;
+        const degr = getDegradations();
+        const degrLabel = degr.length > 0
+          ? `<span style="color:#f87171;margin-left:8px" title="${degr.map((d) => d.id + ': ' + d.detail).join('\n')}">⚠ ${degr.length}</span>`
+          : '';
+        const boardLabel = `<span style="color:#94a3b8;margin-left:8px">board: ${boardSource}</span>`;
+        const figuresLabel = `<span style="color:${figuresAvailable ? '#4ade80' : '#64748b'};margin-left:8px">figures: ${figuresAvailable ? 'local' : 'fallback'}</span>`;
+        statusBar.innerHTML = `<span>${dot} ${label}</span>${demoLabel}${boardLabel}${figuresLabel}${feedIndicators}${degrLabel}<span style="margin-left:auto;color:#555">localhost:${window.location.port || '3000'}</span>`;
       }
 
       onWsStateChange(updateStatusBar);
       updateStatusBar(getWsState());
 
+      // Status-chip state: board source + figure availability
+      // ('live' = cards received over WS; 'demo' = demo driver; 'none' = connected but empty)
+      const refreshChip = () => updateStatusBar(getWsState());
+      onMessage((msg: ExtensionMessage) => {
+        if (msg.type === 'kanbanCards') {
+          boardSource = isDemoMode ? 'demo' : 'live';
+          refreshChip();
+        }
+      });
+      onDegradations(() => refreshChip());
+      // Figure availability follows the bootstrap report (poll once it's set)
+      const chipTimer = setInterval(() => {
+        const cache = (window as any).spriteCache;
+        const available = !!(cache && cache.hasNitroAsset('hh_human_body'));
+        if (available !== figuresAvailable) {
+          figuresAvailable = available;
+          if (figuresAvailable) refreshChip();
+        }
+        if (available) clearInterval(chipTimer);
+      }, 500);
       // Force demo mode with ?demo in the URL
       const forceDemoMode = new URLSearchParams(window.location.search).has('demo');
 

@@ -1,6 +1,9 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { RoomCanvas } from './RoomCanvas.js';
+import { emitMessage, onMessage } from './bus.js';
+import { loadAllAssets, type AssetUris } from './assetBootstrap.js';
+import type { ExtensionMessage } from './agentTypes.js';
 import { SpriteCache } from './isoSpriteCache.js';
 import { generateFloorTemplate } from './roomLayoutEngine.js';
 
@@ -40,7 +43,7 @@ if (vscodeApi) {
   window.addEventListener('message', (event: MessageEvent) => {
     const msg = event.data;
     if (msg && msg.type) {
-      window.dispatchEvent(new CustomEvent('extensionMessage', { detail: msg }));
+      emitMessage(msg);
     }
   });
   (window as any).vscodeApi = vscodeApi;
@@ -63,124 +66,21 @@ const spriteCache = new SpriteCache();
       nitroManifest, nitroFurnitureBase, nitroFigureBase,
     } = (window as any).ASSET_URIS;
 
-    console.log('Loading chair atlas from:', chairPng, chairJson);
-    await spriteCache.loadAtlas('chair', chairPng, chairJson);
-    console.log('✓ Chair atlas loaded successfully');
-
-    console.log('Loading furniture atlas from:', furniturePng, furnitureJson);
-    await spriteCache.loadAtlas('furniture', furniturePng, furnitureJson);
-    console.log('✓ Furniture atlas loaded successfully');
-
-    console.log('Loading avatar atlas from:', avatarPng, avatarJson);
-    await spriteCache.loadAtlas('avatar', avatarPng, avatarJson);
-    console.log('✓ Avatar atlas loaded successfully');
-
-    // Test frame lookup
-    const chairFrame = spriteCache.getFrame('chair', 'chair_64_a_0_0');
-    if (chairFrame) {
-      console.log('✓ Chair frame lookup succeeded:', {
-        x: chairFrame.x,
-        y: chairFrame.y,
-        w: chairFrame.w,
-        h: chairFrame.h,
-      });
-    }
-
-    const deskFrame = spriteCache.getFrame('furniture', 'desk_64_a_0_0');
-    if (deskFrame) {
-      console.log('✓ Furniture frame lookup succeeded:', {
-        name: 'desk_64_a_0_0',
-        x: deskFrame.x,
-        y: deskFrame.y,
-        w: deskFrame.w,
-        h: deskFrame.h,
-      });
-    }
-
-    // Load PixelLab character atlas (default fallback)
-    if (pixellabPng && pixellabJson) {
-      try {
-        console.log('Loading PixelLab character atlas...');
-        await spriteCache.loadAtlas('pixellab', pixellabPng, pixellabJson);
-        console.log('✓ PixelLab character atlas loaded');
-      } catch (err) {
-        console.warn('⚠ Failed to load PixelLab character atlas:', err);
-      }
-    }
-
-    // Load per-team PixelLab atlases
-    const teamAtlases: Array<{ name: string; png: string; json: string }> = [
-      { name: 'pl-planning',       png: plPlanningPng,       json: plPlanningJson },
-      { name: 'pl-core-dev',       png: plCoreDevPng,        json: plCoreDevJson },
-      { name: 'pl-infrastructure', png: plInfrastructurePng, json: plInfrastructureJson },
-      { name: 'pl-support',        png: plSupportPng,        json: plSupportJson },
-    ];
-    for (const atlas of teamAtlases) {
-      if (atlas.png && atlas.json) {
-        try {
-          await spriteCache.loadAtlas(atlas.name, atlas.png, atlas.json);
-          console.log(`✓ Team atlas loaded: ${atlas.name}`);
-        } catch (err) {
-          console.warn(`⚠ Failed to load team atlas ${atlas.name}:`, err);
-        }
-      }
-    }
-
-    // Test avatar frame lookup
-    const avatarFrame = spriteCache.getFrame('avatar', 'avatar_0_body_0_idle_0');
-    if (avatarFrame) {
-      console.log('✓ Avatar frame lookup succeeded:', {
-        name: 'avatar_0_body_0_idle_0',
-        x: avatarFrame.x,
-        y: avatarFrame.y,
-        w: avatarFrame.w,
-        h: avatarFrame.h,
-      });
-    }
-
-    // Load Nitro per-item furniture assets
-    if (nitroManifest) {
-      try {
-        const manifestRes = await fetch(nitroManifest);
-        if (manifestRes.ok) {
-          const manifest = await manifestRes.json();
-          console.log('Nitro manifest loaded:', manifest);
-
-          // Load furniture items
-          if (manifest.furniture && nitroFurnitureBase) {
-            await Promise.all(manifest.furniture.map(async (name: string) => {
-            try {
-              await spriteCache.loadNitroAsset(name, `${nitroFurnitureBase}/${name}.png`, `${nitroFurnitureBase}/${name}.json`);
-            } catch (err) {
-              console.warn(`⚠ Failed to load Nitro furniture ${name}:`, err);
-            }
-          }));
-          console.log(`✓ Loaded ${manifest.furniture.length} Nitro furniture items`);
-          }
-
-          if (manifest.figures && nitroFigureBase) {
-            let loaded = 0;
-            await Promise.all(manifest.figures.map(async (name: string) => {
-              try {
-                await spriteCache.loadNitroAsset(
-                  name,
-                  `${nitroFigureBase}/${name}.png`,
-                  `${nitroFigureBase}/${name}.json`
-                );
-                loaded += 1;
-              } catch (err) {
-                console.warn(`⚠ Failed to load Nitro figure ${name}:`, err);
-              }
-            }));
-            console.log(`✓ Loaded ${loaded}/${manifest.figures.length} Nitro figures (original Habbo avatar system available)`);
-          }
-        } else {
-          console.log('⚠ Nitro manifest not found, using placeholder sprites only');
-        }
-      } catch (err) {
-        console.log('⚠ Nitro assets unavailable, using placeholder sprites:', err);
-      }
-    }
+    // Shared asset bootstrap (web + extension hosts use the same module)
+    const report = await loadAllAssets(spriteCache, {
+      chairPng, chairJson,
+      furniturePng, furnitureJson,
+      avatarPng, avatarJson,
+      pixellabPng, pixellabJson,
+      teamAtlases: [
+        { name: 'pl-planning', png: plPlanningPng, json: plPlanningJson },
+        { name: 'pl-core-dev', png: plCoreDevPng, json: plCoreDevJson },
+        { name: 'pl-infrastructure', png: plInfrastructurePng, json: plInfrastructureJson },
+        { name: 'pl-support', png: plSupportPng, json: plSupportJson },
+      ],
+      nitroManifest, nitroFurnitureBase, nitroFigureBase,
+    } as AssetUris);
+    console.log(`✓ Bootstrap: atlases=${Object.entries(report.atlases).map(([k, v]) => k + ':' + v).join(',')} | figuresAvailable=${report.figuresAvailable}`);
 
     // Make sprite cache globally available for RoomCanvas
     (window as any).spriteCache = spriteCache;
@@ -193,8 +93,7 @@ const spriteCache = new SpriteCache();
       rootElement.render(React.createElement(RoomCanvas, { heightmap: FLOOR_HEIGHTMAP }));
 
       // Listen for template size changes from extension settings
-      window.addEventListener('extensionMessage', (event: Event) => {
-        const msg = (event as CustomEvent).detail;
+      const unsubscribeTemplate = onMessage((msg: ExtensionMessage) => {
         if (msg && msg.type === 'templateSize' && msg.size) {
           const validSizes = ['small', 'medium', 'large'] as const;
           if (validSizes.includes(msg.size)) {

@@ -37,6 +37,7 @@ import { AudioManager } from './isoAudioManager.js';
 import { AvatarManager } from './avatarManager.js';
 import { IdleWanderManager } from './idleWander.js';
 import { AvatarSelectionManager } from './avatarSelection.js';
+import { onMessage } from './bus.js';
 import type { ExtensionMessage } from './agentTypes.js';
 import type { KanbanCard } from './agentTypes.js';
 import { computeBlockedTiles } from './isoPathfinding.js';
@@ -327,10 +328,9 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
     }
   }
 
-  // Listen for extension messages (agent events)
+  // Listen for extension messages (agent events) via the typed bus
   useEffect(() => {
-    function handleExtensionMessage(event: Event) {
-      const msg = (event as CustomEvent<ExtensionMessage>).detail;
+    function handleExtensionMessage(msg: ExtensionMessage) {
       if (!msg || !msg.type) return;
 
       const avatarManager = avatarManagerRef.current;
@@ -622,8 +622,8 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
       }
     }
 
-    window.addEventListener('extensionMessage', handleExtensionMessage);
-    return () => window.removeEventListener('extensionMessage', handleExtensionMessage);
+    const unsubscribe = onMessage(handleExtensionMessage);
+    return () => unsubscribe();
   }, []);
 
   useEffect(() => {

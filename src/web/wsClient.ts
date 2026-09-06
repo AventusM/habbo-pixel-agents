@@ -2,9 +2,12 @@
  * WebSocket client for the standalone Habbo room browser app.
  *
  * Connects to the local WebSocket server, receives agent events,
- * and dispatches them as extensionMessage CustomEvents — the same
+ * and dispatches them through the typed message bus — the same
  * protocol RoomCanvas already listens to.
  */
+
+import { emitMessage } from '../bus.js';
+import { reportDegradation, clearDegradation } from '../degradations.js';
 
 /** Connection state exposed for status display */
 export type WsState = 'connecting' | 'connected' | 'disconnected';
@@ -33,6 +36,9 @@ export function onWsStateChange(cb: (state: WsState) => void): void {
 function setState(newState: WsState) {
   state = newState;
   onStateChange?.(newState);
+  // Surface connection degradation in the status chip
+  if (newState === 'disconnected') reportDegradation('ws', 'connection lost — reconnecting');
+  else clearDegradation('ws');
 }
 
 /**
@@ -61,7 +67,7 @@ export function connectWs(url?: string): void {
     console.log('[WS] Connected to server');
 
     // Signal room to clear stale agents — server will re-send current sessions
-    window.dispatchEvent(new CustomEvent('extensionMessage', { detail: { type: 'clearAgents' } }));
+    emitMessage({ type: 'clearAgents' });
 
     // Clear any pending reconnect
     if (reconnectTimer) {
@@ -79,8 +85,8 @@ export function connectWs(url?: string): void {
           hasReceivedAgents = true;
         }
 
-        // Dispatch as extensionMessage — same protocol RoomCanvas uses
-        window.dispatchEvent(new CustomEvent('extensionMessage', { detail: msg }));
+        // Dispatch through the typed bus (RoomCanvas subscribes via onMessage)
+        emitMessage(msg);
       }
     } catch (err) {
       console.warn('[WS] Failed to parse message:', err);

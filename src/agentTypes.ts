@@ -88,6 +88,7 @@ export type ExtensionMessage =
   | { type: 'devMode'; enabled: boolean }
   | { type: 'requestClassification'; agentId: string }
   | { type: 'clearAgents' }
+  | { type: 'templateSize'; size: 'small' | 'medium' | 'large' }
   // Sidebar control panel → room webview (relayed via extension host)
   | { type: 'jumpToSection'; team: string }
   | { type: 'toggleOverlay' }

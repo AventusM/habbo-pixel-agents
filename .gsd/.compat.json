@@ -1,7 +1,7 @@
 {
   "schema": 2,
   "lastWriter": "gsd-pi",
-  "lastProjectedAt": "2026-09-06T18:14:29.460Z",
+  "lastProjectedAt": "2026-09-06T20:05:12.671Z",
   "projections": {
     "phases/01-retrodiffusion-as-primary-pixel-art-sour/01-ROADMAP.md": {
       "sha": "82da4065ce32fabf",
@@ -41,9 +41,16 @@
       ]
     },
     "phases/03-refactor-architecture-map-failure-mode-h/03-ROADMAP.md": {
-      "sha": "d2f8583904d28e68",
+      "sha": "864073b2182935b4",
       "entities": [
         "M003"
+      ]
+    },
+    "phases/03-refactor-architecture-map-failure-mode-h/03-02-PLAN.md": {
+      "sha": "29bab1f3b6f08f39",
+      "entities": [
+        "M003",
+        "M003/S02"
       ]
     }
   },
