@@ -71,11 +71,7 @@ const AVATAR_HEIGHT = 65;
  * Uses the same bounding math as computeCameraOrigin; clamped ≤ 1 so desktop
  * layouts that already fit are unaffected. Returns ≥ clampZoom minimum.
  */
-function computeFitZoom(
-  grid: TileGrid,
-  viewportWidth: number,
-  viewportHeight: number,
-): number {
+function computeRoomBounds(grid: TileGrid): { roomW: number; roomH: number } {
   let minSx = Infinity, maxSx = -Infinity, minSy = Infinity, maxSy = -Infinity;
   let hasTiles = false;
   for (let ty = 0; ty < grid.height; ty++) {
@@ -89,9 +85,17 @@ function computeFitZoom(
       maxSy = Math.max(maxSy, sy + TILE_H);
     }
   }
-  if (!hasTiles) return 1;
-  const roomW = maxSx - minSx;
-  const roomH = (maxSy - minSy) + WALL_HEIGHT;
+  if (!hasTiles) return { roomW: 0, roomH: 0 };
+  return { roomW: maxSx - minSx, roomH: (maxSy - minSy) + WALL_HEIGHT };
+}
+
+function computeFitZoom(
+  grid: TileGrid,
+  viewportWidth: number,
+  viewportHeight: number,
+): number {
+  const { roomW, roomH } = computeRoomBounds(grid);
+  if (roomW === 0 || roomH === 0) return 1;
   return clampZoom(Math.min(1, viewportWidth / roomW, viewportHeight / roomH));
 }
 
@@ -221,6 +225,7 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
 
   const renderState = useRef<{
     offscreenCanvas: OffscreenCanvas | null;
+    offscreenSize: { w: number; h: number } | null;
     cameraOrigin: { x: number; y: number };
     cameraState: CameraState;
     mainCtx: CanvasRenderingContext2D | null;
@@ -233,6 +238,7 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
     furnitureRenderables: Renderable[];
   }>({
     offscreenCanvas: null,
+    offscreenSize: null,
     cameraOrigin: { x: 0, y: 0 },
     cameraState: createCameraState(),
     mainCtx: null,
@@ -626,18 +632,6 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
     const grid: TileGrid = parseHeightmap(heightmap);
     renderState.current.grid = grid;
 
-    renderState.current.cameraOrigin = computeCameraOrigin(
-      grid,
-      canvas.offsetWidth,
-      canvas.offsetHeight
-    );
-
-    // Fit the room to the viewport on small screens (zoom clamps at 1 on desktop)
-    const fitZoom = computeFitZoom(grid, canvas.offsetWidth, canvas.offsetHeight);
-    if (fitZoom < renderState.current.cameraState.zoom) {
-      renderState.current.cameraState.zoom = fitZoom;
-    }
-
     const furniture: FurnitureSpec[] = [];
 
     // Initialize section manager, apply section floor colors, and place teleport booths
@@ -657,29 +651,18 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
     renderState.current.furniture = furniture;
     renderState.current.multiTileFurniture = multiTileFurniture;
 
-    const spriteCache: SpriteCache | undefined = (window as any).spriteCache;
+    // Pre-render the room into an offscreen buffer sized to the ROOM's world
+    // extent (not the viewport), so the full room is always rendered and
+    // camera zoom/pan merely navigates the buffer.
+    renderRoomBuffer();
 
-    renderState.current.offscreenCanvas = preRenderRoom(
-      grid,
-      renderState.current.cameraOrigin,
-      canvas.width,
-      canvas.height,
-      window.devicePixelRatio || 1,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      'furniture',
-      renderState.current.tileColorMap
-    );
-
-    if (spriteCache) {
-      renderState.current.furnitureRenderables = createFurnitureRenderables(
-        furniture,
-        multiTileFurniture,
-        spriteCache,
-        renderState.current.cameraOrigin,
-      );
+    // Camera: center the room buffer on screen, zoomed to fit if needed
+    const bufSize = renderState.current.offscreenSize;
+    if (bufSize) {
+      const cam = renderState.current.cameraState;
+      cam.zoom = computeFitZoom(grid, canvas.offsetWidth, canvas.offsetHeight);
+      cam.panX = canvas.offsetWidth / 2 - bufSize.w / 2;
+      cam.panY = canvas.offsetHeight / 2 - bufSize.h / 2;
     }
 
     runningRef.current = true;
@@ -852,7 +835,14 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
       ctx.save();
       applyCameraTransform(ctx, cam, canvas.offsetWidth, canvas.offsetHeight);
 
-      ctx.drawImage(offscreen, 0, 0, canvas.offsetWidth, canvas.offsetHeight);
+      // Room buffer covers the full room extent; draw it at its world size so
+      // camera zoom/pan navigates it (zooming out reveals the whole room)
+      const bufSize = renderState.current.offscreenSize;
+      if (bufSize) {
+        ctx.drawImage(offscreen, 0, 0, bufSize.w, bufSize.h);
+      } else {
+        ctx.drawImage(offscreen, 0, 0, canvas.offsetWidth, canvas.offsetHeight);
+      }
 
       // Kanban sticky notes on walls (drawn right after walls/floor, before furniture/avatars)
       if (kanbanCardsRef.current.length > 0 && renderState.current.grid) {
@@ -1162,12 +1152,13 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
         if (!canvas) return;
         initCanvas(canvas);
         if (renderState.current.grid) {
-          renderState.current.cameraOrigin = computeCameraOrigin(
-            renderState.current.grid,
-            canvas.offsetWidth,
-            canvas.offsetHeight,
-          );
-          reRenderRoom();
+          renderRoomBuffer();
+          // Re-center the (possibly resized) buffer; preserve user zoom
+          const bufSize = renderState.current.offscreenSize;
+          if (bufSize) {
+            renderState.current.cameraState.panX = canvas.offsetWidth / 2 - bufSize.w / 2;
+            renderState.current.cameraState.panY = canvas.offsetHeight / 2 - bufSize.h / 2;
+          }
         }
       }, 150);
     };
@@ -1536,19 +1527,34 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
     dragRef.current.isDragging = false;
   };
 
-  function reRenderRoom() {
-    if (!canvasRef.current || !renderState.current.grid) return;
+  /**
+   * (Re-)render the offscreen room buffer. The buffer is sized to the ROOM's
+   * world extent (not the viewport), so the full room is always rendered and
+   * camera zoom/pan merely navigates the buffer.
+   */
+  function renderRoomBuffer() {
+    const canvas = canvasRef.current;
+    const grid = renderState.current.grid;
+    if (!canvas || !grid) return;
+    const dpr = window.devicePixelRatio || 1;
+    const PAD = 48;
+    const { roomW, roomH } = computeRoomBounds(grid);
+    const bufferCssW = Math.max(canvas.offsetWidth, Math.ceil(roomW) + PAD);
+    const bufferCssH = Math.max(canvas.offsetHeight, Math.ceil(roomH) + PAD);
+    const origin = computeCameraOrigin(grid, bufferCssW, bufferCssH);
+    renderState.current.cameraOrigin = origin;
+    renderState.current.offscreenSize = { w: bufferCssW, h: bufferCssH };
     renderState.current.offscreenCanvas = preRenderRoom(
-      renderState.current.grid,
-      renderState.current.cameraOrigin,
-      canvasRef.current.width,
-      canvasRef.current.height,
-      window.devicePixelRatio || 1,
+      grid,
+      origin,
+      Math.floor(bufferCssW * dpr),
+      Math.floor(bufferCssH * dpr),
+      dpr,
       undefined,
       undefined,
       undefined,
       undefined,
-      undefined,
+      'furniture',
       renderState.current.tileColorMap
     );
 
@@ -1558,9 +1564,13 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
         renderState.current.furniture,
         renderState.current.multiTileFurniture,
         spriteCache,
-        renderState.current.cameraOrigin,
+        origin,
       );
     }
+  }
+
+  function reRenderRoom() {
+    renderRoomBuffer();
   }
 
   const handleSave = () => {

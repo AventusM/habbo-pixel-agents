@@ -148,23 +148,19 @@ const spriteCache = new SpriteCache();
 
           // Load furniture items
           if (manifest.furniture && nitroFurnitureBase) {
-            for (const name of manifest.furniture) {
-              try {
-                await spriteCache.loadNitroAsset(
-                  name,
-                  `${nitroFurnitureBase}/${name}.png`,
-                  `${nitroFurnitureBase}/${name}.json`
-                );
-                console.log(`✓ Loaded Nitro furniture: ${name}`);
-              } catch (err) {
-                console.warn(`⚠ Failed to load Nitro furniture ${name}:`, err);
-              }
+            await Promise.all(manifest.furniture.map(async (name: string) => {
+            try {
+              await spriteCache.loadNitroAsset(name, `${nitroFurnitureBase}/${name}.png`, `${nitroFurnitureBase}/${name}.json`);
+            } catch (err) {
+              console.warn(`⚠ Failed to load Nitro furniture ${name}:`, err);
             }
+          }));
+          console.log(`✓ Loaded ${manifest.furniture.length} Nitro furniture items`);
           }
 
           if (manifest.figures && nitroFigureBase) {
             let loaded = 0;
-            for (const name of manifest.figures) {
+            await Promise.all(manifest.figures.map(async (name: string) => {
               try {
                 await spriteCache.loadNitroAsset(
                   name,
@@ -175,7 +171,7 @@ const spriteCache = new SpriteCache();
               } catch (err) {
                 console.warn(`⚠ Failed to load Nitro figure ${name}:`, err);
               }
-            }
+            }));
             console.log(`✓ Loaded ${loaded}/${manifest.figures.length} Nitro figures (original Habbo avatar system available)`);
           }
         } else {
