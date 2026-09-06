@@ -12,6 +12,12 @@ import { drawSpeechBubble } from './isoBubbleRenderer.js';
 import { drawNameTag } from './isoNameTagRenderer.js';
 import { tileToScreen, TILE_W_HALF, TILE_H_HALF } from './isometricMath.js';
 import {
+  filterKanbanCards,
+  nextKanbanFilterMode,
+  KANBAN_FILTER_LABELS,
+  type KanbanFilterMode,
+} from './kanbanFilter.js';
+import {
   drawHoverHighlight,
   drawFurnitureFootprint,
   toggleTileWalkability,
@@ -33,7 +39,7 @@ import { AvatarSelectionManager } from './avatarSelection.js';
 import type { ExtensionMessage } from './agentTypes.js';
 import type { KanbanCard } from './agentTypes.js';
 import { computeBlockedTiles } from './isoPathfinding.js';
-import { drawKanbanNotes, drawExpandedNote, drawExpandedAggregateNote, getNoteHitAreas, pointInQuad } from './isoKanbanRenderer.js';
+import { drawKanbanNotes, drawExpandedNote, drawExpandedAggregateNote, getNoteHitAreas, getExpandedNoteActionRect, getExpandedNoteNavRects, getAggregateRowHitAreas, pointInQuad } from './isoKanbanRenderer.js';
 import type { CameraState } from './cameraController.js';
 import { createCameraState, applyZoom, applyCameraTransform, screenToWorld } from './cameraController.js';
 import { screenToTile } from './isometricMath.js';
@@ -112,8 +118,55 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
   // Starts empty; populated when extension sends kanbanCards message
   const kanbanCardsRef = useRef<KanbanCard[]>([]);
 
+  // Kanban source filter (All / GSD only / Non-GSD) — toggle with the G key
+  const [kanbanFilter, setKanbanFilter] = useState<KanbanFilterMode>('all');
+  const kanbanFilterRef = useRef<KanbanFilterMode>('all');
+  useEffect(() => {
+    kanbanFilterRef.current = kanbanFilter;
+  }, [kanbanFilter]);
+
+  useEffect(() => {
+    const handleFilterKey = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) {
+        return;
+      }
+      if (e.key === 'g' || e.key === 'G') {
+        setKanbanFilter((prev) => nextKanbanFilterMode(prev));
+        return;
+      }
+      // Kanban traversal keys (only while a detail note is open)
+      if (!expandedNoteRef.current) return;
+      const visibleCards = filterKanbanCards(kanbanCardsRef.current, kanbanFilterRef.current);
+      if (visibleCards.length === 0) return;
+      const idx = Math.max(0, visibleCards.findIndex(c => c.id === expandedNoteRef.current));
+      if (e.key === 'ArrowRight' || e.key === 'n' || e.key === 'N') {
+        expandedNoteRef.current = visibleCards[(idx + 1) % visibleCards.length].id;
+      } else if (e.key === 'ArrowLeft' || e.key === 'p' || e.key === 'P') {
+        expandedNoteRef.current = visibleCards[(idx - 1 + visibleCards.length) % visibleCards.length].id;
+      } else if (e.key === 'b' || e.key === 'B') {
+        if (noteOriginRef.current) {
+          expandedAggregateRef.current = noteOriginRef.current;
+          noteOriginRef.current = null;
+          expandedNoteRef.current = null;
+        } else {
+          expandedNoteRef.current = null;
+        }
+      } else if (e.key === 'Escape') {
+        expandedNoteRef.current = null;
+        expandedAggregateRef.current = null;
+        noteOriginRef.current = null;
+      }
+    };
+    window.addEventListener('keydown', handleFilterKey);
+    return () => window.removeEventListener('keydown', handleFilterKey);
+  }, []);
+
   // Expanded sticky note (click-to-open)
   const expandedNoteRef = useRef<string | null>(null);
+
+  // Where the expanded note was opened from ('todo'/'done' aggregate or a wall note)
+  const noteOriginRef = useRef<'todo' | 'done' | null>(null);
 
   // Expanded aggregate note (todo / done)
   const expandedAggregateRef = useRef<'todo' | 'done' | null>(null);
@@ -760,7 +813,7 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
       if (kanbanCardsRef.current.length > 0 && renderState.current.grid) {
         drawKanbanNotes(
           ctx,
-          kanbanCardsRef.current,
+          filterKanbanCards(kanbanCardsRef.current, kanbanFilterRef.current),
           renderState.current.grid,
           renderState.current.cameraOrigin,
           expandedNoteRef.current,
@@ -928,9 +981,16 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
 
       // Expanded sticky note overlay (drawn last, on top of everything)
       if (expandedNoteRef.current && kanbanCardsRef.current.length > 0) {
-        const expandedCard = kanbanCardsRef.current.find(c => c.id === expandedNoteRef.current);
+        const visibleCards = filterKanbanCards(kanbanCardsRef.current, kanbanFilterRef.current);
+        const expandedCard = visibleCards.find(c => c.id === expandedNoteRef.current);
         if (expandedCard && canvas) {
-          drawExpandedNote(ctx, expandedCard, canvas.offsetWidth, canvas.offsetHeight);
+          drawExpandedNote(
+            ctx,
+            expandedCard,
+            canvas.offsetWidth,
+            canvas.offsetHeight,
+            { canBack: noteOriginRef.current !== null },
+          );
         }
       }
 
@@ -939,9 +999,10 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
         const aggType = expandedAggregateRef.current;
         const IP = ['In Progress', 'Doing'];
         const DONE = ['Done'];
+        const visibleCards = filterKanbanCards(kanbanCardsRef.current, kanbanFilterRef.current);
         const aggCards = aggType === 'todo'
-          ? kanbanCardsRef.current.filter(c => !DONE.includes(c.status) && !IP.includes(c.status))
-          : kanbanCardsRef.current.filter(c => DONE.includes(c.status));
+          ? visibleCards.filter(c => !DONE.includes(c.status) && !IP.includes(c.status))
+          : visibleCards.filter(c => DONE.includes(c.status));
         if (aggCards.length > 0) {
           drawExpandedAggregateNote(ctx, aggType, aggCards, canvas.offsetWidth, canvas.offsetHeight);
         }
@@ -1066,10 +1127,57 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
     const noteClickX = noteWorld.x;
     const noteClickY = noteWorld.y;
 
-    // If any note overlay is expanded, any click closes it
+    // If any note overlay is expanded, a click closes it — unless it hits the
+    // detail panel's nav bar (prev/back/next), its footer action zone (open the
+    // issue in the browser), or an aggregate list row (open that card's panel)
     if (expandedNoteRef.current || expandedAggregateRef.current) {
+      if (expandedNoteRef.current) {
+        const nav = getExpandedNoteNavRects();
+        const inRect = (r: { x: number; y: number; w: number; h: number }) =>
+          screenX >= r.x && screenX <= r.x + r.w && screenY >= r.y && screenY <= r.y + r.h;
+        const visibleCards = filterKanbanCards(kanbanCardsRef.current, kanbanFilterRef.current);
+        if (nav && visibleCards.length > 0) {
+          const idx = Math.max(0, visibleCards.findIndex(c => c.id === expandedNoteRef.current));
+          if (inRect(nav.prev)) {
+            expandedNoteRef.current = visibleCards[(idx - 1 + visibleCards.length) % visibleCards.length].id;
+            return;
+          }
+          if (inRect(nav.next)) {
+            expandedNoteRef.current = visibleCards[(idx + 1) % visibleCards.length].id;
+            return;
+          }
+          if (nav.back && inRect(nav.back) && noteOriginRef.current) {
+            expandedAggregateRef.current = noteOriginRef.current;
+            noteOriginRef.current = null;
+            expandedNoteRef.current = null;
+            return;
+          }
+        }
+        const action = getExpandedNoteActionRect();
+        if (action && action.url) {
+          const inFooter =
+            screenX >= action.x && screenX <= action.x + action.w &&
+            screenY >= action.y && screenY <= action.y + action.h;
+          if (inFooter) {
+            window.open(action.url, '_blank', 'noopener');
+            return;
+          }
+        }
+      }
+      if (expandedAggregateRef.current) {
+        const row = getAggregateRowHitAreas().find(
+          (r) => screenX >= r.x && screenX <= r.x + r.w && screenY >= r.y && screenY <= r.y + r.h,
+        );
+        if (row) {
+          noteOriginRef.current = expandedAggregateRef.current;
+          expandedAggregateRef.current = null;
+          expandedNoteRef.current = row.cardId;
+          return;
+        }
+      }
       expandedNoteRef.current = null;
       expandedAggregateRef.current = null;
+      noteOriginRef.current = null;
       return;
     }
 
@@ -1081,6 +1189,7 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
           expandedAggregateRef.current = area.aggregateType;
         } else {
           expandedNoteRef.current = area.cardId;
+          noteOriginRef.current = null;
         }
         return;
       }
@@ -1453,6 +1562,24 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
         onContextMenu={handleContextMenu}
         onMouseLeave={handleMouseLeave}
       />
+      {/* Kanban source filter HUD */}
+      <div
+        style={{
+          position: 'fixed',
+          left: 12,
+          bottom: 12,
+          zIndex: 10,
+          padding: '6px 10px',
+          borderRadius: 8,
+          background: 'rgba(15, 23, 42, 0.78)',
+          color: '#e2e8f0',
+          font: '12px/1.4 monospace',
+          border: '1px solid rgba(148, 163, 184, 0.35)',
+          pointerEvents: 'none',
+        }}
+      >
+        Kanban: {KANBAN_FILTER_LABELS[kanbanFilter]} &middot; press G
+      </div>
     </>
   );
 }
