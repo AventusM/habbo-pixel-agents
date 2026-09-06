@@ -60,7 +60,7 @@ const spriteCache = new SpriteCache();
       plCoreDevPng, plCoreDevJson,
       plInfrastructurePng, plInfrastructureJson,
       plSupportPng, plSupportJson,
-      nitroManifest, nitroFurnitureBase,
+      nitroManifest, nitroFurnitureBase, nitroFigureBase,
     } = (window as any).ASSET_URIS;
 
     console.log('Loading chair atlas from:', chairPng, chairJson);
@@ -160,6 +160,23 @@ const spriteCache = new SpriteCache();
                 console.warn(`⚠ Failed to load Nitro furniture ${name}:`, err);
               }
             }
+          }
+
+          if (manifest.figures && nitroFigureBase) {
+            let loaded = 0;
+            for (const name of manifest.figures) {
+              try {
+                await spriteCache.loadNitroAsset(
+                  name,
+                  `${nitroFigureBase}/${name}.png`,
+                  `${nitroFigureBase}/${name}.json`
+                );
+                loaded += 1;
+              } catch (err) {
+                console.warn(`⚠ Failed to load Nitro figure ${name}:`, err);
+              }
+            }
+            console.log(`✓ Loaded ${loaded}/${manifest.figures.length} Nitro figures (original Habbo avatar system available)`);
           }
         } else {
           console.log('⚠ Nitro manifest not found, using placeholder sprites only');

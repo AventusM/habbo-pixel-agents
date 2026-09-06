@@ -7,6 +7,7 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { RoomCanvas } from '../RoomCanvas.js';
+import { AvatarDebugGrid } from '../AvatarDebugGrid.js';
 import { SpriteCache } from '../isoSpriteCache.js';
 import { generateFloorTemplate } from '../roomLayoutEngine.js';
 import { scheduleDemoEvents } from './demoData.js';
@@ -54,6 +55,7 @@ const ASSET_BASE = './assets';
   notificationSound: `${ASSET_BASE}/sounds/notification.ogg`,
   nitroManifest: `${ASSET_BASE}/manifest.json`,
   nitroFurnitureBase: `${ASSET_BASE}/furniture`,
+  nitroFigureBase: `${ASSET_BASE}/figures`,
   pixellabPng: `${ASSET_BASE}/pixellab/rd-eval-char.png`,
   pixellabJson: `${ASSET_BASE}/pixellab/rd-eval-char.json`,
   plPlanningPng: `${ASSET_BASE}/pixellab/rd-eval-char.png`,
@@ -136,6 +138,23 @@ const spriteCache = new SpriteCache();
               }
             }
           }
+
+          if (manifest.figures && uris.nitroFigureBase) {
+            let loaded = 0;
+            for (const name of manifest.figures) {
+              try {
+                await spriteCache.loadNitroAsset(
+                  name,
+                  `${uris.nitroFigureBase}/${name}.png`,
+                  `${uris.nitroFigureBase}/${name}.json`
+                );
+                loaded += 1;
+              } catch (err) {
+                console.warn(`⚠ Failed to load Nitro figure ${name}:`, err);
+              }
+            }
+            console.log(`✓ Loaded ${loaded}/${manifest.figures.length} Nitro figures (original Habbo avatar system available)`);
+          }
         } else {
           console.log('⚠ Nitro manifest not found, using placeholder sprites only');
         }
@@ -147,12 +166,19 @@ const spriteCache = new SpriteCache();
     // Make sprite cache globally available for RoomCanvas
     (window as any).spriteCache = spriteCache;
 
-    // Render RoomCanvas
+    // Render RoomCanvas — or the figure sprite-sheet debug grid (?debuggrid=1)
     const root = document.getElementById('root');
     if (root) {
-      console.log('✓ Rendering RoomCanvas (standalone mode)');
       const rootElement = createRoot(root);
-      rootElement.render(React.createElement(RoomCanvas, { heightmap: FLOOR_HEIGHTMAP }));
+      if (new URLSearchParams(window.location.search).has('debuggrid')) {
+        console.log('✓ Rendering AvatarDebugGrid (sprite-sheet debug view)');
+        rootElement.render(React.createElement(AvatarDebugGrid, {
+          onClose: () => rootElement.render(React.createElement(RoomCanvas, { heightmap: FLOOR_HEIGHTMAP })),
+        }));
+      } else {
+        console.log('✓ Rendering RoomCanvas (standalone mode)');
+        rootElement.render(React.createElement(RoomCanvas, { heightmap: FLOOR_HEIGHTMAP }));
+      }
 
       // Connect to WebSocket for real agent data
       connectWs();
