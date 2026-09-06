@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "exported_at": "2026-09-06T17:30:43.988Z",
+  "exported_at": "2026-09-06T20:05:13.128Z",
   "requirements": [],
   "artifacts": [
     {
@@ -54,14 +54,24 @@
       "content_hash": "ee2ae651163d02fea711768f24def23378dbe887b2bf7fc5af84e139a130a96c"
     },
     {
+      "path": "phases/03-refactor-architecture-map-failure-mode-h/03-02-PLAN.md",
+      "artifact_type": "PLAN",
+      "milestone_id": "M003",
+      "slice_id": "S02",
+      "task_id": null,
+      "full_content": "# S02: Failure-mode hardening: bootstrap, event bus, surfaced degradation\n\n**Milestone:** M003\n**Slice:** S02\n\n**Goal:** Fix demonstrated failure classes: one shared asset-bootstrap module for both hosts, typed event bus with startup replay, surfaced degradation in the status chip.\n**Demo:** Demo page with the network tab throttled: no lost cards; a degraded board fetch shows a visible indicator; both loaders share one bootstrap module (diff shows deletion of duplicated code).\n\n## Must-Haves\n\n- 1) Single asset-bootstrap; duplicate loaders deleted. 2) Bus replay: dispatch-before-listener survives (regression tested). 3) Degraded states visible (chip segments: board source, figures, warning count). 4) Suite green; healthy paths unchanged.\n\n## Proof Level\n\n- This slice proves: runtime\n\n## Integration Closure\n\nWeb + extension boot paths share the bootstrap; demo and live both exercise replay.\n\n## Verification\n\n- Status chip segments; bootstrap report logs; degradation registry.\n\n<tasks>\n- [ ] **T01**: Typed message bus with stateful replay _(medium)_\n  src/bus.ts: emitMessage/onMessage; retain kanbanCards/devMode/templateSize + per-agent state; clearAgents/agentRemoved applied to retention but never replayed; replay-to-every-subscriber (state sync).\n  - Files: `src/bus.ts`\n  - Verify: tests/bus.test.ts (8 tests incl. dispatch-before-listener survival).\n- [ ] **T02**: Shared asset bootstrap _(medium)_\n  src/assetBootstrap.ts: parallel atlas loads + Nitro furniture/figures with report (atlases, nitro stats, figuresAvailable, errors); main.tsx + webview.tsx call it; duplicated loaders deleted (webview 230 -> 117 lines).\n  - Files: `src/assetBootstrap.ts`, `src/web/main.tsx`, `src/webview.tsx`\n  - Verify: typecheck + build + both hosts load via one module.\n- [ ] **T03**: Degradation registry + status chip _(small)_\n  src/degradations.ts (report/clear/subscribe); chip segments board:<source>, figures:<local/fallback>, warning count with tooltip; wsClient reports reconnect degradation.\n  - Files: `src/degradations.ts`, `src/web/wsClient.ts`, `src/web/main.tsx`\n  - Verify: tests/degradations.test.ts; chip verified in browser.\n</tasks>\n\n## Files Likely Touched\n\n- src/bus.ts\n- src/assetBootstrap.ts\n- src/web/main.tsx\n- src/webview.tsx\n- src/degradations.ts\n- src/web/wsClient.ts\n<!-- gsd:state-version=8:0 -->\n",
+      "imported_at": "2026-09-06T20:05:12.510Z",
+      "content_hash": "29bab1f3b6f08f398ec23850514638dc5b7807eeacc0404e837e4625ac0baf74"
+    },
+    {
       "path": "phases/03-refactor-architecture-map-failure-mode-h/03-ROADMAP.md",
       "artifact_type": "ROADMAP",
       "milestone_id": "M003",
       "slice_id": null,
       "task_id": null,
-      "full_content": "# M003: Refactor: Architecture Map, Failure-Mode Hardening, Render Layers, State Store\n\n**Vision:** Make the current architecture visible, harden the places that demonstrably go wrong, and formalize the patterns that emerged ad hoc during feature work. Deliver an honest architecture map (module graph, data flow, render pipeline, event flow) as living docs; extract the canvas/asset/bootstrap concerns out of the 1,882-line RoomCanvas; turn the ad-hoc render-layer caches into an explicit layer pipeline; consolidate app state (agents, cards, camera, demo-vs-live) behind a typed store with explicit invalidation. Keep the room pixel-perfect and fast throughout (536-test suite + visual UAT as guardrails).\n\n## Success Criteria\n\n- Living architecture docs (generated module graph + hand-annotated data flow, render pipeline, event lifecycle, asset pipeline) committed and regenerable\n- Failure-mode inventory: every known incident mapped to root cause, guard, and residual risk\n- Single asset-bootstrap for web + extension; typed event bus with startup replay; degraded states visible in UI\n- CanvasStage + WorldLayer pipeline extracted from RoomCanvas; module-level renderer state eliminated\n- Typed app-state store with explicit demo/live mode machine; WS reconnect regression-tested\n- Suite green throughout; pan/zoom/idle render cadence not regressed (measured)\n\n## Slices\n\n- [ ] **S01: Architecture visualization + honest current-state map** `risk:low` `depends:[]`\n  > After this: docs/architecture/ with mermaid diagrams (module graph generated via madge, hand-annotated data-flow + render-pipeline + event-lifecycle diagrams), plus a documented failure-mode inventory with the concrete incidents that demonstrated each (canvas sizing races, demo event lost pre-listener, silent fallbacks, typecheck .tsx gap).\n\n- [ ] **S02: Failure-mode hardening: bootstrap, event bus, surfaced degradation** `risk:medium` `depends:[S01]`\n  > After this: Demo page with the network tab throttled: no lost cards; a degraded board fetch shows a visible indicator; both loaders share one bootstrap module (diff shows deletion of duplicated code).\n\n- [ ] **S03: Render layer pipeline: formalize room, notes, and dynamic layers** `risk:medium` `depends:[S01]`\n  > After this: CanvasStage owns canvas+layers; RoomCanvas shrank by the extracted code; pan/zoom/walk performance not worse (measured render cadence); behavior identical.\n\n- [ ] **S04: Typed app-state store: agents, cards, camera, mode** `risk:medium` `depends:[S03]`\n  > After this: WS drop + reconnect: agents clear/repopulate via store transitions; demo fallback triggers via an explicit mode transition; kanban filter/notes invalidation flows through store subscriptions.\n\n## Boundary Map\n\n| In scope | Out of scope |\n|---|---|\n| RoomCanvas decomposition (CanvasStage, layer pipeline) | Avatar builder UI (separate follow-up) |\n| Shared asset bootstrap + typed event bus + replay | New features on the room (visual changes) |\n| Typed app-state store (agents/cards/mode/camera) | Changing asset formats or the RD/PixelLab pipelines |\n| Failure-mode inventory + degraded-state surfacing | Rewriting renderers (draw functions stay, signatures may widen) |\n<!-- gsd:state-version=5:0 -->\n",
-      "imported_at": "2026-09-06T17:30:43.453Z",
-      "content_hash": "d2f8583904d28e68cfd7afd81501b19634426350a6e1f3cddd8f1a65207857f9"
+      "full_content": "# M003: Refactor: Architecture Map, Failure-Mode Hardening, Render Layers, State Store\n\n**Vision:** Make the current architecture visible, harden the places that demonstrably go wrong, and formalize the patterns that emerged ad hoc during feature work. Deliver an honest architecture map (module graph, data flow, render pipeline, event flow) as living docs; extract the canvas/asset/bootstrap concerns out of the 1,882-line RoomCanvas; turn the ad-hoc render-layer caches into an explicit layer pipeline; consolidate app state (agents, cards, camera, demo-vs-live) behind a typed store with explicit invalidation. Keep the room pixel-perfect and fast throughout (536-test suite + visual UAT as guardrails).\n\n## Success Criteria\n\n- Living architecture docs (generated module graph + hand-annotated data flow, render pipeline, event lifecycle, asset pipeline) committed and regenerable\n- Failure-mode inventory: every known incident mapped to root cause, guard, and residual risk\n- Single asset-bootstrap for web + extension; typed event bus with startup replay; degraded states visible in UI\n- CanvasStage + WorldLayer pipeline extracted from RoomCanvas; module-level renderer state eliminated\n- Typed app-state store with explicit demo/live mode machine; WS reconnect regression-tested\n- Suite green throughout; pan/zoom/idle render cadence not regressed (measured)\n\n## Slices\n\n- [ ] **S01: Architecture visualization + honest current-state map** `risk:low` `depends:[]`\n  > After this: docs/architecture/ with mermaid diagrams (module graph generated via madge, hand-annotated data-flow + render-pipeline + event-lifecycle diagrams), plus a documented failure-mode inventory with the concrete incidents that demonstrated each (canvas sizing races, demo event lost pre-listener, silent fallbacks, typecheck .tsx gap).\n\n- [ ] **S02: Failure-mode hardening: bootstrap, event bus, surfaced degradation** `risk:medium` `depends:[S01]`\n  > After this: Demo page with the network tab throttled: no lost cards; a degraded board fetch shows a visible indicator; both loaders share one bootstrap module (diff shows deletion of duplicated code).\n\n- [ ] **S03: Render layer pipeline: formalize room, notes, and dynamic layers** `risk:medium` `depends:[S01]`\n  > After this: CanvasStage owns canvas+layers; RoomCanvas shrank by the extracted code; pan/zoom/walk performance not worse (measured render cadence); behavior identical.\n\n- [ ] **S04: Typed app-state store: agents, cards, camera, mode** `risk:medium` `depends:[S03]`\n  > After this: WS drop + reconnect: agents clear/repopulate via store transitions; demo fallback triggers via an explicit mode transition; kanban filter/notes invalidation flows through store subscriptions.\n\n- [ ] **S05: Live board updates: webhook pub-sub with ETag-probe fallback** `risk:medium` `depends:[S02]`\n  > After this: Edit the board -> wall updates within ~1-2s (webhook mode) or ~10s (probe mode), measured. Status chip shows the active board source.\n\n- [ ] **S06: Hosted backend deployment: live wall + agents on a public URL** `risk:medium` `depends:[S02,S05]`\n  > After this: A public URL serving the room: board edits reflect in ~1-2s via webhook; Copilot-sourced agents visible; demo fallback when no token configured.\n\n## Boundary Map\n\n| In scope | Out of scope |\n|---|---|\n| RoomCanvas decomposition (CanvasStage, layer pipeline) | Avatar builder UI (separate follow-up) |\n| Shared asset bootstrap + typed event bus + replay | New features on the room (visual changes) |\n| Typed app-state store (agents/cards/mode/camera) | Changing asset formats or the RD/PixelLab pipelines |\n| Failure-mode inventory + degraded-state surfacing | Rewriting renderers (draw functions stay, signatures may widen) |\n<!-- gsd:state-version=8:0 -->\n",
+      "imported_at": "2026-09-06T20:05:12.670Z",
+      "content_hash": "864073b2182935b46ace664800cbf45d460345f509443da7dffb638c2aa0a988"
     }
   ],
   "milestones": [
@@ -236,7 +246,7 @@
           "whatWillBeProven": "WS reconnect + demo transition tests; visual UAT"
         }
       ],
-      "verification_contract": "S01 artifact-verified (docs + inventory). S02/S03/S04 runtime-verified (tests + browser UAT); S03 additionally performance-measured. v2",
+      "verification_contract": "S01 artifact-verified (docs + inventory). S02/S03/S04 runtime-verified (tests + browser UAT); S03 additionally performance-measured. v4 includes S05+S06 deployment verification",
       "verification_integration": "Web + extension boot paths both exercise the shared bootstrap; store subscriptions feed both the render loop and the overlay panel.",
       "verification_operational": "Degraded-state chip; mode-transition logs; render counters (executed vs skipped).",
       "verification_uat": "Human confirms room behavior identical (mobile + desktop) after each slice; docs read as accurate.",
@@ -415,12 +425,14 @@
       "completed_at": null,
       "full_summary_md": "",
       "full_uat_md": "",
-      "goal": "Fix the demonstrated failure classes at their root: (a) extract a single asset-bootstrap module used by BOTH web and extension loaders (kill the duplicated 7-call loaders), (b) make the extensionMessage event bus lifecycle-safe (typed dispatch, listener-ready gate or replay buffer so early events like demo cards cannot be lost), (c) surface silent degradation (11 return-[] sites) as observable states instead of console-only warnings.",
-      "success_criteria": "1) One asset-bootstrap module; web + extension loaders call it (duplicated loader code deleted). 2) Event bus: typed emit/on with startup replay (or attach-before-dispatch guarantee) + test proving a demo kanbanCards dispatch survives listener attachment timing. 3) Degraded data states visible in UI (e.g. status chip: board source live/demo/degraded). 4) Full suite green; no behavior change in healthy paths.",
+      "goal": "Fix demonstrated failure classes: one shared asset-bootstrap module for both hosts, typed event bus with startup replay, surfaced degradation in the status chip.",
+      "success_criteria": "1) Single asset-bootstrap; duplicate loaders deleted. 2) Bus replay: dispatch-before-listener survives (regression tested). 3) Degraded states visible (chip segments: board source, figures, warning count). 4) Suite green; healthy paths unchanged.",
       "proof_level": "runtime",
-      "integration_closure": "Web + extension boot paths verified; demo and live agent paths both exercise the replay guarantee.",
-      "observability_impact": "Degraded-state chip in the status bar; bootstrap logs aggregated.",
-      "target_repositories": [],
+      "integration_closure": "Web + extension boot paths share the bootstrap; demo and live both exercise replay.",
+      "observability_impact": "Status chip segments; bootstrap report logs; degradation registry.",
+      "target_repositories": [
+        "project"
+      ],
       "sequence": 2,
       "replan_triggered_at": null,
       "is_sketch": 0,
@@ -472,6 +484,57 @@
       "observability_impact": "Mode transitions logged (booting -> live/demo/degraded).",
       "target_repositories": [],
       "sequence": 4,
+      "replan_triggered_at": null,
+      "is_sketch": 0,
+      "sketch_scope": ""
+    },
+    {
+      "milestone_id": "M003",
+      "id": "S05",
+      "title": "Live board updates: webhook pub-sub with ETag-probe fallback",
+      "status": "pending",
+      "risk": "medium",
+      "depends": [
+        "S02"
+      ],
+      "demo": "Edit the board -> wall updates within ~1-2s (webhook mode) or ~10s (probe mode), measured. Status chip shows the active board source.",
+      "created_at": "2026-09-06T19:15:33.749Z",
+      "completed_at": null,
+      "full_summary_md": "",
+      "full_uat_md": "",
+      "goal": "Replace the fixed 60s kanban poll with event-driven board updates: webhook receiver (GitHub projects_v2_item, ADO service hooks) as the live path, conditional ETag updatedAt probe (~10s, 304s rate-limit-free) as fallback; full fetch only on change. Source surfaced per S02.",
+      "success_criteria": "1) Webhook endpoint (HMAC validated, projects_v2_item + ADO service hooks) with debounce + full fetch + broadcast. 2) Conditional probe source with If-None-Match at ~10s. 3) BoardSource port: webhook | probe | demo. 4) Measured wall latency per mode. 5) Suite green.",
+      "proof_level": "runtime",
+      "integration_closure": "BoardSource feeds the same typed bus as agents (S02); extension keeps polling (documented).",
+      "observability_impact": "Probe 304/200 log, webhook receipts, board-source status chip.",
+      "target_repositories": [],
+      "sequence": 5,
+      "replan_triggered_at": null,
+      "is_sketch": 0,
+      "sketch_scope": ""
+    },
+    {
+      "milestone_id": "M003",
+      "id": "S06",
+      "title": "Hosted backend deployment: live wall + agents on a public URL",
+      "status": "pending",
+      "risk": "medium",
+      "depends": [
+        "S02",
+        "S05"
+      ],
+      "demo": "A public URL serving the room: board edits reflect in ~1-2s via webhook; Copilot-sourced agents visible; demo fallback when no token configured.",
+      "created_at": "2026-09-06T19:33:33.506Z",
+      "completed_at": null,
+      "full_summary_md": "",
+      "full_uat_md": "",
+      "goal": "Package and document deploying the web-server (room + WS + webhook receiver + board sources) to a public host: Dockerfile (Node 22), env contract (GITHUB_TOKEN, WEBHOOK_SECRET, project config, Copilot monitor token), webhook registration helper, health endpoint, and a deployment guide. Enables a fully live hosted wall (board edits in ~1-2s) viewable from any device. Local JSONL agent watching is local-only by design; hosted agents come from the Copilot monitor.",
+      "success_criteria": "1) Dockerfile + compose/fly config; container runs web-server on Node 22. 2) Env contract documented + .env.example; secrets never committed. 3) Webhook registration helper script (creates repo webhook with public URL + secret). 4) /health endpoint. 5) Deployment guide (docs/guides/deploy-live-backend.md) with platform notes (VPS+Docker default, Fly example). 6) Measured: webhook latency ~1-2s on the deployed instance; demo fallback works without tokens. 7) Suite green.",
+      "proof_level": "runtime",
+      "integration_closure": "Hosted instance exercises the same BoardSource + bus as local; status chip shows webhook-live mode.",
+      "observability_impact": "Health endpoint; startup logs list active board source + registered capabilities.",
+      "target_repositories": [],
+      "sequence": 6,
       "replan_triggered_at": null,
       "is_sketch": 0,
       "sketch_scope": ""
@@ -690,6 +753,136 @@
       "escalation_awaiting_review": 0,
       "escalation_artifact_path": null,
       "escalation_override_applied_at": null
+    },
+    {
+      "milestone_id": "M003",
+      "slice_id": "S02",
+      "id": "T01",
+      "title": "Typed message bus with stateful replay",
+      "status": "pending",
+      "one_liner": "",
+      "narrative": "",
+      "verification_result": "",
+      "duration": "",
+      "completed_at": null,
+      "blocker_discovered": false,
+      "deviations": "",
+      "known_issues": "",
+      "key_files": [],
+      "key_decisions": [],
+      "full_summary_md": "",
+      "description": "src/bus.ts: emitMessage/onMessage; retain kanbanCards/devMode/templateSize + per-agent state; clearAgents/agentRemoved applied to retention but never replayed; replay-to-every-subscriber (state sync).",
+      "estimate": "medium",
+      "files": [
+        "src/bus.ts"
+      ],
+      "verify": "tests/bus.test.ts (8 tests incl. dispatch-before-listener survival).",
+      "inputs": [
+        "Q13b incident",
+        "F3/F5 inventory"
+      ],
+      "expected_output": [
+        "src/bus.ts",
+        "tests/bus.test.ts"
+      ],
+      "observability_impact": "",
+      "full_plan_md": "",
+      "target_repositories": [
+        "project"
+      ],
+      "sequence": 0,
+      "blocker_source": "",
+      "escalation_pending": 0,
+      "escalation_awaiting_review": 0,
+      "escalation_artifact_path": null,
+      "escalation_override_applied_at": null
+    },
+    {
+      "milestone_id": "M003",
+      "slice_id": "S02",
+      "id": "T02",
+      "title": "Shared asset bootstrap",
+      "status": "pending",
+      "one_liner": "",
+      "narrative": "",
+      "verification_result": "",
+      "duration": "",
+      "completed_at": null,
+      "blocker_discovered": false,
+      "deviations": "",
+      "known_issues": "",
+      "key_files": [],
+      "key_decisions": [],
+      "full_summary_md": "",
+      "description": "src/assetBootstrap.ts: parallel atlas loads + Nitro furniture/figures with report (atlases, nitro stats, figuresAvailable, errors); main.tsx + webview.tsx call it; duplicated loaders deleted (webview 230 -> 117 lines).",
+      "estimate": "medium",
+      "files": [
+        "src/assetBootstrap.ts",
+        "src/web/main.tsx",
+        "src/webview.tsx"
+      ],
+      "verify": "typecheck + build + both hosts load via one module.",
+      "inputs": [
+        "F6 inventory"
+      ],
+      "expected_output": [
+        "src/assetBootstrap.ts"
+      ],
+      "observability_impact": "",
+      "full_plan_md": "",
+      "target_repositories": [
+        "project"
+      ],
+      "sequence": 0,
+      "blocker_source": "",
+      "escalation_pending": 0,
+      "escalation_awaiting_review": 0,
+      "escalation_artifact_path": null,
+      "escalation_override_applied_at": null
+    },
+    {
+      "milestone_id": "M003",
+      "slice_id": "S02",
+      "id": "T03",
+      "title": "Degradation registry + status chip",
+      "status": "pending",
+      "one_liner": "",
+      "narrative": "",
+      "verification_result": "",
+      "duration": "",
+      "completed_at": null,
+      "blocker_discovered": false,
+      "deviations": "",
+      "known_issues": "",
+      "key_files": [],
+      "key_decisions": [],
+      "full_summary_md": "",
+      "description": "src/degradations.ts (report/clear/subscribe); chip segments board:<source>, figures:<local/fallback>, warning count with tooltip; wsClient reports reconnect degradation.",
+      "estimate": "small",
+      "files": [
+        "src/degradations.ts",
+        "src/web/wsClient.ts",
+        "src/web/main.tsx"
+      ],
+      "verify": "tests/degradations.test.ts; chip verified in browser.",
+      "inputs": [
+        "F5 inventory"
+      ],
+      "expected_output": [
+        "src/degradations.ts",
+        "tests/degradations.test.ts"
+      ],
+      "observability_impact": "",
+      "full_plan_md": "",
+      "target_repositories": [
+        "project"
+      ],
+      "sequence": 0,
+      "blocker_source": "",
+      "escalation_pending": 0,
+      "escalation_awaiting_review": 0,
+      "escalation_artifact_path": null,
+      "escalation_override_applied_at": null
     }
   ],
   "decisions": [
@@ -702,6 +895,19 @@
       "choice": "Adopt RetroDiffusion (rd_pro__default + animation styles) as the primary generation source; PixelLab archived. Pack-script manifest format retained as the renderer contract.",
       "rationale": "PixelLab is unavailable; RetroDiffusion is live with reference-image consistency, an exact 48px walk+idle style matching the legacy pack format, 8-dir rotation sets, per-frame advanced animations, free cost estimation, and measured Habbo-viable output quality (test generation 2026-09-05, $0.36). Cost: ~$0.86/char at 48px parity, ~$3.21/char at 104px parity.",
       "revisable": "Revisit if PixelLab returns or RD quality degrades; 48px-first S02 proof may reshape the 104px composition strategy.",
+      "made_by": "collaborative",
+      "source": "discussion",
+      "superseded_by": null
+    },
+    {
+      "seq": 2,
+      "id": "D002",
+      "when_context": "M003/S01 completion, 2026-09-06. Evidence: docs/architecture/ARCHITECTURE.md",
+      "scope": "code-architecture",
+      "decision": "Adopt composite target architecture: hexagonal boundaries + unidirectional typed store + immediate-mode layered renderer, organized by feature slice",
+      "choice": "core/ (typed stores: agents, cards, camera, mode), render/ (CanvasStage + WorldLayers, pure draw fns), adapters/ (ws-client, extension-bridge, demo-driver), assets/, integrations/, hosts/. Rejected: ECS, Clean/Onion ceremony, event sourcing.",
+      "rationale": "Each piece formalizes an existing half-pattern with demonstrated failure evidence: 3 data sources already converge on one event bus (hexagonal), scattered refs caused the sizing/timing bugs (store), Q12/Q13 invented WorldLayer+invalidation caches ad hoc (immediate-mode layers). Guardrails: 536 tests + perf cadence measurements.",
+      "revisable": "Revisit if the room grows real simulation (ECS reconsidered) or team size justifies heavier layering.",
       "made_by": "collaborative",
       "source": "discussion",
       "superseded_by": null
@@ -953,6 +1159,150 @@
     {
       "milestone_id": "M002",
       "slice_id": "S01",
+      "gate_id": "Q8",
+      "scope": "slice",
+      "task_id": "",
+      "status": "pending",
+      "verdict": null,
+      "rationale": "",
+      "findings": "",
+      "evaluated_at": null
+    },
+    {
+      "milestone_id": "M003",
+      "slice_id": "S02",
+      "gate_id": "Q3",
+      "scope": "slice",
+      "task_id": "",
+      "status": "pending",
+      "verdict": null,
+      "rationale": "",
+      "findings": "",
+      "evaluated_at": null
+    },
+    {
+      "milestone_id": "M003",
+      "slice_id": "S02",
+      "gate_id": "Q4",
+      "scope": "slice",
+      "task_id": "",
+      "status": "pending",
+      "verdict": null,
+      "rationale": "",
+      "findings": "",
+      "evaluated_at": null
+    },
+    {
+      "milestone_id": "M003",
+      "slice_id": "S02",
+      "gate_id": "Q5",
+      "scope": "task",
+      "task_id": "T01",
+      "status": "pending",
+      "verdict": null,
+      "rationale": "",
+      "findings": "",
+      "evaluated_at": null
+    },
+    {
+      "milestone_id": "M003",
+      "slice_id": "S02",
+      "gate_id": "Q5",
+      "scope": "task",
+      "task_id": "T02",
+      "status": "pending",
+      "verdict": null,
+      "rationale": "",
+      "findings": "",
+      "evaluated_at": null
+    },
+    {
+      "milestone_id": "M003",
+      "slice_id": "S02",
+      "gate_id": "Q5",
+      "scope": "task",
+      "task_id": "T03",
+      "status": "pending",
+      "verdict": null,
+      "rationale": "",
+      "findings": "",
+      "evaluated_at": null
+    },
+    {
+      "milestone_id": "M003",
+      "slice_id": "S02",
+      "gate_id": "Q6",
+      "scope": "task",
+      "task_id": "T01",
+      "status": "pending",
+      "verdict": null,
+      "rationale": "",
+      "findings": "",
+      "evaluated_at": null
+    },
+    {
+      "milestone_id": "M003",
+      "slice_id": "S02",
+      "gate_id": "Q6",
+      "scope": "task",
+      "task_id": "T02",
+      "status": "pending",
+      "verdict": null,
+      "rationale": "",
+      "findings": "",
+      "evaluated_at": null
+    },
+    {
+      "milestone_id": "M003",
+      "slice_id": "S02",
+      "gate_id": "Q6",
+      "scope": "task",
+      "task_id": "T03",
+      "status": "pending",
+      "verdict": null,
+      "rationale": "",
+      "findings": "",
+      "evaluated_at": null
+    },
+    {
+      "milestone_id": "M003",
+      "slice_id": "S02",
+      "gate_id": "Q7",
+      "scope": "task",
+      "task_id": "T01",
+      "status": "pending",
+      "verdict": null,
+      "rationale": "",
+      "findings": "",
+      "evaluated_at": null
+    },
+    {
+      "milestone_id": "M003",
+      "slice_id": "S02",
+      "gate_id": "Q7",
+      "scope": "task",
+      "task_id": "T02",
+      "status": "pending",
+      "verdict": null,
+      "rationale": "",
+      "findings": "",
+      "evaluated_at": null
+    },
+    {
+      "milestone_id": "M003",
+      "slice_id": "S02",
+      "gate_id": "Q7",
+      "scope": "task",
+      "task_id": "T03",
+      "status": "pending",
+      "verdict": null,
+      "rationale": "",
+      "findings": "",
+      "evaluated_at": null
+    },
+    {
+      "milestone_id": "M003",
+      "slice_id": "S02",
       "gate_id": "Q8",
       "scope": "slice",
       "task_id": "",

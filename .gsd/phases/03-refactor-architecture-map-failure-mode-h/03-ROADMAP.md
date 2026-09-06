@@ -25,6 +25,12 @@
 - [ ] **S04: Typed app-state store: agents, cards, camera, mode** `risk:medium` `depends:[S03]`
   > After this: WS drop + reconnect: agents clear/repopulate via store transitions; demo fallback triggers via an explicit mode transition; kanban filter/notes invalidation flows through store subscriptions.
 
+- [ ] **S05: Live board updates: webhook pub-sub with ETag-probe fallback** `risk:medium` `depends:[S02]`
+  > After this: Edit the board -> wall updates within ~1-2s (webhook mode) or ~10s (probe mode), measured. Status chip shows the active board source.
+
+- [ ] **S06: Hosted backend deployment: live wall + agents on a public URL** `risk:medium` `depends:[S02,S05]`
+  > After this: A public URL serving the room: board edits reflect in ~1-2s via webhook; Copilot-sourced agents visible; demo fallback when no token configured.
+
 ## Boundary Map
 
 | In scope | Out of scope |
@@ -33,4 +39,4 @@
 | Shared asset bootstrap + typed event bus + replay | New features on the room (visual changes) |
 | Typed app-state store (agents/cards/mode/camera) | Changing asset formats or the RD/PixelLab pipelines |
 | Failure-mode inventory + degraded-state surfacing | Rewriting renderers (draw functions stay, signatures may widen) |
-<!-- gsd:state-version=5:0 -->
+<!-- gsd:state-version=8:0 -->

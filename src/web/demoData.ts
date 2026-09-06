@@ -1,20 +1,21 @@
 /**
  * Demo data for standalone mode.
  *
- * Dispatches extensionMessage CustomEvents to simulate agent activity.
+ * Dispatches messages through the typed bus to simulate agent activity.
  * Uses the same message protocol as the VS Code extension host.
  */
-import type { TeamSection, KanbanCard } from '../agentTypes.js';
+import type { TeamSection, KanbanCard, ExtensionMessage } from '../agentTypes.js';
+import { emitMessage } from '../bus.js';
 
-function dispatch(msg: Record<string, unknown>) {
-  window.dispatchEvent(new CustomEvent('extensionMessage', { detail: msg }));
+function dispatch(msg: ExtensionMessage) {
+  emitMessage(msg);
 }
 
 const DEMO_AGENTS: Array<{
   id: string;
   name: string;
   team: TeamSection;
-  variant: number;
+  variant: 0 | 1 | 2 | 3 | 4 | 5;
   tools: string[];
 }> = [
   {
@@ -77,9 +78,9 @@ export function scheduleDemoEvents(): void {
     { id: '105', title: 'Deploy to staging', status: 'Done', workItemType: 'Task', assignee: 'Carol' },
     { id: '106', title: 'Write tests for pathfinding', status: 'Done', workItemType: 'Task' },
   ];
-  setTimeout(() => {
-    dispatch({ type: 'kanbanCards', cards: demoCards });
-  }, 100);
+  // Dispatched synchronously: the bus retains stateful messages and replays
+  // them to subscribers that attach later (Q13b fix, now structural)
+  dispatch({ type: 'kanbanCards', cards: demoCards });
 
   let delay = 500;
 
