@@ -24,11 +24,9 @@ export function getAtlasForTeam(team?: string): string {
   }
 }
 
-/** Scale factor: 104px sprites scaled to match furniture proportions */
-const SCALE = 1.6;
-
-/** Vertical offset to align character feet with tile surface */
-const Y_OFFSET = 45;
+/** Target on-screen character height — normalizes any source frame size */
+const TARGET_CHAR_HEIGHT = 120;
+const Y_OFFSET_RATIO = 45 / 166;
 
 /** Walk animation: 4 frames per cycle */
 const WALK_FRAMES = 4;
@@ -132,10 +130,11 @@ export const pixelLabRenderer: AvatarRenderer = {
           || spriteCache.getFrame(DEFAULT_ATLAS_NAME, `pl_rot_${spec.direction}`);
         if (!frame) return;
 
-        const dw = Math.floor(frame.w * SCALE);
-        const dh = Math.floor(frame.h * SCALE);
+        const scale = TARGET_CHAR_HEIGHT / frame.h;
+        const dw = Math.floor(frame.w * scale);
+        const dh = Math.floor(frame.h * scale);
         const dx = Math.floor(screen.x - dw / 2);
-        const dy = Math.floor(screen.y - dh + TILE_H_HALF + Y_OFFSET);
+        const dy = Math.floor(screen.y - dh + TILE_H_HALF + dh * Y_OFFSET_RATIO);
 
         // Spawn/despawn clipping
         if (spec.state === "spawning" || spec.state === "despawning") {

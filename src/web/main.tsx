@@ -42,8 +42,8 @@ let FLOOR_HEIGHTMAP = currentTemplate.heightmap;
 // No VS Code API in standalone mode — set up extensionMessage relay as no-op source
 // RoomCanvas already guards vscodeApi calls with null checks
 
-// Asset URIs using relative paths served by the local dev server
-const ASSET_BASE = '/assets';
+// Asset URIs using relative paths (works at server root and under Pages subpaths)
+const ASSET_BASE = './assets';
 (window as any).ASSET_URIS = {
   chairPng: `${ASSET_BASE}/chair_atlas.png`,
   chairJson: `${ASSET_BASE}/chair_atlas.json`,
@@ -54,16 +54,16 @@ const ASSET_BASE = '/assets';
   notificationSound: `${ASSET_BASE}/sounds/notification.ogg`,
   nitroManifest: `${ASSET_BASE}/manifest.json`,
   nitroFurnitureBase: `${ASSET_BASE}/furniture`,
-  pixellabPng: `${ASSET_BASE}/pixellab/habbo-inspiration-new.png`,
-  pixellabJson: `${ASSET_BASE}/pixellab/habbo-inspiration-new.json`,
-  plPlanningPng: `${ASSET_BASE}/pixellab/habbo-inspiration-new.png`,
-  plPlanningJson: `${ASSET_BASE}/pixellab/habbo-inspiration-new.json`,
-  plCoreDevPng: `${ASSET_BASE}/pixellab/habbo-inspiration-new.png`,
-  plCoreDevJson: `${ASSET_BASE}/pixellab/habbo-inspiration-new.json`,
-  plInfrastructurePng: `${ASSET_BASE}/pixellab/habbo-inspiration-new.png`,
-  plInfrastructureJson: `${ASSET_BASE}/pixellab/habbo-inspiration-new.json`,
-  plSupportPng: `${ASSET_BASE}/pixellab/habbo-inspiration-new.png`,
-  plSupportJson: `${ASSET_BASE}/pixellab/habbo-inspiration-new.json`,
+  pixellabPng: `${ASSET_BASE}/pixellab/rd-eval-char.png`,
+  pixellabJson: `${ASSET_BASE}/pixellab/rd-eval-char.json`,
+  plPlanningPng: `${ASSET_BASE}/pixellab/rd-eval-char.png`,
+  plPlanningJson: `${ASSET_BASE}/pixellab/rd-eval-char.json`,
+  plCoreDevPng: `${ASSET_BASE}/pixellab/rd-eval-char.png`,
+  plCoreDevJson: `${ASSET_BASE}/pixellab/rd-eval-char.json`,
+  plInfrastructurePng: `${ASSET_BASE}/pixellab/rd-eval-char.png`,
+  plInfrastructureJson: `${ASSET_BASE}/pixellab/rd-eval-char.json`,
+  plSupportPng: `${ASSET_BASE}/pixellab/rd-eval-char.png`,
+  plSupportJson: `${ASSET_BASE}/pixellab/rd-eval-char.json`,
 };
 
 // Initialize sprite cache and load assets before rendering
