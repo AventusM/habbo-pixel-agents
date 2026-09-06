@@ -101,23 +101,29 @@ Layers and caches (the Q12/Q13 pattern that S03 formalizes):
 
 ## 4. Asset pipeline
 
-```mermaid
-flowchart LR
-  subgraph external["External sources"]
-    CAKE["CakeChloe/cortex-assets<br/>(original Habbo furniture + figures)"]
-    RD["RetroDiffusion MCP<br/>(characters, 8-dir + walks)"]
-    PL["PixelLab (ARCHIVED — service down)"]
-  end
-  CAKE --> DL["scripts/download-habbo-assets.mjs"]
-  DL --> RAW[("assets/habbo-raw/<br/>gitignored, local-only")]
-  RAW --> CV["scripts/convert-cortex-to-nitro.mjs"]
-  CV --> HABBO[("assets/habbo/<br/>manifest + furniture + figures<br/>gitignored, local-only")]
-  RD --> GEN["generation (MCP: create_inference / jobs)"]
-  GEN --> RDASSETS[("assets/rd/ + <br/>assets/pixellab/rd-eval-char.*<br/>COMMITTED (own-generated)")]
-  HABBO --> ESB["esbuild copyAssets"]
-  RDASSETS --> ESB
-  ESB --> DIST[("dist/web/assets + webview-assets")]
-```
+Two independent pipelines produce sprites; both end in the same runtime cache
+(`SpriteCache`) that renderers read frames from. The manifest contract is the
+seam: generated characters use `pl_*` keys (Texture-Packer JSON), original
+figures use Nitro `h_*` keys.
+
+**Pipeline A — original Habbo assets** (furniture committed; figures
+local-only/CI-time — copyright posture):
+
+| Step | Command | Input → Output |
+|---|---|---|
+| 1 | `node scripts/download-habbo-assets.mjs` | cortex-assets (GitHub raw) → `assets/habbo-raw/` (26 furniture + 21 figures) |
+| 2 | `node scripts/convert-cortex-to-nitro.mjs` | cortex sprite-sheets → Nitro per-item format: `assets/habbo/manifest.json` + `furniture/` + `figures/` (keys `h_std_*`/`h_wlk_*`) |
+| 3 | `node esbuild.config.mjs` (copyAssets) | → `dist/web/assets/` + `dist/webview-assets/` |
+| 4 | runtime | `spriteCache.loadNitroAsset(name, png, json)` per item |
+
+**Pipeline B — generated characters** (RetroDiffusion; PixelLab archived):
+
+| Step | Tool | Notes |
+|---|---|---|
+| 1 | RD MCP: `rd_pro__default` base + `four_angle_walking_idle` (48px) + `8_dir_rotation` (80px, base as reference) + `advanced walking` per diagonal | paid, ~$1/character |
+| 2 | `node scripts/pack-rd-sprites.mjs --out=<name>` | cuts 4×4 walk/idle sheet + 3×3 rotation poses + 2×2 diagonal sheets → one atlas + manifest (72 `pl_*` frames, cell 48) |
+| 3 | esbuild copyAssets | → dist |
+| 4 | runtime | `spriteCache.loadAtlas('pixellab', png, json)` |
 
 Copyright posture (D001-era, PR #66): original Habbo **figures are never
 committed** — downloaded at CI time for the Pages deployment, locally via the
