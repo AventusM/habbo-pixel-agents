@@ -1,0 +1,51 @@
+{
+  "schema": 2,
+  "lastWriter": "gsd-pi",
+  "lastProjectedAt": "2026-09-06T08:10:24.977Z",
+  "projections": {
+    "phases/01-retrodiffusion-as-primary-pixel-art-sour/01-ROADMAP.md": {
+      "sha": "82da4065ce32fabf",
+      "entities": [
+        "M001"
+      ]
+    },
+    "DECISIONS.md": {
+      "sha": "ef41eaf4da4b5f5b",
+      "entities": []
+    },
+    "phases/01-retrodiffusion-as-primary-pixel-art-sour/01-01-RESEARCH.md": {
+      "sha": "455a6ab2e8ac1054",
+      "entities": [
+        "M001",
+        "M001/S01"
+      ]
+    },
+    "phases/01-retrodiffusion-as-primary-pixel-art-sour/01-02-PLAN.md": {
+      "sha": "ea3e5b2eaa8eeab1",
+      "entities": [
+        "M001",
+        "M001/S02"
+      ]
+    },
+    "phases/02-restore-original-habbo-figure-avatar-sys/02-ROADMAP.md": {
+      "sha": "ee2ae651163d02fe",
+      "entities": [
+        "M002"
+      ]
+    },
+    "phases/02-restore-original-habbo-figure-avatar-sys/02-01-PLAN.md": {
+      "sha": "ee7f81f66d514a21",
+      "entities": [
+        "M002",
+        "M002/S01"
+      ]
+    }
+  },
+  "planning": {
+    "active": false,
+    "layout": null,
+    "projections": {},
+    "passthrough": {}
+  },
+  "piVersion": ""
+}

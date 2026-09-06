@@ -4,10 +4,13 @@
 
 All implementation tasks MUST go through the GSD workflow:
 
-1. **Step mode**: Use `/gsd` or `/gsd next` to execute one unit at a time
-2. **Auto mode**: Use `/gsd auto` to research, plan, execute, and commit autonomously
-3. **Discussion**: Use `/gsd discuss` alongside auto mode for architecture decisions
-4. **Status**: Use `/gsd status` or `Ctrl+Alt+G` for progress dashboard
+1. **Always use the GSD MCP server first** (`gsd_gsd_*` tools). It is the SQLite-authoritative interface — never parse markdown projections as your source of truth.
+2. **State**: use `gsd_gsd_progress`, `gsd_gsd_query`, or `gsd_gsd_roadmap` to orient; use `gsd_gsd_doctor` if state looks wrong
+3. **Planning**: use `gsd_gsd_plan_milestone` / `gsd_gsd_plan_slice` / `gsd_gsd_plan_task`
+4. **Execution**: use `gsd_gsd_task_complete` per task, then `gsd_gsd_slice_complete` per slice
+5. **Milestones**: use `gsd_gsd_validate_milestone` then `gsd_gsd_complete_milestone`
+
+The `/gsd` slash commands (`/gsd`, `/gsd next`, `/gsd auto`, `/gsd status`) are for the human in the TUI. Agents should drive GSD through the MCP tools directly.
 
 Do NOT implement features directly without going through GSD. This applies to all new features, bug fixes, and refactoring work — regardless of size.
 
@@ -39,7 +42,7 @@ The pi TUI crashes if any single output line exceeds the terminal width (~144 ch
 - **Legacy history**: `.gsd/archive/milestones-pre-gsd3-20260904/` (M001–M008 from GSD 2 era, read-only reference — all complete except M007/S02)
 - **Quick fixes**: `.gsd/quick/` (Q01-Q05, migrated from legacy `.planning/quick/`)
 - **Todos**: `.gsd/todos/` (done + pending)
-- **Diagnostics**: `/gsd doctor` validates DB/projection integrity; `gsd headless query` for non-interactive state snapshot
+- **Diagnostics**: `gsd_gsd_doctor` (MCP) validates DB/projection integrity; `/gsd doctor` is the TUI equivalent; `gsd headless query` for non-interactive state snapshot
 
 ### GSD migration notes (2026-09-04)
 
