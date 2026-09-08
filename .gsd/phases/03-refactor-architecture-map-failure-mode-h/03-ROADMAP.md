@@ -31,6 +31,9 @@
 - [ ] **S06: Hosted backend deployment: live wall + agents on a public URL** `risk:medium` `depends:[S02,S05]`
   > After this: A public URL serving the room: board edits reflect in ~1-2s via webhook; Copilot-sourced agents visible; demo fallback when no token configured.
 
+- [ ] **S07: Investigation: agent hooks for role-specific deterministic automation** `risk:low` `depends:[]`
+  > After this: docs/agent-hooks/INVESTIGATION.md with surface inventory, role x hook matrix, prototype results, and verdict; two working prototype scripts under scripts/hooks/.
+
 ## Boundary Map
 
 | In scope | Out of scope |
@@ -39,4 +42,4 @@
 | Shared asset bootstrap + typed event bus + replay | New features on the room (visual changes) |
 | Typed app-state store (agents/cards/mode/camera) | Changing asset formats or the RD/PixelLab pipelines |
 | Failure-mode inventory + degraded-state surfacing | Rewriting renderers (draw functions stay, signatures may widen) |
-<!-- gsd:state-version=8:0 -->
+<!-- gsd:state-version=9:0 -->

@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "exported_at": "2026-09-06T20:05:13.128Z",
+  "exported_at": "2026-09-08T16:42:13.515Z",
   "requirements": [],
   "artifacts": [
     {
@@ -69,9 +69,9 @@
       "milestone_id": "M003",
       "slice_id": null,
       "task_id": null,
-      "full_content": "# M003: Refactor: Architecture Map, Failure-Mode Hardening, Render Layers, State Store\n\n**Vision:** Make the current architecture visible, harden the places that demonstrably go wrong, and formalize the patterns that emerged ad hoc during feature work. Deliver an honest architecture map (module graph, data flow, render pipeline, event flow) as living docs; extract the canvas/asset/bootstrap concerns out of the 1,882-line RoomCanvas; turn the ad-hoc render-layer caches into an explicit layer pipeline; consolidate app state (agents, cards, camera, demo-vs-live) behind a typed store with explicit invalidation. Keep the room pixel-perfect and fast throughout (536-test suite + visual UAT as guardrails).\n\n## Success Criteria\n\n- Living architecture docs (generated module graph + hand-annotated data flow, render pipeline, event lifecycle, asset pipeline) committed and regenerable\n- Failure-mode inventory: every known incident mapped to root cause, guard, and residual risk\n- Single asset-bootstrap for web + extension; typed event bus with startup replay; degraded states visible in UI\n- CanvasStage + WorldLayer pipeline extracted from RoomCanvas; module-level renderer state eliminated\n- Typed app-state store with explicit demo/live mode machine; WS reconnect regression-tested\n- Suite green throughout; pan/zoom/idle render cadence not regressed (measured)\n\n## Slices\n\n- [ ] **S01: Architecture visualization + honest current-state map** `risk:low` `depends:[]`\n  > After this: docs/architecture/ with mermaid diagrams (module graph generated via madge, hand-annotated data-flow + render-pipeline + event-lifecycle diagrams), plus a documented failure-mode inventory with the concrete incidents that demonstrated each (canvas sizing races, demo event lost pre-listener, silent fallbacks, typecheck .tsx gap).\n\n- [ ] **S02: Failure-mode hardening: bootstrap, event bus, surfaced degradation** `risk:medium` `depends:[S01]`\n  > After this: Demo page with the network tab throttled: no lost cards; a degraded board fetch shows a visible indicator; both loaders share one bootstrap module (diff shows deletion of duplicated code).\n\n- [ ] **S03: Render layer pipeline: formalize room, notes, and dynamic layers** `risk:medium` `depends:[S01]`\n  > After this: CanvasStage owns canvas+layers; RoomCanvas shrank by the extracted code; pan/zoom/walk performance not worse (measured render cadence); behavior identical.\n\n- [ ] **S04: Typed app-state store: agents, cards, camera, mode** `risk:medium` `depends:[S03]`\n  > After this: WS drop + reconnect: agents clear/repopulate via store transitions; demo fallback triggers via an explicit mode transition; kanban filter/notes invalidation flows through store subscriptions.\n\n- [ ] **S05: Live board updates: webhook pub-sub with ETag-probe fallback** `risk:medium` `depends:[S02]`\n  > After this: Edit the board -> wall updates within ~1-2s (webhook mode) or ~10s (probe mode), measured. Status chip shows the active board source.\n\n- [ ] **S06: Hosted backend deployment: live wall + agents on a public URL** `risk:medium` `depends:[S02,S05]`\n  > After this: A public URL serving the room: board edits reflect in ~1-2s via webhook; Copilot-sourced agents visible; demo fallback when no token configured.\n\n## Boundary Map\n\n| In scope | Out of scope |\n|---|---|\n| RoomCanvas decomposition (CanvasStage, layer pipeline) | Avatar builder UI (separate follow-up) |\n| Shared asset bootstrap + typed event bus + replay | New features on the room (visual changes) |\n| Typed app-state store (agents/cards/mode/camera) | Changing asset formats or the RD/PixelLab pipelines |\n| Failure-mode inventory + degraded-state surfacing | Rewriting renderers (draw functions stay, signatures may widen) |\n<!-- gsd:state-version=8:0 -->\n",
-      "imported_at": "2026-09-06T20:05:12.670Z",
-      "content_hash": "864073b2182935b46ace664800cbf45d460345f509443da7dffb638c2aa0a988"
+      "full_content": "# M003: Refactor: Architecture Map, Failure-Mode Hardening, Render Layers, State Store\n\n**Vision:** Make the current architecture visible, harden the places that demonstrably go wrong, and formalize the patterns that emerged ad hoc during feature work. Deliver an honest architecture map (module graph, data flow, render pipeline, event flow) as living docs; extract the canvas/asset/bootstrap concerns out of the 1,882-line RoomCanvas; turn the ad-hoc render-layer caches into an explicit layer pipeline; consolidate app state (agents, cards, camera, demo-vs-live) behind a typed store with explicit invalidation. Keep the room pixel-perfect and fast throughout (536-test suite + visual UAT as guardrails).\n\n## Success Criteria\n\n- Living architecture docs (generated module graph + hand-annotated data flow, render pipeline, event lifecycle, asset pipeline) committed and regenerable\n- Failure-mode inventory: every known incident mapped to root cause, guard, and residual risk\n- Single asset-bootstrap for web + extension; typed event bus with startup replay; degraded states visible in UI\n- CanvasStage + WorldLayer pipeline extracted from RoomCanvas; module-level renderer state eliminated\n- Typed app-state store with explicit demo/live mode machine; WS reconnect regression-tested\n- Suite green throughout; pan/zoom/idle render cadence not regressed (measured)\n\n## Slices\n\n- [ ] **S01: Architecture visualization + honest current-state map** `risk:low` `depends:[]`\n  > After this: docs/architecture/ with mermaid diagrams (module graph generated via madge, hand-annotated data-flow + render-pipeline + event-lifecycle diagrams), plus a documented failure-mode inventory with the concrete incidents that demonstrated each (canvas sizing races, demo event lost pre-listener, silent fallbacks, typecheck .tsx gap).\n\n- [ ] **S02: Failure-mode hardening: bootstrap, event bus, surfaced degradation** `risk:medium` `depends:[S01]`\n  > After this: Demo page with the network tab throttled: no lost cards; a degraded board fetch shows a visible indicator; both loaders share one bootstrap module (diff shows deletion of duplicated code).\n\n- [ ] **S03: Render layer pipeline: formalize room, notes, and dynamic layers** `risk:medium` `depends:[S01]`\n  > After this: CanvasStage owns canvas+layers; RoomCanvas shrank by the extracted code; pan/zoom/walk performance not worse (measured render cadence); behavior identical.\n\n- [ ] **S04: Typed app-state store: agents, cards, camera, mode** `risk:medium` `depends:[S03]`\n  > After this: WS drop + reconnect: agents clear/repopulate via store transitions; demo fallback triggers via an explicit mode transition; kanban filter/notes invalidation flows through store subscriptions.\n\n- [ ] **S05: Live board updates: webhook pub-sub with ETag-probe fallback** `risk:medium` `depends:[S02]`\n  > After this: Edit the board -> wall updates within ~1-2s (webhook mode) or ~10s (probe mode), measured. Status chip shows the active board source.\n\n- [ ] **S06: Hosted backend deployment: live wall + agents on a public URL** `risk:medium` `depends:[S02,S05]`\n  > After this: A public URL serving the room: board edits reflect in ~1-2s via webhook; Copilot-sourced agents visible; demo fallback when no token configured.\n\n- [ ] **S07: Investigation: agent hooks for role-specific deterministic automation** `risk:low` `depends:[]`\n  > After this: docs/agent-hooks/INVESTIGATION.md with surface inventory, role x hook matrix, prototype results, and verdict; two working prototype scripts under scripts/hooks/.\n\n## Boundary Map\n\n| In scope | Out of scope |\n|---|---|\n| RoomCanvas decomposition (CanvasStage, layer pipeline) | Avatar builder UI (separate follow-up) |\n| Shared asset bootstrap + typed event bus + replay | New features on the room (visual changes) |\n| Typed app-state store (agents/cards/mode/camera) | Changing asset formats or the RD/PixelLab pipelines |\n| Failure-mode inventory + degraded-state surfacing | Rewriting renderers (draw functions stay, signatures may widen) |\n<!-- gsd:state-version=9:0 -->\n",
+      "imported_at": "2026-09-08T16:42:13.014Z",
+      "content_hash": "6669bd14c2a524a75985472b3bce0440ff6b44cdcf66268767820afc695bf5c9"
     }
   ],
   "milestones": [
@@ -246,7 +246,7 @@
           "whatWillBeProven": "WS reconnect + demo transition tests; visual UAT"
         }
       ],
-      "verification_contract": "S01 artifact-verified (docs + inventory). S02/S03/S04 runtime-verified (tests + browser UAT); S03 additionally performance-measured. v4 includes S05+S06 deployment verification",
+      "verification_contract": "S01 artifact-verified (docs + inventory). S02/S03/S04 runtime-verified (tests + browser UAT); S03 additionally performance-measured. v5 adds S07 hooks investigation",
       "verification_integration": "Web + extension boot paths both exercise the shared bootstrap; store subscriptions feed both the render loop and the overlay panel.",
       "verification_operational": "Degraded-state chip; mode-transition logs; render counters (executed vs skipped).",
       "verification_uat": "Human confirms room behavior identical (mobile + desktop) after each slice; docs read as accurate.",
@@ -425,11 +425,11 @@
       "completed_at": null,
       "full_summary_md": "",
       "full_uat_md": "",
-      "goal": "Fix demonstrated failure classes: one shared asset-bootstrap module for both hosts, typed event bus with startup replay, surfaced degradation in the status chip.",
-      "success_criteria": "1) Single asset-bootstrap; duplicate loaders deleted. 2) Bus replay: dispatch-before-listener survives (regression tested). 3) Degraded states visible (chip segments: board source, figures, warning count). 4) Suite green; healthy paths unchanged.",
+      "goal": "Fix the demonstrated failure classes at their root: (a) extract a single asset-bootstrap module used by BOTH web and extension loaders (kill the duplicated 7-call loaders), (b) make the extensionMessage event bus lifecycle-safe (typed dispatch, listener-ready gate or replay buffer so early events like demo cards cannot be lost), (c) surface silent degradation (11 return-[] sites) as observable states instead of console-only warnings.",
+      "success_criteria": "1) One asset-bootstrap module; web + extension loaders call it (duplicated loader code deleted). 2) Event bus: typed emit/on with startup replay (or attach-before-dispatch guarantee) + test proving a demo kanbanCards dispatch survives listener attachment timing. 3) Degraded data states visible in UI (e.g. status chip: board source live/demo/degraded). 4) Full suite green; no behavior change in healthy paths.",
       "proof_level": "runtime",
-      "integration_closure": "Web + extension boot paths share the bootstrap; demo and live both exercise replay.",
-      "observability_impact": "Status chip segments; bootstrap report logs; degradation registry.",
+      "integration_closure": "Web + extension boot paths verified; demo and live agent paths both exercise the replay guarantee.",
+      "observability_impact": "Degraded-state chip in the status bar; bootstrap logs aggregated.",
       "target_repositories": [
         "project"
       ],
@@ -535,6 +535,29 @@
       "observability_impact": "Health endpoint; startup logs list active board source + registered capabilities.",
       "target_repositories": [],
       "sequence": 6,
+      "replan_triggered_at": null,
+      "is_sketch": 0,
+      "sketch_scope": ""
+    },
+    {
+      "milestone_id": "M003",
+      "id": "S07",
+      "title": "Investigation: agent hooks for role-specific deterministic automation",
+      "status": "pending",
+      "risk": "low",
+      "depends": [],
+      "demo": "docs/agent-hooks/INVESTIGATION.md with surface inventory, role x hook matrix, prototype results, and verdict; two working prototype scripts under scripts/hooks/.",
+      "created_at": "2026-09-08T16:42:12.594Z",
+      "completed_at": null,
+      "full_summary_md": "",
+      "full_uat_md": "",
+      "goal": "Investigate the usefulness of agent hooks (deterministic automations on agent lifecycle events) for the distinct agent roles in this project: room-visualized team agents (planning/core-dev/infrastructure/support), GSD workflow roles (planner/executor/reviewer), and GitHub Copilot agent roles (asset-pipeline, visual-regression). Inventory available hook surfaces (Claude Code hooks incl. existing user config, Mault detectors, GSD event stream, agent JSONL transcripts, git hooks, GitHub Actions), map role x hook value, prototype the two highest-value hooks, and record an adopt/defer verdict per role.",
+      "success_criteria": "1) Surface inventory verified on this machine (what each can observe/do). 2) Role x hook matrix with value ratings. 3) Two prototypes demonstrating the top data paths. 4) Verdict per role recorded (GSD decision). 5) Recommendation: which hooks become follow-up slices.",
+      "proof_level": "artifact",
+      "integration_closure": "Findings feed the failure-mode inventory (hooks as enforcement for the F-class guards).",
+      "observability_impact": "Prototype hooks may log structured events.",
+      "target_repositories": [],
+      "sequence": 7,
       "replan_triggered_at": null,
       "is_sketch": 0,
       "sketch_scope": ""
