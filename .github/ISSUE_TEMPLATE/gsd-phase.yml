@@ -7,12 +7,16 @@ body:
       value: |
         Use this template to define a GSD slice for Copilot to implement. Assign the issue to Copilot with the `gsd-phase` agent.
 
+        The slice plan lives in the GSD Pi state store (`.gsd/`) — the Copilot
+        agent implements the code and reports against the Outcomes contract;
+        it does not write `.gsd/` state files directly.
+
   - type: input
     id: milestone
     attributes:
       label: Milestone
-      description: "Milestone ID (e.g., M002)"
-      placeholder: "M002"
+      description: "Milestone ID — must exist in the GSD Pi state store (e.g., M003)"
+      placeholder: "M003"
     validations:
       required: true
 
@@ -20,8 +24,8 @@ body:
     id: slice-number
     attributes:
       label: Slice Number
-      description: "Next available slice number (e.g., S23)"
-      placeholder: "S23"
+      description: "Slice ID as registered in the GSD milestone (e.g., S03)"
+      placeholder: "S06"
     validations:
       required: true
 
@@ -59,7 +63,7 @@ body:
     attributes:
       label: Dependencies
       description: "Comma-separated slice IDs this depends on (leave empty if none)"
-      placeholder: "S21, S22"
+      placeholder: "S04, S05"
 
   - type: textarea
     id: tasks
@@ -74,13 +78,22 @@ body:
       required: true
 
   - type: textarea
-    id: must-haves
+    id: outcomes
     attributes:
-      label: Must-Haves
-      description: "Acceptance criteria — what must be true when done"
+      label: Outcomes (O-N contracts)
+      description: "Verifiable end states, one per line, phrased as `O-N — outcome`. The assigned agent ticks these when verified; the gsd-loop outcomes tool syncs them."
       placeholder: |
-        - Widget state transitions animate over 200ms
-        - No animation on initial render
-        - Tests cover all easing functions
+        O-1 — Widget state transitions animate over 200ms
+        O-2 — No animation on initial render
+        O-3 — Tests cover all easing functions
     validations:
       required: true
+
+  - type: textarea
+    id: exclusions
+    attributes:
+      label: Exclusions (X-N fences)
+      description: "Explicit non-goals, one per line (X-N — exclusion). Anything inside these fences is out of scope for the assignment."
+      placeholder: |
+        X-1 — no changes to the room render pipeline
+        X-2 — no new dependencies

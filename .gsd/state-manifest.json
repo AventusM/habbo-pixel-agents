@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "exported_at": "2026-09-08T16:42:13.515Z",
+  "exported_at": "2026-09-09T19:10:47.056Z",
   "requirements": [],
   "artifacts": [
     {
@@ -64,14 +64,24 @@
       "content_hash": "29bab1f3b6f08f398ec23850514638dc5b7807eeacc0404e837e4625ac0baf74"
     },
     {
+      "path": "phases/03-refactor-architecture-map-failure-mode-h/03-03-PLAN.md",
+      "artifact_type": "PLAN",
+      "milestone_id": "M003",
+      "slice_id": "S03",
+      "task_id": null,
+      "full_content": "# S03: Render layer pipeline: formalize room, notes, and dynamic layers\n\n**Milestone:** M003\n**Slice:** S03\n\n**Goal:** Generalize the Q12/Q13 render-layer pattern into an explicit WorldLayer pipeline, extracted out of RoomCanvas into a CanvasStage module; module-level mutable renderer state becomes stage-owned.\n**Demo:** CanvasStage owns canvas+layers; RoomCanvas shrank by the extracted code; pan/zoom/walk performance not worse (measured render cadence); behavior identical.\n\n## Must-Haves\n\n- 1) src/render/CanvasStage.ts owns canvas lifecycle + input + frame loop (no resize/wheel/touch listeners in RoomCanvas). 2) src/render/layers.ts WorldLayer contract + RoomLayer/NotesLayer migrations. 3) isoKanbanRenderer module-level mutable state eliminated. 4) Frame scheduler formalized + render/skip counters. 5) RoomCanvas >=25% smaller; cadence measured; suite 547/547.\n\n## Proof Level\n\n- This slice proves: runtime\n\n## Integration Closure\n\nAll world-space drawing flows through the layer pipeline; renderers keep pure draw functions.\n\n## Verification\n\n- Render/skip counters via dev accessor.\n\n<tasks>\n- [ ] **T01**: Extract CanvasStage (canvas lifecycle + input + loop) _(large)_\n  Move canvas init/resize, camera state, pointer/wheel/touch input, and the rAF frame loop out of RoomCanvas into src/render/CanvasStage.ts; RoomCanvas instantiates it.\n  - Files: `src/render/CanvasStage.ts`, `src/RoomCanvas.tsx`\n  - Verify: no resize/wheel/touch listeners remain in RoomCanvas; suite green.\n- [ ] **T02**: WorldLayer contract + RoomLayer/NotesLayer _(medium)_\n  src/render/layers.ts: WorldLayer (invalidation inputs, render, visible-slice blit); migrate room buffer + notes cache behind it; buffer state moves into the stage.\n  - Files: `src/render/layers.ts`, `src/RoomCanvas.tsx`\n  - Verify: layers blit identically; no offscreen fields left on RoomCanvas renderState.\n- [ ] **T03**: Scheduler + counters + module-state elimination _(medium)_\n  Formalize the throttle in CanvasStage with render/skip counters; move isoKanbanRenderer hit-area/rect module state into stage-owned per-render structures.\n  - Files: `src/render/CanvasStage.ts`, `src/isoKanbanRenderer.ts`, `src/RoomCanvas.tsx`\n  - Verify: counters observed; no module-level mutable state remains in isoKanbanRenderer.\n- [ ] **T04**: RoomCanvas slim-down + perf evidence _(small)_\n  RoomCanvas keeps heightmap/agents/kanban data wiring; measure idle + pan cadence before/after and document in the PR.\n  - Files: `src/RoomCanvas.tsx`\n  - Verify: RoomCanvas >=25% smaller; cadence no regression; suite 547/547.\n</tasks>\n\n## Files Likely Touched\n\n- src/render/CanvasStage.ts\n- src/RoomCanvas.tsx\n- src/render/layers.ts\n- src/isoKanbanRenderer.ts\n<!-- gsd:state-version=10:0 -->\n",
+      "imported_at": "2026-09-09T19:10:46.386Z",
+      "content_hash": "da85ed21309cac5b5c7a52e71afb7f5ae40436a96fcb64f53f9993e886b7111b"
+    },
+    {
       "path": "phases/03-refactor-architecture-map-failure-mode-h/03-ROADMAP.md",
       "artifact_type": "ROADMAP",
       "milestone_id": "M003",
       "slice_id": null,
       "task_id": null,
-      "full_content": "# M003: Refactor: Architecture Map, Failure-Mode Hardening, Render Layers, State Store\n\n**Vision:** Make the current architecture visible, harden the places that demonstrably go wrong, and formalize the patterns that emerged ad hoc during feature work. Deliver an honest architecture map (module graph, data flow, render pipeline, event flow) as living docs; extract the canvas/asset/bootstrap concerns out of the 1,882-line RoomCanvas; turn the ad-hoc render-layer caches into an explicit layer pipeline; consolidate app state (agents, cards, camera, demo-vs-live) behind a typed store with explicit invalidation. Keep the room pixel-perfect and fast throughout (536-test suite + visual UAT as guardrails).\n\n## Success Criteria\n\n- Living architecture docs (generated module graph + hand-annotated data flow, render pipeline, event lifecycle, asset pipeline) committed and regenerable\n- Failure-mode inventory: every known incident mapped to root cause, guard, and residual risk\n- Single asset-bootstrap for web + extension; typed event bus with startup replay; degraded states visible in UI\n- CanvasStage + WorldLayer pipeline extracted from RoomCanvas; module-level renderer state eliminated\n- Typed app-state store with explicit demo/live mode machine; WS reconnect regression-tested\n- Suite green throughout; pan/zoom/idle render cadence not regressed (measured)\n\n## Slices\n\n- [ ] **S01: Architecture visualization + honest current-state map** `risk:low` `depends:[]`\n  > After this: docs/architecture/ with mermaid diagrams (module graph generated via madge, hand-annotated data-flow + render-pipeline + event-lifecycle diagrams), plus a documented failure-mode inventory with the concrete incidents that demonstrated each (canvas sizing races, demo event lost pre-listener, silent fallbacks, typecheck .tsx gap).\n\n- [ ] **S02: Failure-mode hardening: bootstrap, event bus, surfaced degradation** `risk:medium` `depends:[S01]`\n  > After this: Demo page with the network tab throttled: no lost cards; a degraded board fetch shows a visible indicator; both loaders share one bootstrap module (diff shows deletion of duplicated code).\n\n- [ ] **S03: Render layer pipeline: formalize room, notes, and dynamic layers** `risk:medium` `depends:[S01]`\n  > After this: CanvasStage owns canvas+layers; RoomCanvas shrank by the extracted code; pan/zoom/walk performance not worse (measured render cadence); behavior identical.\n\n- [ ] **S04: Typed app-state store: agents, cards, camera, mode** `risk:medium` `depends:[S03]`\n  > After this: WS drop + reconnect: agents clear/repopulate via store transitions; demo fallback triggers via an explicit mode transition; kanban filter/notes invalidation flows through store subscriptions.\n\n- [ ] **S05: Live board updates: webhook pub-sub with ETag-probe fallback** `risk:medium` `depends:[S02]`\n  > After this: Edit the board -> wall updates within ~1-2s (webhook mode) or ~10s (probe mode), measured. Status chip shows the active board source.\n\n- [ ] **S06: Hosted backend deployment: live wall + agents on a public URL** `risk:medium` `depends:[S02,S05]`\n  > After this: A public URL serving the room: board edits reflect in ~1-2s via webhook; Copilot-sourced agents visible; demo fallback when no token configured.\n\n- [ ] **S07: Investigation: agent hooks for role-specific deterministic automation** `risk:low` `depends:[]`\n  > After this: docs/agent-hooks/INVESTIGATION.md with surface inventory, role x hook matrix, prototype results, and verdict; two working prototype scripts under scripts/hooks/.\n\n## Boundary Map\n\n| In scope | Out of scope |\n|---|---|\n| RoomCanvas decomposition (CanvasStage, layer pipeline) | Avatar builder UI (separate follow-up) |\n| Shared asset bootstrap + typed event bus + replay | New features on the room (visual changes) |\n| Typed app-state store (agents/cards/mode/camera) | Changing asset formats or the RD/PixelLab pipelines |\n| Failure-mode inventory + degraded-state surfacing | Rewriting renderers (draw functions stay, signatures may widen) |\n<!-- gsd:state-version=9:0 -->\n",
-      "imported_at": "2026-09-08T16:42:13.014Z",
-      "content_hash": "6669bd14c2a524a75985472b3bce0440ff6b44cdcf66268767820afc695bf5c9"
+      "full_content": "# M003: Refactor: Architecture Map, Failure-Mode Hardening, Render Layers, State Store\n\n**Vision:** Make the current architecture visible, harden the places that demonstrably go wrong, and formalize the patterns that emerged ad hoc during feature work. Deliver an honest architecture map (module graph, data flow, render pipeline, event flow) as living docs; extract the canvas/asset/bootstrap concerns out of the 1,882-line RoomCanvas; turn the ad-hoc render-layer caches into an explicit layer pipeline; consolidate app state (agents, cards, camera, demo-vs-live) behind a typed store with explicit invalidation. Keep the room pixel-perfect and fast throughout (536-test suite + visual UAT as guardrails).\n\n## Success Criteria\n\n- Living architecture docs (generated module graph + hand-annotated data flow, render pipeline, event lifecycle, asset pipeline) committed and regenerable\n- Failure-mode inventory: every known incident mapped to root cause, guard, and residual risk\n- Single asset-bootstrap for web + extension; typed event bus with startup replay; degraded states visible in UI\n- CanvasStage + WorldLayer pipeline extracted from RoomCanvas; module-level renderer state eliminated\n- Typed app-state store with explicit demo/live mode machine; WS reconnect regression-tested\n- Suite green throughout; pan/zoom/idle render cadence not regressed (measured)\n\n## Slices\n\n- [ ] **S01: Architecture visualization + honest current-state map** `risk:low` `depends:[]`\n  > After this: docs/architecture/ with mermaid diagrams (module graph generated via madge, hand-annotated data-flow + render-pipeline + event-lifecycle diagrams), plus a documented failure-mode inventory with the concrete incidents that demonstrated each (canvas sizing races, demo event lost pre-listener, silent fallbacks, typecheck .tsx gap).\n\n- [ ] **S02: Failure-mode hardening: bootstrap, event bus, surfaced degradation** `risk:medium` `depends:[S01]`\n  > After this: Demo page with the network tab throttled: no lost cards; a degraded board fetch shows a visible indicator; both loaders share one bootstrap module (diff shows deletion of duplicated code).\n\n- [ ] **S03: Render layer pipeline: formalize room, notes, and dynamic layers** `risk:medium` `depends:[S01]`\n  > After this: CanvasStage owns canvas+layers; RoomCanvas shrank by the extracted code; pan/zoom/walk performance not worse (measured render cadence); behavior identical.\n\n- [ ] **S04: Typed app-state store: agents, cards, camera, mode** `risk:medium` `depends:[S03]`\n  > After this: WS drop + reconnect: agents clear/repopulate via store transitions; demo fallback triggers via an explicit mode transition; kanban filter/notes invalidation flows through store subscriptions.\n\n- [ ] **S05: Live board updates: webhook pub-sub with ETag-probe fallback** `risk:medium` `depends:[S02]`\n  > After this: Edit the board -> wall updates within ~1-2s (webhook mode) or ~10s (probe mode), measured. Status chip shows the active board source.\n\n- [ ] **S06: Hosted backend deployment: live wall + agents on a public URL** `risk:medium` `depends:[S02,S05]`\n  > After this: A public URL serving the room: board edits reflect in ~1-2s via webhook; Copilot-sourced agents visible; demo fallback when no token configured.\n\n- [ ] **S07: Investigation: agent hooks for role-specific deterministic automation** `risk:low` `depends:[]`\n  > After this: docs/agent-hooks/INVESTIGATION.md with surface inventory, role x hook matrix, prototype results, and verdict; two working prototype scripts under scripts/hooks/.\n\n## Boundary Map\n\n| In scope | Out of scope |\n|---|---|\n| RoomCanvas decomposition (CanvasStage, layer pipeline) | Avatar builder UI (separate follow-up) |\n| Shared asset bootstrap + typed event bus + replay | New features on the room (visual changes) |\n| Typed app-state store (agents/cards/mode/camera) | Changing asset formats or the RD/PixelLab pipelines |\n| Failure-mode inventory + degraded-state surfacing | Rewriting renderers (draw functions stay, signatures may widen) |\n<!-- gsd:state-version=10:0 -->\n",
+      "imported_at": "2026-09-09T19:10:46.563Z",
+      "content_hash": "3c2b6bd026a805e4cc9ec2e0dbe47300ab42e60f8715787606a14745ecdd3afc"
     }
   ],
   "milestones": [
@@ -452,12 +462,14 @@
       "completed_at": null,
       "full_summary_md": "",
       "full_uat_md": "",
-      "goal": "Generalize the ad-hoc Q12/Q13 pattern (room buffer, notes layer, visible-slice blit, input-change invalidation, throttle) into an explicit WorldLayer pipeline with a frame scheduler, and extract it (plus camera/input handling) out of RoomCanvas into a CanvasStage module. Module-level mutable state in renderers (hit areas, action rects) becomes per-stage state.",
-      "success_criteria": "1) WorldLayer interface: render(invalidation inputs), blit(visible rect), invalidate() — room + notes + (new) any future layer. 2) Frame scheduler: throttle semantics from Q13 formalized (immediate on camera/motion, cadence when static). 3) CanvasStage extracted; RoomCanvas line count materially reduced; module-level renderer state moved into stage-owned structures. 4) Perf check: idle + pan cadence measured, no regression vs Q13. 5) Suite green.",
+      "goal": "Generalize the Q12/Q13 render-layer pattern into an explicit WorldLayer pipeline, extracted out of RoomCanvas into a CanvasStage module; module-level mutable renderer state becomes stage-owned.",
+      "success_criteria": "1) src/render/CanvasStage.ts owns canvas lifecycle + input + frame loop (no resize/wheel/touch listeners in RoomCanvas). 2) src/render/layers.ts WorldLayer contract + RoomLayer/NotesLayer migrations. 3) isoKanbanRenderer module-level mutable state eliminated. 4) Frame scheduler formalized + render/skip counters. 5) RoomCanvas >=25% smaller; cadence measured; suite 547/547.",
       "proof_level": "runtime",
-      "integration_closure": "All world-space drawing flows through the layer pipeline; renderers expose pure draw functions taking (ctx, inputs).",
-      "observability_impact": "Debug counter: renders executed vs skipped per second (dev overlay or log).",
-      "target_repositories": [],
+      "integration_closure": "All world-space drawing flows through the layer pipeline; renderers keep pure draw functions.",
+      "observability_impact": "Render/skip counters via dev accessor.",
+      "target_repositories": [
+        "project"
+      ],
       "sequence": 3,
       "replan_triggered_at": null,
       "is_sketch": 0,
@@ -906,6 +918,168 @@
       "escalation_awaiting_review": 0,
       "escalation_artifact_path": null,
       "escalation_override_applied_at": null
+    },
+    {
+      "milestone_id": "M003",
+      "slice_id": "S03",
+      "id": "T01",
+      "title": "Extract CanvasStage (canvas lifecycle + input + loop)",
+      "status": "pending",
+      "one_liner": "",
+      "narrative": "",
+      "verification_result": "",
+      "duration": "",
+      "completed_at": null,
+      "blocker_discovered": false,
+      "deviations": "",
+      "known_issues": "",
+      "key_files": [],
+      "key_decisions": [],
+      "full_summary_md": "",
+      "description": "Move canvas init/resize, camera state, pointer/wheel/touch input, and the rAF frame loop out of RoomCanvas into src/render/CanvasStage.ts; RoomCanvas instantiates it.",
+      "estimate": "large",
+      "files": [
+        "src/render/CanvasStage.ts",
+        "src/RoomCanvas.tsx"
+      ],
+      "verify": "no resize/wheel/touch listeners remain in RoomCanvas; suite green.",
+      "inputs": [],
+      "expected_output": [
+        "src/render/CanvasStage.ts"
+      ],
+      "observability_impact": "",
+      "full_plan_md": "",
+      "target_repositories": [
+        "project"
+      ],
+      "sequence": 0,
+      "blocker_source": "",
+      "escalation_pending": 0,
+      "escalation_awaiting_review": 0,
+      "escalation_artifact_path": null,
+      "escalation_override_applied_at": null
+    },
+    {
+      "milestone_id": "M003",
+      "slice_id": "S03",
+      "id": "T02",
+      "title": "WorldLayer contract + RoomLayer/NotesLayer",
+      "status": "pending",
+      "one_liner": "",
+      "narrative": "",
+      "verification_result": "",
+      "duration": "",
+      "completed_at": null,
+      "blocker_discovered": false,
+      "deviations": "",
+      "known_issues": "",
+      "key_files": [],
+      "key_decisions": [],
+      "full_summary_md": "",
+      "description": "src/render/layers.ts: WorldLayer (invalidation inputs, render, visible-slice blit); migrate room buffer + notes cache behind it; buffer state moves into the stage.",
+      "estimate": "medium",
+      "files": [
+        "src/render/layers.ts",
+        "src/RoomCanvas.tsx"
+      ],
+      "verify": "layers blit identically; no offscreen fields left on RoomCanvas renderState.",
+      "inputs": [],
+      "expected_output": [
+        "src/render/layers.ts"
+      ],
+      "observability_impact": "",
+      "full_plan_md": "",
+      "target_repositories": [
+        "project"
+      ],
+      "sequence": 0,
+      "blocker_source": "",
+      "escalation_pending": 0,
+      "escalation_awaiting_review": 0,
+      "escalation_artifact_path": null,
+      "escalation_override_applied_at": null
+    },
+    {
+      "milestone_id": "M003",
+      "slice_id": "S03",
+      "id": "T03",
+      "title": "Scheduler + counters + module-state elimination",
+      "status": "pending",
+      "one_liner": "",
+      "narrative": "",
+      "verification_result": "",
+      "duration": "",
+      "completed_at": null,
+      "blocker_discovered": false,
+      "deviations": "",
+      "known_issues": "",
+      "key_files": [],
+      "key_decisions": [],
+      "full_summary_md": "",
+      "description": "Formalize the throttle in CanvasStage with render/skip counters; move isoKanbanRenderer hit-area/rect module state into stage-owned per-render structures.",
+      "estimate": "medium",
+      "files": [
+        "src/render/CanvasStage.ts",
+        "src/isoKanbanRenderer.ts",
+        "src/RoomCanvas.tsx"
+      ],
+      "verify": "counters observed; no module-level mutable state remains in isoKanbanRenderer.",
+      "inputs": [],
+      "expected_output": [
+        "src/render/CanvasStage.ts"
+      ],
+      "observability_impact": "",
+      "full_plan_md": "",
+      "target_repositories": [
+        "project"
+      ],
+      "sequence": 0,
+      "blocker_source": "",
+      "escalation_pending": 0,
+      "escalation_awaiting_review": 0,
+      "escalation_artifact_path": null,
+      "escalation_override_applied_at": null
+    },
+    {
+      "milestone_id": "M003",
+      "slice_id": "S03",
+      "id": "T04",
+      "title": "RoomCanvas slim-down + perf evidence",
+      "status": "pending",
+      "one_liner": "",
+      "narrative": "",
+      "verification_result": "",
+      "duration": "",
+      "completed_at": null,
+      "blocker_discovered": false,
+      "deviations": "",
+      "known_issues": "",
+      "key_files": [],
+      "key_decisions": [],
+      "full_summary_md": "",
+      "description": "RoomCanvas keeps heightmap/agents/kanban data wiring; measure idle + pan cadence before/after and document in the PR.",
+      "estimate": "small",
+      "files": [
+        "src/RoomCanvas.tsx"
+      ],
+      "verify": "RoomCanvas >=25% smaller; cadence no regression; suite 547/547.",
+      "inputs": [
+        "outcome O-5 of the S03 contract (#74)"
+      ],
+      "expected_output": [
+        "src/RoomCanvas.tsx"
+      ],
+      "observability_impact": "",
+      "full_plan_md": "",
+      "target_repositories": [
+        "project"
+      ],
+      "sequence": 0,
+      "blocker_source": "",
+      "escalation_pending": 0,
+      "escalation_awaiting_review": 0,
+      "escalation_artifact_path": null,
+      "escalation_override_applied_at": null
     }
   ],
   "decisions": [
@@ -931,6 +1105,32 @@
       "choice": "core/ (typed stores: agents, cards, camera, mode), render/ (CanvasStage + WorldLayers, pure draw fns), adapters/ (ws-client, extension-bridge, demo-driver), assets/, integrations/, hosts/. Rejected: ECS, Clean/Onion ceremony, event sourcing.",
       "rationale": "Each piece formalizes an existing half-pattern with demonstrated failure evidence: 3 data sources already converge on one event bus (hexagonal), scattered refs caused the sizing/timing bugs (store), Q12/Q13 invented WorldLayer+invalidation caches ad hoc (immediate-mode layers). Guardrails: 536 tests + perf cadence measurements.",
       "revisable": "Revisit if the room grows real simulation (ECS reconsidered) or team size justifies heavier layering.",
+      "made_by": "collaborative",
+      "source": "discussion",
+      "superseded_by": null
+    },
+    {
+      "seq": 3,
+      "id": "D003",
+      "when_context": "M003/S07 investigation, 2026-09-08. Evidence: docs/agent-hooks/INVESTIGATION.md",
+      "scope": "agent-automation",
+      "decision": "Adopt agent hooks for the GSD executor/reviewer roles and the asset-pipeline role; defer visualization-role and Mault-style detectors",
+      "choice": "Prototypes validated (scripts/hooks/gsd-event-hook.mjs + room-tool-feed.mjs): GSD event-log tail reacts to planner/executor/reviewer commands; Claude Code PostToolUse hook tags tool activity by AGENT_ROLE with role-specific triggers. Both feed .gsd/hooks-feed.jsonl (append-only, gitignored). Adoption slice next: wire feed -> web-server WS -> status chip, project-level .claude/settings.json hooks, gate-evidence automation for milestones.",
+      "rationale": "Deterministic hooks remove manual steps performed repeatedly this week (issue evidence comments, pack+build after asset changes, milestone gate evidence collection). Surfaces already exist and half are active (Claude Code hooks run gsd-check-update/gsd-context-monitor; GSD event log is structured and ordered). Low risk: prototypes are read+append-only.",
+      "revisable": "Revisit visual-regression/infrastructure hooks after S06 (hosted backend); revisit Mault if hook complexity outgrows Claude Code hooks.",
+      "made_by": "collaborative",
+      "source": "discussion",
+      "superseded_by": null
+    },
+    {
+      "seq": 4,
+      "id": "D004",
+      "when_context": "gsd-loop trial #84/PR #85 completed 2026-09-09; M003 S03-S06 pending",
+      "scope": "work-routing",
+      "decision": "Route M003 remaining slices (S03, S04, S05, S06) through the gsd-loop label queue; quick fixes stay direct-dispatch",
+      "choice": "Hybrid routing: GSD Pi remains the planning authority (milestone/slice plans, evidence, DECISIONS); each remaining M003 slice ALSO gets a gsd-loop contract issue (canonical ## Outcomes checkbox format) - human applies gsd:ready to release the build lane; builder opens the PR; reviewer posts a pinned verdict; human merges. Quick fixes (Q-style) stay direct-dispatch.",
+      "rationale": "Trial #84 validated the loop end-to-end (spec -> gsd:ready -> build -> verdict -> gsd:approved -> merge) with proportionate ceremony for contract-clear slices. Label state machine gives the room a real queue signal (S05 synergy). Human gates at slice release + merge preserve the deterministic-development boundary. GSD Pi keeps depth (evidence, decisions, milestone arcs) while the loop owns execution traffic.",
+      "revisable": "Revisit per slice: if a slice contract cannot be written as checkbox outcomes (deep architectural work), route it back to direct dispatch with GSD Pi evidence.",
       "made_by": "collaborative",
       "source": "discussion",
       "superseded_by": null
@@ -1326,6 +1526,186 @@
     {
       "milestone_id": "M003",
       "slice_id": "S02",
+      "gate_id": "Q8",
+      "scope": "slice",
+      "task_id": "",
+      "status": "pending",
+      "verdict": null,
+      "rationale": "",
+      "findings": "",
+      "evaluated_at": null
+    },
+    {
+      "milestone_id": "M003",
+      "slice_id": "S03",
+      "gate_id": "Q3",
+      "scope": "slice",
+      "task_id": "",
+      "status": "pending",
+      "verdict": null,
+      "rationale": "",
+      "findings": "",
+      "evaluated_at": null
+    },
+    {
+      "milestone_id": "M003",
+      "slice_id": "S03",
+      "gate_id": "Q4",
+      "scope": "slice",
+      "task_id": "",
+      "status": "pending",
+      "verdict": null,
+      "rationale": "",
+      "findings": "",
+      "evaluated_at": null
+    },
+    {
+      "milestone_id": "M003",
+      "slice_id": "S03",
+      "gate_id": "Q5",
+      "scope": "task",
+      "task_id": "T01",
+      "status": "pending",
+      "verdict": null,
+      "rationale": "",
+      "findings": "",
+      "evaluated_at": null
+    },
+    {
+      "milestone_id": "M003",
+      "slice_id": "S03",
+      "gate_id": "Q5",
+      "scope": "task",
+      "task_id": "T02",
+      "status": "pending",
+      "verdict": null,
+      "rationale": "",
+      "findings": "",
+      "evaluated_at": null
+    },
+    {
+      "milestone_id": "M003",
+      "slice_id": "S03",
+      "gate_id": "Q5",
+      "scope": "task",
+      "task_id": "T03",
+      "status": "pending",
+      "verdict": null,
+      "rationale": "",
+      "findings": "",
+      "evaluated_at": null
+    },
+    {
+      "milestone_id": "M003",
+      "slice_id": "S03",
+      "gate_id": "Q5",
+      "scope": "task",
+      "task_id": "T04",
+      "status": "pending",
+      "verdict": null,
+      "rationale": "",
+      "findings": "",
+      "evaluated_at": null
+    },
+    {
+      "milestone_id": "M003",
+      "slice_id": "S03",
+      "gate_id": "Q6",
+      "scope": "task",
+      "task_id": "T01",
+      "status": "pending",
+      "verdict": null,
+      "rationale": "",
+      "findings": "",
+      "evaluated_at": null
+    },
+    {
+      "milestone_id": "M003",
+      "slice_id": "S03",
+      "gate_id": "Q6",
+      "scope": "task",
+      "task_id": "T02",
+      "status": "pending",
+      "verdict": null,
+      "rationale": "",
+      "findings": "",
+      "evaluated_at": null
+    },
+    {
+      "milestone_id": "M003",
+      "slice_id": "S03",
+      "gate_id": "Q6",
+      "scope": "task",
+      "task_id": "T03",
+      "status": "pending",
+      "verdict": null,
+      "rationale": "",
+      "findings": "",
+      "evaluated_at": null
+    },
+    {
+      "milestone_id": "M003",
+      "slice_id": "S03",
+      "gate_id": "Q6",
+      "scope": "task",
+      "task_id": "T04",
+      "status": "pending",
+      "verdict": null,
+      "rationale": "",
+      "findings": "",
+      "evaluated_at": null
+    },
+    {
+      "milestone_id": "M003",
+      "slice_id": "S03",
+      "gate_id": "Q7",
+      "scope": "task",
+      "task_id": "T01",
+      "status": "pending",
+      "verdict": null,
+      "rationale": "",
+      "findings": "",
+      "evaluated_at": null
+    },
+    {
+      "milestone_id": "M003",
+      "slice_id": "S03",
+      "gate_id": "Q7",
+      "scope": "task",
+      "task_id": "T02",
+      "status": "pending",
+      "verdict": null,
+      "rationale": "",
+      "findings": "",
+      "evaluated_at": null
+    },
+    {
+      "milestone_id": "M003",
+      "slice_id": "S03",
+      "gate_id": "Q7",
+      "scope": "task",
+      "task_id": "T03",
+      "status": "pending",
+      "verdict": null,
+      "rationale": "",
+      "findings": "",
+      "evaluated_at": null
+    },
+    {
+      "milestone_id": "M003",
+      "slice_id": "S03",
+      "gate_id": "Q7",
+      "scope": "task",
+      "task_id": "T04",
+      "status": "pending",
+      "verdict": null,
+      "rationale": "",
+      "findings": "",
+      "evaluated_at": null
+    },
+    {
+      "milestone_id": "M003",
+      "slice_id": "S03",
       "gate_id": "Q8",
       "scope": "slice",
       "task_id": "",
