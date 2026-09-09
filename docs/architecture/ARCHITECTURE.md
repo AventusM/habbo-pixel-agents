@@ -197,3 +197,33 @@ See [module-graph.md](./module-graph.md) (generated): clusters today are
 Notable today: `RoomCanvas.tsx` (1,882 lines) is the god component holding the
 render loop, canvas lifecycle, input handling, and render state; S03 extracts
 `CanvasStage` + the layer pipeline from it.
+
+## 8. Agent work governance — the gsd-loop pattern (trial, D004)
+
+How work itself is governed. Two layers compose:
+
+| Layer | Mechanism | State | Human gates |
+|---|---|---|---|
+| **Planning depth** | GSD Pi (`.gsd/` SQLite + markdown projections): milestones → slices → tasks, evidence, DECISIONS (D001–D004) | `.gsd/gsd.db` (gitignored DB + tracked projections) | milestone validation/UAT |
+| **Execution queue** | **gsd-loop** (`@opengsd/gsd-loop`): contract-grade spec issues → label state machine → build lane → review verdict | GitHub labels: `gsd:map → gsd:ready → (build) → gsd:rework/gsd:approved → merge`, with `gsd:blocked`/`gsd:escalated` exits | **`gsd:ready` applied by the human** to release each slice; **merge stays human** |
+
+Trial (issue #84 / PR #85, 2026-09-09): the hooks-adoption effort ran the full
+loop end-to-end — spec contract → human gate → build lane (4 outcome
+outcomes, each verified live) → review verdict (pinned to head SHA,
+`gsd:approved`) → human merge. Verdict: ceremony proportionate for
+contract-clear slices.
+
+**Routing policy (D004)**: M003's remaining slices (S03–S06) route through the
+loop; quick fixes stay direct-dispatch; GSD Pi stays the planning authority.
+A slice that cannot be written as checkbox outcomes goes back to direct
+dispatch with GSD Pi evidence.
+
+**Mechanical lesson from the trial**: spec issues must use the canonical
+`## Outcomes` checkbox section — the outcomes-sync tooling is blind to any
+other format (recorded as an advisory in the trial verdict).
+
+Composition with the tool-level governance from §6: Path-style phase gates
+(future GSD Path) gate *phases*; gsd-loop gates *slice release and merge*;
+hooks (D003) govern *tools*. Three layers, one principle: irreversible steps
+stay human.
+
