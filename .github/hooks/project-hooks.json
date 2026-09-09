@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "hooks": {
+    "preToolUse": [
+      {
+        "type": "command",
+        "bash": "node scripts/hooks/guard-gsd-db.mjs",
+        "timeoutSec": 15
+      }
+    ],
+    "postToolUse": [
+      {
+        "type": "command",
+        "bash": "node scripts/hooks/room-tool-feed.mjs",
+        "env": {
+          "AGENT_ROLE": "asset-pipeline"
+        },
+        "timeoutSec": 15
+      }
+    ],
+    "sessionStart": [
+      {
+        "type": "command",
+        "bash": "node -e \"console.log('[project-hooks] session start: role guards + feed active')\"",
+        "timeoutSec": 10
+      }
+    ]
+  }
+}

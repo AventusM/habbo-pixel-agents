@@ -83,6 +83,18 @@ chip/board), add project-level `.claude/settings.json` with the
 asset-pipeline + executor hooks, and adopt the gate-evidence hook for GSD
 milestones. Estimated small; depends on nothing.
 
+**Adoption status (gsd-loop trial, issue #84)**: O-1/O-2/O-3 landed
+(project `.claude/settings.json` PostToolUse feed, `.opencode/plugin/role-feed.ts`,
+`.github/hooks/project-hooks.json` with the gsd-db guardrail). Gate-evidence
+(O-4) is a one-command invocation — no daemon:
+
+```bash
+node scripts/hooks/gsd-event-hook.mjs --once   # processes the event-log tail → .gsd/hooks-feed.jsonl
+```
+
+Run it after GSD mutations to emit role-mapped gate events
+(`task-complete → executor/board-update`, `validate-milestone → reviewer/gate-check`).
+
 ## 7. Risks
 
 - Hook scripts run with full agent permissions — keep them read+append-only
