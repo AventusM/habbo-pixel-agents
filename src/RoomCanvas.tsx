@@ -1,6 +1,7 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { parseHeightmap, depthSort } from './isoTypes.js';
 import { initCanvas, computeCameraOrigin, preRenderRoom, createFurnitureRenderables } from './isoTileRenderer.js';
+import { RoomLayer, NotesLayer, blitVisibleSlice } from './render/layers.js';
 import type { TileGrid, Renderable } from './isoTypes.js';
 import type { FurnitureSpec, MultiTileFurnitureSpec } from './isoFurnitureRenderer.js';
 import type { AvatarSpec, AvatarRenderer } from './avatarRendererTypes.js';
@@ -229,8 +230,8 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
   }>({ isDragging: false, didDrag: false, startX: 0, startY: 0, startPanX: 0, startPanY: 0 });
 
   const renderState = useRef<{
-    offscreenCanvas: OffscreenCanvas | null;
-    offscreenSize: { w: number; h: number } | null;
+    roomLayer: RoomLayer;
+    notesLayer: NotesLayer;
     cameraOrigin: { x: number; y: number };
     cameraState: CameraState;
     mainCtx: CanvasRenderingContext2D | null;
@@ -242,8 +243,31 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
     multiTileFurniture: MultiTileFurnitureSpec[];
     furnitureRenderables: Renderable[];
   }>({
-    offscreenCanvas: null,
-    offscreenSize: null,
+    roomLayer: new RoomLayer(
+      computeRoomBounds,
+      computeCameraOrigin,
+      (grid, origin, physicalW, physicalH, dpr, tileColorMap) =>
+        preRenderRoom(
+          grid,
+          origin,
+          physicalW,
+          physicalH,
+          dpr,
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+          'furniture',
+          tileColorMap as Map<string, HsbColor> | undefined,
+        ),
+      createFurnitureRenderables as unknown as (
+        furniture: unknown,
+        multiTileFurniture: unknown,
+        spriteCache: SpriteCache,
+        origin: { x: number; y: number },
+      ) => unknown[],
+    ),
+    notesLayer: new NotesLayer(),
     cameraOrigin: { x: 0, y: 0 },
     cameraState: createCameraState(),
     mainCtx: null,
@@ -661,7 +685,7 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
     renderRoomBuffer();
 
     // Camera: center the room buffer on screen, zoomed to fit if needed
-    const bufSize = renderState.current.offscreenSize;
+    const bufSize = renderState.current.roomLayer.size;
     if (bufSize) {
       const cam = renderState.current.cameraState;
       cam.zoom = computeFitZoom(grid, canvas.offsetWidth, canvas.offsetHeight);
@@ -675,7 +699,7 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
       if (!runningRef.current) return;
 
       const ctx = renderState.current.mainCtx;
-      const offscreen = renderState.current.offscreenCanvas;
+      const offscreen = renderState.current.roomLayer.buffer;
 
       if (!ctx || !offscreen || !canvas) return;
 
@@ -870,8 +894,8 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
 
       // Room buffer covers the full room extent; blit only the visible slice
       // (1:1 copy) instead of scaling the whole buffer through the transform
-      const bufSize = renderState.current.offscreenSize;
-      if (bufSize) {
+      const bufSize = renderState.current.roomLayer.size;
+      if (bufSize.w > 0 && offscreen) {
         blitWorldLayer(ctx, offscreen, bufSize, cam);
       } else {
         ctx.drawImage(offscreen, 0, 0, canvas.offsetWidth, canvas.offsetHeight);
@@ -1184,8 +1208,8 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
         if (renderState.current.grid) {
           renderRoomBuffer();
           // Re-center the (possibly resized) buffer; preserve user zoom
-          const bufSize = renderState.current.offscreenSize;
-          if (bufSize) {
+          const bufSize = renderState.current.roomLayer.size;
+          if (bufSize.w > 0) {
             renderState.current.cameraState.panX = canvas.offsetWidth / 2 - bufSize.w / 2;
             renderState.current.cameraState.panY = canvas.offsetHeight / 2 - bufSize.h / 2;
           }
@@ -1562,42 +1586,30 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
    * world extent (not the viewport), so the full room is always rendered and
    * camera zoom/pan merely navigates the buffer.
    */
+  /**
+   * (Re-)render the room layer. The layer is sized to the ROOM's world extent
+   * (not the viewport) via src/render/layers.ts; current call sites force a
+   * render (init, resize, booth frames, layout edits) — the invalidation key
+   * is in place for future incremental use.
+   */
   function renderRoomBuffer() {
     const canvas = canvasRef.current;
     const grid = renderState.current.grid;
     if (!canvas || !grid) return;
-    // Cap buffer DPR at 2 (pixel art; keeps the offscreen blit cheap on 3x phones)
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    const PAD = 48;
-    const { roomW, roomH } = computeRoomBounds(grid);
-    const bufferCssW = Math.max(canvas.offsetWidth, Math.ceil(roomW) + PAD);
-    const bufferCssH = Math.max(canvas.offsetHeight, Math.ceil(roomH) + PAD);
-    const origin = computeCameraOrigin(grid, bufferCssW, bufferCssH);
-    renderState.current.cameraOrigin = origin;
-    renderState.current.offscreenSize = { w: bufferCssW, h: bufferCssH };
-    renderState.current.offscreenCanvas = preRenderRoom(
-      grid,
-      origin,
-      Math.floor(bufferCssW * dpr),
-      Math.floor(bufferCssH * dpr),
-      dpr,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      'furniture',
-      renderState.current.tileColorMap
-    );
-
     const spriteCache: SpriteCache | undefined = (window as any).spriteCache;
-    if (spriteCache) {
-      renderState.current.furnitureRenderables = createFurnitureRenderables(
-        renderState.current.furniture,
-        renderState.current.multiTileFurniture,
-        spriteCache,
-        origin,
-      );
-    }
+    const result = renderState.current.roomLayer.render({
+      grid,
+      canvasCssW: canvas.offsetWidth,
+      canvasCssH: canvas.offsetHeight,
+      version: `manual-${renderState.current.lastFrameTimeMs}-${grid.width}x${grid.height}`,
+      tileColorMap: renderState.current.tileColorMap,
+      furniture: renderState.current.furniture,
+      multiTileFurniture: renderState.current.multiTileFurniture,
+      spriteCache,
+    });
+    renderState.current.cameraOrigin = result.origin;
+    renderState.current.furnitureRenderables =
+      result.furnitureRenderables as Renderable[];
   }
 
   function reRenderRoom() {
@@ -1617,37 +1629,19 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
   ) {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    const cw = canvas.offsetWidth;
-    const ch = canvas.offsetHeight;
-    const tl = screenToWorld(0, 0, cam, cw, ch);
-    const br = screenToWorld(cw, ch, cam, cw, ch);
-    const sx = Math.max(0, Math.floor(tl.x));
-    const sy = Math.max(0, Math.floor(tl.y));
-    const ex = Math.min(layerSize.w, Math.ceil(br.x));
-    const ey = Math.min(layerSize.h, Math.ceil(br.y));
-    const sw = ex - sx;
-    const sh = ey - sy;
-    if (sw <= 0 || sh <= 0) return;
-    ctx.drawImage(layer, sx * dpr, sy * dpr, sw * dpr, sh * dpr, sx, sy, sw, sh);
+    blitVisibleSlice(ctx, layer, layerSize, cam, canvas.offsetWidth, canvas.offsetHeight);
   }
 
-  // Cached kanban-notes layer (world space); rebuilt only when inputs change
-  const notesLayerRef = useRef<{
-    buffer: OffscreenCanvas;
-    size: { w: number; h: number };
-    sig: string;
-  } | null>(null);
-
-  function ensureNotesLayer(canvasCssW: number, canvasCssH: number) {
+  /** Ensure the notes layer is current for the given invalidation inputs. */
+  function ensureNotesLayer(_canvasCssW: number, _canvasCssH: number) {
     const grid = renderState.current.grid;
     const origin = renderState.current.cameraOrigin;
-    const size = renderState.current.offscreenSize;
-    if (!grid || !origin || !size) return null;
+    const size = renderState.current.roomLayer.size;
+    if (!grid || !origin || size.w === 0) return null;
 
     const cards = filterKanbanCards(kanbanCardsRef.current, kanbanFilterRef.current);
     const ticketIds = getLinkedTicketIds(orchStateRef.current);
-    const sig = [
+    const signature = [
       cards.length,
       cards.map(c => c.id).join(','),
       expandedNoteRef.current ?? '',
@@ -1657,24 +1651,25 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
       `${origin.x},${origin.y}`,
     ].join('|');
 
-    if (notesLayerRef.current?.sig === sig) return notesLayerRef.current;
-
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    const buffer = new OffscreenCanvas(Math.floor(size.w * dpr), Math.floor(size.h * dpr));
-    const bctx = buffer.getContext('2d')!;
-    bctx.scale(dpr, dpr);
-    bctx.imageSmoothingEnabled = false;
-    drawKanbanNotes(
-      bctx,
-      cards,
-      grid,
-      origin,
-      expandedNoteRef.current,
-      expandedAggregateRef.current,
-      ticketIds,
-    );
-    notesLayerRef.current = { buffer, size: { ...size }, sig };
-    return notesLayerRef.current;
+    const notesLayer = renderState.current.notesLayer;
+    if (notesLayer.invalidated({ signature, size, draw: () => {} })) {
+      notesLayer.render({
+        signature,
+        size,
+        draw: (bctx) => {
+          drawKanbanNotes(
+            bctx,
+            cards,
+            grid,
+            origin,
+            expandedNoteRef.current,
+            expandedAggregateRef.current,
+            ticketIds,
+          );
+        },
+      });
+    }
+    return { buffer: notesLayer.buffer as OffscreenCanvas, size: notesLayer.size };
   }
 
   const handleSave = () => {
