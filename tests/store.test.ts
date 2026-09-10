@@ -55,4 +55,23 @@ describe('store', () => {
     expect(a).toEqual([0, 9]);
     expect(b).toEqual([0, 9]);
   });
+
+  it('treats a referentially-equal set as a no-op', () => {
+    const initial = { n: 1 };
+    const store = createStore(initial);
+    const seen: { n: number }[] = [];
+    store.subscribe((v) => seen.push(v));
+    store.set(initial);
+    expect(store.version).toBe(0);
+    expect(seen).toEqual([initial]);
+  });
+
+  it('update that returns the previous value does not bump or notify', () => {
+    const store = createStore({ n: 1 });
+    const seen: { n: number }[] = [];
+    store.subscribe((v) => seen.push(v));
+    store.update((prev) => prev);
+    expect(store.version).toBe(0);
+    expect(seen).toHaveLength(1);
+  });
 });

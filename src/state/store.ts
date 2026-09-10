@@ -3,6 +3,10 @@
 // a monotonically increasing version. Subscribers receive the current value
 // immediately (state-sync semantics, matching src/bus.ts) and again on change,
 // so late subscribers never observe a stale store.
+//
+// Values are treated immutably: `set()` compares with Object.is and treats a
+// referentially-equal value as a no-op (no version bump, no notification), so
+// `update()` may return `prev` to signal that nothing changed.
 
 export type Unsubscribe = () => void;
 export type Listener<T> = (value: T) => void;
@@ -25,6 +29,7 @@ export class Store<T> {
   }
 
   set(next: T): void {
+    if (Object.is(next, this.value)) return;
     this.value = next;
     this.revision++;
     for (const listener of [...this.listeners]) listener(this.value);

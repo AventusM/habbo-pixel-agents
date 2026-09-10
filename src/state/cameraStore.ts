@@ -31,7 +31,10 @@ export class CameraStore {
   }
 
   reset(): void {
-    this.camera = createCameraState();
+    // Preserve object identity: consumers (e.g. CanvasStage.camera) hold a
+    // reference from get(), so overwrite the fields in place instead of
+    // replacing the object and stranding those references on a stale copy.
+    Object.assign(this.camera, createCameraState());
     this.notify();
   }
 }
