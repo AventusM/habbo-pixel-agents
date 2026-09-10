@@ -11,12 +11,7 @@ import { pixelLabRenderer } from './pixelLabAvatarRenderer.js';
 import type { SpriteCache } from './isoSpriteCache.js';
 import { habboRenderer } from './isoAvatarRenderer.js';
 import { tileToScreen, TILE_H_HALF, screenToTile } from './isometricMath.js';
-import {
-  filterKanbanCards,
-  nextKanbanFilterMode,
-  KANBAN_FILTER_LABELS,
-  type KanbanFilterMode,
-} from './kanbanFilter.js';
+import { KANBAN_FILTER_LABELS, type KanbanFilterMode } from './kanbanFilter.js';
 import {
   toggleTileWalkability,
   setTileColor,
@@ -34,7 +29,7 @@ import { AvatarManager } from './avatarManager.js';
 import { IdleWanderManager } from './idleWander.js';
 import { AvatarSelectionManager } from './avatarSelection.js';
 import { onMessage } from './bus.js';
-import type { ExtensionMessage, KanbanCard, TeamSection } from './agentTypes.js';
+import type { ExtensionMessage, TeamSection } from './agentTypes.js';
 import { computeBlockedTiles } from './isoPathfinding.js';
 import { drawKanbanNotes, createKanbanRenderState, type KanbanRenderState, pointInQuad } from './isoKanbanRenderer.js';
 import { screenToWorld, jumpToSection } from './cameraController.js';
@@ -42,12 +37,9 @@ import { SectionManager } from './sectionManager.js';
 import { type FloorTemplate, buildSectionColorMap } from './roomLayoutEngine.js';
 import { createTeleportEffect } from './teleportEffect.js';
 import type { TeleportEffect } from './teleportEffect.js';
-import {
-  createOrchestrationState,
-  orchestrationAddAgent, orchestrationRemoveAgent,
-  orchestrationSetStatus, orchestrationSetTool,
-  orchestrationSetLinkedTicket, getLinkedTicketIds,
-} from './isoOrchestrationOverlay.js';
+import { agentStore } from './state/agentStore.js';
+import { kanbanStore } from './state/kanbanStore.js';
+import { cameraStore } from './state/cameraStore.js';
 
 interface RoomCanvasProps {
   heightmap: string;
@@ -95,22 +87,12 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
   const lastAutoFollowCheckRef = useRef<number>(0);
   const autoFollowTargetRef = useRef<{ panX: number; panY: number } | null>(null);
 
-  // Track agent speech bubble text
-  const agentToolTextRef = useRef<Map<string, string>>(new Map());
-
-  // In-canvas orchestration overlay state
-  const orchStateRef = useRef(createOrchestrationState());
-
   // Dev mode flag (set by extension in Development mode)
   const [devMode, setDevMode] = useState(false);
 
-  // Kanban cards from GitHub Projects (Phase 12-03)
-  // Starts empty; populated when extension sends kanbanCards message
-  const kanbanCardsRef = useRef<KanbanCard[]>([]);
-
-  // Kanban source filter (All / GSD only / Non-GSD) — toggle with the G key
-  const [kanbanFilter, setKanbanFilter] = useState<KanbanFilterMode>('all');
-  const kanbanFilterRef = useRef<KanbanFilterMode>('all');
+  // Kanban source filter (All / GSD only / Non-GSD) — toggle with the G key.
+  // Mirrored from kanbanStore (source of truth) for the HUD.
+  const [kanbanFilter, setKanbanFilter] = useState<KanbanFilterMode>(kanbanStore.filter);
 
   // Per-render kanban hit-test state (replaces renderer module-level state)
   const kanbanRenderStateRef = useRef<KanbanRenderState>(createKanbanRenderState());
@@ -118,9 +100,8 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
   // Active avatar renderer (logged on change; Habbo figures vs PixelLab/RD)
   const activeRendererRef = useRef<AvatarRenderer | null>(null);
 
-  useEffect(() => {
-    kanbanFilterRef.current = kanbanFilter;
-  }, [kanbanFilter]);
+  // Mirror the kanban filter store into React state for the HUD
+  useEffect(() => kanbanStore.subscribe((state) => setKanbanFilter(state.filter)), []);
 
   useEffect(() => {
     const handleFilterKey = (e: KeyboardEvent) => {
@@ -129,12 +110,12 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
         return;
       }
       if (e.key === 'g' || e.key === 'G') {
-        setKanbanFilter((prev) => nextKanbanFilterMode(prev));
+        kanbanStore.cycleFilter();
         return;
       }
       // Kanban traversal keys (only while a detail note is open)
       if (!expandedNoteRef.current) return;
-      const visibleCards = filterKanbanCards(kanbanCardsRef.current, kanbanFilterRef.current);
+      const visibleCards = kanbanStore.visibleCards();
       if (visibleCards.length === 0) return;
       const idx = Math.max(0, visibleCards.findIndex(c => c.id === expandedNoteRef.current));
       if (e.key === 'ArrowRight' || e.key === 'n' || e.key === 'N') {
@@ -318,6 +299,8 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
           for (const id of allIds) {
             avatarManager.removeAvatar(id);
           }
+          // Store transition: agents clear, then repopulate as the server re-sends
+          agentStore.clear();
           console.log(`[Room] Cleared ${allIds.length} stale agents on reconnect`);
           break;
         }
@@ -368,8 +351,8 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
               sectionManager.updateActivity(team, Date.now());
             }
 
-            // Track in orchestration overlay
-            orchestrationAddAgent(orchStateRef.current, msg.agentId, msg.terminalName || msg.agentId, team);
+            // Track in agent store (drives the orchestration overlay)
+            agentStore.addAgent(msg.agentId, msg.terminalName || msg.agentId, team);
 
             // Set role-specific idle behavior before starting wander
             idleWander.setAgentRole(msg.agentId, team);
@@ -381,7 +364,7 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
         }
         case 'agentRemoved': {
           console.log(`[Room] agentRemoved: ${msg.agentId}`);
-          orchestrationRemoveAgent(orchStateRef.current, msg.agentId);
+          agentStore.removeAgent(msg.agentId);
           const agentTeam = sectionManager?.getAgentTeam(msg.agentId);
           const boothTile = agentTeam ? sectionManager?.getSpawnTile(agentTeam) : null;
           const avatar = avatarManager.getAvatar(msg.agentId);
@@ -442,7 +425,7 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
           // Skip status updates for despawning agents
           if (despawningAgentsRef.current.has(msg.agentId)) break;
 
-          orchestrationSetStatus(orchStateRef.current, msg.agentId, msg.status as 'active' | 'idle');
+          agentStore.setStatus(msg.agentId, msg.status as 'active' | 'idle');
 
           if (msg.status === 'active' && grid) {
             idleWander.stopWandering(msg.agentId);
@@ -465,14 +448,12 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
               avatarManager.moveAvatarTo(msg.agentId, deskTile.x, deskTile.y, grid, deskTile.dir as 0 | 2 | 4 | 6, blocked);
             }
           } else if (msg.status === 'idle') {
-            agentToolTextRef.current.delete(msg.agentId);
             idleWander.startWandering(msg.agentId);
           }
           break;
         }
         case 'agentTool': {
-          agentToolTextRef.current.set(msg.agentId, msg.displayText);
-          orchestrationSetTool(orchStateRef.current, msg.agentId, msg.displayText);
+          agentStore.setTool(msg.agentId, msg.displayText);
           // Track activity for auto-follow
           if (sectionManager) {
             const agentTeam = sectionManager.getAgentTeam(msg.agentId);
@@ -484,12 +465,7 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
         }
         case 'agentLinkedTicket': {
           const linkMsg = msg as any;
-          orchestrationSetLinkedTicket(
-            orchStateRef.current,
-            linkMsg.agentId,
-            linkMsg.ticketId,
-            linkMsg.ticketTitle,
-          );
+          agentStore.setLinkedTicket(linkMsg.agentId, linkMsg.ticketId, linkMsg.ticketTitle);
           break;
         }
         case 'jumpToSection': {
@@ -509,12 +485,13 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
                 canvas.offsetWidth,
                 canvas.offsetHeight,
               );
+              cameraStore.notify();
             }
           }
           break;
         }
         case 'toggleOverlay': {
-          orchStateRef.current.visible = !orchStateRef.current.visible;
+          agentStore.toggleVisible();
           break;
         }
         case 'autoFollow': {
@@ -525,7 +502,7 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
           break;
         }
         case 'kanbanCards': {
-          kanbanCardsRef.current = msg.cards;
+          kanbanStore.setCards(msg.cards);
           break;
         }
         case 'devMode': {
@@ -605,12 +582,21 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
           if (bufSize.w > 0) {
             stage.camera.panX = canvas.offsetWidth / 2 - bufSize.w / 2;
             stage.camera.panY = canvas.offsetHeight / 2 - bufSize.h / 2;
+            cameraStore.notify();
           }
         }
       },
     });
     stageRef.current = stage;
     stage.init();
+
+    // Stores feed the frame scheduler: any state change invalidates the static
+    // throttle so the next rAF renders instead of waiting up to 50ms.
+    const unsubscribeStores = [
+      kanbanStore.subscribe(() => stage.invalidate()),
+      agentStore.subscribe(() => stage.invalidate()),
+      cameraStore.subscribe(() => stage.invalidate()),
+    ];
 
     const grid: TileGrid = parseHeightmap(heightmap);
     renderState.current.grid = grid;
@@ -645,6 +631,7 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
       stage.camera.zoom = computeFitZoom(grid, canvas.offsetWidth, canvas.offsetHeight);
       stage.camera.panX = canvas.offsetWidth / 2 - bufSize.w / 2;
       stage.camera.panY = canvas.offsetHeight / 2 - bufSize.h / 2;
+      cameraStore.notify();
     }
 
     const onTick = (nowMs: number): boolean => {
@@ -824,11 +811,11 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
       // Notes layer (cached world-space kanban stickies), rendered on change
       let notesBuffer: OffscreenCanvas | null = null;
       let notesSize = { w: 0, h: 0 };
-      if (kanbanCardsRef.current.length > 0) {
+      if (kanbanStore.cards.length > 0) {
         const size = stage.roomLayer.size;
         const origin = renderState.current.cameraOrigin;
-        const cards = filterKanbanCards(kanbanCardsRef.current, kanbanFilterRef.current);
-        const ticketIds = getLinkedTicketIds(orchStateRef.current);
+        const cards = kanbanStore.visibleCards();
+        const ticketIds = agentStore.linkedTicketIds();
         const signature = [
           cards.length,
           cards.map(c => c.id).join(','),
@@ -872,13 +859,13 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
         spriteCache,
         avatars,
         activeRenderer,
-        agentToolText: agentToolTextRef.current,
+        agentToolText: agentStore.toolTextMap(),
         sectionManager: sectionManagerRef.current,
         selectionManager: selectionManagerRef.current,
         teleportEffects: teleportEffectsRef.current,
-        orchState: orchStateRef.current,
-        kanbanCards: kanbanCardsRef.current,
-        kanbanFilter: kanbanFilterRef.current,
+        orchState: agentStore.snapshot(),
+        kanbanCards: kanbanStore.cards,
+        kanbanFilter: kanbanStore.filter,
         expandedNote: expandedNoteRef.current,
         expandedAggregate: expandedAggregateRef.current,
         noteOrigin: noteOriginRef.current,
@@ -890,6 +877,7 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
     stage.start(onTick, onDraw);
 
     return () => {
+      for (const unsubscribe of unsubscribeStores) unsubscribe();
       stage.stop();
       stageRef.current = null;
     };
@@ -925,7 +913,7 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
         const nav = kanbanRenderStateRef.current.expandedNoteNavRects;
         const inRect = (r: { x: number; y: number; w: number; h: number }) =>
           screenX >= r.x && screenX <= r.x + r.w && screenY >= r.y && screenY <= r.y + r.h;
-        const visibleCards = filterKanbanCards(kanbanCardsRef.current, kanbanFilterRef.current);
+        const visibleCards = kanbanStore.visibleCards();
         if (nav && visibleCards.length > 0) {
           const idx = Math.max(0, visibleCards.findIndex(c => c.id === expandedNoteRef.current));
           if (inRect(nav.prev)) {

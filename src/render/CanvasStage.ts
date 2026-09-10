@@ -7,10 +7,10 @@
 
 import {
   applyZoom,
-  createCameraState,
   setZoomWithPivot,
   type CameraState,
 } from '../cameraController.js';
+import { cameraStore } from '../state/cameraStore.js';
 import { computeCameraOrigin, createFurnitureRenderables, initCanvas, preRenderRoom } from '../isoTileRenderer.js';
 import { computeRoomBounds } from './roomBounds.js';
 import type { HsbColor } from '../isoTypes.js';
@@ -53,7 +53,7 @@ const STATIC_INTERVAL_MS = 50;
 const RESIZE_DEBOUNCE_MS = 150;
 
 export class CanvasStage {
-  readonly camera: CameraState = createCameraState();
+  readonly camera: CameraState = cameraStore.get();
   readonly roomLayer: RoomLayer;
   readonly notesLayer = new NotesLayer();
 
@@ -66,6 +66,7 @@ export class CanvasStage {
   private lastRenderTime = 0;
   private lastCam = { panX: NaN, panY: NaN, zoom: NaN };
   private stats: StageStats = { renders: 0, skips: 0, lastRenderAt: 0 };
+  private invalidated = false;
 
   private drag = {
     isDragging: false,
@@ -121,6 +122,15 @@ export class CanvasStage {
     return { ...this.stats };
   }
 
+  /**
+   * Request a frame without waiting out the static-scene throttle. Store
+   * subscribers call this so state changes (cards, agents, mode) render on the
+   * next rAF instead of up to STATIC_INTERVAL_MS later.
+   */
+  invalidate(): void {
+    this.invalidated = true;
+  }
+
   /** (Re)initialize the backing store. Returns the 2D context. */
   init(): CanvasRenderingContext2D {
     this.ctx = initCanvas(this.canvas);
@@ -164,7 +174,8 @@ export class CanvasStage {
     if (!this.running) return;
 
     const nowMs = Date.now();
-    const dynamic = this.tick ? this.tick(nowMs) : false;
+    const dynamic = (this.tick ? this.tick(nowMs) : false) || this.invalidated;
+    this.invalidated = false;
 
     const cam = this.camera;
     const camChanged =
@@ -214,6 +225,7 @@ export class CanvasStage {
           const scaleY = canvas.offsetHeight / rect.height;
           this.camera.panX = drag.startPanX + (dx * scaleX) / this.camera.zoom;
           this.camera.panY = drag.startPanY + (dy * scaleY) / this.camera.zoom;
+          cameraStore.notify();
         }
       }
       this.hooks.onHover(e.clientX, e.clientY);
@@ -237,6 +249,7 @@ export class CanvasStage {
       const pivotX = (e.clientX - rect.left) * scaleX;
       const pivotY = (e.clientY - rect.top) * scaleY;
       applyZoom(this.camera, e.deltaY, pivotX, pivotY, canvas.offsetWidth, canvas.offsetHeight);
+      cameraStore.notify();
     };
 
     // Touch: 1-finger pan, 2-finger pinch zoom.
@@ -281,11 +294,13 @@ export class CanvasStage {
         const mid = touchMid(Array.from(e.touches));
         const target = pinchStart.zoom * (dist / Math.max(1, pinchStart.dist));
         setZoomWithPivot(cam, target, pinchStart.midX, pinchStart.midY, canvas.offsetWidth, canvas.offsetHeight);
+        cameraStore.notify();
       } else if (e.touches.length === 1 && panStart) {
         const t = e.touches[0];
         const p = canvasPoint(t.clientX, t.clientY);
         cam.panX = panStart.panX + (p.x - panStart.x);
         cam.panY = panStart.panY + (p.y - panStart.y);
+        cameraStore.notify();
       }
     };
 

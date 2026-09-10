@@ -14,6 +14,7 @@ import { getDegradations, onDegradations } from '../degradations.js';
 import { generateFloorTemplate } from '../roomLayoutEngine.js';
 import { scheduleDemoEvents } from './demoData.js';
 import { onMessage } from '../bus.js';
+import { appMode } from '../state/appMode.js';
 import type { ExtensionMessage } from '../agentTypes.js';
 import { connectWs, hasRealAgents, onWsStateChange, getWsState, type WsState } from './wsClient.js';
 
@@ -108,8 +109,6 @@ const spriteCache = new SpriteCache();
       // Connect to WebSocket for real agent data
       connectWs();
 
-      let isDemoMode = false;
-
       // Track feed modes per agent for status bar display
       const agentFeedModes = new Map<string, { mode: string; reason: string }>();
 
@@ -163,7 +162,7 @@ const spriteCache = new SpriteCache();
       function updateStatusBar(wsState: WsState) {
         const dot = wsState === 'connected' ? '🟢' : wsState === 'connecting' ? '🟡' : '🔴';
         const label = wsState === 'connected' ? 'Connected' : wsState === 'connecting' ? 'Connecting...' : 'Disconnected';
-        const demoLabel = isDemoMode ? '<span style="color:#f59e0b;margin-left:8px">● DEMO MODE</span>' : '';
+        const demoLabel = appMode.is('demo') ? '<span style="color:#f59e0b;margin-left:8px">● DEMO MODE</span>' : '';
         const feedIndicators = buildFeedModeIndicators();
         const degr = getDegradations();
         const degrLabel = degr.length > 0
@@ -174,16 +173,41 @@ const spriteCache = new SpriteCache();
         statusBar.innerHTML = `<span>${dot} ${label}</span>${demoLabel}${boardLabel}${figuresLabel}${feedIndicators}${degrLabel}<span style="margin-left:auto;color:#555">localhost:${window.location.port || '3000'}</span>`;
       }
 
-      onWsStateChange(updateStatusBar);
+      // Mode machine drives demo startup and the status chip. Starting the demo
+      // is a reaction to entering demo mode, not an inline side effect.
+      appMode.subscribe(({ mode }) => {
+        if (mode === 'demo') scheduleDemoEvents();
+        updateStatusBar(getWsState());
+      });
+
+      onWsStateChange((wsState) => {
+        // A running demo is sticky: it keeps driving the room even if the
+        // socket drops, so it does not degrade to live/degraded mode.
+        if (appMode.is('demo')) {
+          updateStatusBar(wsState);
+          return;
+        }
+        if (wsState === 'connected' && hasRealAgents()) {
+          appMode.transition('live', 'ws connected with agent data');
+        } else if (wsState === 'disconnected') {
+          appMode.transition('degraded', 'ws disconnected');
+        }
+        updateStatusBar(wsState);
+      });
       updateStatusBar(getWsState());
 
       // Status-chip state: board source + figure availability
       // ('live' = cards received over WS; 'demo' = demo driver; 'none' = connected but empty)
       const refreshChip = () => updateStatusBar(getWsState());
       onMessage((msg: ExtensionMessage) => {
-        if (msg.type === 'kanbanCards') {
-          boardSource = isDemoMode ? 'demo' : 'live';
-          refreshChip();
+        if (msg.type === 'kanbanCards' || msg.type === 'agentCreated') {
+          if (!appMode.is('demo') && hasRealAgents()) {
+            appMode.transition('live', `${msg.type} received`);
+          }
+          if (msg.type === 'kanbanCards') {
+            boardSource = appMode.is('demo') ? 'demo' : 'live';
+            refreshChip();
+          }
         }
       });
       onDegradations(() => refreshChip());
@@ -202,17 +226,13 @@ const spriteCache = new SpriteCache();
 
       if (forceDemoMode) {
         console.log('[Web] Demo query param detected — starting demo mode immediately');
-        isDemoMode = true;
-        updateStatusBar(getWsState());
-        scheduleDemoEvents();
+        appMode.transition('demo', '?demo query param');
       } else {
         // Fallback: if no real agents arrive within 5 seconds, start demo mode
         setTimeout(() => {
-          if (!hasRealAgents()) {
+          if (!hasRealAgents() && !appMode.is('demo')) {
             console.log('[Web] No real agents detected — starting demo mode');
-            isDemoMode = true;
-            updateStatusBar(getWsState());
-            scheduleDemoEvents();
+            appMode.transition('demo', 'no real agents within 5s');
           } else {
             console.log('[Web] Real agents active — demo mode skipped');
           }
