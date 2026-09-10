@@ -11,6 +11,7 @@ import {
   createDebouncer,
   probeBoardUpdatedAt,
   createBoardSourceController,
+  normalizeProbeIntervalMs,
 } from '../src/boardSource.js';
 
 function fakeResponse(
@@ -61,6 +62,14 @@ describe('verifyWebhookSignature', () => {
     expect(verifyWebhookSignature('s3cret', undefined, body)).toBe(false);
     expect(verifyWebhookSignature('', 'sha256=deadbeef', body)).toBe(false);
   });
+
+  it('accepts a repeated header delivered as a string[]', async () => {
+    const { createHmac } = await import('node:crypto');
+    const body = JSON.stringify({ action: 'edited' });
+    const sig = `sha256=${createHmac('sha256', 's3cret').update(body).digest('hex')}`;
+    expect(verifyWebhookSignature('s3cret', [sig], body)).toBe(true);
+    expect(verifyWebhookSignature('s3cret', [], body)).toBe(false);
+  });
 });
 
 describe('isRelevantBoardEvent', () => {
@@ -83,6 +92,28 @@ describe('isRelevantBoardEvent', () => {
   it('ignores ping and unknown events', () => {
     expect(isRelevantBoardEvent('ping', {}, repo)).toBe(false);
     expect(isRelevantBoardEvent(undefined, {}, repo)).toBe(false);
+  });
+
+  it('accepts an event name delivered as a string[]', () => {
+    expect(isRelevantBoardEvent(['issues'], { repository: { full_name: repo } }, repo)).toBe(true);
+    expect(isRelevantBoardEvent(['projects_v2_item'], {}, repo)).toBe(true);
+    expect(isRelevantBoardEvent([], {}, repo)).toBe(false);
+  });
+});
+
+describe('normalizeProbeIntervalMs', () => {
+  it('keeps a finite positive interval at or above the 1s floor', () => {
+    expect(normalizeProbeIntervalMs(10_000)).toBe(10_000);
+    expect(normalizeProbeIntervalMs(1_500)).toBe(1_500);
+    expect(normalizeProbeIntervalMs(500)).toBe(1_000);
+  });
+
+  it('falls back to the ~10s default for non-finite or non-positive values', () => {
+    expect(normalizeProbeIntervalMs(Number.NaN)).toBe(10_000);
+    expect(normalizeProbeIntervalMs(Number.POSITIVE_INFINITY)).toBe(10_000);
+    expect(normalizeProbeIntervalMs(0)).toBe(10_000);
+    expect(normalizeProbeIntervalMs(-5)).toBe(10_000);
+    expect(normalizeProbeIntervalMs(undefined)).toBe(10_000);
   });
 });
 
@@ -250,5 +281,27 @@ describe('createBoardSourceController', () => {
     resolveFetch([]);
     await Promise.all([first, second]);
     expect(fetchAll).toHaveBeenCalledTimes(1);
+  });
+
+  it('clamps a non-finite probe interval instead of tight-looping', async () => {
+    vi.useFakeTimers();
+    const fetchImpl = vi.fn(async () => fakeResponse(304));
+    const controller = createBoardSourceController({
+      kind: 'probe',
+      fetchAll: vi.fn(async () => []),
+      onCards: vi.fn(),
+      probe: {
+        url: 'https://api.github.com/repos/o/r/issues',
+        intervalMs: Number.NaN,
+        fetchImpl: fetchImpl as unknown as typeof fetch,
+      },
+    });
+    controller.start();
+    await vi.advanceTimersByTimeAsync(0);
+    await vi.advanceTimersByTimeAsync(10_000);
+    // Initial poll + one tick at the clamped default; a NaN/0 interval would fire repeatedly.
+    expect(fetchImpl.mock.calls.length).toBeLessThanOrEqual(2);
+    controller.stop();
+    vi.useRealTimers();
   });
 });

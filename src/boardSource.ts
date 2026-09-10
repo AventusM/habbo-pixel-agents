@@ -34,19 +34,30 @@ export function classifyBoardSource(opts: {
 }
 
 /**
+ * Node's `IncomingHttpHeaders` values are `string | string[] | undefined`
+ * (repeated headers arrive as arrays). Collapse to the first string so callers
+ * never pass a non-string into Buffer/string comparisons.
+ */
+function firstHeaderValue(value: string | string[] | undefined | null): string | undefined {
+  if (Array.isArray(value)) return value[0];
+  return value ?? undefined;
+}
+
+/**
  * Verify GitHub's `X-Hub-Signature-256` HMAC over the raw request body.
  * Returns false when the secret or header is missing — callers decide whether
  * an unset secret means "accept unvalidated" (local dev) or reject.
  */
 export function verifyWebhookSignature(
   secret: string,
-  signatureHeader: string | undefined | null,
+  signatureHeader: string | string[] | undefined | null,
   rawBody: string | Buffer,
 ): boolean {
-  if (!secret || !signatureHeader) return false;
+  const signature = firstHeaderValue(signatureHeader);
+  if (!secret || !signature) return false;
   const expected = `sha256=${createHmac('sha256', secret).update(rawBody).digest('hex')}`;
   const expectedBuf = Buffer.from(expected);
-  const actualBuf = Buffer.from(signatureHeader);
+  const actualBuf = Buffer.from(signature);
   if (expectedBuf.length !== actualBuf.length) return false;
   return timingSafeEqual(expectedBuf, actualBuf);
 }
@@ -62,12 +73,13 @@ export interface BoardWebhookPayload {
  * event are ignored.
  */
 export function isRelevantBoardEvent(
-  eventName: string | undefined,
+  eventName: string | string[] | undefined,
   payload: BoardWebhookPayload | undefined,
   repoFullName: string,
 ): boolean {
-  if (eventName === 'projects_v2_item') return true;
-  if (eventName === 'issues') {
+  const event = firstHeaderValue(eventName);
+  if (event === 'projects_v2_item') return true;
+  if (event === 'issues') {
     const full = payload?.repository?.full_name;
     return typeof full === 'string' && full.toLowerCase() === repoFullName.toLowerCase();
   }
@@ -152,6 +164,22 @@ export interface BoardProbeConfig {
   fetchImpl?: typeof fetch;
 }
 
+/** Probe cadence bounds: too-small or non-finite values would tight-loop. */
+const DEFAULT_PROBE_INTERVAL_MS = 10_000;
+const MIN_PROBE_INTERVAL_MS = 1_000;
+
+/**
+ * Clamp a probe interval to a safe positive value. Non-finite, zero, or
+ * negative input falls back to the ~10s default; tiny positive values clamp
+ * to a 1s floor so a mis-parsed env var cannot hammer the GitHub API.
+ */
+export function normalizeProbeIntervalMs(value: number | undefined): number {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) {
+    return DEFAULT_PROBE_INTERVAL_MS;
+  }
+  return Math.max(MIN_PROBE_INTERVAL_MS, value);
+}
+
 export interface BoardSourceControllerOptions {
   kind: BoardSourceKind;
   fetchAll: () => Promise<KanbanCard[]>;
@@ -229,8 +257,9 @@ export function createBoardSourceController(
     start() {
       if (opts.kind === 'demo') return;
       if (opts.probe) {
+        const intervalMs = normalizeProbeIntervalMs(opts.probe.intervalMs);
         void poll();
-        timer = setInterval(() => void poll(), opts.probe.intervalMs);
+        timer = setInterval(() => void poll(), intervalMs);
       } else {
         void refresh(opts.kind);
         if (opts.fallbackIntervalMs && opts.fallbackIntervalMs > 0) {

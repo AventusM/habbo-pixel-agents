@@ -77,6 +77,12 @@ function resolveGitHubToken() {
   }
 }
 
+/** Parse an env value as a positive integer, falling back when it isn't one. */
+function positiveIntEnv(raw, fallback) {
+  const parsed = parseInt(raw ?? '', 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
 function readRawBody(req) {
   return new Promise((resolve, reject) => {
     const chunks = [];
@@ -341,9 +347,9 @@ async function startAgentManager() {
     if (useAdoKanban && adoConfigured) {
       console.log(`[Kanban] Azure DevOps configured: ${adoConfig.organization}/${adoConfig.project}`);
 
-      // ADO remains poll-based; surface it as the probe source in the chip.
-      currentBoardSource = 'probe';
-      broadcast({ type: 'boardSource', source: 'probe' });
+      // ADO is a plain full poll, not a webhook or a conditional ETag probe,
+      // so it deliberately emits no `boardSource` — the chip stays neutral
+      // rather than mislabelling this path.
 
       // Initial fetch
       const cards = await fetchEnrichedCards(adoConfig.organization, adoConfig.project, adoConfig.pat);
@@ -375,7 +381,7 @@ async function startAgentManager() {
         : '';
       const webhookSecret = process.env.WEBHOOK_SECRET || '';
       const kind = classifyBoardSource({ configured: true, webhookSecret });
-      const probeIntervalMs = parseInt(process.env.BOARD_PROBE_INTERVAL || '10', 10) * 1000;
+      const probeIntervalMs = positiveIntEnv(process.env.BOARD_PROBE_INTERVAL, 10) * 1000;
 
       boardController = createBoardSourceController({
         kind,
@@ -401,14 +407,17 @@ async function startAgentManager() {
         fallbackIntervalMs: probeUrl && token
           ? undefined
           : ghProjectsConfig.pollIntervalSeconds * 1000,
-        onError: (err) => console.warn('[Kanban] Board source error:', err.message),
+        onError: (err) => console.warn(
+          '[Kanban] Board source error:',
+          err instanceof Error ? err.message : String(err),
+        ),
         log: console.log,
       });
 
       boardDebouncer = createDebouncer(() => {
         console.log('[Kanban] Webhook event — refetching board');
         boardController.refresh('webhook');
-      }, parseInt(process.env.WEBHOOK_DEBOUNCE_MS || '300', 10));
+      }, positiveIntEnv(process.env.WEBHOOK_DEBOUNCE_MS, 300));
 
       boardController.start();
 
