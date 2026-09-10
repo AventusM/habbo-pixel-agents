@@ -17,6 +17,7 @@ import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { execFileSync } from 'node:child_process';
 import { WebSocketServer } from 'ws';
 
 // Dynamic import of the compiled server module (built by esbuild)
@@ -59,9 +60,99 @@ if (!fs.existsSync(DIST_DIR)) {
   process.exit(1);
 }
 
+// --- Board updates (webhook receiver + ETag probe) ---
+const REPO_FULL_NAME = process.env.GITHUB_REPO || '';
+let boardController = null;
+let boardDebouncer = null;
+let currentBoardSource = null; // last source that delivered an update
+let boardHelpers = null; // populated from the compiled server bundle below
+
+/** Prefer the env token; fall back to the gh CLI's stored token for local dev. */
+function resolveGitHubToken() {
+  if (process.env.GITHUB_TOKEN) return process.env.GITHUB_TOKEN;
+  try {
+    return execFileSync('gh', ['auth', 'token'], { encoding: 'utf8' }).trim();
+  } catch {
+    return '';
+  }
+}
+
+/** Parse an env value as a positive integer, falling back when it isn't one. */
+function positiveIntEnv(raw, fallback) {
+  const parsed = parseInt(raw ?? '', 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function readRawBody(req) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    let size = 0;
+    req.on('data', (chunk) => {
+      size += chunk.length;
+      if (size > 1_000_000) {
+        reject(new Error('payload too large'));
+        req.destroy();
+        return;
+      }
+      chunks.push(chunk);
+    });
+    req.on('end', () => resolve(Buffer.concat(chunks)));
+    req.on('error', reject);
+  });
+}
+
+/**
+ * POST /webhooks/github. HMAC-validated when WEBHOOK_SECRET is set; relevant
+ * events are debounced and trigger a full board fetch + broadcast.
+ */
+async function handleGithubWebhook(req, res) {
+  if (!boardHelpers) {
+    res.writeHead(503, { 'Content-Type': 'text/plain' });
+    res.end('board source not ready');
+    return;
+  }
+
+  let raw;
+  try {
+    raw = await readRawBody(req);
+  } catch (err) {
+    res.writeHead(413, { 'Content-Type': 'text/plain' });
+    res.end(err.message);
+    return;
+  }
+
+  const secret = process.env.WEBHOOK_SECRET || '';
+  const signature = req.headers['x-hub-signature-256'];
+  if (secret && !boardHelpers.verifyWebhookSignature(secret, signature, raw)) {
+    res.writeHead(401, { 'Content-Type': 'text/plain' });
+    res.end('invalid signature');
+    return;
+  }
+
+  let payload = {};
+  try {
+    payload = JSON.parse(raw.toString('utf8'));
+  } catch {
+    // Malformed payloads are acknowledged but ignored.
+  }
+
+  const event = req.headers['x-github-event'];
+  const relevant = boardDebouncer
+    && boardHelpers.isRelevantBoardEvent(event, payload, REPO_FULL_NAME);
+  if (relevant) boardDebouncer.trigger();
+
+  res.writeHead(202, { 'Content-Type': 'text/plain' });
+  res.end(relevant ? 'accepted' : 'ignored');
+}
+
 // --- HTTP Server ---
 const server = http.createServer((req, res) => {
   let urlPath = decodeURIComponent(new URL(req.url, `http://localhost:${PORT}`).pathname);
+
+  if (req.method === 'POST' && urlPath === '/webhooks/github') {
+    void handleGithubWebhook(req, res);
+    return;
+  }
 
   if (urlPath === '/') urlPath = '/index.html';
 
@@ -132,6 +223,11 @@ wss.on('connection', (ws) => {
   // Send cached kanban cards to newly connected client
   if (lastKanbanCards) {
     ws.send(JSON.stringify({ type: 'kanbanCards', cards: lastKanbanCards }));
+  }
+
+  // Send the active board source (webhook | probe | demo)
+  if (currentBoardSource) {
+    ws.send(JSON.stringify({ type: 'boardSource', source: currentBoardSource }));
   }
 
   // Send current Copilot agent sessions to newly connected client
@@ -214,7 +310,14 @@ async function startAgentManager() {
       return;
     }
 
-    const { createAgentManager, readAzureDevOpsEnv, fetchEnrichedCards, createCopilotMonitor, readGitHubEnv, readGitHubProjectsEnv, fetchKanbanCards } = await import(serverBundle);
+    const {
+      createAgentManager, readAzureDevOpsEnv, fetchEnrichedCards, createCopilotMonitor,
+      readGitHubEnv, readGitHubProjectsEnv, fetchKanbanCards,
+      classifyBoardSource, createBoardSourceController, createDebouncer,
+      isRelevantBoardEvent, verifyWebhookSignature,
+    } = await import(serverBundle);
+
+    boardHelpers = { isRelevantBoardEvent, verifyWebhookSignature };
 
     // Start local JSONL agent watcher (skip with --no-local flag)
     if (!skipLocalAgents) {
@@ -244,6 +347,10 @@ async function startAgentManager() {
     if (useAdoKanban && adoConfigured) {
       console.log(`[Kanban] Azure DevOps configured: ${adoConfig.organization}/${adoConfig.project}`);
 
+      // ADO is a plain full poll, not a webhook or a conditional ETag probe,
+      // so it deliberately emits no `boardSource` — the chip stays neutral
+      // rather than mislabelling this path.
+
       // Initial fetch
       const cards = await fetchEnrichedCards(adoConfig.organization, adoConfig.project, adoConfig.pat);
       if (cards.length > 0) {
@@ -268,36 +375,59 @@ async function startAgentManager() {
     } else if (useGitHubKanban && ghProjectsConfigured) {
       console.log(`[Kanban] GitHub Projects configured: ${ghProjectsConfig.owner}/${ghProjectsConfig.projectNumber}`);
 
-      // Initial fetch (fetchKanbanCards is synchronous, uses gh CLI, silent-fails to [])
-      const ghCards = fetchKanbanCards(
-        ghProjectsConfig.owner,
-        ghProjectsConfig.projectNumber,
-        ghProjectsConfig.ownerType,
-      );
-      if (ghCards.length > 0) {
-        lastKanbanCards = ghCards;
-        broadcast({ type: 'kanbanCards', cards: ghCards });
-        console.log(`[Kanban] Initial fetch: ${ghCards.length} cards`);
-      } else {
-        console.log('[Kanban] GitHub Projects initial fetch returned 0 cards (check gh auth: gh auth status)');
-      }
+      const token = resolveGitHubToken();
+      const probeUrl = REPO_FULL_NAME
+        ? `https://api.github.com/repos/${REPO_FULL_NAME}/issues?state=all&sort=updated&direction=desc&per_page=1`
+        : '';
+      const webhookSecret = process.env.WEBHOOK_SECRET || '';
+      const kind = classifyBoardSource({ configured: true, webhookSecret });
+      const probeIntervalMs = positiveIntEnv(process.env.BOARD_PROBE_INTERVAL, 10) * 1000;
 
-      // Poll on interval
-      if (ghProjectsConfig.pollIntervalSeconds > 0) {
-        kanbanPollId = setInterval(() => {
-          try {
-            const polledCards = fetchKanbanCards(
-              ghProjectsConfig.owner,
-              ghProjectsConfig.projectNumber,
-              ghProjectsConfig.ownerType,
-            );
-            lastKanbanCards = polledCards;
-            broadcast({ type: 'kanbanCards', cards: polledCards });
-          } catch (err) {
-            console.warn('[Kanban] Poll failed:', err.message);
-          }
-        }, ghProjectsConfig.pollIntervalSeconds * 1000);
-        console.log(`[Kanban] Polling every ${ghProjectsConfig.pollIntervalSeconds}s`);
+      boardController = createBoardSourceController({
+        kind,
+        // fetchKanbanCards is synchronous (gh CLI) and silent-fails to []
+        fetchAll: async () => fetchKanbanCards(
+          ghProjectsConfig.owner,
+          ghProjectsConfig.projectNumber,
+          ghProjectsConfig.ownerType,
+        ),
+        onCards: (cards) => {
+          lastKanbanCards = cards;
+          broadcast({ type: 'kanbanCards', cards });
+          console.log(`[Kanban] Updated: ${cards.length} cards`);
+        },
+        onSource: (source) => {
+          currentBoardSource = source;
+          broadcast({ type: 'boardSource', source });
+          console.log(`[Kanban] Active board source: ${source}`);
+        },
+        probe: probeUrl && token
+          ? { url: probeUrl, token, intervalMs: probeIntervalMs }
+          : undefined,
+        fallbackIntervalMs: probeUrl && token
+          ? undefined
+          : ghProjectsConfig.pollIntervalSeconds * 1000,
+        onError: (err) => console.warn(
+          '[Kanban] Board source error:',
+          err instanceof Error ? err.message : String(err),
+        ),
+        log: console.log,
+      });
+
+      boardDebouncer = createDebouncer(() => {
+        console.log('[Kanban] Webhook event — refetching board');
+        boardController.refresh('webhook');
+      }, positiveIntEnv(process.env.WEBHOOK_DEBOUNCE_MS, 300));
+
+      boardController.start();
+
+      if (!probeUrl || !token) {
+        console.log('[Kanban] Probe disabled (set GITHUB_REPO + GITHUB_TOKEN to enable the ETag probe); using full poll');
+      } else {
+        console.log(`[Kanban] ETag probe every ${probeIntervalMs / 1000}s`);
+      }
+      if (kind === 'webhook') {
+        console.log('[Kanban] Webhook receiver ready: POST /webhooks/github');
       }
     } else if (!adoConfigured) {
       console.log('[Kanban] No kanban source configured (set AZDO_ORG/AZDO_PROJECT/AZDO_PAT, or KANBAN_SOURCE=github with GITHUB_PROJECT_OWNER/GITHUB_PROJECT_NUMBER)');
@@ -360,6 +490,8 @@ server.listen(PORT, async () => {
 process.on('SIGINT', () => {
   console.log('\n[Server] Shutting down...');
   if (kanbanPollId) clearInterval(kanbanPollId);
+  if (boardController) boardController.stop();
+  if (boardDebouncer) boardDebouncer.cancel();
   if (copilotMonitor) copilotMonitor.stop();
   if (agentManager) agentManager.dispose();
   wss.close();
@@ -369,6 +501,8 @@ process.on('SIGINT', () => {
 
 process.on('SIGTERM', () => {
   if (kanbanPollId) clearInterval(kanbanPollId);
+  if (boardController) boardController.stop();
+  if (boardDebouncer) boardDebouncer.cancel();
   if (copilotMonitor) copilotMonitor.stop();
   if (agentManager) agentManager.dispose();
   wss.close();
