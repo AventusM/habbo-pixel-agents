@@ -101,7 +101,7 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
   const activeRendererRef = useRef<AvatarRenderer | null>(null);
 
   // Mirror the kanban filter store into React state for the HUD
-  useEffect(() => kanbanStore.subscribe((state) => setKanbanFilter(state.filter)), []);
+  useEffect(() => kanbanStore.subscribeSelector((state) => state.filter, setKanbanFilter), []);
 
   useEffect(() => {
     const handleFilterKey = (e: KeyboardEvent) => {

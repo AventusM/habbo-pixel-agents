@@ -77,6 +77,13 @@ export class AgentStore {
     return this.store.subscribe(listener);
   }
 
+  subscribeSelector<S>(
+    selector: (state: AgentStoreState) => S,
+    listener: (selected: S) => void,
+  ): Unsubscribe {
+    return this.store.subscribeSelector(selector, listener);
+  }
+
   addAgent(agentId: string, displayName: string, team: TeamSection): void {
     this.store.update((prev) => {
       const agents = new Map(prev.agents);

@@ -175,7 +175,7 @@ const spriteCache = new SpriteCache();
 
       // Mode machine drives demo startup and the status chip. Starting the demo
       // is a reaction to entering demo mode, not an inline side effect.
-      appMode.subscribe(({ mode }) => {
+      appMode.subscribeSelector((state) => state.mode, (mode) => {
         if (mode === 'demo') scheduleDemoEvents();
         updateStatusBar(getWsState());
       });

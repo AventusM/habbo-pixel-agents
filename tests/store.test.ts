@@ -1,6 +1,6 @@
 // tests/store.test.ts
-// Unit tests for the typed store primitive: get/set/update, version bumps,
-// state-sync subscribe, and unsubscribe.
+// Unit tests for the typed store primitive (zustand-backed, D005): get/set/update,
+// state-sync subscribe, unsubscribe, no-op set, and selector subscriptions.
 
 import { describe, it, expect } from 'vitest';
 import { createStore } from '../src/state/store.js';
@@ -9,16 +9,14 @@ describe('store', () => {
   it('returns the initial value', () => {
     const store = createStore({ count: 0 });
     expect(store.get()).toEqual({ count: 0 });
-    expect(store.version).toBe(0);
   });
 
-  it('set replaces the value, bumps the version, and notifies subscribers', () => {
+  it('set replaces the value and notifies subscribers', () => {
     const store = createStore(1);
     const seen: number[] = [];
     store.subscribe((v) => seen.push(v));
     store.set(2);
     expect(store.get()).toBe(2);
-    expect(store.version).toBe(1);
     expect(seen).toEqual([1, 2]);
   });
 
@@ -62,7 +60,6 @@ describe('store', () => {
     const seen: { n: number }[] = [];
     store.subscribe((v) => seen.push(v));
     store.set(initial);
-    expect(store.version).toBe(0);
     expect(seen).toEqual([initial]);
   });
 
@@ -71,7 +68,15 @@ describe('store', () => {
     const seen: { n: number }[] = [];
     store.subscribe((v) => seen.push(v));
     store.update((prev) => prev);
-    expect(store.version).toBe(0);
     expect(seen).toHaveLength(1);
+  });
+
+  it('subscribeSelector fires only when the selected slice changes', () => {
+    const store = createStore({ a: 1, b: 1 });
+    const seen: number[] = [];
+    store.subscribeSelector((state) => state.a, (a) => seen.push(a));
+    store.set({ a: 1, b: 2 });
+    store.set({ a: 2, b: 2 });
+    expect(seen).toEqual([1, 2]);
   });
 });

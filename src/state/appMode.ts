@@ -54,6 +54,13 @@ export class AppModeMachine {
     return this.store.subscribe(listener);
   }
 
+  subscribeSelector<S>(
+    selector: (state: AppModeState) => S,
+    listener: (selected: S) => void,
+  ): Unsubscribe {
+    return this.store.subscribeSelector(selector, listener);
+  }
+
   /**
    * Apply a named transition. Returns true when the mode changed; invalid
    * transitions and no-ops are ignored (and logged).
