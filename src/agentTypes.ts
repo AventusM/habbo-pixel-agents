@@ -85,6 +85,7 @@ export type ExtensionMessage =
   | { type: 'agentLinkedTicket'; agentId: string; ticketId?: string; ticketTitle?: string }
   | { type: 'agentFeedMode'; agentId: string; feedMode: 'sse' | 'fast-poll' | 'poll'; feedReason: string }
   | { type: 'kanbanCards'; cards: KanbanCard[] }
+  | { type: 'boardSource'; source: 'webhook' | 'probe' | 'demo' }
   | { type: 'devMode'; enabled: boolean }
   | { type: 'requestClassification'; agentId: string }
   | { type: 'clearAgents' }

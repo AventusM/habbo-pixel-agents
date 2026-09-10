@@ -108,3 +108,18 @@ export function readGitHubProjectsEnv(): {
 }
 
 export { fetchKanbanCards } from '../githubProjects.js';
+
+// BoardSource helpers: the standalone web server mounts the webhook receiver
+// and drives the ETag probe through these.
+export {
+  classifyBoardSource,
+  createBoardSourceController,
+  createDebouncer,
+  isRelevantBoardEvent,
+  probeBoardUpdatedAt,
+  verifyWebhookSignature,
+} from '../boardSource.js';
+export type {
+  BoardSourceKind,
+  BoardSourceController,
+} from '../boardSource.js';

@@ -156,7 +156,8 @@ const spriteCache = new SpriteCache();
         return `<span style="display:flex;gap:6px;margin-left:8px;color:#aaa">${indicators.join('')}</span>`;
       }
 
-      let boardSource = 'none';
+      // BoardSource port: active board delivery path, reported by the server.
+      let boardSource = '—';
       let figuresAvailable = false;
 
       function updateStatusBar(wsState: WsState) {
@@ -168,7 +169,8 @@ const spriteCache = new SpriteCache();
         const degrLabel = degr.length > 0
           ? `<span style="color:#f87171;margin-left:8px" title="${degr.map((d) => d.id + ': ' + d.detail).join('\n')}">⚠ ${degr.length}</span>`
           : '';
-        const boardLabel = `<span style="color:#94a3b8;margin-left:8px">board: ${boardSource}</span>`;
+        const activeSource = appMode.is('demo') ? 'demo' : boardSource;
+        const boardLabel = `<span style="color:#94a3b8;margin-left:8px">board: ${activeSource}</span>`;
         const figuresLabel = `<span style="color:${figuresAvailable ? '#4ade80' : '#64748b'};margin-left:8px">figures: ${figuresAvailable ? 'local' : 'fallback'}</span>`;
         statusBar.innerHTML = `<span>${dot} ${label}</span>${demoLabel}${boardLabel}${figuresLabel}${feedIndicators}${degrLabel}<span style="margin-left:auto;color:#555">localhost:${window.location.port || '3000'}</span>`;
       }
@@ -196,18 +198,17 @@ const spriteCache = new SpriteCache();
       });
       updateStatusBar(getWsState());
 
-      // Status-chip state: board source + figure availability
-      // ('live' = cards received over WS; 'demo' = demo driver; 'none' = connected but empty)
+      // Status-chip state: active board source (webhook | probe | demo)
       const refreshChip = () => updateStatusBar(getWsState());
       onMessage((msg: ExtensionMessage) => {
         if (msg.type === 'kanbanCards' || msg.type === 'agentCreated') {
           if (!appMode.is('demo') && hasRealAgents()) {
             appMode.transition('live', `${msg.type} received`);
           }
-          if (msg.type === 'kanbanCards') {
-            boardSource = appMode.is('demo') ? 'demo' : 'live';
-            refreshChip();
-          }
+          if (msg.type === 'kanbanCards') refreshChip();
+        } else if (msg.type === 'boardSource') {
+          boardSource = msg.source;
+          refreshChip();
         }
       });
       onDegradations(() => refreshChip());

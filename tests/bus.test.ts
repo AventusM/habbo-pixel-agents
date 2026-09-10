@@ -72,6 +72,14 @@ describe('bus', () => {
     expect(second.some((m) => m.type === 'kanbanCards')).toBe(true);
   });
 
+  it('replays the retained board source to a late subscriber', () => {
+    emitMessage({ type: 'boardSource', source: 'webhook' });
+    const seen: ExtensionMessage[] = [];
+    onMessage((m) => seen.push(m));
+    const source = seen.find((m) => m.type === 'boardSource');
+    expect(source && source.type === 'boardSource' && source.source).toBe('webhook');
+  });
+
   it('does not retain ephemeral messages', () => {
     emitMessage({ type: 'agentTool', agentId: 'a1', toolName: 'Bash', displayText: 'npm test' });
     const seen: ExtensionMessage[] = [];

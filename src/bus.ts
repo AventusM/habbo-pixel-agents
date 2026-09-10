@@ -24,6 +24,7 @@ const listeners = new Set<MessageHandler>();
 
 // Retained state for replay
 let retainedCards: Extract<ExtensionMessage, { type: 'kanbanCards' }> | null = null;
+let retainedBoardSource: Extract<ExtensionMessage, { type: 'boardSource' }> | null = null;
 let retainedDevMode: Extract<ExtensionMessage, { type: 'devMode' }> | null = null;
 let retainedTemplateSize: Extract<ExtensionMessage, { type: 'templateSize' }> | null = null;
 const retainedAgents = new Map<string, ExtensionMessage[]>(); // agentId -> [created, ...latest updates]
@@ -32,6 +33,9 @@ function retain(msg: ExtensionMessage): void {
   switch (msg.type) {
     case 'kanbanCards':
       retainedCards = msg;
+      break;
+    case 'boardSource':
+      retainedBoardSource = msg;
       break;
     case 'devMode':
       retainedDevMode = msg;
@@ -65,6 +69,7 @@ function retain(msg: ExtensionMessage): void {
 
 function replayTo(handler: MessageHandler): void {
   if (retainedCards) handler(retainedCards);
+  if (retainedBoardSource) handler(retainedBoardSource);
   if (retainedDevMode) handler(retainedDevMode);
   if (retainedTemplateSize) handler(retainedTemplateSize);
   // Per agent: created first, then the retained update sequence
@@ -93,6 +98,7 @@ export function onMessage(handler: MessageHandler): () => void {
 export function resetBus(): void {
   listeners.clear();
   retainedCards = null;
+  retainedBoardSource = null;
   retainedDevMode = null;
   retainedTemplateSize = null;
   retainedAgents.clear();

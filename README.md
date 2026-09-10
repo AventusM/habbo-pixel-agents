@@ -80,6 +80,10 @@ cp .env.example .env
 | `GITHUB_PROJECT_OWNER`      | No       | GitHub org/user for Projects v2 kanban           |
 | `GITHUB_PROJECT_OWNER_TYPE` | No       | `org` or `user`                                  |
 | `GITHUB_PROJECT_NUMBER`     | No       | Project number from the project URL              |
+| `GITHUB_PROJECT_POLL_INTERVAL` | No    | Legacy full-poll seconds (default: `60`)         |
+| `WEBHOOK_SECRET`            | Hosted   | Enables webhook delivery + HMAC validation       |
+| `BOARD_PROBE_INTERVAL`      | No       | ETag probe interval in seconds (default: `10`)   |
+| `WEBHOOK_DEBOUNCE_MS`       | No       | Webhook debounce window (default: `300`)         |
 | `AZDO_ORG`                  | No       | Azure DevOps organization name                   |
 | `AZDO_PROJECT`              | No       | Azure DevOps project name                        |
 | `AZDO_PAT`                  | No       | Azure DevOps Personal Access Token               |
@@ -114,7 +118,7 @@ Or start the web server directly:
 npm run web
 ```
 
-Then visit **http://localhost:3000**. The dashboard connects via WebSocket and shows live agent activity.
+Then visit **http://localhost:3000**. The dashboard connects via WebSocket and shows live agent activity. The status chip reports the active board source (`board: webhook | probe | demo`); see [Hosted deployment](docs/guides/HOSTED-DEPLOYMENT.md) for webhook setup and the public-URL recipe.
 
 You can also pass arguments directly:
 
@@ -233,7 +237,7 @@ are aggregation adapters.
 
 ```mermaid
 flowchart LR
-  WEB["web server — node scripts/web-server.mjs<br/>watches agent JSONL transcripts (Claude Code),<br/>polls GitHub Projects via gh CLI every 60s,<br/>serves dist/ + WS on :3000"]
+  WEB["web server — node scripts/web-server.mjs<br/>watches agent JSONL transcripts (Claude Code),<br/>GitHub Projects via webhook or ~10s ETag probe,<br/>serves dist/ + WS on :3000"]
   EXT["VS Code extension — src/extension.ts<br/>same data surfaced via postMessage bridge"]
   DEMO["demo driver — src/web/demoData.ts<br/>synthetic Alice/Bob agents + 6 demo tickets<br/>(cards at t+100ms, agents from t+500ms)"]
   BUS["window extensionMessage events<br/>agentCreated · agentStatus · agentTool ·<br/>agentLinkedTicket · kanbanCards · devMode ·<br/>clearAgents (on WS reconnect)"]
