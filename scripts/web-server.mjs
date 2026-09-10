@@ -60,6 +60,20 @@ if (!fs.existsSync(DIST_DIR)) {
   process.exit(1);
 }
 
+// --- Health payload builder ---
+// Sourced from the compiled server bundle when present so src/health.ts stays
+// the single tested source of truth; fall back to a minimal ok payload when the
+// bundle is absent so /health keeps answering.
+const SERVER_BUNDLE = path.resolve(__dirname, '..', 'dist', 'web', 'server.mjs');
+let buildHealthPayload = null;
+if (fs.existsSync(SERVER_BUNDLE)) {
+  try {
+    ({ buildHealthPayload } = await import(SERVER_BUNDLE));
+  } catch (err) {
+    console.warn('[Health] Could not load health payload builder:', err.message);
+  }
+}
+
 // --- Board updates (webhook receiver + ETag probe) ---
 const REPO_FULL_NAME = process.env.GITHUB_REPO || '';
 let boardController = null;
@@ -148,6 +162,31 @@ async function handleGithubWebhook(req, res) {
 // --- HTTP Server ---
 const server = http.createServer((req, res) => {
   let urlPath = decodeURIComponent(new URL(req.url, `http://localhost:${PORT}`).pathname);
+
+  if ((req.method === 'GET' || req.method === 'HEAD') && urlPath === '/health') {
+    const payload = buildHealthPayload
+      ? buildHealthPayload({
+          uptimeSeconds: process.uptime(),
+          boardSource: currentBoardSource,
+          clients: clients.size,
+          port: PORT,
+        })
+      : {
+          // Keep the documented /health shape even when the compiled bundle is
+          // missing or fails to import, so service checks never see a divergent payload.
+          status: 'ok',
+          uptimeSeconds: Math.floor(process.uptime()),
+          boardSource: currentBoardSource ?? 'unset',
+          clients: clients.size,
+          port: PORT,
+        };
+    res.writeHead(200, {
+      'Content-Type': 'application/json; charset=utf-8',
+      'Cache-Control': 'no-store',
+    });
+    res.end(req.method === 'HEAD' ? undefined : JSON.stringify(payload));
+    return;
+  }
 
   if (req.method === 'POST' && urlPath === '/webhooks/github') {
     void handleGithubWebhook(req, res);
