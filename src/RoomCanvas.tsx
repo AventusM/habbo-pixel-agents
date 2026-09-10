@@ -1,18 +1,16 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { parseHeightmap, depthSort } from './isoTypes.js';
-import { initCanvas, computeCameraOrigin, preRenderRoom, createFurnitureRenderables } from './isoTileRenderer.js';
-import { RoomLayer, NotesLayer, blitVisibleSlice } from './render/layers.js';
-import type { TileGrid, Renderable } from './isoTypes.js';
+import { parseHeightmap } from './isoTypes.js';
+import { computeCameraOrigin, createFurnitureRenderables } from './isoTileRenderer.js';
+import { CanvasStage } from './render/CanvasStage.js';
+import { drawScene, type SceneInputs } from './render/sceneRenderer.js';
+import { computeFitZoom } from './render/roomBounds.js';
+import type { TileGrid, Renderable, HsbColor } from './isoTypes.js';
 import type { FurnitureSpec, MultiTileFurnitureSpec } from './isoFurnitureRenderer.js';
-import type { AvatarSpec, AvatarRenderer } from './avatarRendererTypes.js';
+import type { AvatarRenderer } from './avatarRendererTypes.js';
 import { pixelLabRenderer } from './pixelLabAvatarRenderer.js';
-
-const AVATAR_GROUND_Y = 0;
 import type { SpriteCache } from './isoSpriteCache.js';
-import { drawSpeechBubble } from './isoBubbleRenderer.js';
-import { drawNameTag } from './isoNameTagRenderer.js';
 import { habboRenderer } from './isoAvatarRenderer.js';
-import { tileToScreen, TILE_W_HALF, TILE_H_HALF, TILE_H, WALL_HEIGHT } from './isometricMath.js';
+import { tileToScreen, TILE_H_HALF, screenToTile } from './isometricMath.js';
 import {
   filterKanbanCards,
   nextKanbanFilterMode,
@@ -20,8 +18,6 @@ import {
   type KanbanFilterMode,
 } from './kanbanFilter.js';
 import {
-  drawHoverHighlight,
-  drawFurnitureFootprint,
   toggleTileWalkability,
   setTileColor,
   placeFurniture,
@@ -31,30 +27,23 @@ import {
   type EditorMode,
   type EditorState,
 } from './isoLayoutEditor.js';
-import type { HsbColor } from './isoTypes.js';
-import { getSupportedDirections, isChairType, isTeleportBooth, getFurnitureDimensions } from './furnitureRegistry.js';
+import { getSupportedDirections, isChairType, isTeleportBooth } from './furnitureRegistry.js';
 import { LayoutEditorPanel } from './LayoutEditorPanel.js';
 import { AudioManager } from './isoAudioManager.js';
 import { AvatarManager } from './avatarManager.js';
 import { IdleWanderManager } from './idleWander.js';
 import { AvatarSelectionManager } from './avatarSelection.js';
 import { onMessage } from './bus.js';
-import type { ExtensionMessage } from './agentTypes.js';
-import type { KanbanCard } from './agentTypes.js';
+import type { ExtensionMessage, KanbanCard, TeamSection } from './agentTypes.js';
 import { computeBlockedTiles } from './isoPathfinding.js';
-import { drawKanbanNotes, drawExpandedNote, drawExpandedAggregateNote, createKanbanRenderState, type KanbanRenderState, pointInQuad } from './isoKanbanRenderer.js';
-import type { CameraState } from './cameraController.js';
-import { createCameraState, applyZoom, applyCameraTransform, screenToWorld, clampZoom, setZoomWithPivot } from './cameraController.js';
-import { screenToTile } from './isometricMath.js';
+import { drawKanbanNotes, createKanbanRenderState, type KanbanRenderState, pointInQuad } from './isoKanbanRenderer.js';
+import { screenToWorld, jumpToSection } from './cameraController.js';
 import { SectionManager } from './sectionManager.js';
 import { type FloorTemplate, buildSectionColorMap } from './roomLayoutEngine.js';
-import { createTeleportEffect, drawTeleportFlash } from './teleportEffect.js';
+import { createTeleportEffect } from './teleportEffect.js';
 import type { TeleportEffect } from './teleportEffect.js';
-import type { TeamSection } from './agentTypes.js';
-import { drawFurnitureActiveOverlay } from './isoFurnitureRenderer.js';
-import { jumpToSection } from './cameraController.js';
 import {
-  createOrchestrationState, drawOrchestrationOverlay,
+  createOrchestrationState,
   orchestrationAddAgent, orchestrationRemoveAgent,
   orchestrationSetStatus, orchestrationSetTool,
   orchestrationSetLinkedTicket, getLinkedTicketIds,
@@ -65,46 +54,11 @@ interface RoomCanvasProps {
   editorMode?: EditorMode; // Optional, defaults to 'view'
 }
 
-// Avatar sprite height for name tag positioning (Nitro figure sprites)
-const AVATAR_HEIGHT = 65;
-
-/**
- * Zoom level that fits the whole room (floor + walls) into the viewport.
- * Uses the same bounding math as computeCameraOrigin; clamped ≤ 1 so desktop
- * layouts that already fit are unaffected. Returns ≥ clampZoom minimum.
- */
-function computeRoomBounds(grid: TileGrid): { roomW: number; roomH: number } {
-  let minSx = Infinity, maxSx = -Infinity, minSy = Infinity, maxSy = -Infinity;
-  let hasTiles = false;
-  for (let ty = 0; ty < grid.height; ty++) {
-    for (let tx = 0; tx < grid.width; tx++) {
-      if (grid.tiles[ty][tx] == null) continue;
-      hasTiles = true;
-      const { x: sx, y: sy } = tileToScreen(tx, ty, 0);
-      minSx = Math.min(minSx, sx - TILE_W_HALF);
-      maxSx = Math.max(maxSx, sx + TILE_W_HALF);
-      minSy = Math.min(minSy, sy);
-      maxSy = Math.max(maxSy, sy + TILE_H);
-    }
-  }
-  if (!hasTiles) return { roomW: 0, roomH: 0 };
-  return { roomW: maxSx - minSx, roomH: (maxSy - minSy) + WALL_HEIGHT };
-}
-
-function computeFitZoom(
-  grid: TileGrid,
-  viewportWidth: number,
-  viewportHeight: number,
-): number {
-  const { roomW, roomH } = computeRoomBounds(grid);
-  if (roomW === 0 || roomH === 0) return 1;
-  return clampZoom(Math.min(1, viewportWidth / roomW, viewportHeight / roomH));
-}
-
 export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: RoomCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const runningRef = useRef(false);
-  const rafIdRef = useRef(0);
+
+  // Canvas lifecycle, camera, input, layers and frame scheduling (M003/S03)
+  const stageRef = useRef<CanvasStage | null>(null);
 
   // Audio manager (Phase 8)
   const audioManagerRef = useRef<AudioManager | null>(null);
@@ -161,12 +115,9 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
   // Per-render kanban hit-test state (replaces renderer module-level state)
   const kanbanRenderStateRef = useRef<KanbanRenderState>(createKanbanRenderState());
 
-  // Render throttle bookkeeping (see frame loop)
-  const lastRenderTimeRef = useRef(0);
-  const lastRenderCamRef = useRef({ panX: NaN, panY: NaN, zoom: NaN });
-
   // Active avatar renderer (logged on change; Habbo figures vs PixelLab/RD)
-  const lastActiveRendererRef = useRef<AvatarRenderer | null>(null);
+  const activeRendererRef = useRef<AvatarRenderer | null>(null);
+
   useEffect(() => {
     kanbanFilterRef.current = kanbanFilter;
   }, [kanbanFilter]);
@@ -222,22 +173,9 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
   const [selectedColor, setSelectedColor] = useState<HsbColor>({ h: 200, s: 50, b: 50 });
   const [selectedFurniture, setSelectedFurniture] = useState<string>('hc_chr');
   const [furnitureDirection, setFurnitureDirection] = useState<number>(0);
-  // Camera drag state (not in renderState to avoid re-renders)
-  const dragRef = useRef<{
-    isDragging: boolean;
-    didDrag: boolean;
-    startX: number;
-    startY: number;
-    startPanX: number;
-    startPanY: number;
-  }>({ isDragging: false, didDrag: false, startX: 0, startY: 0, startPanX: 0, startPanY: 0 });
 
   const renderState = useRef<{
-    roomLayer: RoomLayer;
-    notesLayer: NotesLayer;
     cameraOrigin: { x: number; y: number };
-    cameraState: CameraState;
-    mainCtx: CanvasRenderingContext2D | null;
     lastFrameTimeMs: number;
     editorState: EditorState;
     grid: TileGrid | null;
@@ -246,34 +184,7 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
     multiTileFurniture: MultiTileFurnitureSpec[];
     furnitureRenderables: Renderable[];
   }>({
-    roomLayer: new RoomLayer(
-      computeRoomBounds,
-      computeCameraOrigin,
-      (grid, origin, physicalW, physicalH, dpr, tileColorMap) =>
-        preRenderRoom(
-          grid,
-          origin,
-          physicalW,
-          physicalH,
-          dpr,
-          undefined,
-          undefined,
-          undefined,
-          undefined,
-          'furniture',
-          tileColorMap as Map<string, HsbColor> | undefined,
-        ),
-      createFurnitureRenderables as unknown as (
-        furniture: unknown,
-        multiTileFurniture: unknown,
-        spriteCache: SpriteCache,
-        origin: { x: number; y: number },
-      ) => unknown[],
-    ),
-    notesLayer: new NotesLayer(),
     cameraOrigin: { x: 0, y: 0 },
-    cameraState: createCameraState(),
-    mainCtx: null,
     lastFrameTimeMs: Date.now(),
     editorState: {
       mode: 'view',
@@ -288,19 +199,21 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
   });
 
   /**
-   * Convert mouse event to tile coordinates, accounting for camera pan/zoom.
-   * Replaces direct getHoveredTile calls when camera transform is active.
+   * Convert a pointer position (client coords) to tile coordinates, accounting
+   * for camera pan/zoom and the static camera origin offset.
    */
-  function mouseToTile(event: React.MouseEvent<HTMLCanvasElement>): { tileX: number; tileY: number } | null {
-    const canvas = event.currentTarget;
+  function mouseToTile(clientX: number, clientY: number): { tileX: number; tileY: number } | null {
+    const canvas = canvasRef.current;
+    const stage = stageRef.current;
+    if (!canvas || !stage) return null;
     const rect = canvas.getBoundingClientRect();
     const scaleX = canvas.offsetWidth / rect.width;
     const scaleY = canvas.offsetHeight / rect.height;
-    const mouseX = (event.clientX - rect.left) * scaleX;
-    const mouseY = (event.clientY - rect.top) * scaleY;
+    const mouseX = (clientX - rect.left) * scaleX;
+    const mouseY = (clientY - rect.top) * scaleY;
 
     // Apply inverse camera transform to get world-space coordinates
-    const cam = renderState.current.cameraState;
+    const cam = stage.camera;
     const world = screenToWorld(mouseX, mouseY, cam, canvas.offsetWidth, canvas.offsetHeight);
 
     // Subtract cameraOrigin (static centering offset) to get isometric coordinates
@@ -313,6 +226,25 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
 
     if (tileX < 0 || tileY < 0) return null;
     return { tileX, tileY };
+  }
+
+  /** Update the hovered-tile editor state from a pointer position. */
+  function updateHover(clientX: number, clientY: number) {
+    const grid = renderState.current.grid;
+    if (!grid) return;
+    const hoveredCoords = mouseToTile(clientX, clientY);
+    if (hoveredCoords) {
+      const { tileX, tileY } = hoveredCoords;
+      if (tileY >= 0 && tileY < grid.height && tileX >= 0 && tileX < grid.width) {
+        const tile = grid.tiles[tileY][tileX];
+        const tileZ = tile ? tile.height : 0;
+        renderState.current.editorState.hoveredTile = { x: tileX, y: tileY, z: tileZ };
+      } else {
+        renderState.current.editorState.hoveredTile = null;
+      }
+    } else {
+      renderState.current.editorState.hoveredTile = null;
+    }
   }
 
   // Reset direction to first supported direction when furniture type changes
@@ -563,14 +495,15 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
         case 'jumpToSection': {
           const jumpMsg = msg as any;
           const team = jumpMsg.team as TeamSection;
-          if (sectionManager && canvasRef.current) {
+          const stage = stageRef.current;
+          if (sectionManager && canvasRef.current && stage) {
             const center = sectionManager.getSectionCenter(team);
             if (center) {
               const { x: sx, y: sy } = tileToScreen(center.x, center.y, 0);
               const ox = renderState.current.cameraOrigin;
               const canvas = canvasRef.current;
               jumpToSection(
-                renderState.current.cameraState,
+                stage.camera,
                 sx + ox.x,
                 sy + ox.y,
                 canvas.offsetWidth,
@@ -653,12 +586,31 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
     return () => unsubscribe();
   }, []);
 
+  // Stage lifecycle: canvas setup, room/notes layers, camera fit, frame loop.
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const mainCtx = initCanvas(canvas);
-    renderState.current.mainCtx = mainCtx;
+    const stage = new CanvasStage(canvas, {
+      canDrag: (e) =>
+        e.button === 1 || (e.button === 0 && renderState.current.editorState.mode === 'view'),
+      onHover: (clientX, clientY) => updateHover(clientX, clientY),
+      onHoverEnd: () => {
+        renderState.current.editorState.hoveredTile = null;
+      },
+      onResize: () => {
+        if (renderState.current.grid) {
+          renderRoomBuffer();
+          const bufSize = stage.roomLayer.size;
+          if (bufSize.w > 0) {
+            stage.camera.panX = canvas.offsetWidth / 2 - bufSize.w / 2;
+            stage.camera.panY = canvas.offsetHeight / 2 - bufSize.h / 2;
+          }
+        }
+      },
+    });
+    stageRef.current = stage;
+    stage.init();
 
     const grid: TileGrid = parseHeightmap(heightmap);
     renderState.current.grid = grid;
@@ -688,28 +640,16 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
     renderRoomBuffer();
 
     // Camera: center the room buffer on screen, zoomed to fit if needed
-    const bufSize = renderState.current.roomLayer.size;
+    const bufSize = stage.roomLayer.size;
     if (bufSize) {
-      const cam = renderState.current.cameraState;
-      cam.zoom = computeFitZoom(grid, canvas.offsetWidth, canvas.offsetHeight);
-      cam.panX = canvas.offsetWidth / 2 - bufSize.w / 2;
-      cam.panY = canvas.offsetHeight / 2 - bufSize.h / 2;
+      stage.camera.zoom = computeFitZoom(grid, canvas.offsetWidth, canvas.offsetHeight);
+      stage.camera.panX = canvas.offsetWidth / 2 - bufSize.w / 2;
+      stage.camera.panY = canvas.offsetHeight / 2 - bufSize.h / 2;
     }
 
-    runningRef.current = true;
-
-    function frame() {
-      if (!runningRef.current) return;
-
-      const ctx = renderState.current.mainCtx;
-      const offscreen = renderState.current.roomLayer.buffer;
-
-      if (!ctx || !offscreen || !canvas) return;
-
-      const currentTimeMs = Date.now();
-
+    const onTick = (nowMs: number): boolean => {
       // Tick avatar manager (path following)
-      avatarManagerRef.current.tick(currentTimeMs);
+      avatarManagerRef.current.tick(nowMs);
 
       // Tick idle wander
       if (renderState.current.grid) {
@@ -719,7 +659,7 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
           walkableBoothsRef.current,
         );
         idleWanderRef.current.tick(
-          currentTimeMs,
+          nowMs,
           avatarManagerRef.current,
           renderState.current.grid,
           blocked,
@@ -773,30 +713,22 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
       const spriteCache = (window as any).spriteCache as SpriteCache | undefined;
       const activeRenderer: AvatarRenderer =
         spriteCache && habboRenderer.isAvailable(spriteCache) ? habboRenderer : pixelLabRenderer;
-      if (activeRenderer !== lastActiveRendererRef.current) {
+      if (activeRenderer !== activeRendererRef.current) {
         console.log(`[Avatars] Renderer: ${activeRenderer.name}`);
-        lastActiveRendererRef.current = activeRenderer;
+        activeRendererRef.current = activeRenderer;
       }
 
       // Update animation state for all avatars
       const avatars = avatarManagerRef.current.getAvatars();
       for (const avatar of avatars) {
-        activeRenderer.updateAnimation(avatar, currentTimeMs);
+        activeRenderer.updateAnimation(avatar, nowMs);
       }
-      renderState.current.lastFrameTimeMs = currentTimeMs;
+      renderState.current.lastFrameTimeMs = nowMs;
 
-      // --- Render throttle ---
-      // Full rate while the camera moves or agents walk/spawn; when the scene
-      // is static, ~20fps is plenty (idle/blink animations tick slower anyway)
-      // and skips most of the per-frame rasterization cost.
-      const camNow = renderState.current.cameraState;
-      const camChanged =
-        camNow.panX !== lastRenderCamRef.current.panX ||
-        camNow.panY !== lastRenderCamRef.current.panY ||
-        camNow.zoom !== lastRenderCamRef.current.zoom;
+      // Scene is dynamic while teleport effects play or agents walk/spawn/despawn
       let anyMoving = teleportEffectsRef.current.length > 0;
       if (!anyMoving) {
-        for (const a of avatarManagerRef.current.getAvatars()) {
+        for (const a of avatars) {
           const s = a.state;
           if (s === 'walk' || s === 'spawning' || s === 'despawning') {
             anyMoving = true;
@@ -804,18 +736,16 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
           }
         }
       }
-      const renderInterval = camChanged || anyMoving ? 0 : 50;
-      const nowMs = Date.now();
-      if (nowMs - lastRenderTimeRef.current < renderInterval) {
-        rafIdRef.current = requestAnimationFrame(frame);
-        return;
-      }
-      lastRenderTimeRef.current = nowMs;
-      lastRenderCamRef.current = { panX: camNow.panX, panY: camNow.panY, zoom: camNow.zoom };
+      return anyMoving;
+    };
 
+    const onDraw = (nowMs: number) => {
+      const grid = renderState.current.grid;
+      const ctx = stage.context;
+      if (!grid || !ctx) return;
 
       // Check pending step-outs: move agent out of booth once spawn animation ends
-      if (pendingStepOutRef.current.size > 0 && renderState.current.grid) {
+      if (pendingStepOutRef.current.size > 0) {
         for (const [agentId, boothPos] of pendingStepOutRef.current) {
           const av = avatarManagerRef.current.getAvatar(agentId);
           if (!av) {
@@ -824,7 +754,6 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
           }
           if (av.state === 'idle') {
             pendingStepOutRef.current.delete(agentId);
-            const g = renderState.current.grid;
             const stepBlocked = computeBlockedTiles(
               renderState.current.furniture,
               renderState.current.multiTileFurniture,
@@ -838,9 +767,9 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
             for (const off of offsets) {
               const nx = boothPos.x + off.dx;
               const ny = boothPos.y + off.dy;
-              if (nx >= 0 && ny >= 0 && nx < g.width && ny < g.height
-                  && g.tiles[ny][nx] !== null && !stepBlocked.has(`${nx},${ny}`)) {
-                avatarManagerRef.current.moveAvatarTo(agentId, nx, ny, g, undefined, stepBlocked);
+              if (nx >= 0 && ny >= 0 && nx < grid.width && ny < grid.height
+                  && grid.tiles[ny][nx] !== null && !stepBlocked.has(`${nx},${ny}`)) {
+                avatarManagerRef.current.moveAvatarTo(agentId, nx, ny, grid, undefined, stepBlocked);
                 break;
               }
             }
@@ -856,9 +785,9 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
       }
 
       // Auto-follow camera: every 3 seconds check most active section
-      if (autoFollowRef.current && sectionManagerRef.current && canvas) {
-        if (currentTimeMs - lastAutoFollowCheckRef.current > 3000) {
-          lastAutoFollowCheckRef.current = currentTimeMs;
+      if (autoFollowRef.current && sectionManagerRef.current) {
+        if (nowMs - lastAutoFollowCheckRef.current > 3000) {
+          lastAutoFollowCheckRef.current = nowMs;
           const activeTeam = sectionManagerRef.current.getMostActiveSection();
           if (activeTeam) {
             const center = sectionManagerRef.current.getSectionCenter(activeTeam);
@@ -874,7 +803,7 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
         }
         // Lerp camera toward target (10% per frame for smooth pan)
         if (autoFollowTargetRef.current) {
-          const cam = renderState.current.cameraState;
+          const cam = stage.camera;
           const target = autoFollowTargetRef.current;
           cam.panX += (target.panX - cam.panX) * 0.1;
           cam.panY += (target.panY - cam.panY) * 0.1;
@@ -887,424 +816,94 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
         }
       }
 
-      const cam = renderState.current.cameraState;
+      const spriteCache = (window as any).spriteCache as SpriteCache | undefined;
+      const avatars = avatarManagerRef.current.getAvatars();
+      const activeRenderer = activeRendererRef.current;
+      if (!activeRenderer) return;
 
-      ctx.clearRect(0, 0, canvas.offsetWidth, canvas.offsetHeight);
-
-      // --- Begin camera-transformed world-space drawing ---
-      ctx.save();
-      applyCameraTransform(ctx, cam, canvas.offsetWidth, canvas.offsetHeight);
-
-      // Room buffer covers the full room extent; blit only the visible slice
-      // (1:1 copy) instead of scaling the whole buffer through the transform
-      const bufSize = renderState.current.roomLayer.size;
-      if (bufSize.w > 0 && offscreen) {
-        blitWorldLayer(ctx, offscreen, bufSize, cam);
-      } else {
-        ctx.drawImage(offscreen, 0, 0, canvas.offsetWidth, canvas.offsetHeight);
-      }
-
-      // Kanban sticky notes on walls — drawn into a cached world-space layer
-      // (60+ text labels are far too expensive to re-rasterize every frame);
-      // the layer re-renders only when its inputs change, then is blitted.
-      if (kanbanCardsRef.current.length > 0 && renderState.current.grid) {
-        const layer = ensureNotesLayer(canvas.offsetWidth, canvas.offsetHeight);
-        if (layer) {
-          blitWorldLayer(ctx, layer.buffer, layer.size, cam);
-        }
-      }
-
-      // Draw hover highlight if tile is hovered (editor mode)
-      if (renderState.current.editorState.hoveredTile) {
-        const { x, y, z } = renderState.current.editorState.hoveredTile;
-
-        if (renderState.current.editorState.mode === 'furniture' && renderState.current.grid) {
-          // Show multi-tile footprint preview for furniture placement
-          const furnitureType = renderState.current.editorState.selectedFurniture || 'hc_chr';
-          const dir = renderState.current.editorState.furnitureDirection ?? 0;
-          const sc: SpriteCache | undefined = (window as any).spriteCache;
-          const { widthTiles, heightTiles } = sc
-            ? getFurnitureDimensions(furnitureType, sc, dir)
-            : { widthTiles: 1, heightTiles: 1 };
-
-          drawFurnitureFootprint(
-            ctx, x, y, z,
-            widthTiles, heightTiles,
-            renderState.current.grid,
-            renderState.current.furniture,
-            renderState.current.multiTileFurniture,
-            renderState.current.cameraOrigin,
-          );
-
-          // Direction arrow at origin tile
-          const { x: sx, y: sy } = tileToScreen(x, y, z);
-          const arrowCx = sx + renderState.current.cameraOrigin.x;
-          const arrowCy = sy + TILE_H_HALF + renderState.current.cameraOrigin.y;
-          const arrows: Record<number, string> = { 0: '\u2197', 2: '\u2198', 4: '\u2199', 6: '\u2196' };
-          ctx.save();
-          ctx.font = '14px sans-serif';
-          ctx.fillStyle = 'rgba(255, 255, 100, 0.9)';
-          ctx.textAlign = 'center';
-          ctx.fillText(arrows[dir] || '?', arrowCx, arrowCy - 4);
-          ctx.restore();
-        } else {
-          // Single tile highlight for paint/color modes
-          drawHoverHighlight(ctx, x, y, z, renderState.current.cameraOrigin);
-        }
-      }
-
-      // Render furniture + avatars with unified depth sorting
-      const dynamicRenderables = [...renderState.current.furnitureRenderables];
-
-      if (spriteCache && avatars.length > 0) {
-        for (const spec of avatars) {
-          const renderable = activeRenderer.createRenderable(spec, spriteCache);
-          if (!renderable) continue;
-
-          // Camera transform is already applied; just translate by cameraOrigin for avatar world positioning
-          const originalDraw = renderable.draw;
-          renderable.draw = (drawCtx) => {
-            drawCtx.save();
-            drawCtx.translate(renderState.current.cameraOrigin.x, renderState.current.cameraOrigin.y);
-            originalDraw(drawCtx);
-            drawCtx.restore();
-          };
-
-          dynamicRenderables.push(renderable);
-        }
-      }
-
-      const sorted = depthSort(dynamicRenderables);
-      for (const r of sorted) {
-        r.draw(ctx);
-      }
-
-      // Draw furniture activity overlays (lamp glow, monitor screen glow)
-      // Uses canvas overlay effects since native Habbo frames require additive blending
-      // which our sprite renderer doesn't support yet
-      if (sectionManagerRef.current) {
-        for (const f of renderState.current.furniture) {
-          if (f.name === 'tv_flat' || f.name === 'hc_lmp') {
-            // Active when the section has any agents present
-            let isActive = false;
-            for (const section of sectionManagerRef.current.getAllSections()) {
-              if (section.agentIds.length > 0) {
-                const sectionLayout = sectionManagerRef.current.getTemplate().sections.find(s => s.team === section.team);
-                if (sectionLayout) {
-                  const inSection = sectionLayout.furniture.some(sf => sf.tileX === f.tileX && sf.tileY === f.tileY);
-                  if (inSection) {
-                    isActive = true;
-                    break;
-                  }
-                }
-              }
-            }
-            const { x: sx, y: sy } = tileToScreen(f.tileX, f.tileY, f.tileZ);
-            const ox = renderState.current.cameraOrigin;
-            drawFurnitureActiveOverlay(ctx, f.name, sx + ox.x, sy + ox.y + TILE_H_HALF, isActive);
-          }
-        }
-      }
-
-      // Draw active teleport effects (after avatars, before UI overlays)
-      teleportEffectsRef.current = teleportEffectsRef.current.filter(
-        effect => drawTeleportFlash(ctx, effect, performance.now())
-      );
-
-      if (spriteCache && avatars.length > 0) {
-        // Draw selection highlight
-        const selectedId = selectionManagerRef.current.selectedAvatarId;
-        if (selectedId) {
-          const selectedAvatar = avatarManagerRef.current.getAvatar(selectedId);
-          if (selectedAvatar) {
-            drawSelectionHighlight(ctx, selectedAvatar, renderState.current.cameraOrigin, currentTimeMs);
-          }
-        }
-
-        // UI Overlays: name tags + speech bubbles (world-positioned, inside camera transform)
-        ctx.font = '8px "Press Start 2P"';
-        for (const avatar of avatars) {
-          const { x: screenX, y: screenY } = tileToScreen(avatar.tileX, avatar.tileY, avatar.tileZ);
-          const offsetX = avatar.screenOffsetX || 0;
-          const offsetY = avatar.screenOffsetY || 0;
-          const headY = screenY + AVATAR_GROUND_Y - AVATAR_HEIGHT + offsetY;
-
-          const status = avatar.state === 'idle' || avatar.state === 'sit' ? 'idle' : 'active';
-
-          ctx.save();
-          ctx.translate(renderState.current.cameraOrigin.x, renderState.current.cameraOrigin.y);
-          drawNameTag(ctx, {
-            name: avatar.displayName || avatar.id,
-            status,
-            anchorX: screenX + offsetX,
-            anchorY: headY,
-          });
-          ctx.restore();
-        }
-
-        for (const avatar of avatars) {
-          // Skip speech bubbles during spawn/despawn animations
-          if (avatar.state === 'spawning' || avatar.state === 'despawning') continue;
-
-          const { x: screenX, y: screenY } = tileToScreen(avatar.tileX, avatar.tileY, avatar.tileZ);
-          const offsetX = avatar.screenOffsetX || 0;
-          const offsetY = avatar.screenOffsetY || 0;
-          const headY = screenY + AVATAR_GROUND_Y - AVATAR_HEIGHT + offsetY;
-
-          const toolText = agentToolTextRef.current.get(avatar.id);
-
-          ctx.save();
-          ctx.translate(renderState.current.cameraOrigin.x, renderState.current.cameraOrigin.y);
-          drawSpeechBubble(ctx, {
-            text: toolText || '',
-            anchorX: screenX + offsetX,
-            anchorY: headY - 30,
-            isWaiting: !toolText,
-          }, currentTimeMs);
-          ctx.restore();
-        }
-
-      }
-
-      // --- End camera-transformed world-space drawing ---
-      ctx.restore();
-
-      // Screen-space overlays (drawn OUTSIDE camera transform)
-
-      // Expanded sticky note overlay (drawn last, on top of everything)
-      if (expandedNoteRef.current && kanbanCardsRef.current.length > 0) {
-        const visibleCards = filterKanbanCards(kanbanCardsRef.current, kanbanFilterRef.current);
-        const expandedCard = visibleCards.find(c => c.id === expandedNoteRef.current);
-        if (expandedCard && canvas) {
-          drawExpandedNote(
-            ctx,
-            expandedCard,
-            canvas.offsetWidth,
-            canvas.offsetHeight,
-            { canBack: noteOriginRef.current !== null },
+      // Notes layer (cached world-space kanban stickies), rendered on change
+      let notesBuffer: OffscreenCanvas | null = null;
+      let notesSize = { w: 0, h: 0 };
+      if (kanbanCardsRef.current.length > 0) {
+        const size = stage.roomLayer.size;
+        const origin = renderState.current.cameraOrigin;
+        const cards = filterKanbanCards(kanbanCardsRef.current, kanbanFilterRef.current);
+        const ticketIds = getLinkedTicketIds(orchStateRef.current);
+        const signature = [
+          cards.length,
+          cards.map(c => c.id).join(','),
+          expandedNoteRef.current ?? '',
+          expandedAggregateRef.current ?? '',
+          [...ticketIds].sort().join(','),
+          `${size.w}x${size.h}`,
+          `${origin.x},${origin.y}`,
+        ].join('|');
+        const notes = stage.ensureNotes(signature, size, (bctx) => {
+          drawKanbanNotes(
+            bctx,
+            cards,
+            grid,
+            origin,
+            expandedNoteRef.current,
+            expandedAggregateRef.current,
+            ticketIds,
             kanbanRenderStateRef.current,
           );
-        }
+        });
+        notesBuffer = notes.buffer;
+        notesSize = notes.size;
       }
 
-      // Expanded aggregate note overlay
-      if (expandedAggregateRef.current && kanbanCardsRef.current.length > 0 && canvas) {
-        const aggType = expandedAggregateRef.current;
-        const IP = ['In Progress', 'Doing'];
-        const DONE = ['Done'];
-        const visibleCards = filterKanbanCards(kanbanCardsRef.current, kanbanFilterRef.current);
-        const aggCards = aggType === 'todo'
-          ? visibleCards.filter(c => !DONE.includes(c.status) && !IP.includes(c.status))
-          : visibleCards.filter(c => DONE.includes(c.status));
-        if (aggCards.length > 0) {
-          drawExpandedAggregateNote(ctx, aggType, aggCards, canvas.offsetWidth, canvas.offsetHeight, kanbanRenderStateRef.current);
-        }
-      }
+      const inputs: SceneInputs = {
+        ctx,
+        canvasW: canvas.offsetWidth,
+        canvasH: canvas.offsetHeight,
+        cam: stage.camera,
+        cameraOrigin: renderState.current.cameraOrigin,
+        roomBuffer: stage.roomLayer.buffer,
+        roomSize: stage.roomLayer.size,
+        notesBuffer,
+        notesSize,
+        grid,
+        editorState: renderState.current.editorState,
+        gridFurniture: renderState.current.furniture,
+        multiTileFurniture: renderState.current.multiTileFurniture,
+        furnitureRenderables: renderState.current.furnitureRenderables,
+        spriteCache,
+        avatars,
+        activeRenderer,
+        agentToolText: agentToolTextRef.current,
+        sectionManager: sectionManagerRef.current,
+        selectionManager: selectionManagerRef.current,
+        teleportEffects: teleportEffectsRef.current,
+        orchState: orchStateRef.current,
+        kanbanCards: kanbanCardsRef.current,
+        kanbanFilter: kanbanFilterRef.current,
+        expandedNote: expandedNoteRef.current,
+        expandedAggregate: expandedAggregateRef.current,
+        noteOrigin: noteOriginRef.current,
+        kanbanRenderState: kanbanRenderStateRef.current,
+      };
+      teleportEffectsRef.current = drawScene(inputs, nowMs);
+    };
 
-      // Orchestration overlay (right-side HUD)
-      if (canvas) {
-        drawOrchestrationOverlay(ctx, orchStateRef.current, canvas.offsetWidth, canvas.offsetHeight);
-      }
-
-      rafIdRef.current = requestAnimationFrame(frame);
-    }
-
-    rafIdRef.current = requestAnimationFrame(frame);
+    stage.start(onTick, onDraw);
 
     return () => {
-      runningRef.current = false;
-      cancelAnimationFrame(rafIdRef.current);
+      stage.stop();
+      stageRef.current = null;
     };
   }, [heightmap]);
 
-  // Mouse event handlers for editor mode + camera drag
-  const handleMouseDown = (event: React.MouseEvent<HTMLCanvasElement>) => {
-    // Middle-click always drags; left-click in view mode starts potential drag
-    if (event.button === 1 || (event.button === 0 && renderState.current.editorState.mode === 'view')) {
-      const drag = dragRef.current;
-      drag.isDragging = true;
-      drag.didDrag = false;
-      drag.startX = event.clientX;
-      drag.startY = event.clientY;
-      drag.startPanX = renderState.current.cameraState.panX;
-      drag.startPanY = renderState.current.cameraState.panY;
-    }
-  };
-
-  const handleMouseUp = () => {
-    dragRef.current.isDragging = false;
-  };
-
-  const handleMouseMove = (event: React.MouseEvent<HTMLCanvasElement>) => {
-    // Handle camera drag panning
-    const drag = dragRef.current;
-    if (drag.isDragging) {
-      const dx = event.clientX - drag.startX;
-      const dy = event.clientY - drag.startY;
-      const distance = Math.sqrt(dx * dx + dy * dy);
-      if (distance > 5) {
-        drag.didDrag = true;
-        const canvas = event.currentTarget;
-        const rect2 = canvas.getBoundingClientRect();
-        const scaleX = canvas.offsetWidth / rect2.width;
-        const scaleY = canvas.offsetHeight / rect2.height;
-        // Pan in screen-scaled pixels, adjusted for zoom
-        const cam = renderState.current.cameraState;
-        cam.panX = drag.startPanX + (dx * scaleX) / cam.zoom;
-        cam.panY = drag.startPanY + (dy * scaleY) / cam.zoom;
-      }
-    }
-
-    if (!renderState.current.grid) return;
-
-    const hoveredCoords = mouseToTile(event);
-
-    if (hoveredCoords) {
-      const { tileX, tileY } = hoveredCoords;
-      if (
-        tileY >= 0 && tileY < renderState.current.grid.height &&
-        tileX >= 0 && tileX < renderState.current.grid.width
-      ) {
-        const tile = renderState.current.grid.tiles[tileY][tileX];
-        const tileZ = tile ? tile.height : 0;
-        renderState.current.editorState.hoveredTile = { x: tileX, y: tileY, z: tileZ };
-      } else {
-        renderState.current.editorState.hoveredTile = null;
-      }
-    } else {
-      renderState.current.editorState.hoveredTile = null;
-    }
-  };
-
-  // Wheel handler is attached as a native event listener (non-passive)
-  // to allow preventDefault() — React's onWheel is passive by default.
-  const wheelHandlerRef = useRef<((e: WheelEvent) => void) | null>(null);
-  wheelHandlerRef.current = (event: WheelEvent) => {
-    event.preventDefault();
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const rect = canvas.getBoundingClientRect();
-    const scaleX = canvas.offsetWidth / rect.width;
-    const scaleY = canvas.offsetHeight / rect.height;
-    const pivotX = (event.clientX - rect.left) * scaleX;
-    const pivotY = (event.clientY - rect.top) * scaleY;
-    applyZoom(renderState.current.cameraState, event.deltaY, pivotX, pivotY, canvas.offsetWidth, canvas.offsetHeight);
-  };
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const handler = (e: WheelEvent) => wheelHandlerRef.current?.(e);
-    canvas.addEventListener('wheel', handler, { passive: false });
-    return () => canvas.removeEventListener('wheel', handler);
-  }, []);
-
-  // Window resize: re-init the canvas backing store, recenter, and re-render
-  // the offscreen room buffer (otherwise enlarged windows show cropped areas)
-  useEffect(() => {
-    let timer: ReturnType<typeof setTimeout> | null = null;
-    const onResize = () => {
-      if (timer) clearTimeout(timer);
-      timer = setTimeout(() => {
-        const canvas = canvasRef.current;
-        if (!canvas) return;
-        initCanvas(canvas);
-        if (renderState.current.grid) {
-          renderRoomBuffer();
-          // Re-center the (possibly resized) buffer; preserve user zoom
-          const bufSize = renderState.current.roomLayer.size;
-          if (bufSize.w > 0) {
-            renderState.current.cameraState.panX = canvas.offsetWidth / 2 - bufSize.w / 2;
-            renderState.current.cameraState.panY = canvas.offsetHeight / 2 - bufSize.h / 2;
-          }
-        }
-      }, 150);
-    };
-    window.addEventListener('resize', onResize);
-    return () => {
-      window.removeEventListener('resize', onResize);
-      if (timer) clearTimeout(timer);
-    };
-  }, []);
-
-  // Touch: 1-finger pan, 2-finger pinch zoom (mobile viewport navigation)
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    let panStart: { x: number; y: number; panX: number; panY: number } | null = null;
-    let pinchStart: { dist: number; zoom: number; midX: number; midY: number } | null = null;
-
-    const canvasPoint = (clientX: number, clientY: number) => {
-      const rect = canvas.getBoundingClientRect();
-      return {
-        x: (clientX - rect.left) * (canvas.offsetWidth / rect.width),
-        y: (clientY - rect.top) * (canvas.offsetHeight / rect.height),
-      };
-    };
-    const touchDist = (t: Touch[]) => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
-    const touchMid = (t: Touch[]) => canvasPoint(
-      (t[0].clientX + t[1].clientX) / 2,
-      (t[0].clientY + t[1].clientY) / 2,
-    );
-
-    const onTouchStart = (e: TouchEvent) => {
-      if (e.touches.length === 1) {
-        const t = e.touches[0];
-        const p = canvasPoint(t.clientX, t.clientY);
-        panStart = { x: p.x, y: p.y, panX: renderState.current.cameraState.panX, panY: renderState.current.cameraState.panY };
-        pinchStart = null;
-      } else if (e.touches.length === 2) {
-        panStart = null;
-        pinchStart = {
-          dist: touchDist(Array.from(e.touches)),
-          zoom: renderState.current.cameraState.zoom,
-          midX: touchMid(Array.from(e.touches)).x,
-          midY: touchMid(Array.from(e.touches)).y,
-        };
-      }
-    };
-
-    const onTouchMove = (e: TouchEvent) => {
-      e.preventDefault();
-      const cam = renderState.current.cameraState;
-      if (e.touches.length === 2 && pinchStart) {
-        const dist = touchDist(Array.from(e.touches));
-        const mid = touchMid(Array.from(e.touches));
-        const target = pinchStart.zoom * (dist / Math.max(1, pinchStart.dist));
-        setZoomWithPivot(cam, target, pinchStart.midX, pinchStart.midY, canvas.offsetWidth, canvas.offsetHeight);
-      } else if (e.touches.length === 1 && panStart) {
-        const t = e.touches[0];
-        const p = canvasPoint(t.clientX, t.clientY);
-        cam.panX = panStart.panX + (p.x - panStart.x);
-        cam.panY = panStart.panY + (p.y - panStart.y);
-      }
-    };
-
-    const onTouchEnd = () => {
-      panStart = null;
-      pinchStart = null;
-    };
-
-    canvas.addEventListener('touchstart', onTouchStart, { passive: true });
-    canvas.addEventListener('touchmove', onTouchMove, { passive: false });
-    canvas.addEventListener('touchend', onTouchEnd, { passive: true });
-    canvas.addEventListener('touchcancel', onTouchEnd, { passive: true });
-    return () => {
-      canvas.removeEventListener('touchstart', onTouchStart);
-      canvas.removeEventListener('touchmove', onTouchMove);
-      canvas.removeEventListener('touchend', onTouchEnd);
-      canvas.removeEventListener('touchcancel', onTouchEnd);
-    };
-  }, []);
-
   const handleClick = async (event: React.MouseEvent<HTMLCanvasElement>) => {
     // Skip click if user was dragging the camera
-    if (dragRef.current.didDrag) {
-      dragRef.current.didDrag = false;
+    const stage = stageRef.current;
+    if (stage?.didDrag) {
+      stage.clearDidDrag();
       return;
     }
 
-    if (!renderState.current.grid || !canvasRef.current) return;
+    if (!renderState.current.grid || !canvasRef.current || !stage) return;
 
     // --- Sticky note click detection (before tile logic) ---
     const canvas = canvasRef.current;
@@ -1314,7 +913,7 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
     const screenX = (event.clientX - rect.left) * cssScaleX;
     const screenY = (event.clientY - rect.top) * cssScaleY;
     // Notes are drawn inside camera transform, so apply inverse to get world-space coords
-    const noteWorld = screenToWorld(screenX, screenY, renderState.current.cameraState, canvas.offsetWidth, canvas.offsetHeight);
+    const noteWorld = screenToWorld(screenX, screenY, stage.camera, canvas.offsetWidth, canvas.offsetHeight);
     const noteClickX = noteWorld.x;
     const noteClickY = noteWorld.y;
 
@@ -1386,8 +985,7 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
       }
     }
 
-    // Read event.currentTarget BEFORE any await (React clears it after)
-    const clickedCoords = mouseToTile(event);
+    const clickedCoords = mouseToTile(event.clientX, event.clientY);
     if (!clickedCoords) return;
 
     const { tileX, tileY } = clickedCoords;
@@ -1469,7 +1067,7 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
     // Editor modes don't use right-click
     if (renderState.current.editorState.mode !== 'view') return;
 
-    const clickedCoords = mouseToTile(event);
+    const clickedCoords = mouseToTile(event.clientX, event.clientY);
     if (!clickedCoords) return;
 
     const { tileX, tileY } = clickedCoords;
@@ -1580,16 +1178,6 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
     }
   };
 
-  const handleMouseLeave = () => {
-    renderState.current.editorState.hoveredTile = null;
-    dragRef.current.isDragging = false;
-  };
-
-  /**
-   * (Re-)render the offscreen room buffer. The buffer is sized to the ROOM's
-   * world extent (not the viewport), so the full room is always rendered and
-   * camera zoom/pan merely navigates the buffer.
-   */
   /**
    * (Re-)render the room layer. The layer is sized to the ROOM's world extent
    * (not the viewport) via src/render/layers.ts; current call sites force a
@@ -1598,10 +1186,11 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
    */
   function renderRoomBuffer() {
     const canvas = canvasRef.current;
+    const stage = stageRef.current;
     const grid = renderState.current.grid;
-    if (!canvas || !grid) return;
+    if (!canvas || !stage || !grid) return;
     const spriteCache: SpriteCache | undefined = (window as any).spriteCache;
-    const result = renderState.current.roomLayer.render({
+    const result = stage.renderRoom({
       grid,
       canvasCssW: canvas.offsetWidth,
       canvasCssH: canvas.offsetHeight,
@@ -1618,63 +1207,6 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
 
   function reRenderRoom() {
     renderRoomBuffer();
-  }
-
-  /**
-   * Blit the visible slice of a world-space layer (room buffer or notes layer)
-   * under the current camera transform — 1:1 pixel copy of only what's on
-   * screen instead of scaling the entire layer every frame.
-   */
-  function blitWorldLayer(
-    ctx: CanvasRenderingContext2D,
-    layer: OffscreenCanvas | HTMLCanvasElement,
-    layerSize: { w: number; h: number },
-    cam: CameraState,
-  ) {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    blitVisibleSlice(ctx, layer, layerSize, cam, canvas.offsetWidth, canvas.offsetHeight);
-  }
-
-  /** Ensure the notes layer is current for the given invalidation inputs. */
-  function ensureNotesLayer(_canvasCssW: number, _canvasCssH: number) {
-    const grid = renderState.current.grid;
-    const origin = renderState.current.cameraOrigin;
-    const size = renderState.current.roomLayer.size;
-    if (!grid || !origin || size.w === 0) return null;
-
-    const cards = filterKanbanCards(kanbanCardsRef.current, kanbanFilterRef.current);
-    const ticketIds = getLinkedTicketIds(orchStateRef.current);
-    const signature = [
-      cards.length,
-      cards.map(c => c.id).join(','),
-      expandedNoteRef.current ?? '',
-      expandedAggregateRef.current ?? '',
-      [...ticketIds].sort().join(','),
-      `${size.w}x${size.h}`,
-      `${origin.x},${origin.y}`,
-    ].join('|');
-
-    const notesLayer = renderState.current.notesLayer;
-    if (notesLayer.invalidated({ signature, size, draw: () => {} })) {
-      notesLayer.render({
-        signature,
-        size,
-        draw: (bctx) => {
-          drawKanbanNotes(
-            bctx,
-            cards,
-            grid,
-            origin,
-            expandedNoteRef.current,
-            expandedAggregateRef.current,
-            ticketIds,
-            kanbanRenderStateRef.current,
-          );
-        },
-      });
-    }
-    return { buffer: notesLayer.buffer as OffscreenCanvas, size: notesLayer.size };
   }
 
   const handleSave = () => {
@@ -1810,13 +1342,9 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
       <canvas
         ref={canvasRef}
         style={{ width: '100%', height: '100%', display: 'block', touchAction: 'none' }}
-        onMouseDown={handleMouseDown}
-        onMouseUp={handleMouseUp}
-        onMouseMove={handleMouseMove}
-        /* wheel handled via native listener (non-passive) in useEffect */
+        /* camera drag/pan, wheel zoom and touch gestures handled natively by CanvasStage */
         onClick={handleClick}
         onContextMenu={handleContextMenu}
-        onMouseLeave={handleMouseLeave}
       />
       {/* Kanban source filter HUD */}
       <div
@@ -1838,45 +1366,4 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
       </div>
     </>
   );
-}
-
-/** Team section display colors */
-const TEAM_COLORS: Record<string, string> = {
-  'planning': '#3B5998',
-  'core-dev': '#5BD55B',
-  'infrastructure': '#D4A017',
-  'support': '#9B5BD5',
-};
-
-/**
- * Draw a pulsing cyan rhombus outline at the selected avatar's tile.
- */
-function drawSelectionHighlight(
-  ctx: CanvasRenderingContext2D,
-  avatar: AvatarSpec,
-  cameraOrigin: { x: number; y: number },
-  currentTimeMs: number,
-): void {
-  const { x: sx, y: sy } = tileToScreen(avatar.tileX, avatar.tileY, avatar.tileZ);
-  const ox = avatar.screenOffsetX || 0;
-  const oy = avatar.screenOffsetY || 0;
-  const cx = sx + ox + cameraOrigin.x;
-  const cy = sy + oy + cameraOrigin.y + TILE_H_HALF; // Center of tile
-
-  // Pulse alpha between 0.4 and 1.0
-  const pulse = 0.7 + 0.3 * Math.sin(currentTimeMs / 300);
-
-  ctx.save();
-  ctx.strokeStyle = `rgba(0, 255, 255, ${pulse})`;
-  ctx.lineWidth = 2;
-
-  ctx.beginPath();
-  ctx.moveTo(cx, cy - TILE_H_HALF);           // top
-  ctx.lineTo(cx + TILE_W_HALF, cy);           // right
-  ctx.lineTo(cx, cy + TILE_H_HALF);           // bottom
-  ctx.lineTo(cx - TILE_W_HALF, cy);           // left
-  ctx.closePath();
-  ctx.stroke();
-
-  ctx.restore();
 }
