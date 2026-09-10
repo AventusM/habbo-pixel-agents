@@ -118,7 +118,7 @@ Or start the web server directly:
 npm run web
 ```
 
-Then visit **http://localhost:3000**. The dashboard connects via WebSocket and shows live agent activity. The status chip reports the active board source (`board: webhook | probe | demo`); see [Hosted deployment](docs/guides/HOSTED-DEPLOYMENT.md) for webhook setup and the public-URL recipe.
+Then visit **http://localhost:3000**. The dashboard connects via WebSocket and shows live agent activity. The status chip reports the active board source (`board: webhook | probe | demo`); see [Hosted deployment](docs/guides/HOSTED-DEPLOYMENT.md) for webhook setup and the public-URL recipe, or [Local wall over a Tailscale tailnet](docs/guides/LOCAL-TAILNET-ACCESS.md) to reach the wall privately from your phone (`GET /health` answers for service checks).
 
 You can also pass arguments directly:
 

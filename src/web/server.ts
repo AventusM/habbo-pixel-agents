@@ -123,3 +123,8 @@ export type {
   BoardSourceKind,
   BoardSourceController,
 } from '../boardSource.js';
+
+// Health payload for the server's GET /health endpoint (transport-free,
+// unit-testable; the server only wires it to an HTTP response).
+export { buildHealthPayload } from '../health.js';
+export type { HealthPayload, HealthBoardSource } from '../health.js';
