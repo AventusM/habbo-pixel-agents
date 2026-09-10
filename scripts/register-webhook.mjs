@@ -111,16 +111,33 @@ const config = [
   `config[secret]=${secret}`,
 ];
 
+// `gh api` needs every field behind its own flag; a bare `key=value` is read
+// as a positional endpoint argument and fails with `accepts 1 arg(s), received
+// N`. Keys with `[]`/`[sub]` still nest correctly when passed after `-f`.
+const asFields = (pairs) => pairs.flatMap((pair) => ['-f', pair]);
+
 // `gh api` reads the secret through argv; keep it out of any printed command.
 const redact = (value) => (value.includes(secret) ? value.replace(secret, '***') : value);
 
 if (opts.dryRun) {
   const redacted = config.map(redact);
+  const events = opts.events.map((e) => `events[]=${e}`);
   console.log('Dry run — no changes made. Commands that would run:');
   console.log('  gh', ['api', hookPath].join(' '));
   console.log(
     '  gh',
-    ['api', `repos/${owner}/${name}/hooks/<id>`, '--method', 'PATCH', ...redacted, ...opts.events.map((e) => `events[]=${e}`)].join(' '),
+    [
+      'api', hookPath, '--method', 'POST',
+      '-f', 'name=web', '-F', 'active=true',
+      ...asFields(events), ...asFields(redacted),
+    ].join(' '),
+  );
+  console.log(
+    '  gh',
+    [
+      'api', `repos/${owner}/${name}/hooks/<id>`, '--method', 'PATCH',
+      ...asFields(redacted), ...asFields(events),
+    ].join(' '),
   );
   process.exit(0);
 }
@@ -141,7 +158,7 @@ try {
   if (existingId) {
     const args = [
       'api', `repos/${owner}/${name}/hooks/${existingId}`,
-      '--method', 'PATCH', ...config, ...events,
+      '--method', 'PATCH', ...asFields(config), ...asFields(events),
     ];
     gh(args);
     console.log(`Updated webhook #${existingId} → ${opts.url} (${opts.events.join(', ')})`);
@@ -151,8 +168,8 @@ try {
       '--method', 'POST',
       '-f', 'name=web',
       '-F', 'active=true',
-      ...events,
-      ...config,
+      ...asFields(events),
+      ...asFields(config),
     ];
     gh(args);
     console.log(`Created webhook → ${opts.url} (${opts.events.join(', ')})`);
