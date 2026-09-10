@@ -2,13 +2,23 @@
 // Unit tests for isoKanbanRenderer: color mapping, note rendering, aggregate notes
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { statusToColor, drawKanbanNotes, drawExpandedNote, drawExpandedAggregateNote, getNoteHitAreas, getExpandedNoteNavRects, getAggregateRowHitAreas } from '../src/isoKanbanRenderer.js';
+import { statusToColor, drawKanbanNotes, drawExpandedNote, drawExpandedAggregateNote, createKanbanRenderState, type KanbanRenderState } from '../src/isoKanbanRenderer.js';
 import type { KanbanCard } from '../src/agentTypes.js';
 import type { TileGrid } from '../src/isoTypes.js';
 
 // ---------------------------------------------------------------------------
 // statusToColor
 // ---------------------------------------------------------------------------
+
+// Stable per-test kanban render state (draw calls + assertions share it)
+let testRenderState: KanbanRenderState;
+function relState(): KanbanRenderState {
+  if (!testRenderState) testRenderState = createKanbanRenderState();
+  return testRenderState;
+}
+beforeEach(() => {
+  testRenderState = createKanbanRenderState();
+});
 
 describe('statusToColor', () => {
   it('returns yellow for "Todo"', () => {
@@ -82,14 +92,14 @@ describe('drawKanbanNotes', () => {
     const ctx = makeMockCtx();
     const grid = make5x5Grid();
     expect(() =>
-      drawKanbanNotes(ctx, [], grid, { x: 320, y: 100 })
+      drawKanbanNotes(ctx, [], grid, { x: 320, y: 100 }, undefined, undefined, undefined, relState())
     ).not.toThrow();
   });
 
   it('does not call any drawing methods when cards is empty', () => {
     const ctx = makeMockCtx();
     const grid = make5x5Grid();
-    drawKanbanNotes(ctx, [], grid, { x: 320, y: 100 });
+    drawKanbanNotes(ctx, [], grid, { x: 320, y: 100 }, undefined, undefined, undefined, relState());
     expect(ctx.save).not.toHaveBeenCalled();
     expect(ctx.fill).not.toHaveBeenCalled();
   });
@@ -103,7 +113,7 @@ describe('drawKanbanNotes', () => {
       { id: '3', title: 'Deploy it', status: 'Done' },
     ];
     expect(() =>
-      drawKanbanNotes(ctx, cards, grid, { x: 320, y: 100 })
+      drawKanbanNotes(ctx, cards, grid, { x: 320, y: 100 }, undefined, undefined, undefined, relState())
     ).not.toThrow();
     // save/restore called for: 1 large backlog + 1 large done + 1 small In Progress = 3
     expect(ctx.save).toHaveBeenCalledTimes(3);
@@ -118,8 +128,8 @@ describe('drawKanbanNotes', () => {
       { id: '2', title: 'Task B', status: 'Done' },
       { id: '3', title: 'Task C', status: 'In Progress' },
     ];
-    drawKanbanNotes(ctx, cards, grid, { x: 320, y: 100 });
-    const hitAreas = getNoteHitAreas();
+    drawKanbanNotes(ctx, cards, grid, { x: 320, y: 100 }, undefined, undefined, undefined, relState());
+    const hitAreas = relState().noteHitAreas;
 
     const backlogHit = hitAreas.find(h => h.aggregateType === 'todo');
     expect(backlogHit).toBeDefined();
@@ -143,8 +153,8 @@ describe('drawKanbanNotes', () => {
       { id: '2', title: 'IP 2', status: 'In Progress' },
       { id: '3', title: 'Todo 1', status: 'Todo' },
     ];
-    drawKanbanNotes(ctx, cards, grid, { x: 320, y: 100 });
-    const hitAreas = getNoteHitAreas();
+    drawKanbanNotes(ctx, cards, grid, { x: 320, y: 100 }, undefined, undefined, undefined, relState());
+    const hitAreas = relState().noteHitAreas;
 
     // 1 aggregate (backlog) + 2 small (In Progress)
     expect(hitAreas.length).toBe(3);
@@ -174,8 +184,8 @@ describe('drawKanbanNotes', () => {
         status: 'In Progress' as const,
       })),
     ];
-    drawKanbanNotes(ctx, cards, grid, { x: 0, y: 0 });
-    const hitAreas = getNoteHitAreas();
+    drawKanbanNotes(ctx, cards, grid, { x: 0, y: 0 }, undefined, undefined, undefined, relState());
+    const hitAreas = relState().noteHitAreas;
     // Small notes are non-aggregate (In Progress only)
     const smallNotes = hitAreas.filter(h => !h.aggregateType);
     // 6x6 grid: 2 middle tiles × 2 slots = 4 capacity; 10 IP cards capped to 4
@@ -198,8 +208,8 @@ describe('drawKanbanNotes', () => {
         status: 'In Progress' as const,
       })),
     ];
-    drawKanbanNotes(ctx, cards, grid, { x: 320, y: 100 });
-    const hitAreas = getNoteHitAreas();
+    drawKanbanNotes(ctx, cards, grid, { x: 320, y: 100 }, undefined, undefined, undefined, relState());
+    const hitAreas = relState().noteHitAreas;
     // No small (non-aggregate) note should appear on the right wall
     const rightSmallNotes = hitAreas.filter(h => h.wallSide === 'right' && !h.aggregateType);
     expect(rightSmallNotes.length).toBe(0);
@@ -218,22 +228,22 @@ describe('drawExpandedNote nav bar', () => {
 
   it('draws prev/next zones and clears state between draws', () => {
     const ctx = makeMockCtx();
-    drawExpandedNote(ctx, card, 900, 700, { canBack: false });
-    const nav = getExpandedNoteNavRects();
+    drawExpandedNote(ctx, card, 900, 700, { canBack: false }, relState());
+    const nav = relState().expandedNoteNavRects;
     expect(nav).not.toBeNull();
     expect(nav!.prev.w).toBeGreaterThan(0);
     expect(nav!.next.w).toBeGreaterThan(0);
     expect(nav!.back).toBeNull();
 
     // Aggregate draw clears stale nav rects
-    drawExpandedAggregateNote(ctx, 'todo', [card], 900, 700);
-    expect(getExpandedNoteNavRects()).toBeNull();
+    drawExpandedAggregateNote(ctx, 'todo', [card], 900, 700, relState());
+    expect(relState().expandedNoteNavRects).toBeNull();
   });
 
   it('draws a back zone when the note was opened from an aggregate', () => {
     const ctx = makeMockCtx();
-    drawExpandedNote(ctx, card, 900, 700, { canBack: true });
-    const nav = getExpandedNoteNavRects();
+    drawExpandedNote(ctx, card, 900, 700, { canBack: true }, relState());
+    const nav = relState().expandedNoteNavRects;
     expect(nav!.back).not.toBeNull();
     // prev and next don't overlap
     expect(nav!.prev.x + nav!.prev.w).toBeLessThanOrEqual(nav!.back!.x);
@@ -249,7 +259,7 @@ describe('drawExpandedAggregateNote', () => {
       { id: '2', title: 'Task B', status: 'No Status' },
     ];
     expect(() =>
-      drawExpandedAggregateNote(ctx, 'backlog', cards, 640, 480)
+      drawExpandedAggregateNote(ctx, 'backlog', cards, 640, 480, relState())
     ).not.toThrow();
     // Should draw backdrop, panel, fold, header, separator, card list, close hint
     expect(ctx.save).toHaveBeenCalled();
@@ -263,7 +273,7 @@ describe('drawExpandedAggregateNote', () => {
       { id: '1', title: 'Completed task', status: 'Done' },
     ];
     expect(() =>
-      drawExpandedAggregateNote(ctx, 'done', cards, 640, 480)
+      drawExpandedAggregateNote(ctx, 'done', cards, 640, 480, relState())
     ).not.toThrow();
   });
 
@@ -274,7 +284,7 @@ describe('drawExpandedAggregateNote', () => {
       { id: '2', title: 'B', status: 'No Status' },
       { id: '3', title: 'C', status: 'Todo' },
     ];
-    drawExpandedAggregateNote(ctx, 'backlog', cards, 640, 480);
+    drawExpandedAggregateNote(ctx, 'backlog', cards, 640, 480, relState());
     // arc is called for each card's status dot
     expect(ctx.arc).toHaveBeenCalledTimes(3);
   });
@@ -285,8 +295,8 @@ describe('drawExpandedAggregateNote', () => {
       { id: 'a', title: 'Card A', status: 'Todo' },
       { id: 'b', title: 'Card B', status: 'Done' },
     ];
-    drawExpandedAggregateNote(ctx, 'todo', cards, 800, 600);
-    const rows = getAggregateRowHitAreas();
+    drawExpandedAggregateNote(ctx, 'todo', cards, 800, 600, relState());
+    const rows = relState().aggregateRowHitAreas;
     expect(rows.map((r) => r.cardId)).toEqual(['a', 'b']);
     for (const r of rows) {
       expect(r.w).toBeGreaterThan(0);
@@ -297,10 +307,10 @@ describe('drawExpandedAggregateNote', () => {
 
   it('clears row hit areas when redrawn with no cards', () => {
     const ctx = makeMockCtx();
-    drawExpandedAggregateNote(ctx, 'todo', [{ id: 'a', title: 'A', status: 'Todo' }], 800, 600);
-    expect(getAggregateRowHitAreas()).toHaveLength(1);
-    drawExpandedAggregateNote(ctx, 'todo', [], 800, 600);
-    expect(getAggregateRowHitAreas()).toEqual([]);
+    drawExpandedAggregateNote(ctx, 'todo', [{ id: 'a', title: 'A', status: 'Todo' }], 800, 600, relState());
+    expect(relState().aggregateRowHitAreas).toHaveLength(1);
+    drawExpandedAggregateNote(ctx, 'todo', [], 800, 600, relState());
+    expect(relState().aggregateRowHitAreas).toEqual([]);
   });
 
   it('truncates long titles in aggregate overlay', () => {
@@ -308,7 +318,7 @@ describe('drawExpandedAggregateNote', () => {
     const cards: KanbanCard[] = [
       { id: '1', title: 'This is a very long title that should be truncated', status: 'Todo' },
     ];
-    drawExpandedAggregateNote(ctx, 'backlog', cards, 640, 480);
+    drawExpandedAggregateNote(ctx, 'backlog', cards, 640, 480, relState());
     // The truncated title should end with ellipsis (22 chars max)
     const fillTextCalls = (ctx.fillText as ReturnType<typeof vi.fn>).mock.calls;
     const titleCall = fillTextCalls.find(
