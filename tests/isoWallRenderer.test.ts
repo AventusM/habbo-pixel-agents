@@ -94,7 +94,7 @@ describe('drawWallPanels', () => {
       const moveArgs = (ctx.moveTo as ReturnType<typeof vi.fn>).mock.calls;
       // At least one moveTo should reference the corner screen position
       const hasCornerMove = moveArgs.some(
-        ([x]: [number, number]) => Math.abs(x - screenX) < 40
+        (call: number[]) => Math.abs(call[0] - screenX) < 40
       );
       expect(hasCornerMove).toBe(true);
     });

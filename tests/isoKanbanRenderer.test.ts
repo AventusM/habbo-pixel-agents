@@ -259,7 +259,7 @@ describe('drawExpandedAggregateNote', () => {
       { id: '2', title: 'Task B', status: 'No Status' },
     ];
     expect(() =>
-      drawExpandedAggregateNote(ctx, 'backlog', cards, 640, 480, relState())
+      drawExpandedAggregateNote(ctx, 'todo', cards, 640, 480, relState())
     ).not.toThrow();
     // Should draw backdrop, panel, fold, header, separator, card list, close hint
     expect(ctx.save).toHaveBeenCalled();
@@ -284,7 +284,7 @@ describe('drawExpandedAggregateNote', () => {
       { id: '2', title: 'B', status: 'No Status' },
       { id: '3', title: 'C', status: 'Todo' },
     ];
-    drawExpandedAggregateNote(ctx, 'backlog', cards, 640, 480, relState());
+    drawExpandedAggregateNote(ctx, 'todo', cards, 640, 480, relState());
     // arc is called for each card's status dot
     expect(ctx.arc).toHaveBeenCalledTimes(3);
   });
@@ -318,7 +318,7 @@ describe('drawExpandedAggregateNote', () => {
     const cards: KanbanCard[] = [
       { id: '1', title: 'This is a very long title that should be truncated', status: 'Todo' },
     ];
-    drawExpandedAggregateNote(ctx, 'backlog', cards, 640, 480, relState());
+    drawExpandedAggregateNote(ctx, 'todo', cards, 640, 480, relState());
     // The truncated title should end with ellipsis (22 chars max)
     const fillTextCalls = (ctx.fillText as ReturnType<typeof vi.fn>).mock.calls;
     const titleCall = fillTextCalls.find(

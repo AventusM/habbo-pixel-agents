@@ -4,7 +4,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // Mock vscode module
-vi.mock('vscode', () => ({}), { virtual: true });
+vi.mock('vscode', () => ({}));
 
 // Import after mocking
 const { MessageBridge } = await import('../src/messageBridge.js');
@@ -41,7 +41,7 @@ describe('MessageBridge', () => {
       bridge.setRoomPanel(room as any);
       bridge.setSidePanel(side as any);
 
-      const msg = { type: 'agentCreated', agentId: 'a1', terminalName: 'Agent 1', variant: 0 as const };
+      const msg = { type: 'agentCreated' as const, agentId: 'a1', terminalName: 'Agent 1', variant: 0 as const };
       bridge.broadcastAgentEvent(msg);
 
       expect(room._postMessage).toHaveBeenCalledWith(msg);
@@ -52,7 +52,7 @@ describe('MessageBridge', () => {
       const room = mockPanel();
       bridge.setRoomPanel(room as any);
 
-      const msg = { type: 'agentStatus', agentId: 'a1', status: 'active' as const };
+      const msg = { type: 'agentStatus' as const, agentId: 'a1', status: 'active' as const };
       bridge.broadcastAgentEvent(msg);
 
       expect(room._postMessage).toHaveBeenCalledWith(msg);
