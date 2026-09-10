@@ -11,7 +11,7 @@
  * Requires the `gh` CLI, authenticated. Never prints the secret.
  *
  * Usage:
- *   node scripts/register-webhook.mjs --url https://host/webhooks/github
+ *   node scripts/register-webhook.mjs --url https://host/webhooks/github --secret "$WEBHOOK_SECRET"
  *   node scripts/register-webhook.mjs --url ... --repo owner/name --secret ...
  *
  * Options:
@@ -55,7 +55,7 @@ function parseArgs(argv) {
 const HELP = `Register or update the GitHub webhook for the wall's live board.
 
 Usage:
-  node scripts/register-webhook.mjs --url https://host/webhooks/github
+  node scripts/register-webhook.mjs --url https://host/webhooks/github --secret "$WEBHOOK_SECRET"
 
 Options:
   --url URL       Public HTTPS endpoint (required)

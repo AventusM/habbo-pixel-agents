@@ -171,7 +171,15 @@ const server = http.createServer((req, res) => {
           clients: clients.size,
           port: PORT,
         })
-      : { status: 'ok' };
+      : {
+          // Keep the documented /health shape even when the compiled bundle is
+          // missing or fails to import, so service checks never see a divergent payload.
+          status: 'ok',
+          uptimeSeconds: Math.floor(process.uptime()),
+          boardSource: currentBoardSource ?? 'unset',
+          clients: clients.size,
+          port: PORT,
+        };
     res.writeHead(200, {
       'Content-Type': 'application/json; charset=utf-8',
       'Cache-Control': 'no-store',
