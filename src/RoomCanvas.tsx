@@ -42,7 +42,7 @@ import { onMessage } from './bus.js';
 import type { ExtensionMessage } from './agentTypes.js';
 import type { KanbanCard } from './agentTypes.js';
 import { computeBlockedTiles } from './isoPathfinding.js';
-import { drawKanbanNotes, drawExpandedNote, drawExpandedAggregateNote, getNoteHitAreas, getExpandedNoteActionRect, getExpandedNoteNavRects, getAggregateRowHitAreas, pointInQuad } from './isoKanbanRenderer.js';
+import { drawKanbanNotes, drawExpandedNote, drawExpandedAggregateNote, createKanbanRenderState, type KanbanRenderState, pointInQuad } from './isoKanbanRenderer.js';
 import type { CameraState } from './cameraController.js';
 import { createCameraState, applyZoom, applyCameraTransform, screenToWorld, clampZoom, setZoomWithPivot } from './cameraController.js';
 import { screenToTile } from './isometricMath.js';
@@ -157,6 +157,9 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
   // Kanban source filter (All / GSD only / Non-GSD) — toggle with the G key
   const [kanbanFilter, setKanbanFilter] = useState<KanbanFilterMode>('all');
   const kanbanFilterRef = useRef<KanbanFilterMode>('all');
+
+  // Per-render kanban hit-test state (replaces renderer module-level state)
+  const kanbanRenderStateRef = useRef<KanbanRenderState>(createKanbanRenderState());
 
   // Render throttle bookkeeping (see frame loop)
   const lastRenderTimeRef = useRef(0);
@@ -1079,6 +1082,7 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
             canvas.offsetWidth,
             canvas.offsetHeight,
             { canBack: noteOriginRef.current !== null },
+            kanbanRenderStateRef.current,
           );
         }
       }
@@ -1093,7 +1097,7 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
           ? visibleCards.filter(c => !DONE.includes(c.status) && !IP.includes(c.status))
           : visibleCards.filter(c => DONE.includes(c.status));
         if (aggCards.length > 0) {
-          drawExpandedAggregateNote(ctx, aggType, aggCards, canvas.offsetWidth, canvas.offsetHeight);
+          drawExpandedAggregateNote(ctx, aggType, aggCards, canvas.offsetWidth, canvas.offsetHeight, kanbanRenderStateRef.current);
         }
       }
 
@@ -1319,7 +1323,7 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
     // issue in the browser), or an aggregate list row (open that card's panel)
     if (expandedNoteRef.current || expandedAggregateRef.current) {
       if (expandedNoteRef.current) {
-        const nav = getExpandedNoteNavRects();
+        const nav = kanbanRenderStateRef.current.expandedNoteNavRects;
         const inRect = (r: { x: number; y: number; w: number; h: number }) =>
           screenX >= r.x && screenX <= r.x + r.w && screenY >= r.y && screenY <= r.y + r.h;
         const visibleCards = filterKanbanCards(kanbanCardsRef.current, kanbanFilterRef.current);
@@ -1340,7 +1344,7 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
             return;
           }
         }
-        const action = getExpandedNoteActionRect();
+        const action = kanbanRenderStateRef.current.expandedNoteActionRect;
         if (action && action.url) {
           const inFooter =
             screenX >= action.x && screenX <= action.x + action.w &&
@@ -1352,7 +1356,7 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
         }
       }
       if (expandedAggregateRef.current) {
-        const row = getAggregateRowHitAreas().find(
+        const row = kanbanRenderStateRef.current.aggregateRowHitAreas.find(
           (r) => screenX >= r.x && screenX <= r.x + r.w && screenY >= r.y && screenY <= r.y + r.h,
         );
         if (row) {
@@ -1369,7 +1373,7 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
     }
 
     // Check if click hit a wall note
-    const hitAreas = getNoteHitAreas();
+    const hitAreas = kanbanRenderStateRef.current.noteHitAreas;
     for (const area of hitAreas) {
       if (pointInQuad(noteClickX, noteClickY, area.corners)) {
         if (area.aggregateType) {
@@ -1665,6 +1669,7 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
             expandedNoteRef.current,
             expandedAggregateRef.current,
             ticketIds,
+            kanbanRenderStateRef.current,
           );
         },
       });

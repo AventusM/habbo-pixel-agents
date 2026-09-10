@@ -17,22 +17,6 @@ import { wrapMonospace } from './kanbanText.js';
 // Expanded-note action rect (click-to-open-in-browser)
 // ---------------------------------------------------------------------------
 
-/** Screen-space rect of the expanded note's footer action zone (set while drawing) */
-let expandedNoteActionRect: { x: number; y: number; w: number; h: number; url: string } | null = null;
-
-/** Hit rect for the expanded note's footer action (null when no note with URL is open) */
-export function getExpandedNoteActionRect(): { x: number; y: number; w: number; h: number; url: string } | null {
-  return expandedNoteActionRect;
-}
-
-/** Hit rects for rows in the expanded aggregate note list (set while drawing) */
-let aggregateRowHitAreas: Array<{ x: number; y: number; w: number; h: number; cardId: string }> = [];
-
-/** Row hit areas for the open aggregate list — clicking a row opens that card's detail panel */
-export function getAggregateRowHitAreas(): Array<{ x: number; y: number; w: number; h: number; cardId: string }> {
-  return aggregateRowHitAreas;
-}
-
 export interface KanbanNavRect {
   x: number;
   y: number;
@@ -46,12 +30,29 @@ export interface KanbanNavRects {
   back: KanbanNavRect | null;
 }
 
-/** Hit rects for the expanded note's nav bar (prev/back/next), set while drawing */
-let expandedNoteNavRects: KanbanNavRects | null = null;
+/**
+ * Per-render hit-test state for the kanban wall + overlays. Owned by the
+ * caller (RoomCanvas) and passed into every draw call, replacing the former
+ * module-level mutable state (M003/S03 O-3).
+ */
+export interface KanbanRenderState {
+  /** Wall sticky-note hit areas, rebuilt each wall render */
+  noteHitAreas: NoteHitArea[];
+  /** Expanded detail panel footer action rect (open-in-browser), while drawn */
+  expandedNoteActionRect: { x: number; y: number; w: number; h: number; url: string } | null;
+  /** Row hit rects in the expanded aggregate list, while drawn */
+  aggregateRowHitAreas: Array<{ x: number; y: number; w: number; h: number; cardId: string }>;
+  /** Nav bar hit rects for the open detail panel, while drawn */
+  expandedNoteNavRects: KanbanNavRects | null;
+}
 
-/** Nav bar hit rects for the open detail panel (null when no detail is drawn) */
-export function getExpandedNoteNavRects(): KanbanNavRects | null {
-  return expandedNoteNavRects;
+export function createKanbanRenderState(): KanbanRenderState {
+  return {
+    noteHitAreas: [],
+    expandedNoteActionRect: null,
+    aggregateRowHitAreas: [],
+    expandedNoteNavRects: null,
+  };
 }
 
 // Status column → sticky note background color
@@ -101,13 +102,6 @@ export interface NoteHitArea {
 }
 
 interface Point { x: number; y: number }
-
-// Module-level hit area cache, rebuilt each frame
-let noteHitAreas: NoteHitArea[] = [];
-
-export function getNoteHitAreas(): NoteHitArea[] {
-  return noteHitAreas;
-}
 
 /**
  * Point-in-quad test using cross-product winding.
@@ -423,14 +417,15 @@ export function drawKanbanNotes(
   cards: KanbanCard[],
   grid: TileGrid,
   cameraOrigin: { x: number; y: number },
-  expandedNoteId?: string | null,
-  expandedAggregateType?: 'todo' | 'done' | null,
-  activeLinkedTicketIds?: Set<string>,
+  expandedNoteId: string | null | undefined,
+  expandedAggregateType: 'todo' | 'done' | null | undefined,
+  activeLinkedTicketIds: Set<string> | undefined,
+  state: KanbanRenderState,
 ): void {
   if (cards.length === 0) return;
 
   // Reset hit areas for this frame
-  noteHitAreas = [];
+  state.noteHitAreas = [];
 
   // Partition cards into three groups.
   // GitHub Projects: 'Todo', 'In Progress', 'Done', 'No Status'
@@ -485,7 +480,7 @@ export function drawKanbanNotes(
     const isExpanded = expandedAggregateType === 'todo';
     drawLargeNote(ctx, pos.x, pos.y, 'TODO', allTodoCards, '#fef08a', '#eab308', 'left', isExpanded);
     const corners = computeSkewedCorners(pos.x, pos.y, LARGE_NOTE_W, LARGE_NOTE_H, 'left');
-    noteHitAreas.push({ cardId: TODO_ID, corners, wallSide: 'left', aggregateType: 'todo' });
+    state.noteHitAreas.push({ cardId: TODO_ID, corners, wallSide: 'left', aggregateType: 'todo' });
   }
 
   // Draw large done note at far right of left wall (pushed toward back corner)
@@ -496,7 +491,7 @@ export function drawKanbanNotes(
     const isExpanded = expandedAggregateType === 'done';
     drawLargeNote(ctx, pos.x, pos.y, 'DONE', doneCards, '#86efac', '#22c55e', 'left', isExpanded);
     const corners = computeSkewedCorners(pos.x, pos.y, LARGE_NOTE_W, LARGE_NOTE_H, 'left');
-    noteHitAreas.push({ cardId: DONE_ID, corners, wallSide: 'left', aggregateType: 'done' });
+    state.noteHitAreas.push({ cardId: DONE_ID, corners, wallSide: 'left', aggregateType: 'done' });
   }
 
   // Distribute small In Progress notes between the DONE and TODO positions.
@@ -518,7 +513,7 @@ export function drawKanbanNotes(
       const isLinked = activeLinkedTicketIds?.has(card.id) ?? false;
       drawStickyNote(ctx, pos.x, pos.y, card.title, card.status, 'left', isExpanded, isLinked);
       const corners = computeSkewedCorners(pos.x, pos.y, NOTE_W, NOTE_H, 'left');
-      noteHitAreas.push({ cardId: card.id, corners, wallSide: 'left' });
+      state.noteHitAreas.push({ cardId: card.id, corners, wallSide: 'left' });
     }
   }
 
@@ -533,11 +528,12 @@ export function drawExpandedNote(
   card: KanbanCard,
   canvasWidth: number,
   canvasHeight: number,
-  nav?: { canBack: boolean },
+  nav: { canBack: boolean } | undefined,
+  state: KanbanRenderState,
 ): void {
-  expandedNoteActionRect = null;
-  aggregateRowHitAreas = [];
-  expandedNoteNavRects = null;
+  state.expandedNoteActionRect = null;
+  state.aggregateRowHitAreas = [];
+  state.expandedNoteNavRects = null;
 
   // Calculate dynamic panel height based on content
   const baseHeight = 130;
@@ -813,7 +809,7 @@ export function drawExpandedNote(
     }
     const nextW = nav.canBack ? zoneW : zoneW * 2 - 8;
     const nextRect = drawZone(nextX, nextW, 'NEXT \u25B6');
-    expandedNoteNavRects = { prev: prevRect, next: nextRect, back: backRect };
+    state.expandedNoteNavRects = { prev: prevRect, next: nextRect, back: backRect };
   }
 
   // Footer: clickable "open in browser" zone when the card has a URL, else plain hint
@@ -826,7 +822,7 @@ export function drawExpandedNote(
     ctx.font = '9px "Press Start 2P"';
     ctx.fillStyle = '#7dd3fc';
     ctx.fillText('OPEN IN BROWSER ↗', cx, footerY + 9);
-    expandedNoteActionRect = { x: px + 8, y: footerY, w: panelW - 16, h: footerH - 2, url: card.url };
+    state.expandedNoteActionRect = { x: px + 8, y: footerY, w: panelW - 16, h: footerH - 2, url: card.url };
   } else {
     ctx.font = '7px "Press Start 2P"';
     ctx.fillStyle = 'rgba(0,0,0,0.4)';
@@ -848,10 +844,11 @@ export function drawExpandedAggregateNote(
   cards: KanbanCard[],
   canvasWidth: number,
   canvasHeight: number,
+  state: KanbanRenderState,
 ): void {
-  expandedNoteActionRect = null;
-  aggregateRowHitAreas = [];
-  expandedNoteNavRects = null;
+  state.expandedNoteActionRect = null;
+  state.aggregateRowHitAreas = [];
+  state.expandedNoteNavRects = null;
 
   const label = aggregateType === 'todo' ? 'TODO' : 'DONE';
   const color = aggregateType === 'todo' ? '#fef08a' : '#86efac';
@@ -958,7 +955,7 @@ export function drawExpandedAggregateNote(
     ctx.fillText('\u203A', px + panelW - 16, itemY + 2);
 
     // Row hit area for click-through to the card's detail panel
-    aggregateRowHitAreas.push({ x: px, y: itemY, w: panelW, h: lineHeight, cardId: card.id });
+    state.aggregateRowHitAreas.push({ x: px, y: itemY, w: panelW, h: lineHeight, cardId: card.id });
   }
 
   // Close hint
