@@ -37,6 +37,13 @@ export class KanbanStore {
     return this.store.subscribe(listener);
   }
 
+  subscribeSelector<S>(
+    selector: (state: KanbanState) => S,
+    listener: (selected: S) => void,
+  ): Unsubscribe {
+    return this.store.subscribeSelector(selector, listener);
+  }
+
   setCards(cards: KanbanCard[]): void {
     this.store.update((prev) => ({ ...prev, cards }));
   }
