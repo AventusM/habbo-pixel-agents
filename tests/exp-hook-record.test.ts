@@ -5,7 +5,7 @@
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, existsSync, rmSync } from 'node:fs';
+import { mkdtempSync, readFileSync, existsSync, readdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -85,6 +85,61 @@ describe('hook-record', () => {
     expect(res.status).toBe(0);
     expect(existsSync(out)).toBe(false);
     expect(String(res.stderr)).toMatch(/no run id/i);
+  });
+
+  it('writes nothing under scripts/exp/runs/ when no run id is present', () => {
+    const runs = join('scripts', 'exp', 'runs');
+    const before = existsSync(runs) ? readdirSync(runs) : [];
+    const res = spawnSync(
+      'node',
+      ['scripts/exp/hook-record.mjs', '--section', 'build', '--result', 'done'],
+      { encoding: 'utf8', cwd: process.cwd(), env: cleanEnv() },
+    );
+    expect(res.status).toBe(0);
+    expect(String(res.stderr)).toMatch(/no run id/i);
+    const after = existsSync(runs) ? readdirSync(runs) : [];
+    expect(after).toEqual(before);
+  });
+
+  it('emits a run record carrying the schema-required keys (run_id, issue, path, model, sections)', () => {
+    const out = join(dir, 'shape.jsonl');
+    const run = [
+      '--run-id', 'exp-20260911-97-hook-shape',
+      '--issue', '97',
+      '--path', 'direct',
+      '--model', 'opencode-go/deepseek-v4-flash',
+    ];
+
+    hook(['--section', 'spec', '--result', 'done', '--summary', 'fixture spec entry', ...run], out);
+    hook(
+      [
+        '--section', 'build', '--result', 'done',
+        '--summary', 'fixture build entry', '--tests', '2 passed', ...run,
+      ],
+      out,
+    );
+
+    const recs = lines(out);
+    expect(recs).toHaveLength(2);
+
+    for (const r of recs) {
+      expect(r.run_id).toBe('exp-20260911-97-hook-shape');
+      expect(r.issue).toBe(97);
+      expect(r.path).toBe('direct');
+      expect(r.model).toBe('opencode-go/deepseek-v4-flash');
+    }
+
+    const runRecord = {
+      run_id: recs[0].run_id,
+      issue: recs[0].issue,
+      path: recs[0].path,
+      model: recs[0].model,
+      sections: recs,
+    };
+    for (const k of ['run_id', 'issue', 'path', 'model', 'sections']) {
+      expect(runRecord).toHaveProperty(k);
+    }
+    expect(runRecord.sections.map((s: { section: string }) => s.section)).toEqual(['spec', 'build']);
   });
 
   it('rejects an unknown section', () => {
