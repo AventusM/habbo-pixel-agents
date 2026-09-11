@@ -42,4 +42,4 @@
 | Shared asset bootstrap + typed event bus + replay | New features on the room (visual changes) |
 | Typed app-state store (agents/cards/mode/camera) | Changing asset formats or the RD/PixelLab pipelines |
 | Failure-mode inventory + degraded-state surfacing | Rewriting renderers (draw functions stay, signatures may widen) |
-<!-- gsd:state-version=10:0 -->
+<!-- gsd:state-version=17:0 -->

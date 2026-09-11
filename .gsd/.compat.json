@@ -1,16 +1,16 @@
 {
   "schema": 2,
   "lastWriter": "gsd-pi",
-  "lastProjectedAt": "2026-09-10T18:04:34.811Z",
+  "lastProjectedAt": "2026-09-11T19:53:24.829Z",
   "projections": {
     "phases/01-retrodiffusion-as-primary-pixel-art-sour/01-ROADMAP.md": {
-      "sha": "82da4065ce32fabf",
+      "sha": "7664fea78c388e25",
       "entities": [
         "M001"
       ]
     },
     "DECISIONS.md": {
-      "sha": "f703721c1db44002",
+      "sha": "720834b14ffc62a5",
       "entities": []
     },
     "phases/01-retrodiffusion-as-primary-pixel-art-sour/01-01-RESEARCH.md": {
@@ -28,7 +28,7 @@
       ]
     },
     "phases/02-restore-original-habbo-figure-avatar-sys/02-ROADMAP.md": {
-      "sha": "ee2ae651163d02fe",
+      "sha": "cceaf93125340e92",
       "entities": [
         "M002"
       ]
@@ -41,7 +41,7 @@
       ]
     },
     "phases/03-refactor-architecture-map-failure-mode-h/03-ROADMAP.md": {
-      "sha": "3c2b6bd026a805e4",
+      "sha": "d5be518aa4e6156a",
       "entities": [
         "M003"
       ]
@@ -58,6 +58,41 @@
       "entities": [
         "M003",
         "M003/S03"
+      ]
+    },
+    "phases/02-restore-original-habbo-figure-avatar-sys/02-03-ASSESSMENT.md": {
+      "sha": "5c28001437243e10",
+      "entities": [
+        "M002",
+        "M002/S03"
+      ]
+    },
+    "phases/04-experiment-harness-any-board-issue-via-d/04-ROADMAP.md": {
+      "sha": "9ecf41d5527b0e1a",
+      "entities": [
+        "M004"
+      ]
+    },
+    "phases/04-experiment-harness-any-board-issue-via-d/04-01-PLAN.md": {
+      "sha": "2f9bee15e5fccf0e",
+      "entities": [
+        "M004",
+        "M004/S01"
+      ]
+    },
+    "phases/01-retrodiffusion-as-primary-pixel-art-sour/01-01-PLAN.md": {
+      "sha": "e649f0188dc1be32",
+      "entities": [
+        "M001",
+        "M001/S01"
+      ]
+    },
+    "phases/01-retrodiffusion-as-primary-pixel-art-sour/S01-T01-SUMMARY.md": {
+      "sha": "5ed4c717f73c4fc6",
+      "entities": [
+        "M001",
+        "M001/S01",
+        "M001/S01/T01"
       ]
     }
   },

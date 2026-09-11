@@ -1,0 +1,20 @@
+{
+  "id": "e1c91c4a-89f8-46fd-b544-459f8ac4c9ed",
+  "runtime": "bash",
+  "purpose": "M002 contract verification — renderer + outfit config tests",
+  "script_chars": 94,
+  "started_at": "2026-09-10T19:12:45.165Z",
+  "finished_at": "2026-09-10T19:12:46.606Z",
+  "exit_code": 0,
+  "signal": null,
+  "timed_out": false,
+  "aborted": false,
+  "force_resolved": false,
+  "duration_ms": 1441,
+  "stdout_bytes": 186,
+  "stderr_bytes": 0,
+  "stdout_truncated": false,
+  "stderr_truncated": false,
+  "stdout_path": "/Users/antonmoroz/dev/habbo-pixel-agents/.gsd/exec/e1c91c4a-89f8-46fd-b544-459f8ac4c9ed.stdout",
+  "stderr_path": "/Users/antonmoroz/dev/habbo-pixel-agents/.gsd/exec/e1c91c4a-89f8-46fd-b544-459f8ac4c9ed.stderr"
+}

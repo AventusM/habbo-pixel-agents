@@ -1,0 +1,20 @@
+{
+  "id": "2f500311-6c98-4fb7-99e8-ee9fe87f8b53",
+  "runtime": "python",
+  "purpose": "RD evidence snapshot",
+  "script_chars": 694,
+  "started_at": "2026-09-11T19:52:30.202Z",
+  "finished_at": "2026-09-11T19:52:30.262Z",
+  "exit_code": 0,
+  "signal": null,
+  "timed_out": false,
+  "aborted": false,
+  "force_resolved": false,
+  "duration_ms": 60,
+  "stdout_bytes": 253,
+  "stderr_bytes": 0,
+  "stdout_truncated": false,
+  "stderr_truncated": false,
+  "stdout_path": "/Users/antonmoroz/dev/habbo-pixel-agents/.gsd/exec/2f500311-6c98-4fb7-99e8-ee9fe87f8b53.stdout",
+  "stderr_path": "/Users/antonmoroz/dev/habbo-pixel-agents/.gsd/exec/2f500311-6c98-4fb7-99e8-ee9fe87f8b53.stderr"
+}

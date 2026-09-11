@@ -1,0 +1,20 @@
+{
+  "id": "d3942d9d-1f87-4072-b746-016c8ec2c533",
+  "runtime": "bash",
+  "purpose": "M002 integration verification — full suite + web build",
+  "script_chars": 131,
+  "started_at": "2026-09-10T19:12:46.610Z",
+  "finished_at": "2026-09-10T19:12:50.613Z",
+  "exit_code": 0,
+  "signal": null,
+  "timed_out": false,
+  "aborted": false,
+  "force_resolved": false,
+  "duration_ms": 4003,
+  "stdout_bytes": 338,
+  "stderr_bytes": 0,
+  "stdout_truncated": false,
+  "stderr_truncated": false,
+  "stdout_path": "/Users/antonmoroz/dev/habbo-pixel-agents/.gsd/exec/d3942d9d-1f87-4072-b746-016c8ec2c533.stdout",
+  "stderr_path": "/Users/antonmoroz/dev/habbo-pixel-agents/.gsd/exec/d3942d9d-1f87-4072-b746-016c8ec2c533.stderr"
+}

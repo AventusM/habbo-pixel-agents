@@ -1,0 +1,28 @@
+{
+  "id": "b7f45282-26bb-4c20-8c2c-dab59e4c966a",
+  "runtime": "bash",
+  "purpose": "UAT M002/S03/m002-s03-runtime-serve (uat-service-start)",
+  "metadata": {
+    "kind": "uat_exec",
+    "milestoneId": "M002",
+    "sliceId": "S03",
+    "checkId": "m002-s03-runtime-serve",
+    "intent": "uat-service-start",
+    "expected": "Web server starts; root returns 200; local figure asset returns 200"
+  },
+  "script_chars": 403,
+  "started_at": "2026-09-10T19:14:57.373Z",
+  "finished_at": "2026-09-10T19:15:00.488Z",
+  "exit_code": 0,
+  "signal": null,
+  "timed_out": false,
+  "aborted": false,
+  "force_resolved": false,
+  "duration_ms": 3115,
+  "stdout_bytes": 34,
+  "stderr_bytes": 0,
+  "stdout_truncated": false,
+  "stderr_truncated": false,
+  "stdout_path": "/Users/antonmoroz/dev/habbo-pixel-agents/.gsd/exec/b7f45282-26bb-4c20-8c2c-dab59e4c966a.stdout",
+  "stderr_path": "/Users/antonmoroz/dev/habbo-pixel-agents/.gsd/exec/b7f45282-26bb-4c20-8c2c-dab59e4c966a.stderr"
+}
