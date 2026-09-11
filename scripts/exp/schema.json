@@ -1,0 +1,67 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Experiment per-run record (M004)",
+  "description": "Uniform capture of one model-path run against one work item. Evaluation artifact is the worker PR.",
+  "type": "object",
+  "required": ["run_id", "issue", "path", "model", "sections"],
+  "properties": {
+    "run_id": {
+      "type": "string",
+      "description": "Unique run id, e.g. exp-20260911-80-deepseek-flash"
+    },
+    "issue": {
+      "type": "integer",
+      "description": "Board issue number (GitHub; ADO support later)"
+    },
+    "path": {
+      "type": "string",
+      "enum": ["gsd-loop", "direct"],
+      "description": "Execution path. gsd-loop = build/review/merge lanes; direct = one-off agent."
+    },
+    "model": {
+      "type": "string",
+      "description": "opencode-go model id, e.g. opencode-go/deepseek-flash"
+    },
+    "started_at": { "type": "string", "format": "date-time" },
+    "ended_at": { "type": "string", "format": "date-time" },
+    "branch": { "type": "string" },
+    "pr": { "type": ["integer", "null"] },
+    "pr_url": { "type": ["string", "null"] },
+    "worktree": { "type": ["string", "null"] },
+    "sections": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["section", "result"],
+        "properties": {
+          "section": {
+            "type": "string",
+            "enum": ["build", "review", "merge", "spec"]
+          },
+          "started_at": { "type": "string", "format": "date-time" },
+          "ended_at": { "type": "string", "format": "date-time" },
+          "result": {
+            "type": "string",
+            "enum": ["done", "idle", "blocked", "rework", "approved", "merged", "failed"]
+          },
+          "summary": { "type": "string" },
+          "model": { "type": "string" },
+          "tool_calls": { "type": ["integer", "null"] },
+          "tests": { "type": ["string", "null"] },
+          "verdict": { "type": ["string", "null"] },
+          "verdict_url": { "type": ["string", "null"] }
+        }
+      }
+    },
+    "evaluation": {
+      "type": "object",
+      "properties": {
+        "pr_url": { "type": ["string", "null"] },
+        "tests": { "type": ["string", "null"] },
+        "verdict": { "type": ["string", "null"] },
+        "merged": { "type": ["boolean", "null"] },
+        "merged_at": { "type": ["string", "null"], "format": "date-time" }
+      }
+    }
+  }
+}
