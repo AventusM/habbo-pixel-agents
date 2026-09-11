@@ -1,17 +1,17 @@
 # Codebase Map
 
-Generated: 2026-04-11T13:59:24Z | Files: 155 | Described: 0/155
-<!-- gsd:codebase-meta {"generatedAt":"2026-04-11T13:59:24Z","fingerprint":"6b68bd2e360df7499a0bb85cd0276e7f64b564e6","fileCount":155,"truncated":false} -->
+Generated: 2026-09-11T19:51:44Z | Files: 213 | Described: 0/213
+<!-- gsd:codebase-meta {"generatedAt":"2026-09-11T19:51:44Z","fingerprint":"0f57fa31524f2fccda1e39a3b6979172362d0101","fileCount":213,"truncated":false} -->
 
 ### (root)/
 - `.env.example`
 - `.gitignore`
-- `.mcp.json`
 - `.nvmrc`
 - `CLAUDE.md`
 - `esbuild.config.mjs`
 - `LICENSE`
 - `mault-verify-initialize.sh`
+- `opencode.json`
 - `package-lock.json`
 - `package.json`
 - `README.md`
@@ -35,14 +35,19 @@ Generated: 2026-04-11T13:59:24Z | Files: 155 | Described: 0/155
 ### .github/copilot/
 - `.github/copilot/mcp.json`
 
+### .github/hooks/
+- `.github/hooks/project-hooks.json`
+
 ### .github/instructions/
 - `.github/instructions/asset-pipeline.instructions.md`
 - `.github/instructions/gsd-phase.instructions.md`
 - `.github/instructions/rendering.instructions.md`
 
 ### .github/workflows/
+- `.github/workflows/ci.yml`
 - `.github/workflows/copilot-agent-monitor.yml`
 - `.github/workflows/copilot-setup-steps.yml`
+- `.github/workflows/demo-pages.yml`
 - `.github/workflows/release.yml`
 
 ### .mault/
@@ -58,6 +63,9 @@ Generated: 2026-04-11T13:59:24Z | Files: 155 | Described: 0/155
 - `.mault/reference/initialize/gold-typescript.yaml`
 - `.mault/reference/initialize/verify-script.sh`
 
+### .opencode/plugin/
+- `.opencode/plugin/role-feed.ts`
+
 ### assets/pixellab/
 - `assets/pixellab/beanie-hoodie-guy.json`
 - `assets/pixellab/habbo-inspiration-new.json`
@@ -65,6 +73,7 @@ Generated: 2026-04-11T13:59:24Z | Files: 155 | Described: 0/155
 - `assets/pixellab/pl-infrastructure.json`
 - `assets/pixellab/pl-planning.json`
 - `assets/pixellab/pl-support.json`
+- `assets/pixellab/rd-eval-char.json`
 
 ### assets/sounds-source/
 - `assets/sounds-source/.gitkeep`
@@ -81,9 +90,24 @@ Generated: 2026-04-11T13:59:24Z | Files: 155 | Described: 0/155
 ### docs/
 - `docs/mault.yaml`
 
+### docs/agent-hooks/
+- `docs/agent-hooks/INVESTIGATION.md`
+
+### docs/architecture/
+- `docs/architecture/ARCHITECTURE.md`
+- `docs/architecture/module-graph.md`
+
 ### docs/guides/
 - `docs/guides/COPILOT-AGENT-MONITOR.md`
+- `docs/guides/HOSTED-DEPLOYMENT.md`
+- `docs/guides/LOCAL-TAILNET-ACCESS.md`
 - `docs/guides/MAULT-AI-CODER-GUIDE.md`
+
+### docs/img/
+- `docs/img/does-anyone-know-the-name-of-this-character-from-habbo-v0-7fujm5oi6zja1.webp`
+
+### docs/slides/
+- `docs/slides/habbo-pixel-agents-overview.marp.md`
 
 ### packages/agent-dashboard/
 - `packages/agent-dashboard/esbuild.config.mjs`
@@ -117,16 +141,44 @@ Generated: 2026-04-11T13:59:24Z | Files: 155 | Described: 0/155
 - `scripts/create-ado-template.sh`
 - `scripts/download-habbo-assets.mjs`
 - `scripts/fix-spritesheet-bleed.mjs`
+- `scripts/generate-arch-graph.mjs`
 - `scripts/generate-avatar-placeholders.sh`
 - `scripts/generate-placeholder-sprites.mjs`
 - `scripts/generate-placeholders.sh`
+- `scripts/gsd-mcp-proxy.mjs`
 - `scripts/obtain-habbo-sounds.md`
 - `scripts/pack-pixellab-furniture.mjs`
 - `scripts/pack-pixellab-sprites.mjs`
+- `scripts/pack-rd-sprites.mjs`
+- `scripts/register-webhook.mjs`
 - `scripts/web-server.mjs`
 
+### scripts/exp/
+- `scripts/exp/hook-record.mjs`
+- `scripts/exp/PROBE.md`
+- `scripts/exp/schema.json`
+- `scripts/exp/translate-loop.mjs`
+
+### scripts/hooks/
+- `scripts/hooks/gsd-event-hook.mjs`
+- `scripts/hooks/guard-gsd-db.mjs`
+- `scripts/hooks/room-tool-feed.mjs`
+
 ### src/
-- *(40 files: 37 .ts, 3 .tsx)*
+- *(50 files: 46 .ts, 4 .tsx)*
+
+### src/render/
+- `src/render/CanvasStage.ts`
+- `src/render/layers.ts`
+- `src/render/roomBounds.ts`
+- `src/render/sceneRenderer.ts`
+
+### src/state/
+- `src/state/agentStore.ts`
+- `src/state/appMode.ts`
+- `src/state/cameraStore.ts`
+- `src/state/kanbanStore.ts`
+- `src/state/store.ts`
 
 ### src/web/
 - `src/web/copilotMonitor.ts`
@@ -137,4 +189,4 @@ Generated: 2026-04-11T13:59:24Z | Files: 155 | Described: 0/155
 - `src/web/wsClient.ts`
 
 ### tests/
-- *(27 files: 27 .ts)*
+- *(43 files: 43 .ts)*

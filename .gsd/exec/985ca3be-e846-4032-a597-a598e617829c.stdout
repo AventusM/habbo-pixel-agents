@@ -1,0 +1,50 @@
+=== workflow_execution_attempts schema ===
+CREATE TABLE workflow_execution_attempts (
+      attempt_id TEXT PRIMARY KEY,
+      project_id TEXT NOT NULL,
+      lifecycle_id TEXT NOT NULL,
+      attempt_number INTEGER NOT NULL CHECK (attempt_number > 0),
+      retry_of_attempt_id TEXT DEFAULT NULL,
+      attempt_state TEXT NOT NULL CHECK (attempt_state IN ('claimed', 'running', 'settled')),
+      coordination_dispatch_id INTEGER DEFAULT NULL UNIQUE,
+      worker_id TEXT DEFAULT NULL,
+      milestone_lease_token INTEGER DEFAULT NULL,
+      claimed_at TEXT NOT NULL,
+      started_at TEXT DEFAULT NULL,
+      ended_at TEXT DEFAULT NULL,
+      claim_operation_id TEXT NOT NULL,
+      claim_project_revision INTEGER NOT NULL CHECK (claim_project_revision > 0),
+      claim_authority_epoch INTEGER NOT NULL CHECK (claim_authority_epoch >= 0),
+      settle_operation_id TEXT DEFAULT NULL,
+      settle_project_revision INTEGER DEFAULT NULL,
+      settle_authority_epoch INTEGER DEFAULT NULL, settle_outcome TEXT DEFAULT NULL
+      CHECK (settle_outcome IN ('succeeded', 'failed', 'interrupted')), recovery_worker_id TEXT DEFAULT NULL REFERENCES workers(worker_id), recovery_milestone_lease_token INTEGER DEFAULT NULL
+=== attempts for T01/T02/S01 ===
+Error: in prepare, no such column: id
+  select id, task_id, slice_id, status from workflow_execution_attempts where ta
+         ^--- error here
+=== workflow_item_lifecycles schema ===
+CREATE TABLE workflow_item_lifecycles (
+      lifecycle_id TEXT PRIMARY KEY,
+      project_id TEXT NOT NULL,
+      item_kind TEXT NOT NULL CHECK (item_kind IN ('milestone', 'slice', 'task')),
+      milestone_id TEXT NOT NULL,
+      slice_id TEXT DEFAULT NULL,
+      task_id TEXT DEFAULT NULL,
+      lifecycle_status TEXT NOT NULL CHECK (
+        lifecycle_status IN ('pending', 'ready', 'in_progress', 'paused', 'completed', 'cancelled')
+      ),
+      state_version INTEGER NOT NULL DEFAULT 0 CHECK (state_version >= 0),
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      last_operation_id TEXT NOT NULL,
+      last_project_revision INTEGER NOT NULL CHECK (last_project_revision > 0),
+      last_authority_epoch INTEGER NOT NULL CHECK (last_authority_epoch >= 0),
+      UNIQUE (lifecycle_id, project_id),
+      CHECK (
+        (item_kind = 'milestone' AND slice_id IS NULL AND task_id IS NULL) OR
+        (item_kind = 'slice' AND slice_id IS NOT NULL AND task_id IS NULL) OR
+=== lifecycles for T01/T02/S01 ===
+Error: in prepare, no such column: item_id
+  select * from workflow_item_lifecycles where item_id in ('T01','T02','S01');
+                                 error here ---^

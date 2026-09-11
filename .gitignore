@@ -91,3 +91,34 @@ tmp/
 
 # ── M004 experiment run logs (transient, per-run JSONL) ──
 scripts/exp/runs/
+
+# ── GSD baseline (auto-generated) ──
+.gsd-worktrees/
+.gsd-backups/
+nul
+nul.*
+con
+con.*
+prn
+prn.*
+aux
+aux.*
+com[1-9]
+com[1-9].*
+lpt[1-9]
+lpt[1-9].*
+.gsd-migration-import-*/
+.gsd/forensics/
+.gsd/migration-applications/
+.gsd/recovery-applications/
+.gsd/parallel/
+.gsd/completed-units*.json
+.gsd/state-manifest.json
+.gsd/state.json
+.gsd/gsd.db*
+.gsd/journal/
+.gsd/doctor-history.jsonl
+.gsd/event-log.jsonl
+.gsd/DISCUSSION-MANIFEST.json
+.gsd/milestones/**/*-CONTINUE.md
+.gsd/milestones/**/continue.md

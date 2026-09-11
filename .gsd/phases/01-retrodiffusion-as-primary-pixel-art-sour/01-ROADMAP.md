@@ -25,4 +25,4 @@
 | Adaptation of pack-pixellab-sprites.mjs (or successor) to RD output format | Regenerating already-packed furniture assets |
 | Legacy M007/S02 renderer calibration for non-48px frames | New avatar features beyond walk/idle |
 | Decision record + pipeline design doc | Bulk regeneration of all legacy characters (follow-up) |
-<!-- gsd:state-version=2:0 -->
+<!-- gsd:state-version=20:0 -->

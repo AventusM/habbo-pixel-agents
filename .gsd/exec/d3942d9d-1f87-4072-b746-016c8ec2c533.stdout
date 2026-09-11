@@ -1,0 +1,9 @@
+ Test Files  38 passed (38)
+      Tests  605 passed (605)
+   Start at  22:12:47
+   Duration  3.11s (transform 1.25s, setup 745ms, collect 2.41s, tests 541ms, environment 627ms, prepare 4.38s)
+
+=== build:web ===
+✓ Standalone web built: dist/web/main.js
+✓ Web server module built: dist/web/server.mjs
+✓ Web assets copied to dist/web/

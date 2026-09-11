@@ -1,0 +1,20 @@
+{
+  "id": "985ca3be-e846-4032-a597-a598e617829c",
+  "runtime": "bash",
+  "purpose": "Inspect workflow attempts/lifecycles for M002 S01",
+  "script_chars": 643,
+  "started_at": "2026-09-10T19:16:17.262Z",
+  "finished_at": "2026-09-10T19:16:17.328Z",
+  "exit_code": 0,
+  "signal": null,
+  "timed_out": false,
+  "aborted": false,
+  "force_resolved": false,
+  "duration_ms": 66,
+  "stdout_bytes": 2633,
+  "stderr_bytes": 0,
+  "stdout_truncated": false,
+  "stderr_truncated": false,
+  "stdout_path": "/Users/antonmoroz/dev/habbo-pixel-agents/.gsd/exec/985ca3be-e846-4032-a597-a598e617829c.stdout",
+  "stderr_path": "/Users/antonmoroz/dev/habbo-pixel-agents/.gsd/exec/985ca3be-e846-4032-a597-a598e617829c.stderr"
+}

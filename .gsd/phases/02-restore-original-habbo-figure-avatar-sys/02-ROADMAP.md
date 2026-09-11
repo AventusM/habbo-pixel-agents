@@ -29,4 +29,4 @@
 | Figure asset download pipeline (local-only, gitignored) | Committing any figure assets (never) |
 | Renderer selection + fallback wiring | Changing the RD/PixelLab pipeline (stays as fallback) |
 | AvatarDebugGrid sprite-sheet debug view | Furniture pipeline changes |
-<!-- gsd:state-version=4:0 -->
+<!-- gsd:state-version=17:0 -->
