@@ -88,3 +88,6 @@ tmp/
 .gsd-id
 .gsd/hooks-feed.jsonl
 .gsd/scheduled_tasks.lock
+
+# ── M004 experiment run logs (transient, per-run JSONL) ──
+scripts/exp/runs/
