@@ -91,3 +91,11 @@ tmp/
 
 # ── M004 experiment run logs (transient, per-run JSONL) ──
 scripts/exp/runs/
+
+# ── M004 experiment lane worktrees (transient, removed by dispatch --cleanup) ──
+.worktrees/
+
+# ── GSD runtime transient dirs (per-run exec logs, UAT evidence staging) ──
+# Projections (*.md, *.jsonl logs) stay tracked; these regenerable dirs do not.
+.gsd/exec/
+.gsd/uat/
