@@ -5,7 +5,7 @@
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, existsSync, rmSync } from 'node:fs';
+import { mkdtempSync, readFileSync, existsSync, rmSync, readdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -85,6 +85,63 @@ describe('hook-record', () => {
     expect(res.status).toBe(0);
     expect(existsSync(out)).toBe(false);
     expect(String(res.stderr)).toMatch(/no run id/i);
+  });
+
+  it('writes nothing under scripts/exp/runs/ when no run id is present', () => {
+    const runsDir = join(process.cwd(), 'scripts', 'exp', 'runs');
+    const before = existsSync(runsDir)
+      ? new Set(
+          readdirSync(runsDir, { withFileTypes: true })
+            .filter((d) => d.isFile())
+            .map((d) => d.name),
+        )
+      : new Set<string>();
+
+    const res = spawnSync(
+      'node',
+      ['scripts/exp/hook-record.mjs', '--section', 'build', '--result', 'done'],
+      { encoding: 'utf8', cwd: process.cwd(), env: cleanEnv() },
+    );
+    expect(res.status).toBe(0);
+
+    if (!existsSync(runsDir)) return;
+    const after = new Set(
+      readdirSync(runsDir, { withFileTypes: true })
+        .filter((d) => d.isFile())
+        .map((d) => d.name),
+    );
+    expect(after).toEqual(before);
+  });
+
+  it('emitted record carries the schema-required correlation keys', () => {
+    const out = join(dir, 'schema.jsonl');
+    hook(
+      [
+        '--run-id', 'exp-test-schema',
+        '--issue', '81',
+        '--path', 'direct',
+        '--model', 'opencode-go/kimi-k2.7-code',
+        '--section', 'build',
+        '--result', 'done',
+        '--summary', 'schema check',
+      ],
+      out,
+    );
+
+    const recs = lines(out);
+    expect(recs).toHaveLength(1);
+    const r = recs[0];
+    for (const k of ['run_id', 'issue', 'path', 'model', 'section']) {
+      expect(r).toHaveProperty(k);
+    }
+    expect(r.run_id).toBe('exp-test-schema');
+    expect(r.issue).toBe(81);
+    expect(r.path).toBe('direct');
+    expect(r.model).toBe('opencode-go/kimi-k2.7-code');
+    expect(r.section).toBe('build');
+    expect(r.result).toBe('done');
+    expect(new Date(r.started_at).getTime()).not.toBeNaN();
+    expect(new Date(r.ended_at).getTime()).not.toBeNaN();
   });
 
   it('rejects an unknown section', () => {
