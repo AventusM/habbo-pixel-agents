@@ -94,4 +94,59 @@ describe('hook-record', () => {
     ).toThrow();
     expect(existsSync(out)).toBe(false);
   });
+
+  it('exits 0 and writes nothing under scripts/exp/runs/ when no run id is present', () => {
+    const runsDir = join(process.cwd(), 'scripts/exp/runs');
+    const existedBefore = existsSync(runsDir);
+    const filesBefore = existedBefore
+      ? new Set(execFileSync('ls', ['-A', runsDir], { encoding: 'utf8' }).trim().split('\n').filter(Boolean))
+      : new Set<string>();
+
+    const res = spawnSync(
+      'node',
+      ['scripts/exp/hook-record.mjs', '--section', 'build', '--result', 'done'],
+      { encoding: 'utf8', cwd: process.cwd(), env: cleanEnv() },
+    );
+
+    expect(res.status).toBe(0);
+
+    const existedAfter = existsSync(runsDir);
+    if (!existedBefore) {
+      expect(existedAfter).toBe(false);
+    } else {
+      const filesAfter = new Set(
+        execFileSync('ls', ['-A', runsDir], { encoding: 'utf8' }).trim().split('\n').filter(Boolean),
+      );
+      expect(filesAfter).toEqual(filesBefore);
+    }
+  });
+
+  it('emitted record contains schema-required keys', () => {
+    const out = join(dir, 'schema.jsonl');
+    hook(
+      [
+        '--run-id', 'exp-test-schema',
+        '--issue', '97',
+        '--path', 'gsd-loop',
+        '--model', 'opencode-go/qwen3-7-plus',
+        '--section', 'build',
+        '--result', 'done',
+        '--summary', 'schema check',
+      ],
+      out,
+    );
+
+    const recs = lines(out);
+    expect(recs).toHaveLength(1);
+    const rec = recs[0];
+
+    for (const key of ['run_id', 'issue', 'path', 'model', 'section']) {
+      expect(rec).toHaveProperty(key);
+    }
+    expect(rec.run_id).toBe('exp-test-schema');
+    expect(rec.issue).toBe(97);
+    expect(rec.path).toBe('gsd-loop');
+    expect(rec.model).toBe('opencode-go/qwen3-7-plus');
+    expect(rec.section).toBe('build');
+  });
 });
