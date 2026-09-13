@@ -1,16 +1,16 @@
 {
   "schema": 2,
   "lastWriter": "gsd-pi",
-  "lastProjectedAt": "2026-09-11T19:53:24.829Z",
+  "lastProjectedAt": "2026-09-13T19:24:55.605Z",
   "projections": {
     "phases/01-retrodiffusion-as-primary-pixel-art-sour/01-ROADMAP.md": {
-      "sha": "7664fea78c388e25",
+      "sha": "9ece1470358ec922",
       "entities": [
         "M001"
       ]
     },
     "DECISIONS.md": {
-      "sha": "720834b14ffc62a5",
+      "sha": "2a8523e61e404698",
       "entities": []
     },
     "phases/01-retrodiffusion-as-primary-pixel-art-sour/01-01-RESEARCH.md": {
@@ -28,7 +28,7 @@
       ]
     },
     "phases/02-restore-original-habbo-figure-avatar-sys/02-ROADMAP.md": {
-      "sha": "cceaf93125340e92",
+      "sha": "44998ce2e4a86f6a",
       "entities": [
         "M002"
       ]
@@ -41,7 +41,7 @@
       ]
     },
     "phases/03-refactor-architecture-map-failure-mode-h/03-ROADMAP.md": {
-      "sha": "d5be518aa4e6156a",
+      "sha": "46289019cc535fff",
       "entities": [
         "M003"
       ]
@@ -81,18 +81,44 @@
       ]
     },
     "phases/01-retrodiffusion-as-primary-pixel-art-sour/01-01-PLAN.md": {
-      "sha": "e649f0188dc1be32",
+      "sha": "4b24a8f1a8612acf",
       "entities": [
         "M001",
         "M001/S01"
       ]
     },
     "phases/01-retrodiffusion-as-primary-pixel-art-sour/S01-T01-SUMMARY.md": {
-      "sha": "5ed4c717f73c4fc6",
+      "sha": "cb1d9cba72d5328e",
       "entities": [
         "M001",
         "M001/S01",
         "M001/S01/T01"
+      ]
+    },
+    "phases/06-role-based-character-editor/06-ROADMAP.md": {
+      "sha": "47fe7beec701c42e",
+      "entities": [
+        "M006"
+      ]
+    },
+    "phases/05-omo-orchestration-layer-mapped-to-habbo/05-ROADMAP.md": {
+      "sha": "6caef7ded7b021b3",
+      "entities": [
+        "M005"
+      ]
+    },
+    "phases/01-retrodiffusion-as-primary-pixel-art-sour/S01-T02-SUMMARY.md": {
+      "sha": "02eaa5c34608a245",
+      "entities": [
+        "M001",
+        "M001/S01",
+        "M001/S01/T02"
+      ]
+    },
+    "phases/05-gsd-github-two-way-sync/05-ROADMAP.md": {
+      "sha": "aaa5b502276c6cc6",
+      "entities": [
+        "M005"
       ]
     }
   },

@@ -19,6 +19,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execFileSync } from 'node:child_process';
 import { WebSocketServer } from 'ws';
+import { mapFeedLineToRoomEvents } from './hooks-feed-mapper.mjs';
 
 // Dynamic import of the compiled server module (built by esbuild)
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -235,6 +236,11 @@ const wss = new WebSocketServer({ server });
 const clients = new Set();
 let lastKanbanCards = null; // Cache for new client sync
 
+// Hooks-feed bridge state: tail .gsd/hooks-feed.jsonl -> room avatars.
+// knownBridgeAgents dedupes agentCreated; bridgeCache powers late-join sync.
+const knownBridgeAgents = new Set();
+const bridgeCache = new Map(); // agentId -> { created, lastTool }
+
 wss.on('connection', (ws) => {
   clients.add(ws);
   console.log(`[WS] Client connected (${clients.size} total)`);
@@ -313,6 +319,15 @@ wss.on('connection', (ws) => {
     }
   }
 
+  // Send cached hooks-feed bridge agents to newly connected client
+  for (const [agentId, entry] of bridgeCache) {
+    ws.send(JSON.stringify(entry.created));
+    ws.send(JSON.stringify({ type: 'agentStatus', agentId, status: 'active' }));
+    if (entry.lastTool) {
+      ws.send(JSON.stringify(entry.lastTool));
+    }
+  }
+
   ws.on('close', () => {
     clients.delete(ws);
     console.log(`[WS] Client disconnected (${clients.size} remaining)`);
@@ -338,6 +353,7 @@ function broadcast(msg) {
 let agentManager = null;
 let kanbanPollId = null;
 let copilotMonitor = null;
+let hooksWatcher = null;
 
 async function startAgentManager() {
   try {
@@ -516,6 +532,78 @@ async function startAgentManager() {
   }
 }
 
+// --- Hooks feed bridge ---
+// Tails .gsd/hooks-feed.jsonl (written by the role-feed / room-tool-feed /
+// gsd-event-hook hooks) from EOF and maps each new line into room avatars via
+// mapFeedLineToRoomEvents. Deliberately independent of the compiled server
+// bundle so the bridge keeps working when dist/web/server.mjs is absent.
+function startHooksBridge() {
+  const feedPath = path.resolve(projectDir, '.gsd', 'hooks-feed.jsonl');
+  if (!fs.existsSync(feedPath)) {
+    console.log('[Hooks] No hooks-feed yet');
+    return;
+  }
+
+  let offset = fs.statSync(feedPath).size;
+  let pending = ''; // trailing partial line carried between events
+
+  const readNew = () => {
+    try {
+      const size = fs.statSync(feedPath).size;
+      if (size < offset) offset = 0; // truncated/rotated
+      if (size <= offset) return;
+
+      const bytes = size - offset;
+      const buf = Buffer.alloc(bytes);
+      const fd = fs.openSync(feedPath, 'r');
+      let read = 0;
+      try {
+        read = fs.readSync(fd, buf, 0, bytes, offset);
+      } finally {
+        fs.closeSync(fd);
+      }
+      offset += read;
+      pending += buf.toString('utf8', 0, read);
+
+      const lines = pending.split('\n');
+      pending = lines.pop(); // keep trailing partial line
+
+      for (const line of lines) {
+        const events = mapFeedLineToRoomEvents(line, knownBridgeAgents);
+        if (events.length === 0) continue;
+
+        for (const event of events) broadcast(event);
+
+        // Add AFTER the mapper call returns — mapFeedLineToRoomEvents never
+        // mutates the set, and agentCreated-first ordering is mandatory.
+        const agentId = events[0].agentId;
+        knownBridgeAgents.add(agentId);
+
+        for (const event of events) {
+          if (event.type === 'agentCreated') {
+            bridgeCache.set(agentId, { created: event, lastTool: null });
+            while (bridgeCache.size > 20) {
+              bridgeCache.delete(bridgeCache.keys().next().value);
+            }
+          } else if (event.type === 'agentTool') {
+            const entry = bridgeCache.get(agentId);
+            if (entry) entry.lastTool = event;
+          }
+        }
+
+        const toolEvt = events.find((e) => e.type === 'agentTool');
+        const text = toolEvt && toolEvt.displayText ? String(toolEvt.displayText) : '';
+        console.log(`[Hooks] ${agentId} ${text}`.slice(0, 120));
+      }
+    } catch {
+      // file being written concurrently; retry on next watch event
+    }
+  };
+
+  hooksWatcher = fs.watch(feedPath, () => { readNew(); });
+  console.log(`[Hooks] Bridge watching ${feedPath}`);
+}
+
 // --- Start ---
 server.listen(PORT, async () => {
   console.log(`\n  🏨 Habbo Room running at http://localhost:${PORT}`);
@@ -523,6 +611,7 @@ server.listen(PORT, async () => {
   console.log(`  🔌 WebSocket server ready\n`);
 
   await startAgentManager();
+  startHooksBridge();
 });
 
 // Graceful shutdown
@@ -533,6 +622,7 @@ process.on('SIGINT', () => {
   if (boardDebouncer) boardDebouncer.cancel();
   if (copilotMonitor) copilotMonitor.stop();
   if (agentManager) agentManager.dispose();
+  if (hooksWatcher) hooksWatcher.close();
   wss.close();
   server.close();
   process.exit(0);
@@ -544,6 +634,7 @@ process.on('SIGTERM', () => {
   if (boardDebouncer) boardDebouncer.cancel();
   if (copilotMonitor) copilotMonitor.stop();
   if (agentManager) agentManager.dispose();
+  if (hooksWatcher) hooksWatcher.close();
   wss.close();
   server.close();
   process.exit(0);

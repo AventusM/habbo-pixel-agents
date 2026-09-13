@@ -14,10 +14,15 @@ export default async () => ({
       const i = input as {
         tool?: string;
         args?: Record<string, unknown>;
+        sessionID?: string;
         session_id?: string;
       };
+      // opencode plugin API provides camelCase sessionID/filePath; snake_case
+      // kept as fallback for older/other hosts (room-tool-feed.mjs contract).
+      const sessionId = i?.sessionID ?? i?.session_id;
+      const filePath = i?.args?.filePath ?? i?.args?.file_path;
       const summary = String(
-        i?.args?.file_path ?? i?.args?.command ?? i?.tool ?? 'tool',
+        filePath ?? i?.args?.command ?? i?.tool ?? 'tool',
       ).slice(0, 120);
       appendFileSync(
         FEED,
@@ -25,7 +30,7 @@ export default async () => ({
           source: 'opencode-role-feed',
           ts: new Date().toISOString(),
           role: ROLE,
-          sessionId: i?.session_id,
+          sessionId,
           tool: i?.tool,
           summary,
         }) + '\n',

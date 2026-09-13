@@ -12,15 +12,6 @@
 
 ## Slices
 
-- [ ] **S01: Recover & adapt figure renderer code** `risk:medium` `depends:[]`
-  > After this: Figure renderer module + outfit config compile in-tree with restored tests passing under vitest (no in-app wiring yet).
-
-- [ ] **S02: Restore figure asset pipeline (local-only assets)** `risk:low` `depends:[S01]`
-  > After this: Running the download script fetches figure assets into assets/habbo/ (local only), converts to Nitro sprites, and the manifest lists figures; git status stays clean of figure files.
-
-- [ ] **S03: Wire figure renderer into the room + debug grid** `risk:medium` `depends:[S01,S02]`
-  > After this: Agents in localhost:3000 render as original Habbo figures, walking in all 8 directions with correct perspective; debug grid viewable for the figure atlas.
-
 ## Boundary Map
 
 | In scope | Out of scope |
@@ -29,4 +20,4 @@
 | Figure asset download pipeline (local-only, gitignored) | Committing any figure assets (never) |
 | Renderer selection + fallback wiring | Changing the RD/PixelLab pipeline (stays as fallback) |
 | AvatarDebugGrid sprite-sheet debug view | Furniture pipeline changes |
-<!-- gsd:state-version=17:0 -->
+<!-- gsd:state-version=52:0 -->

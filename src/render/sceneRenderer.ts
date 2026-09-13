@@ -28,6 +28,7 @@ import {
   type KanbanRenderState,
 } from '../isoKanbanRenderer.js';
 import { drawOrchestrationOverlay, type OrchestrationState } from '../isoOrchestrationOverlay.js';
+import { drawExpHistoryPanel, type ExpHistoryState } from '../expHistoryPanel.js';
 import { filterKanbanCards, type KanbanFilterMode } from '../kanbanFilter.js';
 import type { SectionManager } from '../sectionManager.js';
 import type { SpriteCache } from '../isoSpriteCache.js';
@@ -61,6 +62,7 @@ export interface SceneInputs {
   selectionManager: AvatarSelectionManager;
   teleportEffects: TeleportEffect[];
   orchState: OrchestrationState;
+  expHistory: ExpHistoryState;
   kanbanCards: KanbanCard[];
   kanbanFilter: KanbanFilterMode;
   expandedNote: string | null;
@@ -279,6 +281,9 @@ export function drawScene(s: SceneInputs, nowMs: number): TeleportEffect[] {
 
   // Orchestration overlay (right-side HUD)
   drawOrchestrationOverlay(ctx, s.orchState, canvasW, canvasH);
+
+  // Experiment history panel (left-side HUD)
+  drawExpHistoryPanel(ctx, s.expHistory, canvasW, canvasH);
 
   return s.teleportEffects;
 }

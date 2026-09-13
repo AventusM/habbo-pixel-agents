@@ -11,11 +11,8 @@
 
 ## Slices
 
-- [ ] **S01: Plan: RetroDiffusion as primary pixel-art source** `risk:low` `depends:[]`
+- [x] **S01: Plan: RetroDiffusion as primary pixel-art source** `risk:low` `depends:[]`
   > After this: A decision record in GSD DECISIONS plus a short pipeline design note: which RD styles/sizes to use for characters, expected cost per character set, and the flow RD output -> assets/ -> renderer.
-
-- [ ] **S02: Implement: RD generation -> pack -> render pipeline** `risk:medium` `depends:[S01]`
-  > After this: A new character spritesheet (e.g. habbo_inspiration_new successor) generated with RetroDiffusion, packed via the updated script, and the avatar walking in the Habbo room at the correct scale.
 
 ## Boundary Map
 
@@ -25,4 +22,4 @@
 | Adaptation of pack-pixellab-sprites.mjs (or successor) to RD output format | Regenerating already-packed furniture assets |
 | Legacy M007/S02 renderer calibration for non-48px frames | New avatar features beyond walk/idle |
 | Decision record + pipeline design doc | Bulk regeneration of all legacy characters (follow-up) |
-<!-- gsd:state-version=20:0 -->
+<!-- gsd:state-version=50:0 -->

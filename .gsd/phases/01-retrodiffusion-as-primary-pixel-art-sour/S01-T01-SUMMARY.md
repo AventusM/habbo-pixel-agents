@@ -43,4 +43,4 @@ None.
 ## Files Created/Modified
 
 - `docs/architecture/retrodiffusion-evidence.md`
-<!-- gsd:state-version=24:0 -->
+<!-- gsd:state-version=50:0 -->
