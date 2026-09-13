@@ -5,9 +5,9 @@
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, existsSync, rmSync } from 'node:fs';
+import { mkdtempSync, readFileSync, existsSync, readdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 
 let dir = '';
 
@@ -93,5 +93,67 @@ describe('hook-record', () => {
       hook(['--section', 'nope', '--result', 'done', '--run-id', 'exp-test-bad'], out),
     ).toThrow();
     expect(existsSync(out)).toBe(false);
+  });
+
+  // Issue #97, outcome 1: invoking hook-record with no --run-id and no EXP_RUN_ID
+  // must exit 0 and write nothing under the default scripts/exp/runs/ directory.
+  // (The existing "skips silently with exit 0" case passes --out explicitly; this
+  // case proves the default-out branch is also a no-op.)
+  it('exits 0 with no --run-id and no EXP_RUN_ID, writing nothing under scripts/exp/runs/', () => {
+    const runsDir = resolve(process.cwd(), 'scripts/exp/runs');
+    const snapshot = (): string[] =>
+      existsSync(runsDir) ? readdirSync(runsDir).sort() : [];
+    const before = snapshot();
+    const res = spawnSync(
+      'node',
+      ['scripts/exp/hook-record.mjs', '--section', 'build', '--result', 'done'],
+      { encoding: 'utf8', cwd: process.cwd(), env: cleanEnv() },
+    );
+    const after = snapshot();
+    expect(res.status).toBe(0);
+    expect(res.stderr).toMatch(/no run id/i);
+    expect(after).toEqual(before);
+  });
+
+  // Issue #97, outcome 2: an emitted record conforms to the schema-required keys
+  // declared in scripts/exp/schema.json (run_id, issue, path, model, sections).
+  // The hook emits one section record per call, so the section-level keys
+  // (run_id, issue, path, model) appear on the record itself; the aggregate
+  // `sections` key is enforced at the schema level and the section record also
+  // carries the section-level required keys (section, result) plus the
+  // started_at/ended_at date-time fields used downstream.
+  it('emitted record carries schema-required keys run_id, issue, path, model (plus section/result)', () => {
+    const schema = JSON.parse(
+      readFileSync(resolve(process.cwd(), 'scripts/exp/schema.json'), 'utf8'),
+    );
+    expect(schema.required).toEqual(['run_id', 'issue', 'path', 'model', 'sections']);
+    expect(schema.properties.sections.items.required).toEqual(['section', 'result']);
+
+    const out = join(dir, 'shape.jsonl');
+    const run = [
+      '--run-id', 'exp-shape-test',
+      '--issue', '97',
+      '--model', 'opencode-go/minimax-m3',
+      '--path', 'direct',
+    ];
+    hook(['--section', 'build', '--result', 'done', '--summary', 'schema shape check', ...run], out);
+
+    const recs = lines(out);
+    expect(recs).toHaveLength(1);
+    const r = recs[0];
+
+    for (const k of ['run_id', 'issue', 'path', 'model']) {
+      expect(r).toHaveProperty(k);
+    }
+    expect(r.run_id).toBe('exp-shape-test');
+    expect(r.issue).toBe(97);
+    expect(r.path).toBe('direct');
+    expect(r.model).toBe('opencode-go/minimax-m3');
+
+    expect(r.section).toBe('build');
+    expect(r.result).toBe('done');
+
+    expect(new Date(r.started_at).getTime()).not.toBeNaN();
+    expect(new Date(r.ended_at).getTime()).not.toBeNaN();
   });
 });
