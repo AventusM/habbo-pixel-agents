@@ -2,6 +2,8 @@
 // Unit tests for scripts/exp/hook-record.mjs: deterministic turn-end capture.
 // Simulates spec, worker, and review stop-hooks appending section records,
 // plus the silent skip when no run id is present and rejection of bad input.
+// Also covers the default-out-dir silent skip (nothing under scripts/exp/runs/)
+// and the record shape required by scripts/exp/schema.json.
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { execFileSync, spawnSync } from 'node:child_process';
@@ -93,5 +95,76 @@ describe('hook-record', () => {
       hook(['--section', 'nope', '--result', 'done', '--run-id', 'exp-test-bad'], out),
     ).toThrow();
     expect(existsSync(out)).toBe(false);
+  });
+
+  it('exits 0 and writes nothing under scripts/exp/runs/ when no run id and no --out', () => {
+    // Hermetic sandbox: the hook resolves its default out dir from cwd, so
+    // running from a fresh temp cwd keeps any accidental write out of the
+    // repo's real scripts/exp/runs/.
+    const cwd = mkdtempSync(join(tmpdir(), 'exp-norun-'));
+    try {
+      const res = spawnSync(
+        'node',
+        [join(process.cwd(), 'scripts/exp/hook-record.mjs'), '--section', 'build', '--result', 'done'],
+        { encoding: 'utf8', cwd, env: cleanEnv() },
+      );
+      expect(res.status).toBe(0);
+      expect(String(res.stderr)).toMatch(/no run id/i);
+      expect(existsSync(join(cwd, 'scripts', 'exp', 'runs'))).toBe(false);
+      expect(existsSync(join(cwd, 'scripts'))).toBe(false);
+    } finally {
+      rmSync(cwd, { recursive: true, force: true });
+    }
+  });
+
+  it('records contain the schema-required keys run_id, issue, path, model, sections', () => {
+    const out = join(dir, 'shape.jsonl');
+    const run = [
+      '--run-id', 'exp-test-shape',
+      '--issue', '97',
+      '--model', 'opencode-go/glm-5.2',
+      '--path', 'direct',
+    ];
+    hook(['--section', 'spec', '--result', 'done', '--summary', 'contract: 4 outcomes', ...run], out);
+    hook(['--section', 'build', '--result', 'done', '--summary', 'two fixture tests added', ...run], out);
+
+    const recs = lines(out);
+    expect(recs).toHaveLength(2);
+
+    for (const r of recs) {
+      expect(r.run_id).toBe('exp-test-shape');
+      expect(r.issue).toBe(97);
+      expect(r.path).toBe('direct');
+      expect(r.model).toBe('opencode-go/glm-5.2');
+    }
+
+    const schema = JSON.parse(readFileSync('scripts/exp/schema.json', 'utf8')) as {
+      required: string[];
+      properties: { sections: { items: { required: string[] } } };
+    };
+    expect(schema.required).toEqual(['run_id', 'issue', 'path', 'model', 'sections']);
+
+    // Each emitted line has the per-section keys the schema requires.
+    for (const r of recs) {
+      for (const k of schema.properties.sections.items.required) {
+        expect(r).toHaveProperty(k);
+      }
+    }
+
+    // The hook emits one section record per line; the per-run record it
+    // feeds (scripts/exp/schema.json) is assembled from those lines, so the
+    // schema-required top-level keys — including sections — are all present.
+    const runRecord: Record<string, unknown> = {
+      run_id: recs[0].run_id,
+      issue: recs[0].issue,
+      path: recs[0].path,
+      model: recs[0].model,
+      sections: recs,
+    };
+    for (const k of schema.required) {
+      expect(runRecord).toHaveProperty(k);
+      expect(runRecord[k]).not.toBeNull();
+      expect(runRecord[k]).not.toBeUndefined();
+    }
   });
 });
