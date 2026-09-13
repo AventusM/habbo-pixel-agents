@@ -1,7 +1,7 @@
 {
   "schema": 2,
   "lastWriter": "gsd-pi",
-  "lastProjectedAt": "2026-09-13T19:24:55.605Z",
+  "lastProjectedAt": "2026-09-13T20:22:21.731Z",
   "projections": {
     "phases/01-retrodiffusion-as-primary-pixel-art-sour/01-ROADMAP.md": {
       "sha": "9ece1470358ec922",
@@ -10,7 +10,7 @@
       ]
     },
     "DECISIONS.md": {
-      "sha": "2a8523e61e404698",
+      "sha": "b7f1f3086a434705",
       "entities": []
     },
     "phases/01-retrodiffusion-as-primary-pixel-art-sour/01-01-RESEARCH.md": {
@@ -68,13 +68,13 @@
       ]
     },
     "phases/04-experiment-harness-any-board-issue-via-d/04-ROADMAP.md": {
-      "sha": "9ecf41d5527b0e1a",
+      "sha": "ac7c0a84f47bbe69",
       "entities": [
         "M004"
       ]
     },
     "phases/04-experiment-harness-any-board-issue-via-d/04-01-PLAN.md": {
-      "sha": "2f9bee15e5fccf0e",
+      "sha": "a313da95cb63894a",
       "entities": [
         "M004",
         "M004/S01"
@@ -99,12 +99,6 @@
       "sha": "47fe7beec701c42e",
       "entities": [
         "M006"
-      ]
-    },
-    "phases/05-omo-orchestration-layer-mapped-to-habbo/05-ROADMAP.md": {
-      "sha": "6caef7ded7b021b3",
-      "entities": [
-        "M005"
       ]
     },
     "phases/01-retrodiffusion-as-primary-pixel-art-sour/S01-T02-SUMMARY.md": {
