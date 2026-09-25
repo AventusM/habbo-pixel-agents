@@ -1,0 +1,413 @@
+{
+  "version": 1,
+  "compiledAt": "2026-09-25T12:00:00.000Z",
+  "compiledBy": "claude",
+  "sources": [
+    {
+      "path": "AGENTS.md",
+      "sha": "ef79aa646d8bbe163df6df88706b09f3d985e633bd8a540590be3e1cae4e5909",
+      "scope": "**/*"
+    },
+    {
+      "path": "CLAUDE.md",
+      "sha": "51bc02c100b2e5c17c8b60384cac31c40ad248a8b91851a3eb78148c0ec7cf24",
+      "scope": "**/*"
+    }
+  ],
+  "rules": [
+    {
+      "id": "hooks-top-level",
+      "text": "Call React hooks only at the top level of components and custom hooks — never inside conditions, loops, or nested functions.",
+      "source": {
+        "path": "AGENTS.md",
+        "line": 37
+      },
+      "scope": [
+        "**/*.ts",
+        "**/*.tsx"
+      ],
+      "check": {
+        "type": "lint",
+        "how": "react-hooks/rules-of-hooks",
+        "overlaps": "react-hooks/rules-of-hooks"
+      },
+      "status": "active"
+    },
+    {
+      "id": "exhaustive-deps",
+      "text": "List every referenced value in `useEffect`, `useCallback`, and `useMemo` dependency arrays.",
+      "source": {
+        "path": "AGENTS.md",
+        "line": 39
+      },
+      "scope": [
+        "**/*.ts",
+        "**/*.tsx"
+      ],
+      "check": {
+        "type": "lint",
+        "how": "react-hooks/exhaustive-deps",
+        "overlaps": "react-hooks/exhaustive-deps"
+      },
+      "status": "active"
+    },
+    {
+      "id": "typescript-eslint-recommended",
+      "text": "Follow the typescript-eslint recommended set (no unsafe `any` escapes, no unused variables).",
+      "source": {
+        "path": "AGENTS.md",
+        "line": 40
+      },
+      "scope": [
+        "**/*.ts",
+        "**/*.tsx"
+      ],
+      "check": {
+        "type": "lint",
+        "how": "@typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars",
+        "overlaps": "@typescript-eslint/no-explicit-any"
+      },
+      "status": "active"
+    },
+    {
+      "id": "no-new-object-in-memo-props",
+      "text": "A change must not add a newly created object, array, or function literal to the props of a memoized component.",
+      "source": {
+        "path": "AGENTS.md",
+        "line": 44
+      },
+      "scope": [
+        "**/*.tsx"
+      ],
+      "when": "edit",
+      "check": {
+        "type": "model",
+        "question": {
+          "type": "boolean",
+          "instructions": "Does this change pass a newly created object literal `{...}`, array literal `[...]`, or inline arrow/function expression directly as a prop to a component wrapped in `React.memo()` or known to be memoized?",
+          "criteria": {
+            "true": "<MemoizedList items={[item1, item2]} /> or <MemoWidget config={{ size: 'large' }} />",
+            "false": "const items = useMemo(() => [item1, item2], [item1, item2]); <MemoizedList items={items} />"
+          }
+        }
+      },
+      "status": "active",
+      "calibration": {
+        "at": "2026-09-25T20:53:35.037Z",
+        "hunks": 1,
+        "median": 0.11,
+        "min": 0.11,
+        "max": 0.11,
+        "fired": 0,
+        "verdict": "skipped"
+      }
+    },
+    {
+      "id": "no-new-object-in-context-value",
+      "text": "A change that adds a `Context.Provider` must not inline a newly created object, array, or function as its `value` prop.",
+      "source": {
+        "path": "AGENTS.md",
+        "line": 46
+      },
+      "scope": [
+        "**/*.tsx"
+      ],
+      "when": "edit",
+      "check": {
+        "type": "model",
+        "question": {
+          "type": "boolean",
+          "instructions": "Does this change add a `Context.Provider` whose `value` prop is an inline object literal `{...}`, array literal `[...]`, or a newly created arrow/function expression rather than a stable reference?",
+          "criteria": {
+            "true": "<ThemeContext.Provider value={{ theme, setTheme }}>",
+            "false": "const ctx = useMemo(() => ({ theme, setTheme }), [theme, setTheme]); <ThemeContext.Provider value={ctx}>"
+          }
+        }
+      },
+      "status": "active",
+      "calibration": {
+        "at": "2026-09-25T20:53:35.037Z",
+        "hunks": 1,
+        "median": 0.03,
+        "min": 0.03,
+        "max": 0.03,
+        "fired": 0,
+        "verdict": "skipped"
+      }
+    },
+    {
+      "id": "no-derived-state-effect",
+      "text": "A change must not add a `useEffect` whose body only computes state that can be derived during render.",
+      "source": {
+        "path": "AGENTS.md",
+        "line": 48
+      },
+      "scope": [
+        "**/*.ts",
+        "**/*.tsx"
+      ],
+      "when": "edit",
+      "check": {
+        "type": "model",
+        "question": {
+          "type": "boolean",
+          "instructions": "Does this change add a `useEffect` whose only action is to call a state setter with a value computed purely from props or other state — work that could be replaced by a `useMemo` or a plain derived variable in the render body?",
+          "criteria": {
+            "true": "useEffect(() => { setFullName(first + ' ' + last); }, [first, last]);",
+            "false": "useEffect(() => { document.title = name; }, [name]);"
+          }
+        }
+      },
+      "status": "active",
+      "calibration": {
+        "at": "2026-09-25T20:53:35.037Z",
+        "hunks": 3,
+        "median": 0.02,
+        "min": 0.01,
+        "max": 0.09,
+        "fired": 0,
+        "verdict": "skipped"
+      }
+    },
+    {
+      "id": "no-listener-without-cleanup",
+      "text": "A change must not add an event listener, timer, or subscription without a matching cleanup in the same hook or component.",
+      "source": {
+        "path": "AGENTS.md",
+        "line": 50
+      },
+      "scope": [
+        "**/*.ts",
+        "**/*.tsx"
+      ],
+      "when": "edit",
+      "check": {
+        "type": "model",
+        "question": {
+          "type": "boolean",
+          "instructions": "Does this change add an `addEventListener`, `setTimeout`, `setInterval`, `requestAnimationFrame` loop, or subscription call (`.subscribe(`, `.on(`) inside a hook or component without a matching cleanup (`removeEventListener`, `clearTimeout`, `clearInterval`, `cancelAnimationFrame`, `.unsubscribe(`, `.off(`) returned from the same `useEffect` or executed in the same teardown?",
+          "criteria": {
+            "true": "useEffect(() => { window.addEventListener('resize', handler); }, []);",
+            "false": "useEffect(() => { window.addEventListener('resize', handler); return () => window.removeEventListener('resize', handler); }, []);"
+          }
+        }
+      },
+      "status": "active",
+      "calibration": {
+        "at": "2026-09-25T20:53:35.037Z",
+        "hunks": 3,
+        "median": 0.02,
+        "min": 0.02,
+        "max": 0.07,
+        "fired": 0,
+        "verdict": "skipped"
+      }
+    },
+    {
+      "id": "no-frame-allocations",
+      "text": "A change to the per-frame render path must not allocate new objects, arrays, or closures inside the frame function.",
+      "source": {
+        "path": "AGENTS.md",
+        "line": 52
+      },
+      "scope": [
+        "src/RoomCanvas.tsx",
+        "src/iso*Renderer*.ts"
+      ],
+      "when": "edit",
+      "check": {
+        "type": "model",
+        "question": {
+          "type": "boolean",
+          "instructions": "Does this change add object literals `{...}`, array literals `[...]`, or new function/arrow expressions inside the body of the per-frame draw or render function (the function called on each `requestAnimationFrame` tick or the main render loop)?",
+          "criteria": {
+            "true": "function drawFrame() { const pos = { x: 0, y: 0 }; render(pos); }",
+            "false": "const pos = { x: 0, y: 0 }; function drawFrame() { pos.x = newX; pos.y = newY; render(pos); }"
+          }
+        }
+      },
+      "status": "active",
+      "calibration": {
+        "at": "2026-09-25T20:53:35.037Z",
+        "hunks": 1,
+        "median": 0.39,
+        "min": 0.39,
+        "max": 0.39,
+        "fired": 0,
+        "verdict": "skipped"
+      }
+    },
+    {
+      "id": "no-fetch-in-components",
+      "text": "A change must not add `fetch`, XHR, or WebSocket calls inside React components — data flows through the existing clients (`src/web/wsClient.ts`, `src/githubProjects.ts`, `src/azureDevOpsBoards.ts`).",
+      "source": {
+        "path": "AGENTS.md",
+        "line": 54
+      },
+      "scope": [
+        "**/*.tsx"
+      ],
+      "when": "edit",
+      "check": {
+        "type": "model",
+        "question": {
+          "type": "boolean",
+          "instructions": "Does this change add a `fetch(`, `new XMLHttpRequest()`, or `new WebSocket(` call inside a React component function body or a custom hook defined in this diff?",
+          "criteria": {
+            "true": "function MyComponent() { useEffect(() => { fetch('/api/data').then(r => r.json()).then(setData); }, []); }",
+            "false": "import { wsClient } from '../web/wsClient'; function MyComponent() { wsClient.send(msg); }"
+          }
+        }
+      },
+      "status": "active",
+      "calibration": {
+        "at": "2026-09-25T20:53:35.037Z",
+        "hunks": 1,
+        "median": 0.06,
+        "min": 0.06,
+        "max": 0.06,
+        "fired": 0,
+        "verdict": "skipped"
+      }
+    },
+    {
+      "id": "no-host-modules-in-webview",
+      "text": "A change must not import extension-host-only modules (Node builtins, `vscode`) into webview or web bundles.",
+      "source": {
+        "path": "AGENTS.md",
+        "line": 57
+      },
+      "scope": [
+        "src/web/**/*.ts",
+        "src/web/**/*.tsx"
+      ],
+      "when": "edit",
+      "check": {
+        "type": "model",
+        "question": {
+          "type": "boolean",
+          "instructions": "Does this change add an import of a Node.js built-in module (`fs`, `path`, `os`, `child_process`, `crypto`, `stream`, etc.) or the `vscode` API into a file under the webview or web bundle directory?",
+          "criteria": {
+            "true": "import * as fs from 'fs'; // added in src/web/main.tsx",
+            "false": "import { wsClient } from './wsClient'; // browser-safe import"
+          }
+        }
+      },
+      "status": "active",
+      "calibration": {
+        "at": "2026-09-25T20:53:35.037Z",
+        "hunks": 0,
+        "median": 0,
+        "min": 0,
+        "max": 0,
+        "fired": 0,
+        "verdict": "skipped"
+      }
+    },
+    {
+      "id": "lazy-loading-fallback",
+      "text": "A change that adds a dynamically imported component (`React.lazy`, `import()`) must render a meaningful loading fallback while it loads.",
+      "source": {
+        "path": "AGENTS.md",
+        "line": 59
+      },
+      "scope": [
+        "**/*.tsx"
+      ],
+      "when": "edit",
+      "check": {
+        "type": "model",
+        "question": {
+          "type": "boolean",
+          "instructions": "Does this change add a `React.lazy(...)` import or a dynamic `import(...)` used as a component, without a `<Suspense fallback={...}>` wrapper whose fallback is a meaningful element (not `null`, `undefined`, or an empty fragment)?",
+          "criteria": {
+            "true": "const Chart = React.lazy(() => import('./Chart')); // used with <Suspense fallback={null}>",
+            "false": "const Chart = React.lazy(() => import('./Chart')); <Suspense fallback={<Spinner />}><Chart /></Suspense>"
+          }
+        }
+      },
+      "status": "active",
+      "calibration": {
+        "at": "2026-09-25T20:53:35.037Z",
+        "hunks": 1,
+        "median": 0.02,
+        "min": 0.02,
+        "max": 0.02,
+        "fired": 0,
+        "verdict": "skipped"
+      }
+    },
+    {
+      "id": "no-children-clone-for-state",
+      "text": "A change must not use `React.Children.map` with `cloneElement` to inject shared state into compound children — share state through context instead.",
+      "source": {
+        "path": "AGENTS.md",
+        "line": 61
+      },
+      "scope": [
+        "**/*.tsx"
+      ],
+      "when": "edit",
+      "check": {
+        "type": "model",
+        "question": {
+          "type": "boolean",
+          "instructions": "Does this change add a `React.Children.map(...)` call that uses `React.cloneElement(child, ...)` to inject shared state or shared handlers into children?",
+          "criteria": {
+            "true": "React.Children.map(children, child => React.cloneElement(child, { isSelected, onSelect }))",
+            "false": "<SelectionContext.Provider value={{ isSelected, onSelect }}>{children}</SelectionContext.Provider>"
+          }
+        }
+      },
+      "status": "active",
+      "calibration": {
+        "at": "2026-09-25T20:53:35.037Z",
+        "hunks": 1,
+        "median": 0.02,
+        "min": 0.02,
+        "max": 0.02,
+        "fired": 0,
+        "verdict": "skipped"
+      }
+    },
+    {
+      "id": "gsd-workflow",
+      "text": "Run every implementation change through the GSD workflow — orient with the MCP server, plan before writing code, record execution as you go, close milestones through validation.",
+      "source": {
+        "path": "AGENTS.md",
+        "line": 12
+      },
+      "check": {
+        "type": "unenforceable",
+        "reason": "about the agent's tool-use process, not the code it writes"
+      },
+      "status": "active"
+    },
+    {
+      "id": "terminal-line-length",
+      "text": "Keep every line of terminal output under ~140 characters; format JSON with `JSON.stringify(obj, null, 2)` and pipe large output through `head -c 5000`.",
+      "source": {
+        "path": "AGENTS.md",
+        "line": 72
+      },
+      "check": {
+        "type": "unenforceable",
+        "reason": "about terminal behaviour during a session, not the code written to disk"
+      },
+      "status": "active"
+    },
+    {
+      "id": "furniture-pipeline",
+      "text": "Add or replace a sprite: drop the PNG in `assets/pixellab/furniture/`, run the pack script, register it in `src/furnitureRegistry.ts`, then rebuild with `node esbuild.config.mjs`.",
+      "source": {
+        "path": "AGENTS.md",
+        "line": 80
+      },
+      "check": {
+        "type": "unenforceable",
+        "reason": "about procedural steps the agent must follow, not a code-shape that appears in a diff"
+      },
+      "status": "active"
+    }
+  ]
+}
