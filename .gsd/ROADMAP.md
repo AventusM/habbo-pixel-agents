@@ -8,3 +8,4 @@
 - 🔄 **M004: Experiment harness - any board issue via dynamic opencode-go models, visualized in the room** (`depends:[—]`)
 - ⬜ **M005: GSD↔GitHub Two-Way Sync** (`depends:[—]`)
 - ⬜ **M006: Role-Based Character Editor** (`depends:[—]`)
+- 🔄 **M007: Pattern-enforcement stack: curated patterns.dev skills + enforceable rules (ESLint + abide JEV) for agent-written code** (`depends:[—]`)

@@ -1,7 +1,7 @@
 {
   "schema": 2,
   "lastWriter": "gsd-pi",
-  "lastProjectedAt": "2026-09-13T20:22:21.731Z",
+  "lastProjectedAt": "2026-09-25T20:52:17.365Z",
   "projections": {
     "phases/01-retrodiffusion-as-primary-pixel-art-sour/01-ROADMAP.md": {
       "sha": "9ece1470358ec922",
@@ -10,7 +10,7 @@
       ]
     },
     "DECISIONS.md": {
-      "sha": "b7f1f3086a434705",
+      "sha": "3dfffaad4e08aac0",
       "entities": []
     },
     "phases/01-retrodiffusion-as-primary-pixel-art-sour/01-01-RESEARCH.md": {
@@ -68,7 +68,7 @@
       ]
     },
     "phases/04-experiment-harness-any-board-issue-via-d/04-ROADMAP.md": {
-      "sha": "ac7c0a84f47bbe69",
+      "sha": "2fc14f143104825b",
       "entities": [
         "M004"
       ]
@@ -96,7 +96,7 @@
       ]
     },
     "phases/06-role-based-character-editor/06-ROADMAP.md": {
-      "sha": "47fe7beec701c42e",
+      "sha": "e3e5d5fa87bb6a64",
       "entities": [
         "M006"
       ]
@@ -110,9 +110,99 @@
       ]
     },
     "phases/05-gsd-github-two-way-sync/05-ROADMAP.md": {
-      "sha": "aaa5b502276c6cc6",
+      "sha": "4d242bab2a670141",
       "entities": [
         "M005"
+      ]
+    },
+    "phases/04-experiment-harness-any-board-issue-via-d/04-02-PLAN.md": {
+      "sha": "447dff3ca2669166",
+      "entities": [
+        "M004",
+        "M004/S02"
+      ]
+    },
+    "phases/04-experiment-harness-any-board-issue-via-d/04-03-PLAN.md": {
+      "sha": "1fdcfe3ea593b2e7",
+      "entities": [
+        "M004",
+        "M004/S03"
+      ]
+    },
+    "phases/07-pattern-enforcement-stack-curated-patter/07-ROADMAP.md": {
+      "sha": "7b153298a09d95d6",
+      "entities": [
+        "M007"
+      ]
+    },
+    "phases/07-pattern-enforcement-stack-curated-patter/07-05-PLAN.md": {
+      "sha": "ded6af777446484f",
+      "entities": [
+        "M007",
+        "M007/S05"
+      ]
+    },
+    "phases/07-pattern-enforcement-stack-curated-patter/07-03-PLAN.md": {
+      "sha": "10c3b2a6c22111e0",
+      "entities": [
+        "M007",
+        "M007/S03"
+      ]
+    },
+    "phases/07-pattern-enforcement-stack-curated-patter/07-01-PLAN.md": {
+      "sha": "236a8937ee608225",
+      "entities": [
+        "M007",
+        "M007/S01"
+      ]
+    },
+    "phases/07-pattern-enforcement-stack-curated-patter/07-02-PLAN.md": {
+      "sha": "11f8acd341ee70f0",
+      "entities": [
+        "M007",
+        "M007/S02"
+      ]
+    },
+    "phases/07-pattern-enforcement-stack-curated-patter/07-04-PLAN.md": {
+      "sha": "ab8b9a471576bf14",
+      "entities": [
+        "M007",
+        "M007/S04"
+      ]
+    },
+    "phases/07-pattern-enforcement-stack-curated-patter/07-01-SUMMARY.md": {
+      "sha": "5f16d43729e0fb68",
+      "entities": [
+        "M007",
+        "M007/S01"
+      ]
+    },
+    "phases/07-pattern-enforcement-stack-curated-patter/07-02-SUMMARY.md": {
+      "sha": "1d12f98408500631",
+      "entities": [
+        "M007",
+        "M007/S02"
+      ]
+    },
+    "phases/07-pattern-enforcement-stack-curated-patter/07-05-SUMMARY.md": {
+      "sha": "6029dd81d3e1e1c8",
+      "entities": [
+        "M007",
+        "M007/S05"
+      ]
+    },
+    "phases/07-pattern-enforcement-stack-curated-patter/07-04-SUMMARY.md": {
+      "sha": "ba1e9582fa627529",
+      "entities": [
+        "M007",
+        "M007/S04"
+      ]
+    },
+    "phases/07-pattern-enforcement-stack-curated-patter/07-03-SUMMARY.md": {
+      "sha": "6798f5b3da6e1766",
+      "entities": [
+        "M007",
+        "M007/S03"
       ]
     }
   },
