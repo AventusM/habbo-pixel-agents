@@ -4,7 +4,6 @@ import {
   applyPan,
   applyZoom,
   screenToWorld,
-  applyCameraTransform,
   jumpToSection,
   clampZoom,
   setZoomWithPivot,

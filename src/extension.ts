@@ -47,19 +47,6 @@ function readAzureDevOpsConfig(): AzureDevOpsConfig {
   return { organization, project, pat, pollIntervalSeconds };
 }
 
-const DEMO_HEIGHTMAP = [
-  '0000000000',
-  '0111100000',
-  '0100000000',
-  '0100000000',
-  '0100000000',
-  '0000000000',
-  '0000000000',
-  '0000000000',
-  '0000000000',
-  '0000000000',
-].join('\n');
-
 export function activate(context: vscode.ExtensionContext) {
   // Load .env from workspace root (or extension root in dev mode)
   const wsRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || context.extensionUri.fsPath;

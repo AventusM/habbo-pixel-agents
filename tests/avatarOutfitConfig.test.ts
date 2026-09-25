@@ -14,7 +14,7 @@ import {
   outfitToFigureParts,
   getRequiredAssets,
 } from '../src/avatarOutfitConfig.js';
-import type { PartType, CatalogItem, OutfitConfig } from '../src/avatarOutfitConfig.js';
+import type { PartType, OutfitConfig } from '../src/avatarOutfitConfig.js';
 
 describe('avatarOutfitConfig', () => {
   // ---- Catalog tests ----

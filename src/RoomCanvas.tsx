@@ -80,10 +80,6 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
   // Maps agentId → booth tile {x, y}
   const pendingStepOutRef = useRef<Map<string, { x: number; y: number }>>(new Map());
 
-  // Agent popup card (shows role/team info on click)
-  const popupAgentRef = useRef<string | null>(null); // kept for click handling
-  const popupTimeRef = useRef<number>(0); // kept for click handling
-
   // Auto-follow camera toggle and state
   const autoFollowRef = useRef(false);
   const lastAutoFollowCheckRef = useRef<number>(0);
@@ -344,7 +340,7 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
               }
             } else {
               // Fallback: random tile
-              avatar = avatarManager.spawnAvatar(msg.agentId, msg.variant, grid, msg.terminalName, blocked, team);
+              avatarManager.spawnAvatar(msg.agentId, msg.variant, grid, msg.terminalName, blocked, team);
             }
 
             // Assign agent to section and record initial activity
@@ -1317,6 +1313,7 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
     <>
       {/* Layout editor panel hidden — controls moved to orchestration sidebar.
           Kept in codebase for reference; will be removed in a future cleanup phase. */}
+      {/* eslint-disable-next-line no-constant-binary-expression */}
       {false && <LayoutEditorPanel
         editorMode={editorMode}
         onModeChange={setEditorMode}

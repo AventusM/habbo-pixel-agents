@@ -5,7 +5,7 @@
 // respect to component state: every input arrives in SceneInputs.
 
 import { depthSort } from '../isoTypes.js';
-import type { Renderable, TileGrid, HsbColor } from '../isoTypes.js';
+import type { Renderable, TileGrid } from '../isoTypes.js';
 import { tileToScreen, TILE_W_HALF, TILE_H_HALF } from '../isometricMath.js';
 import { applyCameraTransform, type CameraState } from '../cameraController.js';
 import { blitVisibleSlice } from './layers.js';
@@ -22,7 +22,6 @@ import type { TeleportEffect } from '../teleportEffect.js';
 import { drawNameTag } from '../isoNameTagRenderer.js';
 import { drawSpeechBubble } from '../isoBubbleRenderer.js';
 import {
-  drawKanbanNotes,
   drawExpandedNote,
   drawExpandedAggregateNote,
   type KanbanRenderState,

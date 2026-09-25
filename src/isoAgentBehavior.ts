@@ -136,14 +136,7 @@ export function updateAvatarAlongPath(
 
   // Find current segment
   const segmentIndex = Math.floor(progress * (path.length - 1));
-  const segmentProgress = (progress * (path.length - 1)) % 1.0;
-
   const start = path[segmentIndex];
-  const end = path[Math.min(segmentIndex + 1, path.length - 1)];
-
-  // Lerp between start and end
-  const lerpX = start.screenX + (end.screenX - start.screenX) * segmentProgress;
-  const lerpY = start.screenY + (end.screenY - start.screenY) * segmentProgress;
 
   // Update spec with screen position (converted back to tile for rendering)
   // This is a simplification - actual implementation may store screen pos directly

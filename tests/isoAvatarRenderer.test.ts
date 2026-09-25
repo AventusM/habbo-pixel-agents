@@ -1,7 +1,7 @@
 // tests/isoAvatarRenderer.test.ts
 // Smoke tests for avatar renderer with 8-direction support
 
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { createAvatarRenderable, createNitroAvatarRenderable, buildFrameKey, updateAvatarAnimation, WALK_FRAME_DURATION_MS, BLINK_INTERVAL_MIN_MS, BLINK_INTERVAL_MAX_MS, BLINK_FRAME_DURATION_MS } from '../src/isoAvatarRenderer.js';
 import type { AvatarSpec } from '../src/isoAvatarRenderer.js';
 import { SpriteCache } from '../src/isoSpriteCache.js';
@@ -104,7 +104,7 @@ describe('isoAvatarRenderer', () => {
     const frameKeys = new Set<string>();
 
     for (const direction of directions) {
-      const spec: AvatarSpec = {
+      const _spec: AvatarSpec = {
         id: `av-dir-${direction}`,
         tileX: 0,
         tileY: 0,
@@ -133,7 +133,7 @@ describe('isoAvatarRenderer', () => {
     const frameKeys = new Set<string>();
 
     for (const variant of variants) {
-      const spec: AvatarSpec = {
+      const _spec: AvatarSpec = {
         id: `av-var-${variant}`,
         tileX: 0,
         tileY: 0,
@@ -158,7 +158,7 @@ describe('isoAvatarRenderer', () => {
   });
 
   it('idle vs walk state produces different frame keys', () => {
-    const idleSpec: AvatarSpec = {
+    const _idleSpec: AvatarSpec = {
       id: 'av-idle',
       tileX: 0,
       tileY: 0,
@@ -173,7 +173,7 @@ describe('isoAvatarRenderer', () => {
       spawnProgress: 0,
     };
 
-    const walkSpec: AvatarSpec = {
+    const _walkSpec: AvatarSpec = {
       id: 'av-walk',
       tileX: 0,
       tileY: 0,
@@ -215,7 +215,7 @@ describe('isoAvatarRenderer', () => {
     // Track drawImage calls to verify layer order
     const drawCalls: string[] = [];
     const mockCtx = {
-      drawImage: (...args: any[]) => {
+      drawImage: (..._args: any[]) => {
         // ImageBitmap argument is not available in test, but we can track the call
         drawCalls.push('drawImage');
       },

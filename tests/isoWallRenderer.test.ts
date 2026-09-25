@@ -4,7 +4,6 @@ import { describe, it, expect, vi } from 'vitest';
 import { parseHeightmap } from '../src/isoTypes.js';
 import { drawWallPanels } from '../src/isoWallRenderer.js';
 import { tileToScreen } from '../src/isometricMath.js';
-import { WALL_HEIGHT } from '../src/isoTileRenderer.js';
 
 /** Create a minimal mock CanvasRenderingContext2D for testing. */
 function makeMockCtx() {
@@ -89,7 +88,7 @@ describe('drawWallPanels', () => {
       drawWallPanels(ctx, grid, camera, DEFAULT_HSB);
 
       // moveTo calls include tile (0,0) screen-space offsets
-      const { x: sx, y: sy } = tileToScreen(0, 0, 0);
+      const { x: sx } = tileToScreen(0, 0, 0);
       const screenX = sx + camera.x;
       const moveArgs = (ctx.moveTo as ReturnType<typeof vi.fn>).mock.calls;
       // At least one moveTo should reference the corner screen position

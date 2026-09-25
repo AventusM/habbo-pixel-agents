@@ -51,7 +51,6 @@ export function isAgentCompleted(jsonlPath: string): boolean {
     // When reading from mid-file, the first line is likely truncated.
     // Skip it unless we read from the start of the file.
     const startIdx = readSize < stat.size && lines.length > 1 ? 1 : 0;
-    const lastLine = lines[lines.length - 1];
 
     // Try the last line first; if it fails (truncated), try working backwards
     let entry: { type?: string; message?: { stop_reason?: string } } | null = null;

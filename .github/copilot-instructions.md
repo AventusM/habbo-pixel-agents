@@ -18,6 +18,9 @@ npx vitest run
 
 # Type-check
 npx tsc --noEmit
+
+# Lint
+npm run lint
 ```
 
 Always run tests before committing. Always run the build to verify no errors.

@@ -180,7 +180,6 @@ export function getSectionFurniture(
   const {
     originTile,
     widthTiles: w,
-    heightTiles: h,
     teleportTile,
     deskTiles,
   } = section;

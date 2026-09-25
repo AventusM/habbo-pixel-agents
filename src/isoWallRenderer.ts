@@ -61,7 +61,7 @@ function wallPanelColors(hsb: HsbColor, face: 'left' | 'right'): {
  * Panel lines run parallel to the bottom edge (following isometric slope).
  * Each band is a parallelogram stripe clipped to the wall polygon.
  */
-function drawWallPanelLines(
+function _drawWallPanelLines(
   ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D,
   bottomPoints: Array<{ x: number; y: number }>,
   colors: { base: string; line: string; bandLight: string; bandDark: string },
@@ -164,7 +164,6 @@ export function drawWallPanels(
 
   if (leftEdge.length > 0) {
     const { left } = tileColors(tileHsb);
-    const panelColors = wallPanelColors(tileHsb, 'left');
     const bottomPoints: Array<{ x: number; y: number }> = [];
 
     // Start at back corner: top vertex of first left-edge tile
@@ -274,7 +273,6 @@ export function drawWallPanels(
 
   if (rightEdge.length > 0) {
     const { right } = tileColors(tileHsb);
-    const panelColors = wallPanelColors(tileHsb, 'right');
     const bottomPoints: Array<{ x: number; y: number }> = [];
 
     // Start at back corner: top vertex of first right-edge tile
@@ -493,7 +491,6 @@ export function drawWallEdges(
   const rawHsb = (tileColorMap && tileColorMap.get('0,0')) || hsb;
   // Walls are always neutral gray — strip saturation, keep brightness.
   const tileHsb: HsbColor = { h: rawHsb.h, s: 0, b: rawHsb.b };
-  const colors = tileColors(tileHsb);
 
   // --- LEFT WALL bottom-face + borders ---
   const leftEdge: Array<{ tx: number; ty: number; height: number }> = [];
@@ -519,7 +516,7 @@ export function drawWallEdges(
     }
 
     // Recess to match drawWallPanels
-    const recessedPts = pts.map(p => ({ x: p.x - WALL_THICKNESS, y: p.y - WALL_THICKNESS / 2 }));
+    const _recessedPts = pts.map(p => ({ x: p.x - WALL_THICKNESS, y: p.y - WALL_THICKNESS / 2 }));
 
   }
 
@@ -547,7 +544,7 @@ export function drawWallEdges(
     }
 
     // Recess to match drawWallPanels
-    const recessedPts = pts.map(p => ({ x: p.x + WALL_THICKNESS, y: p.y - WALL_THICKNESS / 2 }));
+    const _recessedPts = pts.map(p => ({ x: p.x + WALL_THICKNESS, y: p.y - WALL_THICKNESS / 2 }));
 
   }
 
@@ -574,7 +571,7 @@ export function drawWallEdges(
     if (leftPts.length > 1) {
       const lColors = wallPanelColors(tileHsb, 'left');
       // Recessed wall points (same offset as drawWallPanels)
-      const recessedPts = leftPts.map(p => ({ x: p.x - capD, y: p.y - capD / 2 }));
+      const _recessedPts = leftPts.map(p => ({ x: p.x - capD, y: p.y - capD / 2 }));
       ctx.strokeStyle = lColors.outline;
       ctx.lineWidth = 1;
     }

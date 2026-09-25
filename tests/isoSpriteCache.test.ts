@@ -6,11 +6,9 @@ import { SpriteCache, type SpriteManifest } from '../src/isoSpriteCache.js';
 
 describe('SpriteCache', () => {
   let cache: SpriteCache;
-  let mockImageBitmap: { width: number; height: number; close: () => void };
 
   beforeEach(() => {
     cache = new SpriteCache();
-    mockImageBitmap = { width: 512, height: 512, close: vi.fn() };
 
     // Mock createImageBitmap
     vi.stubGlobal('createImageBitmap', vi.fn(async (img: HTMLImageElement) => ({

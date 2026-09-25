@@ -129,21 +129,27 @@
     "dashboard": "node esbuild.config.mjs web && node bin/habbo-dashboard.mjs",
     "configure": "node scripts/configure.mjs",
     "typecheck": "tsc --noEmit",
+    "lint": "eslint src tests",
+    "lint:fix": "eslint src tests --fix",
     "test": "vitest run",
     "test:watch": "vitest",
     "arch:graph": "node scripts/generate-arch-graph.mjs"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@types/node": "^22.0.0",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@types/vscode": "^1.109.0",
     "@types/ws": "^8.18.1",
     "esbuild": "^0.27.3",
+    "eslint": "^10.11.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
     "happy-dom": "^20.7.0",
     "madge": "^8.0.0",
     "pngjs": "^7.0.0",
     "typescript": "^5.7.0",
+    "typescript-eslint": "^8.70.1",
     "vitest": "^3.0.0"
   },
   "dependencies": {

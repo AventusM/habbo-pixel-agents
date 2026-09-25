@@ -527,7 +527,6 @@ export class CopilotAgentMonitor {
           eventCount++;
 
           const displayText = formatCopilotToolCall(toolCall);
-          const phase = this.detectPhaseFromTool(toolCall);
 
           // Only emit if the display text actually changed
           if (displayText !== session.lastStatus) {
@@ -599,7 +598,7 @@ export class CopilotAgentMonitor {
 
   /** Close all active SSE connections */
   private closeAllSSEConnections(): void {
-    for (const [agentId, conn] of this.sseConnections) {
+    for (const [, conn] of this.sseConnections) {
       conn.controller.abort();
     }
     this.sseConnections.clear();
@@ -1150,7 +1149,6 @@ export class CopilotAgentMonitor {
       }
 
       // Log why we didn't find a match
-      const prNumbers = sessions.map((s) => s.resource_number);
       const hasPrMatch = sessions.some((s) => s.resource_number === prNumber);
       if (hasPrMatch) {
         const matching = sessions.filter((s) => s.resource_number === prNumber);

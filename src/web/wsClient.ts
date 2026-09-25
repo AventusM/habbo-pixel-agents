@@ -100,7 +100,7 @@ export function connectWs(url?: string): void {
     scheduleReconnect();
   };
 
-  ws.onerror = (err) => {
+  ws.onerror = () => {
     console.warn('[WS] Connection error');
     // onclose will fire after onerror — reconnect happens there
   };

@@ -29,7 +29,7 @@ const mockSpriteCache = {
     return null;
   },
 } as unknown as SpriteCache;
-import type { TileGrid, HsbColor } from '../src/isoTypes.js';
+import type { HsbColor } from '../src/isoTypes.js';
 import { parseHeightmap } from '../src/isoTypes.js';
 import type { FurnitureSpec, MultiTileFurnitureSpec } from '../src/isoFurnitureRenderer.js';
 

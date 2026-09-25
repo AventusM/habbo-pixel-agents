@@ -175,7 +175,7 @@ export class SpriteCache {
     const flipH = assetData ? (assetData.flipH ?? false) : false;
 
     // Look up frame in spritesheet — follow source chain if not found directly (max 3 hops)
-    let resolvedName = frameName;
+    const resolvedName = frameName;
     let frameData = nitroData.spritesheet.frames[resolvedName];
 
     if (!frameData) {
