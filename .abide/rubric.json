@@ -5,7 +5,7 @@
   "sources": [
     {
       "path": "AGENTS.md",
-      "sha": "ef79aa646d8bbe163df6df88706b09f3d985e633bd8a540590be3e1cae4e5909",
+      "sha": "58a4999d94dbffac132a9dfdbe71645d600e0dde238102c0667a6103cf01139e",
       "scope": "**/*"
     },
     {
@@ -369,6 +369,30 @@
         "fired": 0,
         "verdict": "skipped"
       }
+    },
+    {
+      "id": "no-app-logic-in-components",
+      "text": "A change must not add application logic — store subscriptions, manager construction, data wiring, or spawn/camera orchestration — directly inside a component body when it belongs in a custom hook, container, or store; local presentational state (a UI toggle, a hover index) is exempt.",
+      "source": {
+        "path": "AGENTS.md",
+        "line": 63
+      },
+      "scope": [
+        "**/*.tsx"
+      ],
+      "when": "edit",
+      "check": {
+        "type": "model",
+        "question": {
+          "type": "boolean",
+          "instructions": "Does this change add application or orchestration logic — store subscriptions, manager instantiation, data wiring, or spawn/camera orchestration — directly inside a React component body instead of a custom hook, container, or store? Local presentational state (a UI toggle, a hover index) does not count.",
+          "criteria": {
+            "true": "useEffect(() => agentStore.subscribe(...), []) added inside RoomCanvas.tsx",
+            "false": "const agents = useAgentStore(); the component renders; subscription and orchestration live in the hook/container"
+          }
+        }
+      },
+      "status": "active"
     },
     {
       "id": "gsd-workflow",

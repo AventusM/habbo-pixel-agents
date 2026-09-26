@@ -60,6 +60,10 @@ with in-turn repair). Every rule below is written as a concrete, diff-observable
   meaningful loading fallback while it loads.
 - A change must not use `React.Children.map` with `cloneElement` to inject shared state into
   compound children — share state through context instead.
+- A change must not add application logic — store subscriptions, manager construction, data
+  wiring, or spawn/camera orchestration — directly inside a component body when it belongs in a
+  custom hook, container, or store; local presentational state (a UI toggle, a hover index) is
+  exempt.
 
 ### Guidance tier (carried by skills, not enforced)
 
@@ -67,6 +71,15 @@ Broad pattern guidance lives in `.agents/skills/*/SKILL.md`: hooks, compound com
 props, presentational/container split, render optimization, observer, mediator, factory, module,
 dynamic import, bundle splitting, client-side rendering, virtual lists, AI UI. Load the relevant
 skill before frontend work; guidance is advisory and reviewed in code review, not by JEV.
+
+### Refactoring convention (selected pattern)
+
+Refactoring work — including the upcoming pattern-refactor milestone — follows
+**`presentational-container-pattern`**, in its modern form via **`hooks-pattern`**: application
+logic (state, effects, store subscriptions, data wiring, manager orchestration) lives in custom
+hooks, containers, or `src/state/` stores; components stay presentational — they receive data
+through props/hooks and only render. `src/RoomCanvas.tsx` is the reference extraction target:
+extract logic out of it, never grow application logic back into it.
 
 ## Terminal output safety
 
