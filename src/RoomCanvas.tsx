@@ -34,7 +34,9 @@ import { agentStore } from './state/agentStore.js';
 import { kanbanStore } from './state/kanbanStore.js';
 import { cameraStore } from './state/cameraStore.js';
 import { expRunStore } from './state/expRunStore.js';
+import { uiStore, selectDevMode } from './state/uiStore.js';
 import { syncExpRunsToAgents } from './expFeed.js';
+import { useStoreValue } from './hooks/useStoreValue.js';
 import { useKanbanFilter } from './hooks/useKanbanFilter.js';
 import { useRoomAudio } from './hooks/useRoomAudio.js';
 import { useAutoFollowCamera } from './hooks/useAutoFollowCamera.js';
@@ -55,12 +57,27 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
   // Canvas lifecycle, camera, input, layers and frame scheduling (M003/S03)
   const stageRef = useRef<CanvasStage | null>(null);
 
-  const { ensureInitialized, playSound, availableSounds } = useRoomAudio();
+  // Frame-path refs intentionally kept (M008/S03). These are imperative per-frame
+  // resources and scratch/hit-test state — NOT mirrors of a src/state value. They
+  // are refs so the render path stays allocation-free (no-frame-allocations) and
+  // per-tick mutation never re-renders React:
+  //   canvasRef / stageRef   — DOM canvas + stage handles (infra).
+  //   renderState            — mutable camera/editor/room scratch read each frame.
+  //   activeRendererRef      — avatar renderer instance; logged on change, not rendered.
+  //   kanbanRenderStateRef   — per-render kanban hit-test state, mutated in draw.
+  //   expandedNoteRef / noteOriginRef / expandedAggregateRef
+  //                          — "which note is open" local UI state the canvas reads
+  //                            directly; never needs a React render.
+  // Store-backed values (dev mode, audio readiness, kanban filter) are read through
+  // useStoreValue and are deliberately absent here.
+
+  const { ensureInitialized, playSound, availableSounds, ready } = useRoomAudio();
 
   const { setEnabled: setAutoFollow, tick: autoFollowTick } = useAutoFollowCamera();
 
-  // Dev mode flag (set by extension in Development mode)
-  const [devMode, setDevMode] = useState(false);
+  // Dev mode flag (set by extension in Development mode) — uiStore is the single
+  // source of truth; the bus writes it, the shell reads it back through the store.
+  const devMode = useStoreValue(uiStore, selectDevMode);
 
   // Kanban source filter (All / GSD only / Non-GSD) — mirrored from kanbanStore for the HUD.
   const kanbanFilter = useKanbanFilter();
@@ -340,7 +357,7 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
           break;
         }
         case 'devMode': {
-          setDevMode(msg.enabled);
+          uiStore.setDevMode(msg.enabled);
           break;
         }
         // Layout editor commands from sidebar control panel
@@ -1000,6 +1017,7 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
         onDevCapture={handleDevCapture}
         onPlaySound={playSound}
         availableSounds={availableSounds}
+        audioReady={ready}
         onRotate={() => {
           const spriteCache: SpriteCache | undefined = (window as any).spriteCache;
           const supported = spriteCache

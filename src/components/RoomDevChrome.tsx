@@ -18,6 +18,7 @@ export interface RoomDevChromeProps {
   onDevCapture: () => void;
   onPlaySound: (soundName: string) => void;
   availableSounds: string[];
+  audioReady?: boolean;
   onRotate: () => void;
   onSave: () => void;
   onLoad: (file: File) => void;
@@ -35,6 +36,7 @@ export function RoomDevChrome({
   onDevCapture,
   onPlaySound,
   availableSounds,
+  audioReady,
   onRotate,
   onSave,
   onLoad,
@@ -57,6 +59,7 @@ export function RoomDevChrome({
         onDebugGrid={undefined}
         onPlaySound={onPlaySound}
         availableSounds={availableSounds}
+        audioReady={audioReady}
         onRotate={onRotate}
         onSave={onSave}
         onLoad={onLoad}

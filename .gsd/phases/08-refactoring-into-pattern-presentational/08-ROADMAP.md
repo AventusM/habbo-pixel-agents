@@ -11,13 +11,10 @@
 
 ## Slices
 
-- [ ] **S03: Complete store wiring: remove mirrored and ref state** `risk:medium` `depends:[S01]`
-  > After this: Single source of truth per value; no setX mirrors of store data in the shell; behavior unchanged.
-
 - [ ] **S04: Convention sweep, UAT + closeout** `risk:low` `depends:[S02,S03]`
   > After this: Green gate matrix + signed UAT checklist; abide report shows no act verdicts; milestone validated.
 
 ## Boundary Map
 
 In scope: src/RoomCanvas.tsx, new src/hooks/*, presentational components extracted from the shell, shell store wiring. Out of scope: renderer internals (src/iso*Renderer*.ts, src/render/*), asset pipeline, integrations clients, agent provisioning; no visual redesign; no frame-path changes beyond preserving the allocation-free invariant.
-<!-- gsd:state-version=112:0 -->
+<!-- gsd:state-version=120:0 -->
