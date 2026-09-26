@@ -1,6 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { parseHeightmap } from './isoTypes.js';
-import { computeCameraOrigin, createFurnitureRenderables } from './isoTileRenderer.js';
 import { CanvasStage } from './render/CanvasStage.js';
 import { drawScene, type SceneInputs } from './render/sceneRenderer.js';
 import { computeFitZoom } from './render/roomBounds.js';
@@ -17,12 +16,10 @@ import {
   setTileColor,
   placeFurniture,
   rotateFurniture,
-  saveLayout,
-  loadLayout,
   type EditorMode,
   type EditorState,
 } from './isoLayoutEditor.js';
-import { getSupportedDirections, isChairType, isTeleportBooth } from './furnitureRegistry.js';
+import { getSupportedDirections, isChairType } from './furnitureRegistry.js';
 import { onMessage } from './bus.js';
 import type { ExtensionMessage, TeamSection } from './agentTypes.js';
 import { computeBlockedTiles } from './isoPathfinding.js';
@@ -46,6 +43,7 @@ import { RoomStage } from './components/RoomStage.js';
 import { RoomDevChrome } from './components/RoomDevChrome.js';
 import { useRoomHud } from './hooks/useRoomHud.js';
 import { useRoomInput } from './hooks/useRoomInput.js';
+import { useRoomEditorIO } from './hooks/useRoomEditorIO.js';
 
 interface RoomCanvasProps {
   heightmap: string;
@@ -187,26 +185,11 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
     renderState.current.editorState.furnitureDirection = furnitureDirection;
   }, [editorMode, selectedColor, selectedFurniture, furnitureDirection]);
 
-  /**
-   * Set a teleport booth's frame index (0=closed, 1=open) and rebuild renderables.
-   */
-  function setBoothFrame(tileX: number, tileY: number, frameIndex: number) {
-    const furniture = renderState.current.furniture;
-    const booth = furniture.find(
-      f => f.tileX === tileX && f.tileY === tileY && isTeleportBooth(f.name)
-    );
-    if (!booth) return;
-    booth.frameIndex = frameIndex;
-    const spriteCache: SpriteCache | undefined = (window as any).spriteCache;
-    if (spriteCache) {
-      renderState.current.furnitureRenderables = createFurnitureRenderables(
-        furniture,
-        renderState.current.multiTileFurniture,
-        spriteCache,
-        renderState.current.cameraOrigin,
-      );
-    }
-  }
+  // Layout editor + dev IO (M008/S04 T02): room-buffer (re)render, booth frame
+  // swaps, save/load and dev capture. Called before useRoomAgents so its
+  // setBoothFrame is available to the spawn/despawn orchestration.
+  const { renderRoomBuffer, reRenderRoom, setBoothFrame, handleSave, handleLoad, handleDevCapture } =
+    useRoomEditorIO({ canvasRef, stageRef, renderState });
 
   // Room orchestration hook (M008/S01): owns the lifecycle managers and the
   // agent spawn/despawn/status/tool/wander glue; the shell only consumes it.
@@ -861,98 +844,6 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
           idleWander.stopWandering(target.id);
         }
       }
-    }
-  };
-
-  /**
-   * (Re-)render the room layer. The layer is sized to the ROOM's world extent
-   * (not the viewport) via src/render/layers.ts; current call sites force a
-   * render (init, resize, booth frames, layout edits) — the invalidation key
-   * is in place for future incremental use.
-   */
-  function renderRoomBuffer() {
-    const canvas = canvasRef.current;
-    const stage = stageRef.current;
-    const grid = renderState.current.grid;
-    if (!canvas || !stage || !grid) return;
-    const spriteCache: SpriteCache | undefined = (window as any).spriteCache;
-    const result = stage.renderRoom({
-      grid,
-      canvasCssW: canvas.offsetWidth,
-      canvasCssH: canvas.offsetHeight,
-      version: `manual-${renderState.current.lastFrameTimeMs}-${grid.width}x${grid.height}`,
-      tileColorMap: renderState.current.tileColorMap,
-      furniture: renderState.current.furniture,
-      multiTileFurniture: renderState.current.multiTileFurniture,
-      spriteCache,
-    });
-    renderState.current.cameraOrigin = result.origin;
-    renderState.current.furnitureRenderables =
-      result.furnitureRenderables as Renderable[];
-  }
-
-  function reRenderRoom() {
-    renderRoomBuffer();
-  }
-
-  const handleSave = () => {
-    if (!renderState.current.grid) return;
-
-    const json = saveLayout(
-      renderState.current.grid,
-      renderState.current.tileColorMap,
-      renderState.current.furniture,
-      renderState.current.multiTileFurniture,
-      { x: 0, y: 0, z: 0, dir: 2 }
-    );
-
-    const blob = new Blob([json], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'layout.json';
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
-  const handleLoad = (file: File) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const text = e.target?.result as string;
-      if (!text || !canvasRef.current) return;
-
-      try {
-        const data = loadLayout(text);
-
-        const newGrid = parseHeightmap(data.heightmap);
-        renderState.current.grid = newGrid;
-        renderState.current.tileColorMap = new Map(Object.entries(data.tileColors));
-        renderState.current.furniture = data.furniture;
-        renderState.current.multiTileFurniture = data.multiTileFurniture;
-
-        renderState.current.cameraOrigin = computeCameraOrigin(
-          newGrid,
-          canvasRef.current.offsetWidth,
-          canvasRef.current.offsetHeight
-        );
-
-        reRenderRoom();
-        console.log('Layout loaded successfully');
-      } catch (error) {
-        console.error('Failed to load layout:', error);
-      }
-    };
-    reader.readAsText(file);
-  };
-
-  const handleDevCapture = () => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const screenshot = canvas.toDataURL('image/png');
-    const logs = [...((window as any).__devLogBuffer || [])];
-    const vscodeApi = (window as any).vscodeApi;
-    if (vscodeApi) {
-      vscodeApi.postMessage({ type: 'devCapture', screenshot, logs });
     }
   };
 
