@@ -1,7 +1,7 @@
 {
   "schema": 2,
   "lastWriter": "gsd-pi",
-  "lastProjectedAt": "2026-09-25T20:52:17.365Z",
+  "lastProjectedAt": "2026-09-26T09:05:30.243Z",
   "projections": {
     "phases/01-retrodiffusion-as-primary-pixel-art-sour/01-ROADMAP.md": {
       "sha": "9ece1470358ec922",
@@ -10,7 +10,7 @@
       ]
     },
     "DECISIONS.md": {
-      "sha": "3dfffaad4e08aac0",
+      "sha": "b19521a7578aae50",
       "entities": []
     },
     "phases/01-retrodiffusion-as-primary-pixel-art-sour/01-01-RESEARCH.md": {
@@ -68,7 +68,7 @@
       ]
     },
     "phases/04-experiment-harness-any-board-issue-via-d/04-ROADMAP.md": {
-      "sha": "2fc14f143104825b",
+      "sha": "5df8d42ead14229e",
       "entities": [
         "M004"
       ]
@@ -130,7 +130,7 @@
       ]
     },
     "phases/07-pattern-enforcement-stack-curated-patter/07-ROADMAP.md": {
-      "sha": "7b153298a09d95d6",
+      "sha": "4e818acc3d3f77a4",
       "entities": [
         "M007"
       ]
@@ -203,6 +203,12 @@
       "entities": [
         "M007",
         "M007/S03"
+      ]
+    },
+    "phases/08-refactoring-into-pattern-presentational/08-ROADMAP.md": {
+      "sha": "77a834e5c73fd3f5",
+      "entities": [
+        "M008"
       ]
     }
   },

@@ -11,16 +11,10 @@
 
 ## Slices
 
-- [ ] **S01: Capture schema + translators (zeroshot vs loop sections)** `risk:medium` `depends:[]`
-  > After this: Translator converts a zeroshot sample run and gsd-loop artifacts (e.g. #79/#92) into uniform per-run JSONL section records; unit tests pass on fixtures.
-
-- [ ] **S02: Dispatch harness - any board issue to N dynamic opencode-go models** `[sketch]` `risk:medium` `depends:[S01]`
-  > After this: A benchmark issue is dispatched to 2+ dynamically-chosen opencode-go models; namespaced draft PRs open; per-run hook records emitted.
-
-- [ ] **S03: Room agents (dynamic N) + history panel** `[sketch]` `risk:medium` `depends:[S01,S02]`
+- [ ] **S03: Room agents (dynamic N) + history panel** `risk:medium` `depends:[S01,S02]`
   > After this: A simultaneous multi-model run renders one room agent per active run plus a viewport history panel with per-agent summaries and PR links; owner gives visual sign-off.
 
 ## Boundary Map
 
 Not provided.
-<!-- gsd:state-version=60:0 -->
+<!-- gsd:state-version=91:0 -->

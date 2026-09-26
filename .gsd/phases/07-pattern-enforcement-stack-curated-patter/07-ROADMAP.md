@@ -12,22 +12,7 @@
 
 ## Slices
 
-- [ ] **S01: Curated patterns.dev skills installed (OpenCode, project-pinned)** `risk:low` `depends:[]`
-  > After this: A new opencode session lists the curated skills and can load one; the refresh procedure is documented.
-
-- [ ] **S02: Fresh AGENTS.md: curated enforceable rules + positive-form GSD mandate** `risk:medium` `depends:[S01]`
-  > After this: AGENTS.md exists with ~10-20 curated rules, each either diff-checkable (JEV candidate) or explicitly delegated to ESLint; GSD mandate reads as positive steps; no contradictions with CLAUDE.md and copilot-instructions.
-
-- [ ] **S03: ESLint gate (typescript-eslint + react-hooks) wired into CI** `risk:medium` `depends:[]`
-  > After this: npm run lint exits 0 locally; CI runs it on PR and push; a deliberately bad hook call fails lint.
-
-- [ ] **S04: abide JEV trial stood up (project-local, OpenCode)** `risk:high` `depends:[S02]`
-  > After this: .abide/rubric.json present with calibrated rules; abide audit runs against the repo and reports banded verdicts; key placement documented for the user.
-
-- [ ] **S05: Spec: GSD process hook gate (warn-first, cross-harness)** `risk:low` `depends:[]`
-  > After this: A docs spec covers detection signals, state storage, warn and block modes, exemptions, per-harness hook wiring, and a warn-first rollout plan.
-
 ## Boundary Map
 
 Not provided.
-<!-- gsd:state-version=77:0 -->
+<!-- gsd:state-version=86:0 -->
