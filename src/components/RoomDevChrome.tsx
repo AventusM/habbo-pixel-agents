@@ -5,7 +5,7 @@
 // logic; the shell owns the editor state, the open/close state and every
 // callback (including the rotate resolver).
 import type { CSSProperties } from 'react';
-import type { EditorMode } from '../isoLayoutEditor.js';
+import type { EditorMode, PlacedFurnitureInfo } from '../isoLayoutEditor.js';
 import type { HsbColor } from '../isoTypes.js';
 import { LayoutEditorPanel } from '../LayoutEditorPanel.js';
 
@@ -25,6 +25,10 @@ export interface RoomDevChromeProps {
   onRotate: () => void;
   onSave: () => void;
   onLoad: (file: File) => void;
+  selectedPlacement?: PlacedFurnitureInfo | null;
+  moveArmed?: boolean;
+  onMoveSelected?: () => void;
+  onDeleteSelected?: () => void;
   /** Whether the layout editor panel is expanded (shell-owned). */
   editorOpen: boolean;
   /** Toggle the layout editor panel (shell-owned). */
@@ -62,6 +66,10 @@ export function RoomDevChrome({
   onRotate,
   onSave,
   onLoad,
+  selectedPlacement,
+  moveArmed,
+  onMoveSelected,
+  onDeleteSelected,
   editorOpen,
   onEditorToggle,
 }: RoomDevChromeProps) {
@@ -94,6 +102,10 @@ export function RoomDevChrome({
           onSave={onSave}
           onLoad={onLoad}
           onClose={onEditorToggle}
+          selectedPlacement={selectedPlacement}
+          moveArmed={moveArmed}
+          onMoveSelected={onMoveSelected}
+          onDeleteSelected={onDeleteSelected}
         />
       )}
     </>

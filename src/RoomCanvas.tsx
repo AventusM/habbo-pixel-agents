@@ -149,6 +149,7 @@ export function RoomCanvas({
   }, []);
 
   const handleMoveConsumed = useCallback(() => setMoveArmed(false), []);
+  const handleArmMove = useCallback(() => setMoveArmed(true), []);
 
   const renderState = useRef<{
     cameraOrigin: { x: number; y: number };
@@ -545,6 +546,10 @@ export function RoomCanvas({
         onPlaySound={playSound}
         availableSounds={availableSounds}
         audioReady={ready}
+        selectedPlacement={selectedFurnitureInfo}
+        moveArmed={moveArmed}
+        onMoveSelected={handleArmMove}
+        onDeleteSelected={furnitureEditor.deleteSelected}
         onRotate={() => {
           const spriteCache: SpriteCache | undefined = (window as any).spriteCache;
           const supported = spriteCache

@@ -7,7 +7,7 @@
 // exempt under D021). No host imports, no application logic.
 
 import { useState, type CSSProperties, type ChangeEvent } from 'react';
-import type { EditorMode } from './isoLayoutEditor.js';
+import type { EditorMode, PlacedFurnitureInfo } from './isoLayoutEditor.js';
 import type { HsbColor } from './isoTypes.js';
 import { getCatalogByCategory, CATEGORY_LABELS } from './furnitureRegistry.js';
 
@@ -24,6 +24,11 @@ export interface LayoutEditorPanelProps {
   onLoad: (file: File) => void;
   /** Collapse the panel (shell-owned open state). */
   onClose: () => void;
+  /** Selected placed item — distinct from `selectedFurniture`, the type to place. */
+  selectedPlacement?: PlacedFurnitureInfo | null;
+  moveArmed?: boolean;
+  onMoveSelected?: () => void;
+  onDeleteSelected?: () => void;
   devMode?: boolean;
   onDevCapture?: () => void;
   onDebugGrid?: () => void;
@@ -138,6 +143,25 @@ const fileLabelStyle: CSSProperties = {
 
 const hiddenInputStyle: CSSProperties = { display: 'none' };
 
+const selectedItemStyle: CSSProperties = {
+  marginTop: 4,
+  padding: '4px 6px',
+  borderRadius: 4,
+  background: 'rgba(0, 102, 204, 0.25)',
+  border: '1px solid rgba(0, 255, 255, 0.5)',
+};
+
+const deleteButtonStyle: CSSProperties = {
+  ...buttonStyle,
+  background: '#7f1d1d',
+};
+
+const hintStyle: CSSProperties = {
+  marginTop: 4,
+  fontSize: 10,
+  opacity: 0.75,
+};
+
 export function LayoutEditorPanel({
   editorMode,
   onModeChange,
@@ -150,6 +174,10 @@ export function LayoutEditorPanel({
   onSave,
   onLoad,
   onClose,
+  selectedPlacement,
+  moveArmed,
+  onMoveSelected,
+  onDeleteSelected,
   devMode,
   onDevCapture,
   onDebugGrid,
@@ -262,6 +290,36 @@ export function LayoutEditorPanel({
           <button type="button" onClick={onRotate} style={buttonStyle}>
             Rotate (dir: {furnitureDirection})
           </button>
+          {selectedPlacement ? (
+            <>
+              <div style={selectedItemStyle} data-selected-furniture="true">
+                Selected: {selectedPlacement.name} @ ({selectedPlacement.tileX},{selectedPlacement.tileY})
+              </div>
+              {onMoveSelected && (
+                <button
+                  type="button"
+                  onClick={onMoveSelected}
+                  style={moveArmed ? activeButtonStyle : buttonStyle}
+                  data-move-selected="true"
+                >
+                  {moveArmed ? 'Move: click a tile' : 'Move'}
+                </button>
+              )}
+              {onDeleteSelected && (
+                <button
+                  type="button"
+                  onClick={onDeleteSelected}
+                  style={deleteButtonStyle}
+                  data-delete-selected="true"
+                >
+                  Delete
+                </button>
+              )}
+              <div style={hintStyle}>Drag the item, or press Delete / Backspace</div>
+            </>
+          ) : (
+            <div style={hintStyle}>Click a placed item to select it</div>
+          )}
         </div>
       )}
 

@@ -209,6 +209,52 @@ describe('RoomDevChrome render parity', () => {
   });
 });
 
+describe('LayoutEditorPanel furniture affordances', () => {
+  const baseProps = {
+    editorMode: 'furniture' as EditorMode,
+    onModeChange: () => undefined,
+    selectedColor: { h: 0, s: 0, b: 100 } as HsbColor,
+    onColorChange: () => undefined,
+    selectedFurniture: 'hc_chr',
+    onFurnitureChange: () => undefined,
+    furnitureDirection: 0,
+    onRotate: () => undefined,
+    onSave: () => undefined,
+    onLoad: () => undefined,
+    onClose: () => undefined,
+  };
+
+  it('shows the selected-item indicator, Move and Delete with the key hint', () => {
+    const html = renderToStaticMarkup(
+      React.createElement(LayoutEditorPanel, {
+        ...baseProps,
+        selectedPlacement: {
+          id: 'f1',
+          kind: 'single' as const,
+          name: 'chair',
+          tileX: 2,
+          tileY: 3,
+          tileZ: 0,
+        },
+        onMoveSelected: () => undefined,
+        onDeleteSelected: () => undefined,
+      }),
+    );
+    expect(html).toContain('data-selected-furniture="true"');
+    expect(html).toContain('chair');
+    expect(html).toContain('data-move-selected="true"');
+    expect(html).toContain('data-delete-selected="true"');
+    expect(html).toContain('Delete / Backspace');
+  });
+
+  it('shows a select prompt and no affordances when nothing is selected', () => {
+    const html = renderToStaticMarkup(React.createElement(LayoutEditorPanel, baseProps));
+    expect(html).not.toContain('data-selected-furniture="true"');
+    expect(html).not.toContain('data-delete-selected="true"');
+    expect(html).toContain('Click a placed item to select it');
+  });
+});
+
 describe('CharacterEditorPanel render + handler parity', () => {
   const roles: TeamSection[] = ['planning', 'core-dev', 'infrastructure', 'support'];
   const hairOptions = FIGURE_CATALOG.filter((item) => item.category === 'hair');
