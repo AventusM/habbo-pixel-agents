@@ -8,12 +8,11 @@ import { useCallback } from 'react';
 import type { MouseEvent as ReactMouseEvent, RefObject } from 'react';
 import { kanbanStore } from '../state/kanbanStore.js';
 import { screenToWorld } from '../cameraController.js';
-import { toggleTileWalkability, setTileColor, placeFurniture } from '../isoLayoutEditor.js';
+import { toggleTileWalkability, setTileColor } from '../isoLayoutEditor.js';
 import { isChairType } from '../furnitureRegistry.js';
 import { computeBlockedTiles } from '../isoPathfinding.js';
 import { pointInQuad, type KanbanRenderState } from '../isoKanbanRenderer.js';
 import type { HsbColor } from '../isoTypes.js';
-import type { SpriteCache } from '../isoSpriteCache.js';
 import type { AvatarManager } from '../avatarManager.js';
 import type { AvatarSelectionManager } from '../avatarSelection.js';
 import type { IdleWanderManager } from '../idleWander.js';
@@ -146,6 +145,10 @@ export function useRoomInteraction({
         }
       }
 
+      // Furniture placement/selection/move/delete is owned by
+      // useRoomFurnitureEditor via mousedown/mousemove/mouseup.
+      if (renderState.current.editorState.mode === 'furniture') return;
+
       const clickedCoords = mouseToTile(event.clientX, event.clientY);
       if (!clickedCoords) return;
 
@@ -164,22 +167,6 @@ export function useRoomInteraction({
       if (renderState.current.editorState.mode === 'color') {
         setTileColor(renderState.current.tileColorMap, tileX, tileY, selectedColor);
         reRenderRoom();
-        return;
-      }
-
-      if (renderState.current.editorState.mode === 'furniture') {
-        const furnitureType = renderState.current.editorState.selectedFurniture || 'exe_chair';
-        const direction = renderState.current.editorState.furnitureDirection ?? 0;
-        const spriteCache: SpriteCache | undefined = (window as any).spriteCache;
-        console.log(`[Furniture] Placing ${furnitureType} at (${tileX},${tileY}) dir=${direction}`);
-        const placed = placeFurniture(
-          renderState.current.grid,
-          renderState.current.furniture,
-          renderState.current.multiTileFurniture,
-          tileX, tileY, furnitureType, direction,
-          spriteCache,
-        );
-        if (placed) reRenderRoom();
         return;
       }
 

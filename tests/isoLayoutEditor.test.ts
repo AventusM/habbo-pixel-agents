@@ -5,6 +5,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import {
   getHoveredTile,
   drawHoverHighlight,
+  drawFurnitureSelection,
   toggleTileWalkability,
   setTileColor,
   gridToHeightmap,
@@ -191,6 +192,18 @@ describe('drawHoverHighlight', () => {
     expect(() => {
       drawHoverHighlight(ctx, 2, 2, 5, { x: 400, y: 300 });
     }).not.toThrow();
+  });
+});
+
+describe('drawFurnitureSelection', () => {
+  it('draws a cyan outline without throwing', () => {
+    const canvas = new OffscreenCanvas(200, 200) as unknown as HTMLCanvasElement;
+    const ctx = canvas.getContext('2d') as CanvasRenderingContext2D;
+
+    expect(() => {
+      drawFurnitureSelection(ctx, 1, 1, 0, { x: 100, y: 100 });
+    }).not.toThrow();
+    expect(ctx.strokeStyle).toBe('rgba(0, 255, 255, 0.9)');
   });
 });
 

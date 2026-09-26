@@ -27,6 +27,10 @@ export interface EditorState {
   selectedColor: HsbColor;
   selectedFurniture?: string;
   furnitureDirection?: number;
+  /** Id of the placed furniture item currently selected (M009/S02). */
+  selectedFurnitureId?: string | null;
+  /** Tile of the selected placed item, used for the canvas selection highlight. */
+  selectedFurnitureTile?: { x: number; y: number; z: number } | null;
 }
 
 /**
@@ -111,6 +115,35 @@ export function drawHoverHighlight(
   ctx.stroke();
 
   // Restore context state
+  ctx.restore();
+}
+
+/**
+ * Draw a cyan rhombus outline at a selected placed furniture's tile.
+ * Distinct from the yellow hover highlight so both can read at once.
+ */
+export function drawFurnitureSelection(
+  ctx: CanvasRenderingContext2D,
+  tileX: number,
+  tileY: number,
+  tileZ: number,
+  cameraOrigin: { x: number; y: number },
+): void {
+  const { x: sx, y: sy } = tileToScreen(tileX, tileY, tileZ);
+
+  ctx.save();
+  ctx.translate(cameraOrigin.x, cameraOrigin.y);
+  ctx.strokeStyle = 'rgba(0, 255, 255, 0.9)';
+  ctx.lineWidth = 2;
+
+  ctx.beginPath();
+  ctx.moveTo(sx, sy);
+  ctx.lineTo(sx + TILE_W_HALF, sy + TILE_H_HALF);
+  ctx.lineTo(sx, sy + TILE_H_HALF * 2);
+  ctx.lineTo(sx - TILE_W_HALF, sy + TILE_H_HALF);
+  ctx.closePath();
+  ctx.stroke();
+
   ctx.restore();
 }
 

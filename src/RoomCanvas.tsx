@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { parseHeightmap } from './isoTypes.js';
 import { CanvasStage } from './render/CanvasStage.js';
 import { drawScene, type SceneInputs } from './render/sceneRenderer.js';
@@ -14,6 +14,7 @@ import {
   rotateFurniture,
   type EditorMode,
   type EditorState,
+  type PlacedFurnitureInfo,
 } from './isoLayoutEditor.js';
 import { getSupportedDirections } from './furnitureRegistry.js';
 import { drawKanbanNotes, createKanbanRenderState, type KanbanRenderState } from './isoKanbanRenderer.js';
@@ -37,6 +38,8 @@ import { useRoomHud } from './hooks/useRoomHud.js';
 import { useRoomInput } from './hooks/useRoomInput.js';
 import { useRoomEditorIO } from './hooks/useRoomEditorIO.js';
 import { useRoomInteraction } from './hooks/useRoomInteraction.js';
+import { useRoomFurnitureEditor } from './hooks/useRoomFurnitureEditor.js';
+import { useRoomEditorKeyboard } from './hooks/useRoomEditorKeyboard.js';
 import { useRoomMessages } from './hooks/useRoomMessages.js';
 import { useKanbanKeyboard } from './hooks/useKanbanKeyboard.js';
 import { CharacterEditorPanel } from './components/CharacterEditorPanel.js';
@@ -134,6 +137,19 @@ export function RoomCanvas({
   const [selectedFurniture, setSelectedFurniture] = useState<string>('hc_chr');
   const [furnitureDirection, setFurnitureDirection] = useState<number>(0);
 
+  // Selected placed furniture item (distinct from selectedFurniture, the type
+  // to place) plus the move-armed flag. Shell-owned so the panel indicator and
+  // the canvas highlight read the same state (M009/S02).
+  const [selectedFurnitureInfo, setSelectedFurnitureInfo] = useState<PlacedFurnitureInfo | null>(null);
+  const [moveArmed, setMoveArmed] = useState(false);
+
+  const handleFurnitureSelection = useCallback((info: PlacedFurnitureInfo | null) => {
+    setSelectedFurnitureInfo(info);
+    setMoveArmed(false);
+  }, []);
+
+  const handleMoveConsumed = useCallback(() => setMoveArmed(false), []);
+
   const renderState = useRef<{
     cameraOrigin: { x: number; y: number };
     lastFrameTimeMs: number;
@@ -178,7 +194,11 @@ export function RoomCanvas({
     renderState.current.editorState.selectedColor = selectedColor;
     renderState.current.editorState.selectedFurniture = selectedFurniture;
     renderState.current.editorState.furnitureDirection = furnitureDirection;
-  }, [editorMode, selectedColor, selectedFurniture, furnitureDirection]);
+    renderState.current.editorState.selectedFurnitureId = selectedFurnitureInfo?.id ?? null;
+    renderState.current.editorState.selectedFurnitureTile = selectedFurnitureInfo
+      ? { x: selectedFurnitureInfo.tileX, y: selectedFurnitureInfo.tileY, z: selectedFurnitureInfo.tileZ }
+      : null;
+  }, [editorMode, selectedColor, selectedFurniture, furnitureDirection, selectedFurnitureInfo]);
 
   // Layout editor + dev IO (M008/S04 T02): room-buffer (re)render, booth frame
   // swaps, save/load and dev capture. Called before useRoomAgents so its
@@ -482,6 +502,31 @@ export function RoomCanvas({
     walkableBoothsRef,
   });
 
+  // Furniture-mode select/drag/move/delete (M009/S02)
+  const furnitureEditor = useRoomFurnitureEditor({
+    renderState,
+    mouseToTile,
+    reRenderRoom,
+    ensureInitialized,
+    moveArmed,
+    onSelectionChange: handleFurnitureSelection,
+    onMoveConsumed: handleMoveConsumed,
+  });
+
+  // Delete/Backspace removes the selected item while the furniture editor is open
+  useRoomEditorKeyboard({
+    enabled: editorMode === 'furniture' && layoutEditorOpen && selectedFurnitureInfo !== null,
+    onDelete: furnitureEditor.deleteSelected,
+  });
+
+  const handleEditorModeChange = useCallback((mode: EditorMode) => {
+    setEditorMode(mode);
+    if (mode !== 'furniture') {
+      setSelectedFurnitureInfo(null);
+      setMoveArmed(false);
+    }
+  }, []);
+
   const previewSpriteCache =
     (window as unknown as { spriteCache?: SpriteCache }).spriteCache ?? null;
 
@@ -489,7 +534,7 @@ export function RoomCanvas({
     <>
       <RoomDevChrome
         editorMode={editorMode}
-        onModeChange={setEditorMode}
+        onModeChange={handleEditorModeChange}
         selectedColor={selectedColor}
         onColorChange={setSelectedColor}
         selectedFurniture={selectedFurniture}
@@ -512,7 +557,15 @@ export function RoomCanvas({
         editorOpen={layoutEditorOpen}
         onEditorToggle={() => setLayoutEditorOpen((open) => !open)}
       />
-      <RoomStage canvasRef={canvasRef} onClick={handleClick} onContextMenu={handleContextMenu} />
+      <RoomStage
+        canvasRef={canvasRef}
+        onClick={handleClick}
+        onContextMenu={handleContextMenu}
+        onMouseDown={furnitureEditor.onFurnitureMouseDown}
+        onMouseMove={furnitureEditor.onFurnitureMouseMove}
+        onMouseUp={furnitureEditor.onFurnitureMouseUp}
+        onMouseLeave={furnitureEditor.onFurnitureMouseLeave}
+      />
       {/* Kanban source filter HUD */}
       <KanbanFilterChip label={KANBAN_FILTER_LABELS[kanbanFilter]} />
       <button

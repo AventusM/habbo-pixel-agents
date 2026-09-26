@@ -12,6 +12,7 @@ import { blitVisibleSlice } from './layers.js';
 import {
   drawHoverHighlight,
   drawFurnitureFootprint,
+  drawFurnitureSelection,
   type EditorState,
 } from '../isoLayoutEditor.js';
 import { getFurnitureDimensions } from '../furnitureRegistry.js';
@@ -133,6 +134,12 @@ export function drawScene(s: SceneInputs, nowMs: number): TeleportEffect[] {
       // Single tile highlight for paint/color modes
       drawHoverHighlight(ctx, x, y, z, cameraOrigin);
     }
+  }
+
+  // Selected placed furniture selection outline (M009/S02)
+  if (s.editorState.mode === 'furniture' && s.editorState.selectedFurnitureTile) {
+    const { x, y, z } = s.editorState.selectedFurnitureTile;
+    drawFurnitureSelection(ctx, x, y, z, cameraOrigin);
   }
 
   // Render furniture + avatars with unified depth sorting
