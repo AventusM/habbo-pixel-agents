@@ -10,8 +10,8 @@ import type { AvatarRenderer } from './avatarRendererTypes.js';
 import { pixelLabRenderer } from './pixelLabAvatarRenderer.js';
 import type { SpriteCache } from './isoSpriteCache.js';
 import { habboRenderer } from './isoAvatarRenderer.js';
-import { tileToScreen, TILE_H_HALF, screenToTile } from './isometricMath.js';
-import { KANBAN_FILTER_LABELS, type KanbanFilterMode } from './kanbanFilter.js';
+import { tileToScreen, screenToTile } from './isometricMath.js';
+import { KANBAN_FILTER_LABELS } from './kanbanFilter.js';
 import {
   toggleTileWalkability,
   setTileColor,
@@ -24,10 +24,6 @@ import {
 } from './isoLayoutEditor.js';
 import { getSupportedDirections, isChairType, isTeleportBooth } from './furnitureRegistry.js';
 import { LayoutEditorPanel } from './LayoutEditorPanel.js';
-import { AudioManager } from './isoAudioManager.js';
-import { AvatarManager } from './avatarManager.js';
-import { IdleWanderManager } from './idleWander.js';
-import { AvatarSelectionManager } from './avatarSelection.js';
 import { onMessage } from './bus.js';
 import type { ExtensionMessage, TeamSection } from './agentTypes.js';
 import { computeBlockedTiles } from './isoPathfinding.js';
@@ -35,13 +31,15 @@ import { drawKanbanNotes, createKanbanRenderState, type KanbanRenderState, point
 import { screenToWorld, jumpToSection } from './cameraController.js';
 import { SectionManager } from './sectionManager.js';
 import { type FloorTemplate, buildSectionColorMap } from './roomLayoutEngine.js';
-import { createTeleportEffect } from './teleportEffect.js';
-import type { TeleportEffect } from './teleportEffect.js';
 import { agentStore } from './state/agentStore.js';
 import { kanbanStore } from './state/kanbanStore.js';
 import { cameraStore } from './state/cameraStore.js';
 import { expRunStore } from './state/expRunStore.js';
 import { expHistoryFromRuns, syncExpRunsToAgents } from './expFeed.js';
+import { useKanbanFilter } from './hooks/useKanbanFilter.js';
+import { useRoomAudio } from './hooks/useRoomAudio.js';
+import { useAutoFollowCamera } from './hooks/useAutoFollowCamera.js';
+import { useRoomAgents } from './hooks/useRoomAgents.js';
 
 interface RoomCanvasProps {
   heightmap: string;
@@ -54,52 +52,21 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
   // Canvas lifecycle, camera, input, layers and frame scheduling (M003/S03)
   const stageRef = useRef<CanvasStage | null>(null);
 
-  // Audio manager (Phase 8)
-  const audioManagerRef = useRef<AudioManager | null>(null);
-  const [audioInitialized, setAudioInitialized] = useState(false);
-  const soundBuffersRef = useRef<Map<string, AudioBuffer>>(new Map());
+  const { ensureInitialized, playSound, availableSounds } = useRoomAudio();
 
-  // Avatar management (v2)
-  const avatarManagerRef = useRef<AvatarManager>(new AvatarManager());
-  const idleWanderRef = useRef<IdleWanderManager>(new IdleWanderManager());
-  const selectionManagerRef = useRef<AvatarSelectionManager>(new AvatarSelectionManager());
-
-  // Section manager for team-based agent placement
-  const sectionManagerRef = useRef<SectionManager | null>(null);
-
-  // Active teleport effects (spawn/despawn flash)
-  const teleportEffectsRef = useRef<TeleportEffect[]>([]);
-
-  // Agents mid-despawn (walking to booth before removal)
-  const despawningAgentsRef = useRef<Set<string>>(new Set());
-
-  // Booth tiles temporarily made walkable during spawn/despawn
-  const walkableBoothsRef = useRef<Set<string>>(new Set());
-
-  // Agents waiting to step out of booth after spawn animation completes
-  // Maps agentId → booth tile {x, y}
-  const pendingStepOutRef = useRef<Map<string, { x: number; y: number }>>(new Map());
-
-  // Auto-follow camera toggle and state
-  const autoFollowRef = useRef(false);
-  const lastAutoFollowCheckRef = useRef<number>(0);
-  const autoFollowTargetRef = useRef<{ panX: number; panY: number } | null>(null);
+  const { setEnabled: setAutoFollow, tick: autoFollowTick } = useAutoFollowCamera();
 
   // Dev mode flag (set by extension in Development mode)
   const [devMode, setDevMode] = useState(false);
 
-  // Kanban source filter (All / GSD only / Non-GSD) — toggle with the G key.
-  // Mirrored from kanbanStore (source of truth) for the HUD.
-  const [kanbanFilter, setKanbanFilter] = useState<KanbanFilterMode>(kanbanStore.filter);
+  // Kanban source filter (All / GSD only / Non-GSD) — mirrored from kanbanStore for the HUD.
+  const kanbanFilter = useKanbanFilter();
 
   // Per-render kanban hit-test state (replaces renderer module-level state)
   const kanbanRenderStateRef = useRef<KanbanRenderState>(createKanbanRenderState());
 
   // Active avatar renderer (logged on change; Habbo figures vs PixelLab/RD)
   const activeRendererRef = useRef<AvatarRenderer | null>(null);
-
-  // Mirror the kanban filter store into React state for the HUD
-  useEffect(() => kanbanStore.subscribeSelector((state) => state.filter, setKanbanFilter), []);
 
   useEffect(() => {
     const handleFilterKey = (e: KeyboardEvent) => {
@@ -266,29 +233,39 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
     }
   }
 
+  // Room orchestration hook (M008/S01): owns the lifecycle managers and the
+  // agent spawn/despawn/status/tool/wander glue; the shell only consumes it.
+  const {
+    avatarManager,
+    idleWander,
+    selectionManager,
+    sectionManagerRef,
+    teleportEffectsRef,
+    walkableBoothsRef,
+    ensureSectionManager,
+    handleAgentCreated,
+    handleAgentRemoved,
+    handleAgentStatus,
+    handleAgentTool,
+    handleAgentLinkedTicket,
+    tickIdleWander,
+    tickDespawns,
+    processPendingStepOuts,
+  } = useRoomAgents({
+    getGrid: () => renderState.current.grid,
+    getFurniture: () => renderState.current.furniture,
+    getMultiTileFurniture: () => renderState.current.multiTileFurniture,
+    getCameraOrigin: () => renderState.current.cameraOrigin,
+    setBoothFrame,
+  });
+
   // Listen for extension messages (agent events) via the typed bus
   useEffect(() => {
     function handleExtensionMessage(msg: ExtensionMessage) {
       if (!msg || !msg.type) return;
 
-      const avatarManager = avatarManagerRef.current;
-      const idleWander = idleWanderRef.current;
-      const grid = renderState.current.grid;
-
-      const blocked = computeBlockedTiles(
-        renderState.current.furniture,
-        renderState.current.multiTileFurniture,
-        walkableBoothsRef.current,
-      );
-
       // Initialize section manager lazily from global template
-      if (!sectionManagerRef.current) {
-        const tmpl = (window as any).floorTemplate as FloorTemplate | undefined;
-        if (tmpl) {
-          sectionManagerRef.current = new SectionManager(tmpl);
-        }
-      }
-      const sectionManager = sectionManagerRef.current;
+      const sectionManager = ensureSectionManager();
 
       switch (msg.type) {
         case 'clearAgents': {
@@ -303,167 +280,23 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
           break;
         }
         case 'agentCreated': {
-          // Guard: skip if avatar already exists (prevents duplicate side effects from re-broadcast)
-          if (avatarManager.getAvatar(msg.agentId)) {
-            console.log(`[Room] agentCreated: ${msg.agentId} already exists, skipping`);
-            break;
-          }
-          if (grid) {
-            const team: TeamSection = (msg as any).team || 'core-dev';
-            console.log(`[Room] agentCreated: ${msg.agentId} team=${team}`);
-
-            // Try to spawn at section teleport booth
-            const spawnTile = sectionManager?.getSpawnTile(team);
-            console.log(`[Room] spawnTile for ${team}:`, spawnTile);
-            let avatar;
-            if (spawnTile) {
-              // Temporarily make booth tile walkable and open door
-              const boothKey = `${spawnTile.x},${spawnTile.y}`;
-              walkableBoothsRef.current.add(boothKey);
-              setBoothFrame(spawnTile.x, spawnTile.y, 1);
-              avatar = avatarManager.spawnAvatarAt(msg.agentId, msg.variant, spawnTile.x, spawnTile.y, 0, grid, msg.terminalName, team);
-              console.log(`[Room] spawnAvatarAt result:`, avatar ? 'ok' : 'null');
-              // Create teleport flash effect at spawn position
-              if (avatar) {
-                const { x: sx, y: sy } = tileToScreen(spawnTile.x, spawnTile.y, 0);
-                const ox = renderState.current.cameraOrigin;
-                console.log(`[Room] Creating teleport flash at sx=${sx + ox.x}, sy=${sy + TILE_H_HALF + ox.y}`);
-                teleportEffectsRef.current.push(
-                  createTeleportEffect(sx + ox.x, sy + TILE_H_HALF + ox.y, 'spawn')
-                );
-                // Register pending step-out (handled in render loop when spawn animation ends)
-                pendingStepOutRef.current.set(msg.agentId, { ...spawnTile });
-              } else {
-                // Spawn failed, revert walkability
-                walkableBoothsRef.current.delete(boothKey);
-                setBoothFrame(spawnTile.x, spawnTile.y, 0);
-              }
-            } else {
-              // Fallback: random tile
-              avatarManager.spawnAvatar(msg.agentId, msg.variant, grid, msg.terminalName, blocked, team);
-            }
-
-            // Assign agent to section and record initial activity
-            if (sectionManager) {
-              sectionManager.assignAgent(msg.agentId, team);
-              sectionManager.updateActivity(team, Date.now());
-            }
-
-            // Track in agent store (drives the orchestration overlay)
-            agentStore.addAgent(msg.agentId, msg.terminalName || msg.agentId, team);
-
-            // Set role-specific idle behavior before starting wander
-            idleWander.setAgentRole(msg.agentId, team);
-
-            // New agents start wandering until they become active
-            idleWander.startWandering(msg.agentId);
-          }
+          handleAgentCreated(msg);
           break;
         }
         case 'agentRemoved': {
-          console.log(`[Room] agentRemoved: ${msg.agentId}`);
-          agentStore.removeAgent(msg.agentId);
-          const agentTeam = sectionManager?.getAgentTeam(msg.agentId);
-          const boothTile = agentTeam ? sectionManager?.getSpawnTile(agentTeam) : null;
-          const avatar = avatarManager.getAvatar(msg.agentId);
-          console.log(`[Room] despawn: team=${agentTeam}, boothTile=`, boothTile, `avatar=`, avatar ? `at(${avatar.tileX},${avatar.tileY})` : 'null');
-
-          if (boothTile && avatar && grid) {
-            // Walk-to-booth despawn flow — temporarily make booth walkable
-            const despawnBoothKeyOuter = `${boothTile.x},${boothTile.y}`;
-            walkableBoothsRef.current.add(despawnBoothKeyOuter);
-            despawningAgentsRef.current.add(msg.agentId);
-            idleWander.stopWandering(msg.agentId);
-
-            // Stand up if sitting
-            if (avatar.state === 'sit') {
-              avatarManager.standAvatar(msg.agentId);
-            }
-
-            // If already at booth tile, trigger despawn immediately
-            if (avatar.tileX === boothTile.x && avatar.tileY === boothTile.y) {
-              // Open booth door for despawn
-              const despawnBoothKey = `${boothTile.x},${boothTile.y}`;
-              walkableBoothsRef.current.add(despawnBoothKey);
-              setBoothFrame(boothTile.x, boothTile.y, 1);
-              const { x: sx, y: sy } = tileToScreen(boothTile.x, boothTile.y, 0);
-              const ox = renderState.current.cameraOrigin;
-              teleportEffectsRef.current.push(
-                createTeleportEffect(sx + ox.x, sy + TILE_H_HALF + ox.y, 'despawn')
-              );
-              // Schedule removal after effect duration, then close booth and re-block
-              const capturedBooth = { ...boothTile };
-              const capturedKey = despawnBoothKey;
-              setTimeout(() => {
-                avatarManager.removeAvatar(msg.agentId);
-                sectionManager?.removeAgent(msg.agentId);
-                despawningAgentsRef.current.delete(msg.agentId);
-                setBoothFrame(capturedBooth.x, capturedBooth.y, 0);
-                walkableBoothsRef.current.delete(capturedKey);
-              }, 500);
-            } else {
-              // Pathfind to booth — recompute blocked with booth tile now walkable
-              const despawnBlocked = computeBlockedTiles(
-                renderState.current.furniture,
-                renderState.current.multiTileFurniture,
-                walkableBoothsRef.current,
-              );
-              avatarManager.moveAvatarTo(msg.agentId, boothTile.x, boothTile.y, grid, undefined, despawnBlocked);
-            }
-          } else {
-            // No team or no booth: immediate despawn
-            avatarManager.despawnAvatar(msg.agentId);
-            idleWander.stopWandering(msg.agentId);
-            sectionManager?.removeAgent(msg.agentId);
-          }
-          selectionManagerRef.current.deselectAvatar();
+          handleAgentRemoved(msg);
           break;
         }
         case 'agentStatus': {
-          // Skip status updates for despawning agents
-          if (despawningAgentsRef.current.has(msg.agentId)) break;
-
-          agentStore.setStatus(msg.agentId, msg.status as 'active' | 'idle');
-
-          if (msg.status === 'active' && grid) {
-            idleWander.stopWandering(msg.agentId);
-            // Stand up if sitting before moving to desk
-            const activeAvatar = avatarManager.getAvatar(msg.agentId);
-            if (activeAvatar?.state === 'sit') {
-              avatarManager.standAvatar(msg.agentId);
-            }
-            // Record section activity for furniture glow overlays
-            const agentTeam = sectionManager?.getAgentTeam(msg.agentId) || 'core-dev';
-            sectionManager?.updateActivity(agentTeam, Date.now());
-            const occupiedDesks = new Set<string>();
-            for (const a of avatarManager.getAvatars()) {
-              if (a.id !== msg.agentId && a.state !== 'idle' && a.state !== 'spawning' && a.state !== 'despawning') {
-                occupiedDesks.add(`${a.tileX},${a.tileY}`);
-              }
-            }
-            const deskTile = sectionManager?.getDeskTile(agentTeam, occupiedDesks);
-            if (deskTile) {
-              avatarManager.moveAvatarTo(msg.agentId, deskTile.x, deskTile.y, grid, deskTile.dir as 0 | 2 | 4 | 6, blocked);
-            }
-          } else if (msg.status === 'idle') {
-            idleWander.startWandering(msg.agentId);
-          }
+          handleAgentStatus(msg);
           break;
         }
         case 'agentTool': {
-          agentStore.setTool(msg.agentId, msg.displayText);
-          // Track activity for auto-follow
-          if (sectionManager) {
-            const agentTeam = sectionManager.getAgentTeam(msg.agentId);
-            if (agentTeam) {
-              sectionManager.updateActivity(agentTeam, Date.now());
-            }
-          }
+          handleAgentTool(msg);
           break;
         }
         case 'agentLinkedTicket': {
-          const linkMsg = msg as any;
-          agentStore.setLinkedTicket(linkMsg.agentId, linkMsg.ticketId, linkMsg.ticketTitle);
+          handleAgentLinkedTicket(msg);
           break;
         }
         case 'jumpToSection': {
@@ -493,10 +326,7 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
           break;
         }
         case 'autoFollow': {
-          autoFollowRef.current = (msg as any).enabled ?? !autoFollowRef.current;
-          if (!autoFollowRef.current) {
-            autoFollowTargetRef.current = null;
-          }
+          setAutoFollow((msg as any).enabled);
           break;
         }
         case 'kanbanCards': {
@@ -551,7 +381,7 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
           break;
         }
         case 'playSound': {
-          handlePlaySound((msg as any).sound || 'notification');
+          playSound((msg as any).sound || 'notification');
           break;
         }
       }
@@ -635,64 +465,13 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
 
     const onTick = (nowMs: number): boolean => {
       // Tick avatar manager (path following)
-      avatarManagerRef.current.tick(nowMs);
+      avatarManager.tick(nowMs);
 
       // Tick idle wander
-      if (renderState.current.grid) {
-        const blocked = computeBlockedTiles(
-          renderState.current.furniture,
-          renderState.current.multiTileFurniture,
-          walkableBoothsRef.current,
-        );
-        idleWanderRef.current.tick(
-          nowMs,
-          avatarManagerRef.current,
-          renderState.current.grid,
-          blocked,
-          renderState.current.furniture,
-          renderState.current.multiTileFurniture,
-          sectionManagerRef.current,
-        );
-      }
+      tickIdleWander(nowMs);
 
       // Check despawning agents: if they've reached the booth tile, trigger despawn effect
-      if (despawningAgentsRef.current.size > 0 && sectionManagerRef.current) {
-        for (const agentId of despawningAgentsRef.current) {
-          const avatar = avatarManagerRef.current.getAvatar(agentId);
-          if (!avatar) {
-            despawningAgentsRef.current.delete(agentId);
-            continue;
-          }
-          // Check if avatar has arrived at booth (idle and not moving)
-          if (avatar.state === 'idle' && !avatarManagerRef.current.isMoving(agentId)) {
-            const team = sectionManagerRef.current.getAgentTeam(agentId);
-            const boothTile = team ? sectionManagerRef.current.getSpawnTile(team) : null;
-            if (boothTile && avatar.tileX === boothTile.x && avatar.tileY === boothTile.y) {
-              // Open booth door for despawn
-              setBoothFrame(boothTile.x, boothTile.y, 1);
-              // Create despawn teleport effect
-              const { x: sx, y: sy } = tileToScreen(boothTile.x, boothTile.y, 0);
-              const ox = renderState.current.cameraOrigin;
-              teleportEffectsRef.current.push(
-                createTeleportEffect(sx + ox.x, sy + TILE_H_HALF + ox.y, 'despawn')
-              );
-              // Schedule removal after effect, then close booth and re-block tile
-              const capturedAgentId = agentId;
-              const capturedBooth = { ...boothTile };
-              const capturedBoothKey = `${boothTile.x},${boothTile.y}`;
-              setTimeout(() => {
-                avatarManagerRef.current.removeAvatar(capturedAgentId);
-                sectionManagerRef.current?.removeAgent(capturedAgentId);
-                despawningAgentsRef.current.delete(capturedAgentId);
-                setBoothFrame(capturedBooth.x, capturedBooth.y, 0);
-                walkableBoothsRef.current.delete(capturedBoothKey);
-              }, 500);
-              // Remove from despawning set immediately to prevent re-triggering
-              despawningAgentsRef.current.delete(agentId);
-            }
-          }
-        }
-      }
+      tickDespawns(nowMs);
 
       // Avatar renderer selection: original Habbo figures when the figure
       // assets are loaded locally, PixelLab/RD single-sprites otherwise
@@ -705,7 +484,7 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
       }
 
       // Update animation state for all avatars
-      const avatars = avatarManagerRef.current.getAvatars();
+      const avatars = avatarManager.getAvatars();
       for (const avatar of avatars) {
         activeRenderer.updateAnimation(avatar, nowMs);
       }
@@ -731,79 +510,20 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
       if (!grid || !ctx) return;
 
       // Check pending step-outs: move agent out of booth once spawn animation ends
-      if (pendingStepOutRef.current.size > 0) {
-        for (const [agentId, boothPos] of pendingStepOutRef.current) {
-          const av = avatarManagerRef.current.getAvatar(agentId);
-          if (!av) {
-            pendingStepOutRef.current.delete(agentId);
-            continue;
-          }
-          if (av.state === 'idle') {
-            pendingStepOutRef.current.delete(agentId);
-            const stepBlocked = computeBlockedTiles(
-              renderState.current.furniture,
-              renderState.current.multiTileFurniture,
-              walkableBoothsRef.current,
-            );
-            // Prefer stepping out in booth facing direction (dir 2 = +x, bottom-right)
-            const offsets = [
-              { dx: 1, dy: 0 }, { dx: 0, dy: 1 },
-              { dx: -1, dy: 0 }, { dx: 0, dy: -1 },
-            ];
-            for (const off of offsets) {
-              const nx = boothPos.x + off.dx;
-              const ny = boothPos.y + off.dy;
-              if (nx >= 0 && ny >= 0 && nx < grid.width && ny < grid.height
-                  && grid.tiles[ny][nx] !== null && !stepBlocked.has(`${nx},${ny}`)) {
-                avatarManagerRef.current.moveAvatarTo(agentId, nx, ny, grid, undefined, stepBlocked);
-                break;
-              }
-            }
-            // Close booth door and re-block after agent steps out
-            const capturedPos = { ...boothPos };
-            const capturedKey = `${boothPos.x},${boothPos.y}`;
-            setTimeout(() => {
-              setBoothFrame(capturedPos.x, capturedPos.y, 0);
-              walkableBoothsRef.current.delete(capturedKey);
-            }, 800);
-          }
-        }
-      }
+      processPendingStepOuts();
 
       // Auto-follow camera: every 3 seconds check most active section
-      if (autoFollowRef.current && sectionManagerRef.current) {
-        if (nowMs - lastAutoFollowCheckRef.current > 3000) {
-          lastAutoFollowCheckRef.current = nowMs;
-          const activeTeam = sectionManagerRef.current.getMostActiveSection();
-          if (activeTeam) {
-            const center = sectionManagerRef.current.getSectionCenter(activeTeam);
-            if (center) {
-              const { x: sx, y: sy } = tileToScreen(center.x, center.y, 0);
-              const ox = renderState.current.cameraOrigin;
-              // Compute target pan values
-              const targetPanX = canvas.offsetWidth / 2 - (sx + ox.x);
-              const targetPanY = canvas.offsetHeight / 2 - (sy + ox.y);
-              autoFollowTargetRef.current = { panX: targetPanX, panY: targetPanY };
-            }
-          }
-        }
-        // Lerp camera toward target (10% per frame for smooth pan)
-        if (autoFollowTargetRef.current) {
-          const cam = stage.camera;
-          const target = autoFollowTargetRef.current;
-          cam.panX += (target.panX - cam.panX) * 0.1;
-          cam.panY += (target.panY - cam.panY) * 0.1;
-          // Stop lerping when close enough
-          if (Math.abs(target.panX - cam.panX) < 0.5 && Math.abs(target.panY - cam.panY) < 0.5) {
-            cam.panX = target.panX;
-            cam.panY = target.panY;
-            autoFollowTargetRef.current = null;
-          }
-        }
-      }
+      autoFollowTick(
+        nowMs,
+        stage.camera,
+        canvas.offsetWidth,
+        canvas.offsetHeight,
+        renderState.current.cameraOrigin,
+        sectionManagerRef.current,
+      );
 
       const spriteCache = (window as any).spriteCache as SpriteCache | undefined;
-      const avatars = avatarManagerRef.current.getAvatars();
+      const avatars = avatarManager.getAvatars();
       const activeRenderer = activeRendererRef.current;
       if (!activeRenderer) return;
 
@@ -860,7 +580,7 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
         activeRenderer,
         agentToolText: agentStore.toolTextMap(),
         sectionManager: sectionManagerRef.current,
-        selectionManager: selectionManagerRef.current,
+        selectionManager,
         teleportEffects: teleportEffectsRef.current,
         orchState: agentStore.snapshot(),
         expHistory: expHistoryFromRuns(expRunStore.all(), expRunStore.visible),
@@ -988,9 +708,7 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
     const { tileX, tileY } = clickedCoords;
 
     // Initialize audio on first click (autoplay policy compliance)
-    if (!audioInitialized && !audioManagerRef.current) {
-      await initAudio();
-    }
+    await ensureInitialized();
 
     // Editor modes take priority
     if (renderState.current.editorState.mode === 'paint') {
@@ -1022,14 +740,13 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
     }
 
     // View mode: avatar selection only (movement handled by right-click)
-    const avatarManager = avatarManagerRef.current;
 
     // Check if clicked tile has an avatar standing on it
     const clickedAvatar = avatarManager.getAvatarAtTile(tileX, tileY);
 
     if (clickedAvatar) {
       // Select this avatar for right-click movement targeting
-      selectionManagerRef.current.selectAvatar(clickedAvatar.id);
+      selectionManager.selectAvatar(clickedAvatar.id);
       for (const avatar of avatarManager.getAvatars()) {
         avatar.isSelected = (avatar.id === clickedAvatar.id);
       }
@@ -1037,7 +754,7 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
       // If avatar is sitting, stand it up
       if (clickedAvatar.state === 'sit') {
         avatarManager.standAvatar(clickedAvatar.id);
-        idleWanderRef.current.startWandering(clickedAvatar.id);
+        idleWander.startWandering(clickedAvatar.id);
         return;
       }
 
@@ -1050,7 +767,7 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
     }
 
     // Click on empty space — deselect
-    selectionManagerRef.current.deselectAvatar();
+    selectionManager.deselectAvatar();
     for (const avatar of avatarManager.getAvatars()) {
       avatar.isSelected = false;
     }
@@ -1070,14 +787,10 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
     const { tileX, tileY } = clickedCoords;
 
     // Initialize audio on first interaction
-    if (!audioInitialized && !audioManagerRef.current) {
-      await initAudio();
-    }
+    await ensureInitialized();
 
     // Simulated server round-trip lag
     await new Promise(r => setTimeout(r, 75 + Math.random() * 100));
-
-    const avatarManager = avatarManagerRef.current;
 
     // Check if right-clicked tile has a chair — move nearest avatar to sit
     const chairFurniture = renderState.current.furniture.find(
@@ -1091,7 +804,7 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
           a => a.state === 'idle' || a.state === 'walk'
         );
         // Prefer selected avatar, then closest
-        const selectionMgr = selectionManagerRef.current;
+        const selectionMgr = selectionManager;
         let target = selectionMgr.selectedAvatarId
           ? avatarManager.getAvatar(selectionMgr.selectedAvatarId)
           : undefined;
@@ -1115,7 +828,7 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
               target.id, tileX, tileY, renderState.current.grid, undefined, blocked
             );
             if (moved) {
-              idleWanderRef.current.stopWandering(target.id);
+              idleWander.stopWandering(target.id);
               const checkSitArrival = () => {
                 const av = avatarManager.getAvatar(target!.id);
                 if (!av) return;
@@ -1147,7 +860,7 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
         walkableBoothsRef.current,
       );
       // Find nearest idle/walk avatar (prefer selected)
-      const selectionMgr = selectionManagerRef.current;
+      const selectionMgr = selectionManager;
       let target = selectionMgr.selectedAvatarId
         ? avatarManager.getAvatar(selectionMgr.selectedAvatarId)
         : undefined;
@@ -1169,7 +882,7 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
           target.id, tileX, tileY, renderState.current.grid, undefined, blocked
         );
         if (moved) {
-          idleWanderRef.current.stopWandering(target.id);
+          idleWander.stopWandering(target.id);
         }
       }
     }
@@ -1256,48 +969,6 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
     reader.readAsText(file);
   };
 
-  // Available sound names (keys match ASSET_URIS fields without 'Sound' suffix)
-  const availableSounds = ['notification'];
-
-  const initAudio = async () => {
-    if (audioManagerRef.current) return;
-    audioManagerRef.current = new AudioManager();
-    await audioManagerRef.current.init();
-    setAudioInitialized(true);
-
-    // Load all known sounds
-    const uris = (window as any).ASSET_URIS;
-    if (uris?.notificationSound) {
-      const buf = await audioManagerRef.current.loadSound(uris.notificationSound);
-      if (buf) soundBuffersRef.current.set('notification', buf);
-    }
-  };
-
-  const handlePlaySound = async (soundName: string) => {
-    if (!audioManagerRef.current) {
-      await initAudio();
-    }
-    // Retry once after init — buffer may have just been loaded
-    let buf = soundBuffersRef.current.get(soundName);
-    if (!buf && audioManagerRef.current) {
-      // Try loading the specific sound if not yet loaded
-      const uris = (window as any).ASSET_URIS;
-      const uriKey = soundName + 'Sound';
-      if (uris?.[uriKey]) {
-        const loaded = await audioManagerRef.current.loadSound(uris[uriKey]);
-        if (loaded) {
-          soundBuffersRef.current.set(soundName, loaded);
-          buf = loaded;
-        }
-      }
-    }
-    if (buf && audioManagerRef.current) {
-      audioManagerRef.current.play(buf);
-    } else {
-      console.warn(`Sound "${soundName}" not loaded`);
-    }
-  };
-
   const handleDevCapture = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -1325,7 +996,7 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
         devMode={devMode}
         onDevCapture={handleDevCapture}
         onDebugGrid={undefined}
-        onPlaySound={handlePlaySound}
+        onPlaySound={playSound}
         availableSounds={availableSounds}
         onRotate={() => {
           const spriteCache: SpriteCache | undefined = (window as any).spriteCache;

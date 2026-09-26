@@ -11,9 +11,6 @@
 
 ## Slices
 
-- [ ] **S01: Extract RoomCanvas orchestration into custom hooks** `risk:medium` `depends:[]`
-  > After this: RoomCanvas.tsx drops below ~700 lines; the same room behavior with logic in src/hooks/use*.ts; vitest green; abide clean on changed files.
-
 - [ ] **S02: Presentational split of room chrome** `risk:low` `depends:[S01]`
   > After this: Same visuals; chrome components in their own files, no store imports — props in, JSX out.
 
@@ -26,4 +23,4 @@
 ## Boundary Map
 
 In scope: src/RoomCanvas.tsx, new src/hooks/*, presentational components extracted from the shell, shell store wiring. Out of scope: renderer internals (src/iso*Renderer*.ts, src/render/*), asset pipeline, integrations clients, agent provisioning; no visual redesign; no frame-path changes beyond preserving the allocation-free invariant.
-<!-- gsd:state-version=84:0 -->
+<!-- gsd:state-version=104:0 -->
