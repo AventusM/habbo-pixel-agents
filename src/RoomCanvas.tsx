@@ -34,7 +34,9 @@ import { agentStore } from './state/agentStore.js';
 import { kanbanStore } from './state/kanbanStore.js';
 import { cameraStore } from './state/cameraStore.js';
 import { expRunStore } from './state/expRunStore.js';
+import { uiStore, selectDevMode } from './state/uiStore.js';
 import { syncExpRunsToAgents } from './expFeed.js';
+import { useStoreValue } from './hooks/useStoreValue.js';
 import { useKanbanFilter } from './hooks/useKanbanFilter.js';
 import { useRoomAudio } from './hooks/useRoomAudio.js';
 import { useAutoFollowCamera } from './hooks/useAutoFollowCamera.js';
@@ -59,8 +61,9 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
 
   const { setEnabled: setAutoFollow, tick: autoFollowTick } = useAutoFollowCamera();
 
-  // Dev mode flag (set by extension in Development mode)
-  const [devMode, setDevMode] = useState(false);
+  // Dev mode flag (set by extension in Development mode) — uiStore is the single
+  // source of truth; the bus writes it, the shell reads it back through the store.
+  const devMode = useStoreValue(uiStore, selectDevMode);
 
   // Kanban source filter (All / GSD only / Non-GSD) — mirrored from kanbanStore for the HUD.
   const kanbanFilter = useKanbanFilter();
@@ -340,7 +343,7 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
           break;
         }
         case 'devMode': {
-          setDevMode(msg.enabled);
+          uiStore.setDevMode(msg.enabled);
           break;
         }
         // Layout editor commands from sidebar control panel
