@@ -23,7 +23,6 @@ import {
   type EditorState,
 } from './isoLayoutEditor.js';
 import { getSupportedDirections, isChairType, isTeleportBooth } from './furnitureRegistry.js';
-import { LayoutEditorPanel } from './LayoutEditorPanel.js';
 import { onMessage } from './bus.js';
 import type { ExtensionMessage, TeamSection } from './agentTypes.js';
 import { computeBlockedTiles } from './isoPathfinding.js';
@@ -42,6 +41,7 @@ import { useAutoFollowCamera } from './hooks/useAutoFollowCamera.js';
 import { useRoomAgents } from './hooks/useRoomAgents.js';
 import { KanbanFilterChip } from './components/KanbanFilterChip.js';
 import { RoomStage } from './components/RoomStage.js';
+import { RoomDevChrome } from './components/RoomDevChrome.js';
 
 interface RoomCanvasProps {
   heightmap: string;
@@ -984,10 +984,7 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
 
   return (
     <>
-      {/* Layout editor panel hidden — controls moved to orchestration sidebar.
-          Kept in codebase for reference; will be removed in a future cleanup phase. */}
-      {/* eslint-disable-next-line no-constant-binary-expression */}
-      {false && <LayoutEditorPanel
+      <RoomDevChrome
         editorMode={editorMode}
         onModeChange={setEditorMode}
         selectedColor={selectedColor}
@@ -997,7 +994,6 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
         furnitureDirection={furnitureDirection}
         devMode={devMode}
         onDevCapture={handleDevCapture}
-        onDebugGrid={undefined}
         onPlaySound={playSound}
         availableSounds={availableSounds}
         onRotate={() => {
@@ -1009,7 +1005,7 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
         }}
         onSave={handleSave}
         onLoad={handleLoad}
-      />}
+      />
       <RoomStage canvasRef={canvasRef} onClick={handleClick} onContextMenu={handleContextMenu} />
       {/* Kanban source filter HUD */}
       <KanbanFilterChip label={KANBAN_FILTER_LABELS[kanbanFilter]} />
