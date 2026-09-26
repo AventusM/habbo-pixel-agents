@@ -23,8 +23,10 @@ import { KanbanFilterChip } from '../src/components/KanbanFilterChip.js';
 import { RoomStage } from '../src/components/RoomStage.js';
 import { RoomDevChrome } from '../src/components/RoomDevChrome.js';
 import { CharacterEditorPanel } from '../src/components/CharacterEditorPanel.js';
+import { RoleOutfitMatrix } from '../src/components/RoleOutfitMatrix.js';
 import { LayoutEditorPanel } from '../src/LayoutEditorPanel.js';
 import type { CharacterEditorPanelProps } from '../src/components/CharacterEditorPanel.js';
+import type { SpriteCache } from '../src/isoSpriteCache.js';
 import type { CatalogItem } from '../src/avatarOutfitConfig.js';
 import { FIGURE_CATALOG } from '../src/avatarOutfitConfig.js';
 import type { TeamSection } from '../src/agentTypes.js';
@@ -39,6 +41,7 @@ const COMPONENT_FILES = [
   'RoomDevChrome.tsx',
   'CharacterEditorPanel.tsx',
   'AvatarPreview.tsx',
+  'RoleOutfitMatrix.tsx',
 ] as const;
 
 /** Recursively collect a JSX element tree so tests can invoke handlers directly. */
@@ -356,6 +359,29 @@ describe('LayoutEditorPanel debug entry (M009/S03)', () => {
     );
     expect(html).toContain('data-open-debug="true"');
     expect(html).not.toContain('Dev Capture');
+  });
+});
+
+describe('RoleOutfitMatrix render parity (M009/S03)', () => {
+  const stubCache = {
+    hasNitroAsset: (name: string) => name === 'hh_human_body',
+  } as unknown as SpriteCache;
+
+  it('renders the canvas grid for all four roles when figures are available', () => {
+    const html = renderToStaticMarkup(
+      React.createElement(RoleOutfitMatrix, { spriteCache: stubCache }),
+    );
+    expect(html).toContain('data-role-outfit-matrix="true"');
+    expect(html).toContain('data-roles="planning,core-dev,infrastructure,support"');
+    expect(html).toContain('<canvas');
+  });
+
+  it('shows a fallback without the figure cache', () => {
+    const html = renderToStaticMarkup(
+      React.createElement(RoleOutfitMatrix, { spriteCache: null }),
+    );
+    expect(html).toContain('data-role-outfit-matrix-fallback="true"');
+    expect(html).not.toContain('<canvas');
   });
 });
 
