@@ -24,7 +24,6 @@ import {
 } from './isoLayoutEditor.js';
 import { getSupportedDirections, isChairType, isTeleportBooth } from './furnitureRegistry.js';
 import { LayoutEditorPanel } from './LayoutEditorPanel.js';
-import { AudioManager } from './isoAudioManager.js';
 import { AvatarManager } from './avatarManager.js';
 import { IdleWanderManager } from './idleWander.js';
 import { AvatarSelectionManager } from './avatarSelection.js';
@@ -43,6 +42,7 @@ import { cameraStore } from './state/cameraStore.js';
 import { expRunStore } from './state/expRunStore.js';
 import { expHistoryFromRuns, syncExpRunsToAgents } from './expFeed.js';
 import { useKanbanFilter } from './hooks/useKanbanFilter.js';
+import { useRoomAudio } from './hooks/useRoomAudio.js';
 
 interface RoomCanvasProps {
   heightmap: string;
@@ -55,10 +55,7 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
   // Canvas lifecycle, camera, input, layers and frame scheduling (M003/S03)
   const stageRef = useRef<CanvasStage | null>(null);
 
-  // Audio manager (Phase 8)
-  const audioManagerRef = useRef<AudioManager | null>(null);
-  const [audioInitialized, setAudioInitialized] = useState(false);
-  const soundBuffersRef = useRef<Map<string, AudioBuffer>>(new Map());
+  const { ensureInitialized, playSound, availableSounds } = useRoomAudio();
 
   // Avatar management (v2)
   const avatarManagerRef = useRef<AvatarManager>(new AvatarManager());
@@ -548,7 +545,7 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
           break;
         }
         case 'playSound': {
-          handlePlaySound((msg as any).sound || 'notification');
+          playSound((msg as any).sound || 'notification');
           break;
         }
       }
@@ -985,9 +982,7 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
     const { tileX, tileY } = clickedCoords;
 
     // Initialize audio on first click (autoplay policy compliance)
-    if (!audioInitialized && !audioManagerRef.current) {
-      await initAudio();
-    }
+    await ensureInitialized();
 
     // Editor modes take priority
     if (renderState.current.editorState.mode === 'paint') {
@@ -1067,9 +1062,7 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
     const { tileX, tileY } = clickedCoords;
 
     // Initialize audio on first interaction
-    if (!audioInitialized && !audioManagerRef.current) {
-      await initAudio();
-    }
+    await ensureInitialized();
 
     // Simulated server round-trip lag
     await new Promise(r => setTimeout(r, 75 + Math.random() * 100));
@@ -1253,48 +1246,6 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
     reader.readAsText(file);
   };
 
-  // Available sound names (keys match ASSET_URIS fields without 'Sound' suffix)
-  const availableSounds = ['notification'];
-
-  const initAudio = async () => {
-    if (audioManagerRef.current) return;
-    audioManagerRef.current = new AudioManager();
-    await audioManagerRef.current.init();
-    setAudioInitialized(true);
-
-    // Load all known sounds
-    const uris = (window as any).ASSET_URIS;
-    if (uris?.notificationSound) {
-      const buf = await audioManagerRef.current.loadSound(uris.notificationSound);
-      if (buf) soundBuffersRef.current.set('notification', buf);
-    }
-  };
-
-  const handlePlaySound = async (soundName: string) => {
-    if (!audioManagerRef.current) {
-      await initAudio();
-    }
-    // Retry once after init — buffer may have just been loaded
-    let buf = soundBuffersRef.current.get(soundName);
-    if (!buf && audioManagerRef.current) {
-      // Try loading the specific sound if not yet loaded
-      const uris = (window as any).ASSET_URIS;
-      const uriKey = soundName + 'Sound';
-      if (uris?.[uriKey]) {
-        const loaded = await audioManagerRef.current.loadSound(uris[uriKey]);
-        if (loaded) {
-          soundBuffersRef.current.set(soundName, loaded);
-          buf = loaded;
-        }
-      }
-    }
-    if (buf && audioManagerRef.current) {
-      audioManagerRef.current.play(buf);
-    } else {
-      console.warn(`Sound "${soundName}" not loaded`);
-    }
-  };
-
   const handleDevCapture = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -1322,7 +1273,7 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
         devMode={devMode}
         onDevCapture={handleDevCapture}
         onDebugGrid={undefined}
-        onPlaySound={handlePlaySound}
+        onPlaySound={playSound}
         availableSounds={availableSounds}
         onRotate={() => {
           const spriteCache: SpriteCache | undefined = (window as any).spriteCache;
