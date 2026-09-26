@@ -1,7 +1,7 @@
 {
   "schema": 2,
   "lastWriter": "gsd-pi",
-  "lastProjectedAt": "2026-09-26T17:56:42.366Z",
+  "lastProjectedAt": "2026-09-26T19:15:14.293Z",
   "projections": {
     "phases/01-retrodiffusion-as-primary-pixel-art-sour/01-ROADMAP.md": {
       "sha": "9ece1470358ec922",
@@ -10,7 +10,7 @@
       ]
     },
     "DECISIONS.md": {
-      "sha": "6fde960d678ed25a",
+      "sha": "5d0834b236fe28e7",
       "entities": []
     },
     "phases/01-retrodiffusion-as-primary-pixel-art-sour/01-01-RESEARCH.md": {
@@ -96,7 +96,7 @@
       ]
     },
     "phases/06-role-based-character-editor/06-ROADMAP.md": {
-      "sha": "e3e5d5fa87bb6a64",
+      "sha": "2ebf2fd933733bbe",
       "entities": [
         "M006"
       ]
@@ -206,7 +206,7 @@
       ]
     },
     "phases/08-refactoring-into-pattern-presentational/08-ROADMAP.md": {
-      "sha": "5729ecb41013a5d9",
+      "sha": "d4f33127632c6edb",
       "entities": [
         "M008"
       ]
@@ -302,11 +302,25 @@
         "M008/S03"
       ]
     },
-    "phases/08-refactoring-into-pattern-presentational/08-04-PLAN.md": {
-      "sha": "3f7a74a250bc2749",
+    "phases/06-role-based-character-editor/06-01-PLAN.md": {
+      "sha": "a21df1cbc6e075a6",
       "entities": [
-        "M008",
-        "M008/S04"
+        "M006",
+        "M006/S01"
+      ]
+    },
+    "phases/06-role-based-character-editor/06-02-PLAN.md": {
+      "sha": "f1cd210418a994ef",
+      "entities": [
+        "M006",
+        "M006/S02"
+      ]
+    },
+    "phases/06-role-based-character-editor/06-02-SUMMARY.md": {
+      "sha": "2b6693cfdb6da8e5",
+      "entities": [
+        "M006",
+        "M006/S02"
       ]
     }
   },

@@ -12,7 +12,7 @@
 // Rendering goes through react-dom/server so the suite stays in the existing
 // `node` vitest environment with no new dependencies or config changes.
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { readFileSync } from 'node:fs';
@@ -21,12 +21,42 @@ import { dirname, join } from 'node:path';
 import { KanbanFilterChip } from '../src/components/KanbanFilterChip.js';
 import { RoomStage } from '../src/components/RoomStage.js';
 import { RoomDevChrome } from '../src/components/RoomDevChrome.js';
+import { CharacterEditorPanel } from '../src/components/CharacterEditorPanel.js';
+import type { CharacterEditorPanelProps } from '../src/components/CharacterEditorPanel.js';
+import type { CatalogItem } from '../src/avatarOutfitConfig.js';
+import { FIGURE_CATALOG } from '../src/avatarOutfitConfig.js';
+import type { TeamSection } from '../src/agentTypes.js';
 import type { EditorMode } from '../src/isoLayoutEditor.js';
 import type { HsbColor } from '../src/isoTypes.js';
 
 const COMPONENTS_DIR = join(dirname(fileURLToPath(import.meta.url)), '..', 'src', 'components');
 
-const COMPONENT_FILES = ['KanbanFilterChip.tsx', 'RoomStage.tsx', 'RoomDevChrome.tsx'] as const;
+const COMPONENT_FILES = [
+  'KanbanFilterChip.tsx',
+  'RoomStage.tsx',
+  'RoomDevChrome.tsx',
+  'CharacterEditorPanel.tsx',
+  'AvatarPreview.tsx',
+] as const;
+
+/** Recursively collect a JSX element tree so tests can invoke handlers directly. */
+interface TestElement {
+  type: unknown;
+  props: Record<string, unknown>;
+}
+
+function collectElements(node: unknown, out: TestElement[] = []): TestElement[] {
+  if (Array.isArray(node)) {
+    for (const child of node) collectElements(child, out);
+    return out;
+  }
+  if (node && typeof node === 'object' && 'props' in node) {
+    const element = node as TestElement;
+    out.push(element);
+    collectElements(element.props.children, out);
+  }
+  return out;
+}
 
 function readComponent(name: string): string {
   return readFileSync(join(COMPONENTS_DIR, name), 'utf8');
@@ -110,5 +140,99 @@ describe('RoomDevChrome render parity', () => {
       }),
     );
     expect(html).toBe('');
+  });
+});
+
+describe('CharacterEditorPanel render + handler parity', () => {
+  const roles: TeamSection[] = ['planning', 'core-dev', 'infrastructure', 'support'];
+  const hairOptions = FIGURE_CATALOG.filter((item) => item.category === 'hair');
+  const firstHair: CatalogItem = hairOptions[0];
+  const secondHair: CatalogItem = hairOptions[1];
+  const shirtColors = ['#FFFFFF', '#FF8C00', '#3B5998'];
+  const hairColors = ['#1A1A1A', '#C4651A'];
+
+  const baseProps: CharacterEditorPanelProps = {
+    roles,
+    activeRole: 'core-dev',
+    onSelectRole: () => undefined,
+    hairOptions,
+    selectedHairPart: { asset: firstHair.asset, setId: firstHair.setId },
+    onSelectHair: () => undefined,
+    hairColors,
+    selectedHairColor: hairColors[0],
+    onSelectHairColor: () => undefined,
+    shirtColors,
+    selectedShirtColor: shirtColors[0],
+    onSelectShirtColor: () => undefined,
+    onResetRole: () => undefined,
+    onExportOutfits: () => undefined,
+    onImportOutfitsFile: () => undefined,
+  };
+
+  it('renders the four role labels and the swatch/selector surfaces', () => {
+    const html = renderToStaticMarkup(React.createElement(CharacterEditorPanel, baseProps));
+    for (const label of ['Planning', 'Core Dev', 'Infrastructure', 'Support']) {
+      expect(html).toContain(label);
+    }
+    expect(html).toContain('Character Editor');
+    expect(html).toContain('data-swatch="#FF8C00"');
+    expect(html).toContain('data-hair-swatch="#C4651A"');
+    expect(html).toContain('data-hair-select="true"');
+    expect(html).toContain('Reset Core Dev');
+    expect(html).toContain('data-pixellab-notice="true"');
+    expect(html).toContain('PixelLab agents are out of scope');
+    expect(html).toContain('data-export-outfits="true"');
+    expect(html).toContain('data-import-outfits="true"');
+    expect(html).toContain('data-import-outfits-input="true"');
+  });
+
+  it('invokes the supplied callbacks with the expected values', () => {
+    const onSelectRole = vi.fn();
+    const onSelectShirtColor = vi.fn();
+    const onSelectHairColor = vi.fn();
+    const onSelectHair = vi.fn();
+    const onResetRole = vi.fn();
+    const onExportOutfits = vi.fn();
+    const onImportOutfitsFile = vi.fn();
+    const tree = CharacterEditorPanel({
+      ...baseProps,
+      onSelectRole,
+      onSelectShirtColor,
+      onSelectHairColor,
+      onSelectHair,
+      onResetRole,
+      onExportOutfits,
+      onImportOutfitsFile,
+    });
+    const elements = collectElements(tree);
+
+    const roleButton = elements.find((el) => el.props['data-role'] === 'support');
+    (roleButton?.props.onClick as () => void)();
+    expect(onSelectRole).toHaveBeenCalledWith('support');
+
+    const shirtSwatch = elements.find((el) => el.props['data-swatch'] === '#FF8C00');
+    (shirtSwatch?.props.onClick as () => void)();
+    expect(onSelectShirtColor).toHaveBeenCalledWith('#FF8C00');
+
+    const hairSwatch = elements.find((el) => el.props['data-hair-swatch'] === '#C4651A');
+    (hairSwatch?.props.onClick as () => void)();
+    expect(onSelectHairColor).toHaveBeenCalledWith('#C4651A');
+
+    const hairSelect = elements.find((el) => el.props['data-hair-select'] === 'true');
+    (hairSelect?.props.onChange as (e: unknown) => void)({ target: { value: secondHair.id } });
+    expect(onSelectHair).toHaveBeenCalledWith(secondHair);
+
+    const resetButton = elements.find((el) => el.props['data-reset'] === 'core-dev');
+    (resetButton?.props.onClick as () => void)();
+    expect(onResetRole).toHaveBeenCalledWith('core-dev');
+
+    const exportButton = elements.find((el) => el.props['data-export-outfits'] === 'true');
+    (exportButton?.props.onClick as () => void)();
+    expect(onExportOutfits).toHaveBeenCalledTimes(1);
+
+    const importInput = elements.find((el) => el.props['data-import-outfits-input'] === 'true');
+    const importFile = { name: 'outfits.json' } as File;
+    (importInput?.props.onChange as (e: unknown) => void)({ target: { files: [importFile] } });
+    expect(onImportOutfitsFile).toHaveBeenCalledWith(importFile);
   });
 });

@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import { parseHeightmap } from './isoTypes.js';
 import { CanvasStage } from './render/CanvasStage.js';
 import { drawScene, type SceneInputs } from './render/sceneRenderer.js';
@@ -39,11 +39,29 @@ import { useRoomEditorIO } from './hooks/useRoomEditorIO.js';
 import { useRoomInteraction } from './hooks/useRoomInteraction.js';
 import { useRoomMessages } from './hooks/useRoomMessages.js';
 import { useKanbanKeyboard } from './hooks/useKanbanKeyboard.js';
+import { CharacterEditorPanel } from './components/CharacterEditorPanel.js';
+import { AvatarPreview } from './components/AvatarPreview.js';
+import { useCharacterEditor } from './hooks/useCharacterEditor.js';
+import { useOutfitLiveSync } from './hooks/useOutfitLiveSync.js';
 
 interface RoomCanvasProps {
   heightmap: string;
   editorMode?: EditorMode; // Optional, defaults to 'view'
 }
+
+const editorToggleStyle: React.CSSProperties = {
+  position: 'fixed',
+  right: 12,
+  bottom: 12,
+  zIndex: 1000,
+  padding: '6px 10px',
+  borderRadius: 8,
+  border: '1px solid rgba(148, 163, 184, 0.35)',
+  background: 'rgba(15, 23, 42, 0.78)',
+  color: '#e2e8f0',
+  font: '12px/1.4 monospace',
+  cursor: 'pointer',
+};
 
 export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: RoomCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -75,6 +93,12 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
 
   // Kanban source filter (All / GSD only / Non-GSD) — mirrored from kanbanStore for the HUD.
   const kanbanFilter = useKanbanFilter();
+
+  // Character editor (M006/S02): draft state lives in outfitStore and is wired to
+  // React through useCharacterEditor (D021). The editor is a React-only overlay —
+  // it is never part of the per-frame render path.
+  const editor = useCharacterEditor();
+  const [editorOpen, setEditorOpen] = useState(false);
 
   // Per-render kanban hit-test state (replaces renderer module-level state)
   const kanbanRenderStateRef = useRef<KanbanRenderState>(createKanbanRenderState());
@@ -180,6 +204,9 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
 
   // Orchestration + experiment-history HUD data wiring (M008/S02 T04)
   const { getOrchState, getExpHistory } = useRoomHud();
+
+  // Live outfit sync (M006/S03): draft edits restyle walking agents in place.
+  useOutfitLiveSync(avatarManager);
 
   // Extension-message bus dispatcher (M008/S04 T04)
   useRoomMessages({
@@ -445,6 +472,9 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
     walkableBoothsRef,
   });
 
+  const previewSpriteCache =
+    (window as unknown as { spriteCache?: SpriteCache }).spriteCache ?? null;
+
   return (
     <>
       <RoomDevChrome
@@ -473,6 +503,34 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
       <RoomStage canvasRef={canvasRef} onClick={handleClick} onContextMenu={handleContextMenu} />
       {/* Kanban source filter HUD */}
       <KanbanFilterChip label={KANBAN_FILTER_LABELS[kanbanFilter]} />
+      <button
+        type="button"
+        style={editorToggleStyle}
+        onClick={() => setEditorOpen((open) => !open)}
+      >
+        {editorOpen ? 'Close Character Editor' : 'Character Editor'}
+      </button>
+      {editorOpen && (
+        <CharacterEditorPanel
+          roles={editor.roles}
+          activeRole={editor.activeRole}
+          onSelectRole={editor.selectRole}
+          hairOptions={editor.hairOptions}
+          selectedHairPart={editor.outfit.parts.hair}
+          onSelectHair={editor.setHair}
+          hairColors={editor.hairColors}
+          selectedHairColor={editor.outfit.colors.hair}
+          onSelectHairColor={(hex) => editor.setColor('hair', hex)}
+          shirtColors={editor.shirtColors}
+          selectedShirtColor={editor.outfit.colors.shirt}
+          onSelectShirtColor={(hex) => editor.setColor('shirt', hex)}
+          onResetRole={editor.resetRole}
+          onExportOutfits={editor.exportOutfits}
+          onImportOutfitsFile={editor.importOutfitsFile}
+        >
+          <AvatarPreview outfit={editor.outfit} spriteCache={previewSpriteCache} />
+        </CharacterEditorPanel>
+      )}
     </>
   );
 }

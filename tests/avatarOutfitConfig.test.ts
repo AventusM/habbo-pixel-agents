@@ -13,6 +13,8 @@ import {
   getDefaultPreset,
   outfitToFigureParts,
   getRequiredAssets,
+  ROLE_OUTFIT_PRESETS,
+  getRolePreset,
 } from '../src/avatarOutfitConfig.js';
 import type { PartType, OutfitConfig } from '../src/avatarOutfitConfig.js';
 
@@ -279,5 +281,37 @@ describe('avatarOutfitConfig', () => {
     const assets = getRequiredAssets(outfit);
     // hh_human_body, hh_human_face, Hair_M_yo, Shirt_M_Tshirt_Plain (deduped), Shoes_U_Slipons = 5
     expect(assets).toHaveLength(5);
+  });
+
+  // ---- Role preset tests ----
+
+  it('ROLE_OUTFIT_PRESETS has exactly four team presets with pairwise-distinct shirt colors', () => {
+    const shirts = Object.values(ROLE_OUTFIT_PRESETS).map((preset) => preset.colors.shirt);
+
+    expect(shirts).toHaveLength(4);
+    expect(new Set(shirts).size).toBe(shirts.length);
+    for (const shirt of shirts) {
+      expect(shirt).toMatch(/^#[0-9A-Fa-f]{6}$/);
+    }
+  });
+
+  it('getRolePreset returns an equal but independent object per call', () => {
+    const first = getRolePreset('planning', 0);
+    const second = getRolePreset('planning', 0);
+
+    expect(first).toEqual(second);
+    expect(first).not.toBe(second);
+    expect(first.colors).not.toBe(second.colors);
+
+    first.colors.shirt = '#000000';
+    expect(second.colors.shirt).not.toBe('#000000');
+  });
+
+  it('getRolePreset varies skin by variant without changing the team shirt', () => {
+    const v0 = getRolePreset('support', 0);
+    const v1 = getRolePreset('support', 1);
+
+    expect(v0.colors.shirt).toBe(v1.colors.shirt);
+    expect(v0.colors.skin).not.toBe(v1.colors.skin);
   });
 });

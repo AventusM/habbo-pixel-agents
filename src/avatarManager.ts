@@ -9,6 +9,8 @@ import { pathToIsometricPositions } from './isoAgentBehavior.js';
 import { findPath, getRandomWalkableTile, isTileOccupied } from './isoPathfinding.js';
 import { tileToScreen } from './isometricMath.js';
 import type { TeamSection } from './agentTypes.js';
+import { getRolePreset, type OutfitConfig } from './avatarOutfitConfig.js';
+import { outfitStore } from './state/outfitStore.js';
 
 /** Time per tile step in ms (walk speed) */
 const TILE_STEP_DURATION_MS = 350;
@@ -25,6 +27,61 @@ interface PathState {
 export class AvatarManager {
   private avatars = new Map<string, AvatarSpec>();
   private pathStates = new Map<string, PathState>();
+  private loggedRoleResolutions = new Set<string>();
+
+  private logRoleResolution(spec: AvatarSpec): void {
+    if (this.loggedRoleResolutions.has(spec.id)) return;
+    this.loggedRoleResolutions.add(spec.id);
+    console.debug(`[avatarManager] role outfit resolved for ${spec.id}: team=${spec.team} shirt=${spec.outfit?.colors.shirt}`);
+  }
+
+  /**
+   * Resolve the spawn outfit for a team: the outfitStore draft when present,
+   * otherwise the role preset. Cloned so the live spec never aliases store
+   * state (the store replaces drafts on edit; restyle pushes them explicitly).
+   */
+  private resolveSpawnOutfit(team: TeamSection, variant: 0 | 1 | 2 | 3 | 4 | 5): OutfitConfig {
+    const draft = outfitStore.drafts[team];
+    const source = draft ?? getRolePreset(team, variant);
+    return {
+      gender: source.gender,
+      parts: {
+        hair: { ...source.parts.hair },
+        shirt: { ...source.parts.shirt },
+        pants: { ...source.parts.pants },
+        shoes: { ...source.parts.shoes },
+      },
+      colors: { ...source.colors },
+    };
+  }
+
+  /**
+   * Restyle a live avatar in place: swaps the outfit reference without
+   * touching position, state, direction, or tiles (no respawn). No-op for
+   * unknown agent ids. Returns true when an avatar was restyled.
+   */
+  restyleAvatar(agentId: string, outfit: OutfitConfig): boolean {
+    const avatar = this.avatars.get(agentId);
+    if (!avatar) return false;
+    avatar.outfit = outfit;
+    console.debug(`[avatarManager] restyle ${agentId} team=${avatar.team}`);
+    return true;
+  }
+
+  /**
+   * Restyle every live avatar of one team in place. Returns the restyle count.
+   */
+  applyRoleOutfit(team: TeamSection, outfit: OutfitConfig): number {
+    let count = 0;
+    for (const avatar of this.avatars.values()) {
+      if (avatar.team === team) {
+        avatar.outfit = outfit;
+        count++;
+      }
+    }
+    console.debug(`[avatarManager] applyRoleOutfit ${team} count=${count}`);
+    return count;
+  }
 
   /**
    * Spawn a new avatar at a random walkable tile.
@@ -62,9 +119,11 @@ export class AvatarManager {
       isSelected: false,
       displayName,
       team: team || 'core-dev',
+      outfit: this.resolveSpawnOutfit(team ?? 'core-dev', variant),
     };
 
     this.avatars.set(agentId, spec);
+    this.logRoleResolution(spec);
     return spec;
   }
 
@@ -96,9 +155,11 @@ export class AvatarManager {
       isSelected: false,
       displayName,
       team: team || 'core-dev',
+      outfit: this.resolveSpawnOutfit(team ?? 'core-dev', variant),
     };
 
     this.avatars.set(agentId, spec);
+    this.logRoleResolution(spec);
     return spec;
   }
 
