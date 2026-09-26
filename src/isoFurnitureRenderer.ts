@@ -93,6 +93,8 @@ export interface FurnitureSpec {
   direction: 0 | 2 | 4 | 6;
   /** Animation frame index (0 = default/closed, 1 = open, etc.) */
   frameIndex?: number;
+  /** Stable per-item identity assigned lazily by the layout editor (M009/S02). */
+  id?: string;
 }
 
 /**
@@ -113,6 +115,8 @@ export interface MultiTileFurnitureSpec {
   heightTiles: number;
   /** Habbo direction (0, 2, 4, 6) */
   direction: 0 | 2 | 4 | 6;
+  /** Stable per-item identity assigned lazily by the layout editor (M009/S02). */
+  id?: string;
 }
 
 /**

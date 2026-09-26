@@ -242,6 +242,237 @@ export function gridToHeightmap(grid: TileGrid): string {
     .join('\n');
 }
 
+/** Which placed-furniture list an item lives in. */
+export type PlacedFurnitureKind = 'single' | 'multi';
+
+/** A selected/addressable placed furniture item (M009/S02). */
+export interface PlacedFurnitureInfo {
+  /** Stable per-item identity (assigned lazily on first reference). */
+  id: string;
+  kind: PlacedFurnitureKind;
+  name: string;
+  tileX: number;
+  tileY: number;
+  tileZ: number;
+}
+
+let furnitureIdCounter = 0;
+
+function assignFurnitureId(item: { id?: string }, prefix: 'f' | 'm'): string {
+  if (!item.id) {
+    furnitureIdCounter += 1;
+    item.id = `${prefix}${furnitureIdCounter}`;
+  }
+  return item.id;
+}
+
+/**
+ * Assign a stable id to every placed item that lacks one. Idempotent; called
+ * once after init/load so selection, move and delete have stable identities.
+ */
+export function ensureFurnitureIds(
+  furniture: FurnitureSpec[],
+  multiTileFurniture: MultiTileFurnitureSpec[],
+): void {
+  for (const f of furniture) assignFurnitureId(f, 'f');
+  for (const m of multiTileFurniture) assignFurnitureId(m, 'm');
+}
+
+/** Tiles occupied by placed furniture, optionally excluding one item's id. */
+function buildOccupiedSet(
+  furnitureList: FurnitureSpec[],
+  multiTileFurnitureList: MultiTileFurnitureSpec[],
+  excludeId?: string,
+): Set<string> {
+  const occupied = new Set<string>();
+  for (const f of furnitureList) {
+    if (f.id !== undefined && f.id === excludeId) continue;
+    occupied.add(`${f.tileX},${f.tileY}`);
+  }
+  for (const f of multiTileFurnitureList) {
+    if (f.id !== undefined && f.id === excludeId) continue;
+    for (let fy = 0; fy < f.heightTiles; fy++) {
+      for (let fx = 0; fx < f.widthTiles; fx++) {
+        occupied.add(`${f.tileX + fx},${f.tileY + fy}`);
+      }
+    }
+  }
+  return occupied;
+}
+
+/**
+ * Validate a footprint against the same bounds/void/occupancy rules used by
+ * placement. `excludeId` skips one item so it does not collide with itself
+ * while moving.
+ */
+function validateFurniturePlacement(
+  grid: TileGrid,
+  furnitureList: FurnitureSpec[],
+  multiTileFurnitureList: MultiTileFurnitureSpec[],
+  tileX: number,
+  tileY: number,
+  widthTiles: number,
+  heightTiles: number,
+  excludeId?: string,
+): boolean {
+  const occupied = buildOccupiedSet(furnitureList, multiTileFurnitureList, excludeId);
+
+  for (let dy = 0; dy < heightTiles; dy++) {
+    for (let dx = 0; dx < widthTiles; dx++) {
+      const checkX = tileX + dx;
+      const checkY = tileY + dy;
+
+      if (checkX < 0 || checkX >= grid.width || checkY < 0 || checkY >= grid.height) {
+        console.warn(`Furniture rejected: out of bounds at (${checkX}, ${checkY})`);
+        return false;
+      }
+
+      const tile = grid.tiles[checkY][checkX];
+      if (tile === null) {
+        console.warn(`Furniture rejected: void tile at (${checkX}, ${checkY})`);
+        return false;
+      }
+
+      if (occupied.has(`${checkX},${checkY}`)) {
+        console.warn(`Furniture rejected: tile already occupied at (${checkX}, ${checkY})`);
+        return false;
+      }
+    }
+  }
+
+  return true;
+}
+
+/**
+ * Find the placed furniture item covering a tile (single anchor or multi
+ * footprint), assigning its id on first reference.
+ */
+export function findFurnitureAtTile(
+  furnitureList: FurnitureSpec[],
+  multiTileFurnitureList: MultiTileFurnitureSpec[],
+  tileX: number,
+  tileY: number,
+): PlacedFurnitureInfo | null {
+  for (const f of furnitureList) {
+    if (f.tileX === tileX && f.tileY === tileY) {
+      return {
+        id: assignFurnitureId(f, 'f'),
+        kind: 'single',
+        name: f.name,
+        tileX: f.tileX,
+        tileY: f.tileY,
+        tileZ: f.tileZ,
+      };
+    }
+  }
+  for (const f of multiTileFurnitureList) {
+    if (
+      tileX >= f.tileX && tileX < f.tileX + f.widthTiles &&
+      tileY >= f.tileY && tileY < f.tileY + f.heightTiles
+    ) {
+      return {
+        id: assignFurnitureId(f, 'm'),
+        kind: 'multi',
+        name: f.name,
+        tileX: f.tileX,
+        tileY: f.tileY,
+        tileZ: f.tileZ,
+      };
+    }
+  }
+  return null;
+}
+
+/** Re-read a placed item's info by id (used after a move to refresh coords). */
+export function getFurnitureInfoById(
+  furnitureList: FurnitureSpec[],
+  multiTileFurnitureList: MultiTileFurnitureSpec[],
+  id: string,
+): PlacedFurnitureInfo | null {
+  if (!id) return null;
+  for (const f of furnitureList) {
+    if (f.id === id) {
+      return { id, kind: 'single', name: f.name, tileX: f.tileX, tileY: f.tileY, tileZ: f.tileZ };
+    }
+  }
+  for (const f of multiTileFurnitureList) {
+    if (f.id === id) {
+      return { id, kind: 'multi', name: f.name, tileX: f.tileX, tileY: f.tileY, tileZ: f.tileZ };
+    }
+  }
+  return null;
+}
+
+/**
+ * Move a placed item to a new anchor tile, preserving its id, type, direction
+ * and (multi-tile) footprint. Rejects invalid targets without mutating.
+ *
+ * @returns true when the item moved, false when not found or the target is invalid
+ */
+export function moveFurniture(
+  grid: TileGrid,
+  furnitureList: FurnitureSpec[],
+  multiTileFurnitureList: MultiTileFurnitureSpec[],
+  id: string,
+  tileX: number,
+  tileY: number,
+): boolean {
+  if (!id) return false;
+  for (const f of furnitureList) {
+    if (f.id !== id) continue;
+    if (!validateFurniturePlacement(grid, furnitureList, multiTileFurnitureList, tileX, tileY, 1, 1, id)) {
+      return false;
+    }
+    const base = grid.tiles[tileY][tileX];
+    f.tileX = tileX;
+    f.tileY = tileY;
+    f.tileZ = base ? base.height : 0;
+    return true;
+  }
+
+  for (const f of multiTileFurnitureList) {
+    if (f.id !== id) continue;
+    if (!validateFurniturePlacement(
+      grid, furnitureList, multiTileFurnitureList, tileX, tileY, f.widthTiles, f.heightTiles, id,
+    )) {
+      return false;
+    }
+    const base = grid.tiles[tileY][tileX];
+    f.tileX = tileX;
+    f.tileY = tileY;
+    f.tileZ = base ? base.height : 0;
+    return true;
+  }
+
+  return false;
+}
+
+/**
+ * Remove a placed item by id.
+ *
+ * @returns true when an item was removed, false when the id was not found
+ */
+export function deleteFurniture(
+  furnitureList: FurnitureSpec[],
+  multiTileFurnitureList: MultiTileFurnitureSpec[],
+  id: string,
+): boolean {
+  if (!id) return false;
+  for (let i = 0; i < furnitureList.length; i++) {
+    if (furnitureList[i].id === id) {
+      furnitureList.splice(i, 1);
+      return true;
+    }
+  }
+  for (let i = 0; i < multiTileFurnitureList.length; i++) {
+    if (multiTileFurnitureList[i].id === id) {
+      multiTileFurnitureList.splice(i, 1);
+      return true;
+    }
+  }
+  return false;
+}
+
 /**
  * Place furniture at specified tile position.
  * Validates bounds and walkability before placement.
@@ -269,44 +500,10 @@ export function placeFurniture(
     ? getFurnitureDimensions(furnitureType, spriteCache, direction)
     : { widthTiles: 1, heightTiles: 1 };
 
-  // Build set of tiles already occupied by existing furniture
-  const occupied = new Set<string>();
-  for (const f of furnitureList) {
-    occupied.add(`${f.tileX},${f.tileY}`);
-  }
-  for (const f of multiTileFurnitureList) {
-    for (let fy = 0; fy < f.heightTiles; fy++) {
-      for (let fx = 0; fx < f.widthTiles; fx++) {
-        occupied.add(`${f.tileX + fx},${f.tileY + fy}`);
-      }
-    }
-  }
-
-  // Validate footprint
-  for (let dy = 0; dy < heightTiles; dy++) {
-    for (let dx = 0; dx < widthTiles; dx++) {
-      const checkX = tileX + dx;
-      const checkY = tileY + dy;
-
-      // Check bounds
-      if (checkX < 0 || checkX >= grid.width || checkY < 0 || checkY >= grid.height) {
-        console.warn(`Furniture placement rejected: out of bounds at (${checkX}, ${checkY})`);
-        return false;
-      }
-
-      // Check walkability
-      const tile = grid.tiles[checkY][checkX];
-      if (tile === null) {
-        console.warn(`Furniture placement rejected: void tile at (${checkX}, ${checkY})`);
-        return false;
-      }
-
-      // Check not already occupied by furniture
-      if (occupied.has(`${checkX},${checkY}`)) {
-        console.warn(`Furniture placement rejected: tile already occupied at (${checkX}, ${checkY})`);
-        return false;
-      }
-    }
+  if (!validateFurniturePlacement(
+    grid, furnitureList, multiTileFurnitureList, tileX, tileY, widthTiles, heightTiles,
+  )) {
+    return false;
   }
 
   // Get tile height
