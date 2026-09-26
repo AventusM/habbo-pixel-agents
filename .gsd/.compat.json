@@ -1,7 +1,7 @@
 {
   "schema": 2,
   "lastWriter": "gsd-pi",
-  "lastProjectedAt": "2026-09-26T18:36:47.312Z",
+  "lastProjectedAt": "2026-09-26T18:55:19.472Z",
   "projections": {
     "phases/01-retrodiffusion-as-primary-pixel-art-sour/01-ROADMAP.md": {
       "sha": "9ece1470358ec922",
@@ -96,7 +96,7 @@
       ]
     },
     "phases/06-role-based-character-editor/06-ROADMAP.md": {
-      "sha": "2e31b1f9845e52b0",
+      "sha": "30ece4fdfe387c37",
       "entities": [
         "M006"
       ]
@@ -307,6 +307,13 @@
       "entities": [
         "M006",
         "M006/S01"
+      ]
+    },
+    "phases/06-role-based-character-editor/06-02-PLAN.md": {
+      "sha": "f1cd210418a994ef",
+      "entities": [
+        "M006",
+        "M006/S02"
       ]
     }
   },
