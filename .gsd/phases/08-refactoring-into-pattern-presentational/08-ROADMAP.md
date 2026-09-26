@@ -23,4 +23,4 @@
 ## Boundary Map
 
 In scope: src/RoomCanvas.tsx, new src/hooks/*, presentational components extracted from the shell, shell store wiring. Out of scope: renderer internals (src/iso*Renderer*.ts, src/render/*), asset pipeline, integrations clients, agent provisioning; no visual redesign; no frame-path changes beyond preserving the allocation-free invariant.
-<!-- gsd:state-version=104:0 -->
+<!-- gsd:state-version=111:0 -->
