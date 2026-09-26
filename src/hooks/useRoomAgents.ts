@@ -1,9 +1,14 @@
 // src/hooks/useRoomAgents.ts
-// Agent spawn/despawn/teleport lifecycle: section-manager ownership, booth
-// occupancy, spawn/despawn orchestration and deferred booth step-outs
-// (M008/S01, extracted from RoomCanvas). Part 1 of 2 — T05 extends it.
+// Agent lifecycle hook: owns the AvatarManager / IdleWanderManager /
+// AvatarSelectionManager instances plus section-manager ownership, booth
+// occupancy, spawn/despawn/teleport orchestration, deferred booth step-outs,
+// and the agentStatus/agentTool/agentLinkedTicket + idle-wander glue
+// (M008/S01, extracted from RoomCanvas).
 import { useRef } from 'react';
 import { SectionManager } from '../sectionManager.js';
+import { AvatarManager } from '../avatarManager.js';
+import { IdleWanderManager } from '../idleWander.js';
+import { AvatarSelectionManager } from '../avatarSelection.js';
 import { computeBlockedTiles } from '../isoPathfinding.js';
 import { createTeleportEffect } from '../teleportEffect.js';
 import { agentStore } from '../state/agentStore.js';
@@ -13,14 +18,8 @@ import type { FloorTemplate } from '../roomLayoutEngine.js';
 import type { ExtensionMessage, TeamSection } from '../agentTypes.js';
 import type { TileGrid } from '../isoTypes.js';
 import type { FurnitureSpec, MultiTileFurnitureSpec } from '../isoFurnitureRenderer.js';
-import type { AvatarManager } from '../avatarManager.js';
-import type { IdleWanderManager } from '../idleWander.js';
-import type { AvatarSelectionManager } from '../avatarSelection.js';
 
 export interface UseRoomAgentsOptions {
-  avatarManager: AvatarManager;
-  idleWander: IdleWanderManager;
-  selectionManager: AvatarSelectionManager;
   getGrid: () => TileGrid | null;
   getFurniture: () => FurnitureSpec[];
   getMultiTileFurniture: () => MultiTileFurnitureSpec[];
@@ -29,7 +28,14 @@ export interface UseRoomAgentsOptions {
 }
 
 export function useRoomAgents(options: UseRoomAgentsOptions) {
-  const { avatarManager, idleWander, selectionManager } = options;
+  // Lifecycle managers owned by this hook (M008/S01 T05) — the shell only
+  // reads them through the returned handles, never constructs them.
+  const avatarManagerRef = useRef<AvatarManager>(new AvatarManager());
+  const idleWanderRef = useRef<IdleWanderManager>(new IdleWanderManager());
+  const selectionManagerRef = useRef<AvatarSelectionManager>(new AvatarSelectionManager());
+  const avatarManager = avatarManagerRef.current;
+  const idleWander = idleWanderRef.current;
+  const selectionManager = selectionManagerRef.current;
 
   // Section manager for team-based agent placement
   const sectionManagerRef = useRef<SectionManager | null>(null);
@@ -193,6 +199,89 @@ export function useRoomAgents(options: UseRoomAgentsOptions) {
     selectionManager.deselectAvatar();
   };
 
+  /** Reflect an agent's active/idle status: seat at a desk or resume wandering. */
+  const handleAgentStatus = (msg: ExtensionMessage) => {
+    if (msg.type !== 'agentStatus') return;
+
+    // Skip status updates for agents mid-despawn (walking to booth)
+    if (despawningAgentsRef.current.has(msg.agentId)) return;
+
+    agentStore.setStatus(msg.agentId, msg.status);
+
+    const grid = options.getGrid();
+    const sectionManager = ensureSectionManager();
+
+    if (msg.status === 'active' && grid) {
+      idleWander.stopWandering(msg.agentId);
+      // Stand up if sitting before moving to desk
+      const activeAvatar = avatarManager.getAvatar(msg.agentId);
+      if (activeAvatar?.state === 'sit') {
+        avatarManager.standAvatar(msg.agentId);
+      }
+      // Record section activity for furniture glow overlays
+      const agentTeam = sectionManager?.getAgentTeam(msg.agentId) || 'core-dev';
+      sectionManager?.updateActivity(agentTeam, Date.now());
+      const occupiedDesks = new Set<string>();
+      for (const a of avatarManager.getAvatars()) {
+        if (a.id !== msg.agentId && a.state !== 'idle' && a.state !== 'spawning' && a.state !== 'despawning') {
+          occupiedDesks.add(`${a.tileX},${a.tileY}`);
+        }
+      }
+      const deskTile = sectionManager?.getDeskTile(agentTeam, occupiedDesks);
+      if (deskTile) {
+        const blocked = computeBlockedTiles(
+          options.getFurniture(),
+          options.getMultiTileFurniture(),
+          walkableBoothsRef.current,
+        );
+        avatarManager.moveAvatarTo(msg.agentId, deskTile.x, deskTile.y, grid, deskTile.dir as 0 | 2 | 4 | 6, blocked);
+      }
+    } else if (msg.status === 'idle') {
+      idleWander.startWandering(msg.agentId);
+    }
+  };
+
+  /** Record the current tool text and bump the agent's section activity. */
+  const handleAgentTool = (msg: ExtensionMessage) => {
+    if (msg.type !== 'agentTool') return;
+
+    agentStore.setTool(msg.agentId, msg.displayText);
+    // Track activity for auto-follow
+    const sectionManager = ensureSectionManager();
+    if (sectionManager) {
+      const agentTeam = sectionManager.getAgentTeam(msg.agentId);
+      if (agentTeam) {
+        sectionManager.updateActivity(agentTeam, Date.now());
+      }
+    }
+  };
+
+  /** Record the board ticket an agent is currently working on. */
+  const handleAgentLinkedTicket = (msg: ExtensionMessage) => {
+    if (msg.type !== 'agentLinkedTicket') return;
+    agentStore.setLinkedTicket(msg.agentId, msg.ticketId, msg.ticketTitle);
+  };
+
+  /** Frame tick: advance idle wandering for idle agents. */
+  const tickIdleWander = (nowMs: number) => {
+    const grid = options.getGrid();
+    if (!grid) return;
+    const blocked = computeBlockedTiles(
+      options.getFurniture(),
+      options.getMultiTileFurniture(),
+      walkableBoothsRef.current,
+    );
+    idleWander.tick(
+      nowMs,
+      avatarManager,
+      grid,
+      blocked,
+      options.getFurniture(),
+      options.getMultiTileFurniture(),
+      sectionManagerRef.current,
+    );
+  };
+
   /** Frame tick: trigger the despawn effect once a despawner reaches its booth. */
   const tickDespawns = (_nowMs: number) => {
     // Check despawning agents: if they've reached the booth tile, trigger despawn effect
@@ -282,6 +371,9 @@ export function useRoomAgents(options: UseRoomAgentsOptions) {
   };
 
   return {
+    avatarManager,
+    idleWander,
+    selectionManager,
     sectionManagerRef,
     teleportEffectsRef,
     walkableBoothsRef,
@@ -290,6 +382,10 @@ export function useRoomAgents(options: UseRoomAgentsOptions) {
     ensureSectionManager,
     handleAgentCreated,
     handleAgentRemoved,
+    handleAgentStatus,
+    handleAgentTool,
+    handleAgentLinkedTicket,
+    tickIdleWander,
     tickDespawns,
     processPendingStepOuts,
   };
