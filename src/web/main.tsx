@@ -15,6 +15,7 @@ import { generateFloorTemplate } from '../roomLayoutEngine.js';
 import { scheduleDemoEvents } from './demoData.js';
 import { onMessage } from '../bus.js';
 import { appMode } from '../state/appMode.js';
+import { uiStore } from '../state/uiStore.js';
 import type { ExtensionMessage } from '../agentTypes.js';
 import { connectWs, hasRealAgents, onWsStateChange, getWsState, type WsState } from './wsClient.js';
 
@@ -92,6 +93,17 @@ const spriteCache = new SpriteCache();
     // Make sprite cache globally available for RoomCanvas
     (window as any).spriteCache = spriteCache;
 
+    // The standalone dashboard is a developer surface: enable dev chrome so the
+    // room editor exposes Dev Capture and the sound tester (the extension host
+    // sets this flag itself in Development mode).
+    uiStore.setDevMode(true);
+
+    // Room editor entry: floating "Room Editor" toggle in RoomCanvas, or start
+    // expanded with ?editor=1. spriteCache (above) and floorTemplate (module
+    // top) are both set before this first render, so the panel is usable
+    // immediately.
+    const initialEditorOpen = new URLSearchParams(window.location.search).has('editor');
+
     // Render RoomCanvas — or the figure sprite-sheet debug grid (?debuggrid=1)
     const root = document.getElementById('root');
     if (root) {
@@ -99,11 +111,11 @@ const spriteCache = new SpriteCache();
       if (new URLSearchParams(window.location.search).has('debuggrid')) {
         console.log('✓ Rendering AvatarDebugGrid (sprite-sheet debug view)');
         rootElement.render(React.createElement(AvatarDebugGrid, {
-          onClose: () => rootElement.render(React.createElement(RoomCanvas, { heightmap: FLOOR_HEIGHTMAP })),
+          onClose: () => rootElement.render(React.createElement(RoomCanvas, { heightmap: FLOOR_HEIGHTMAP, initialEditorOpen })),
         }));
       } else {
         console.log('✓ Rendering RoomCanvas (standalone mode)');
-        rootElement.render(React.createElement(RoomCanvas, { heightmap: FLOOR_HEIGHTMAP }));
+        rootElement.render(React.createElement(RoomCanvas, { heightmap: FLOOR_HEIGHTMAP, initialEditorOpen }));
       }
 
       // Connect to WebSocket for real agent data
