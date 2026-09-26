@@ -23,7 +23,6 @@ import {
   type EditorState,
 } from './isoLayoutEditor.js';
 import { getSupportedDirections, isChairType, isTeleportBooth } from './furnitureRegistry.js';
-import { LayoutEditorPanel } from './LayoutEditorPanel.js';
 import { onMessage } from './bus.js';
 import type { ExtensionMessage, TeamSection } from './agentTypes.js';
 import { computeBlockedTiles } from './isoPathfinding.js';
@@ -35,11 +34,15 @@ import { agentStore } from './state/agentStore.js';
 import { kanbanStore } from './state/kanbanStore.js';
 import { cameraStore } from './state/cameraStore.js';
 import { expRunStore } from './state/expRunStore.js';
-import { expHistoryFromRuns, syncExpRunsToAgents } from './expFeed.js';
+import { syncExpRunsToAgents } from './expFeed.js';
 import { useKanbanFilter } from './hooks/useKanbanFilter.js';
 import { useRoomAudio } from './hooks/useRoomAudio.js';
 import { useAutoFollowCamera } from './hooks/useAutoFollowCamera.js';
 import { useRoomAgents } from './hooks/useRoomAgents.js';
+import { KanbanFilterChip } from './components/KanbanFilterChip.js';
+import { RoomStage } from './components/RoomStage.js';
+import { RoomDevChrome } from './components/RoomDevChrome.js';
+import { useRoomHud } from './hooks/useRoomHud.js';
 
 interface RoomCanvasProps {
   heightmap: string;
@@ -258,6 +261,9 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
     getCameraOrigin: () => renderState.current.cameraOrigin,
     setBoothFrame,
   });
+
+  // Orchestration + experiment-history HUD data wiring (M008/S02 T04)
+  const { getOrchState, getExpHistory } = useRoomHud();
 
   // Listen for extension messages (agent events) via the typed bus
   useEffect(() => {
@@ -582,8 +588,8 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
         sectionManager: sectionManagerRef.current,
         selectionManager,
         teleportEffects: teleportEffectsRef.current,
-        orchState: agentStore.snapshot(),
-        expHistory: expHistoryFromRuns(expRunStore.all(), expRunStore.visible),
+        orchState: getOrchState(),
+        expHistory: getExpHistory(),
         kanbanCards: kanbanStore.cards,
         kanbanFilter: kanbanStore.filter,
         expandedNote: expandedNoteRef.current,
@@ -982,10 +988,7 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
 
   return (
     <>
-      {/* Layout editor panel hidden — controls moved to orchestration sidebar.
-          Kept in codebase for reference; will be removed in a future cleanup phase. */}
-      {/* eslint-disable-next-line no-constant-binary-expression */}
-      {false && <LayoutEditorPanel
+      <RoomDevChrome
         editorMode={editorMode}
         onModeChange={setEditorMode}
         selectedColor={selectedColor}
@@ -995,7 +998,6 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
         furnitureDirection={furnitureDirection}
         devMode={devMode}
         onDevCapture={handleDevCapture}
-        onDebugGrid={undefined}
         onPlaySound={playSound}
         availableSounds={availableSounds}
         onRotate={() => {
@@ -1007,32 +1009,10 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
         }}
         onSave={handleSave}
         onLoad={handleLoad}
-      />}
-      <canvas
-        ref={canvasRef}
-        style={{ width: '100%', height: '100%', display: 'block', touchAction: 'none' }}
-        /* camera drag/pan, wheel zoom and touch gestures handled natively by CanvasStage */
-        onClick={handleClick}
-        onContextMenu={handleContextMenu}
       />
+      <RoomStage canvasRef={canvasRef} onClick={handleClick} onContextMenu={handleContextMenu} />
       {/* Kanban source filter HUD */}
-      <div
-        style={{
-          position: 'fixed',
-          left: 12,
-          bottom: 12,
-          zIndex: 10,
-          padding: '6px 10px',
-          borderRadius: 8,
-          background: 'rgba(15, 23, 42, 0.78)',
-          color: '#e2e8f0',
-          font: '12px/1.4 monospace',
-          border: '1px solid rgba(148, 163, 184, 0.35)',
-          pointerEvents: 'none',
-        }}
-      >
-        Kanban: {KANBAN_FILTER_LABELS[kanbanFilter]} &middot; press G
-      </div>
+      <KanbanFilterChip label={KANBAN_FILTER_LABELS[kanbanFilter]} />
     </>
   );
 }
