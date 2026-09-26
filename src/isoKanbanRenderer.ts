@@ -7,7 +7,7 @@
 
 import type { TileGrid } from './isoTypes.js';
 import type { KanbanCard } from './agentTypes.js';
-import { tileToScreen, TILE_W_HALF, TILE_H_HALF, WALL_HEIGHT } from './isometricMath.js';
+import { tileToScreen, TILE_W_HALF, WALL_HEIGHT } from './isometricMath.js';
 
 /** Any 2D rendering context (main canvas or offscreen layer) */
 type AnyCanvasCtx = CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
@@ -765,7 +765,6 @@ export function drawExpandedNote(
     curY += 18;
 
     for (const pr of card.linkedPrs) {
-      const prIcon = pr.status === 'completed' ? '✓' : pr.status === 'abandoned' ? '✗' : '⬤';
       const prColor = pr.status === 'completed' ? '#22c55e' :
                        pr.status === 'abandoned' ? '#ef4444' : '#3b82f6';
       ctx.fillStyle = prColor;

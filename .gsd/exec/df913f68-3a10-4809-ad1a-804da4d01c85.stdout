@@ -1,0 +1,52 @@
+=== tables ===
+active_decisions                   unit_dispatches                  
+active_memories                    verification_evidence            
+active_requirements                workers                          
+artifacts                          workflow_acceptance_criteria     
+assessments                        workflow_answers                 
+audit_events                       workflow_attempt_results         
+audit_turn_index                   workflow_authority_cutovers      
+cancellation_requests              workflow_blockers                
+command_queue                      workflow_closeout_effects        
+decisions                          workflow_closeout_plans          
+gate_runs                          workflow_conversation_decisions  
+liveness_block_signatures          workflow_decision_impacts        
+liveness_wedge_records             workflow_domain_events           
+memories                           workflow_execution_attempts      
+memories_fts                       workflow_failure_observations    
+memories_fts_config                workflow_human_acceptances       
+memories_fts_data                  workflow_import_applications     
+memories_fts_docsize               workflow_import_forward_repairs  
+memories_fts_idx                   workflow_import_restores         
+memory_embeddings                  workflow_interaction_options     
+memory_processed_units             workflow_interactions            
+memory_relations                   workflow_item_lifecycles         
+memory_sources                     workflow_kernel_checkpoints      
+milestone_commit_attributions      workflow_milestone_contexts      
+milestone_leases                   workflow_open_questions          
+milestones                         workflow_operations              
+project_authority                  workflow_outbox                  
+quality_gates                      workflow_projection_work         
+replan_history                     workflow_question_dependencies   
+requirements                       workflow_recovery_actions        
+rework_brief_findings              workflow_recovery_budgets        
+rework_briefs                      workflow_remediation_links       
+runtime_kv                         workflow_requirement_dispositions
+schema_version                     workflow_settlement_receipts     
+slice_dependencies                 workflow_technical_verdicts      
+slices                             workflow_verification_evidence   
+tasks                              workflow_waivers                 
+turn_git_transactions              workflow_work_checkpoints        
+=== tasks for M002 ===
+id   milestone_id  slice_id  status   n
+---  ------------  --------  -------  -
+T01  M002          S01       pending  0
+T02  M002          S01       pending  0
+=== attempts for M002 tasks ===
+Error: in prepare, no such table: task_attempts
+=== slices M002 ===
+id   milestone_id  status 
+---  ------------  -------
+S01  M002          pending
+S02  M002          pending
+S03  M002          pending

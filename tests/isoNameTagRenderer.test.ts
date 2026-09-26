@@ -99,7 +99,6 @@ describe('isoNameTagRenderer', () => {
 
       // Check for grey color
       const fillStyleHistory: string[] = [];
-      const originalFillStyleSetter = Object.getOwnPropertyDescriptor(mockCtx, 'fillStyle')?.set;
 
       // Track fillStyle changes
       Object.defineProperty(mockCtx, 'fillStyle', {

@@ -1,16 +1,16 @@
 {
   "schema": 2,
   "lastWriter": "gsd-pi",
-  "lastProjectedAt": "2026-09-10T18:04:34.811Z",
+  "lastProjectedAt": "2026-09-26T09:05:30.243Z",
   "projections": {
     "phases/01-retrodiffusion-as-primary-pixel-art-sour/01-ROADMAP.md": {
-      "sha": "82da4065ce32fabf",
+      "sha": "9ece1470358ec922",
       "entities": [
         "M001"
       ]
     },
     "DECISIONS.md": {
-      "sha": "f703721c1db44002",
+      "sha": "b19521a7578aae50",
       "entities": []
     },
     "phases/01-retrodiffusion-as-primary-pixel-art-sour/01-01-RESEARCH.md": {
@@ -28,7 +28,7 @@
       ]
     },
     "phases/02-restore-original-habbo-figure-avatar-sys/02-ROADMAP.md": {
-      "sha": "ee2ae651163d02fe",
+      "sha": "44998ce2e4a86f6a",
       "entities": [
         "M002"
       ]
@@ -41,7 +41,7 @@
       ]
     },
     "phases/03-refactor-architecture-map-failure-mode-h/03-ROADMAP.md": {
-      "sha": "3c2b6bd026a805e4",
+      "sha": "46289019cc535fff",
       "entities": [
         "M003"
       ]
@@ -58,6 +58,157 @@
       "entities": [
         "M003",
         "M003/S03"
+      ]
+    },
+    "phases/02-restore-original-habbo-figure-avatar-sys/02-03-ASSESSMENT.md": {
+      "sha": "5c28001437243e10",
+      "entities": [
+        "M002",
+        "M002/S03"
+      ]
+    },
+    "phases/04-experiment-harness-any-board-issue-via-d/04-ROADMAP.md": {
+      "sha": "5df8d42ead14229e",
+      "entities": [
+        "M004"
+      ]
+    },
+    "phases/04-experiment-harness-any-board-issue-via-d/04-01-PLAN.md": {
+      "sha": "a313da95cb63894a",
+      "entities": [
+        "M004",
+        "M004/S01"
+      ]
+    },
+    "phases/01-retrodiffusion-as-primary-pixel-art-sour/01-01-PLAN.md": {
+      "sha": "4b24a8f1a8612acf",
+      "entities": [
+        "M001",
+        "M001/S01"
+      ]
+    },
+    "phases/01-retrodiffusion-as-primary-pixel-art-sour/S01-T01-SUMMARY.md": {
+      "sha": "cb1d9cba72d5328e",
+      "entities": [
+        "M001",
+        "M001/S01",
+        "M001/S01/T01"
+      ]
+    },
+    "phases/06-role-based-character-editor/06-ROADMAP.md": {
+      "sha": "e3e5d5fa87bb6a64",
+      "entities": [
+        "M006"
+      ]
+    },
+    "phases/01-retrodiffusion-as-primary-pixel-art-sour/S01-T02-SUMMARY.md": {
+      "sha": "02eaa5c34608a245",
+      "entities": [
+        "M001",
+        "M001/S01",
+        "M001/S01/T02"
+      ]
+    },
+    "phases/05-gsd-github-two-way-sync/05-ROADMAP.md": {
+      "sha": "4d242bab2a670141",
+      "entities": [
+        "M005"
+      ]
+    },
+    "phases/04-experiment-harness-any-board-issue-via-d/04-02-PLAN.md": {
+      "sha": "447dff3ca2669166",
+      "entities": [
+        "M004",
+        "M004/S02"
+      ]
+    },
+    "phases/04-experiment-harness-any-board-issue-via-d/04-03-PLAN.md": {
+      "sha": "1fdcfe3ea593b2e7",
+      "entities": [
+        "M004",
+        "M004/S03"
+      ]
+    },
+    "phases/07-pattern-enforcement-stack-curated-patter/07-ROADMAP.md": {
+      "sha": "4e818acc3d3f77a4",
+      "entities": [
+        "M007"
+      ]
+    },
+    "phases/07-pattern-enforcement-stack-curated-patter/07-05-PLAN.md": {
+      "sha": "ded6af777446484f",
+      "entities": [
+        "M007",
+        "M007/S05"
+      ]
+    },
+    "phases/07-pattern-enforcement-stack-curated-patter/07-03-PLAN.md": {
+      "sha": "10c3b2a6c22111e0",
+      "entities": [
+        "M007",
+        "M007/S03"
+      ]
+    },
+    "phases/07-pattern-enforcement-stack-curated-patter/07-01-PLAN.md": {
+      "sha": "236a8937ee608225",
+      "entities": [
+        "M007",
+        "M007/S01"
+      ]
+    },
+    "phases/07-pattern-enforcement-stack-curated-patter/07-02-PLAN.md": {
+      "sha": "11f8acd341ee70f0",
+      "entities": [
+        "M007",
+        "M007/S02"
+      ]
+    },
+    "phases/07-pattern-enforcement-stack-curated-patter/07-04-PLAN.md": {
+      "sha": "ab8b9a471576bf14",
+      "entities": [
+        "M007",
+        "M007/S04"
+      ]
+    },
+    "phases/07-pattern-enforcement-stack-curated-patter/07-01-SUMMARY.md": {
+      "sha": "5f16d43729e0fb68",
+      "entities": [
+        "M007",
+        "M007/S01"
+      ]
+    },
+    "phases/07-pattern-enforcement-stack-curated-patter/07-02-SUMMARY.md": {
+      "sha": "1d12f98408500631",
+      "entities": [
+        "M007",
+        "M007/S02"
+      ]
+    },
+    "phases/07-pattern-enforcement-stack-curated-patter/07-05-SUMMARY.md": {
+      "sha": "6029dd81d3e1e1c8",
+      "entities": [
+        "M007",
+        "M007/S05"
+      ]
+    },
+    "phases/07-pattern-enforcement-stack-curated-patter/07-04-SUMMARY.md": {
+      "sha": "ba1e9582fa627529",
+      "entities": [
+        "M007",
+        "M007/S04"
+      ]
+    },
+    "phases/07-pattern-enforcement-stack-curated-patter/07-03-SUMMARY.md": {
+      "sha": "6798f5b3da6e1766",
+      "entities": [
+        "M007",
+        "M007/S03"
+      ]
+    },
+    "phases/08-refactoring-into-pattern-presentational/08-ROADMAP.md": {
+      "sha": "77a834e5c73fd3f5",
+      "entities": [
+        "M008"
       ]
     }
   },

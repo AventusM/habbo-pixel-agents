@@ -1,0 +1,101 @@
+{
+  "version": 1,
+  "skills": {
+    "ai-ui-patterns": {
+      "source": "PatternsDev/skills",
+      "sourceType": "github",
+      "skillPath": "react/ai-ui-patterns/SKILL.md",
+      "computedHash": "cad85e899332ee65fb243edd53aca63bc44c806bedadb8e355ace172ee9db37a"
+    },
+    "bundle-splitting": {
+      "source": "PatternsDev/skills",
+      "sourceType": "github",
+      "skillPath": "javascript/bundle-splitting/SKILL.md",
+      "computedHash": "9de2cb11d3111881985881ad618b4e1e12c2ae44bc1447657a3ed91bfc0e07a9"
+    },
+    "client-side-rendering": {
+      "source": "PatternsDev/skills",
+      "sourceType": "github",
+      "skillPath": "react/client-side-rendering/SKILL.md",
+      "computedHash": "a98c0080999cb0530c38ccb7a0d90c21661aa01ccaced08ec7a9353da22010eb"
+    },
+    "compound-pattern": {
+      "source": "PatternsDev/skills",
+      "sourceType": "github",
+      "skillPath": "react/compound-pattern/SKILL.md",
+      "computedHash": "2246d61a920ea810956aab34a70818367c210bf1219346730172ae6bb8534a13"
+    },
+    "dynamic-import": {
+      "source": "PatternsDev/skills",
+      "sourceType": "github",
+      "skillPath": "javascript/dynamic-import/SKILL.md",
+      "computedHash": "687a3ac3a1e320f494f7900fd913617cdb5e5471cb5c0a922f8848dc84fd2ea4"
+    },
+    "factory-pattern": {
+      "source": "PatternsDev/skills",
+      "sourceType": "github",
+      "skillPath": "javascript/factory-pattern/SKILL.md",
+      "computedHash": "1d5aca3fbb6df7c7d670df38ed6fb21e9c92bb1bc9af8cd2a435b5c68439b3b4"
+    },
+    "hooks-pattern": {
+      "source": "PatternsDev/skills",
+      "sourceType": "github",
+      "skillPath": "react/hooks-pattern/SKILL.md",
+      "computedHash": "4e5c7539e93ce14810f0b9ee8d0b5945245c787c8b7430f47a36ae393890301d"
+    },
+    "js-performance-patterns": {
+      "source": "PatternsDev/skills",
+      "sourceType": "github",
+      "skillPath": "javascript/js-performance-patterns/SKILL.md",
+      "computedHash": "2a7d4d58779625e2018a7a9234feb6be6d215ad0d36115bb93b50fd578ad9c93"
+    },
+    "mediator-pattern": {
+      "source": "PatternsDev/skills",
+      "sourceType": "github",
+      "skillPath": "javascript/mediator-pattern/SKILL.md",
+      "computedHash": "287b95cbac18bdaddc9ac2c5ebb240275bc80eb7a550f54b14edf51ee6349ceb"
+    },
+    "module-pattern": {
+      "source": "PatternsDev/skills",
+      "sourceType": "github",
+      "skillPath": "javascript/module-pattern/SKILL.md",
+      "computedHash": "bdbc7798d9780b77bdb65902bd875c8f21c0286fa9a829c8b4323599113665b0"
+    },
+    "observer-pattern": {
+      "source": "PatternsDev/skills",
+      "sourceType": "github",
+      "skillPath": "javascript/observer-pattern/SKILL.md",
+      "computedHash": "f29ee39ffb822dce4fbf6fc0bab27d80f0bee4ef39a232d53587ea7504f1cade"
+    },
+    "presentational-container-pattern": {
+      "source": "PatternsDev/skills",
+      "sourceType": "github",
+      "skillPath": "react/presentational-container-pattern/SKILL.md",
+      "computedHash": "3aafd64e3196232e6fe9c4e943a335e3d02d5c0dfccaad60470417beeacf874f"
+    },
+    "react-composition-2026": {
+      "source": "PatternsDev/skills",
+      "sourceType": "github",
+      "skillPath": "react/react-composition-2026/SKILL.md",
+      "computedHash": "e89ba214136fd59f8cd627f6488782c5f13b13bc6b6f9d1a5f7643d8a1874404"
+    },
+    "react-render-optimization": {
+      "source": "PatternsDev/skills",
+      "sourceType": "github",
+      "skillPath": "react/react-render-optimization/SKILL.md",
+      "computedHash": "7e7ffc7be56531d9571a5c489a4a3d7a406ce63f9ad739d2e7f8b8de875a6cd8"
+    },
+    "render-props-pattern": {
+      "source": "PatternsDev/skills",
+      "sourceType": "github",
+      "skillPath": "react/render-props-pattern/SKILL.md",
+      "computedHash": "752afa0d8feca7416aa7ea098e0f888764e95f2e57361ea6b802faf1d5d2e261"
+    },
+    "virtual-lists": {
+      "source": "PatternsDev/skills",
+      "sourceType": "github",
+      "skillPath": "javascript/virtual-lists/SKILL.md",
+      "computedHash": "a910a2e96006f952bb740683e3165e4fea4a0d715bfa7ac17a2409076c0d29a8"
+    }
+  }
+}

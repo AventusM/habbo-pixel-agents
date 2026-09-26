@@ -291,7 +291,6 @@ export class CanvasStage {
       const cam = this.camera;
       if (e.touches.length === 2 && pinchStart) {
         const dist = touchDist(Array.from(e.touches));
-        const mid = touchMid(Array.from(e.touches));
         const target = pinchStart.zoom * (dist / Math.max(1, pinchStart.dist));
         setZoomWithPivot(cam, target, pinchStart.midX, pinchStart.midY, canvas.offsetWidth, canvas.offsetHeight);
         cameraStore.notify();

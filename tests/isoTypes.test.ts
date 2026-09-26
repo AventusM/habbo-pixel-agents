@@ -8,8 +8,6 @@ import {
   hsbToHsl,
   tileColors,
   depthSort,
-  type TileGrid,
-  type HsbColor,
   type Renderable,
 } from '../src/isoTypes.js';
 

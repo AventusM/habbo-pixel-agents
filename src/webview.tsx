@@ -93,7 +93,7 @@ const spriteCache = new SpriteCache();
       rootElement.render(React.createElement(RoomCanvas, { heightmap: FLOOR_HEIGHTMAP }));
 
       // Listen for template size changes from extension settings
-      const unsubscribeTemplate = onMessage((msg: ExtensionMessage) => {
+      onMessage((msg: ExtensionMessage) => {
         if (msg && msg.type === 'templateSize' && msg.size) {
           const validSizes = ['small', 'medium', 'large'] as const;
           if (validSizes.includes(msg.size)) {

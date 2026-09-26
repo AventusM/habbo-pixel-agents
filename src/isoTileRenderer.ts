@@ -3,7 +3,6 @@
 // No React imports — pure TypeScript for testability
 
 import {
-  TILE_W,
   TILE_H,
   TILE_W_HALF,
   TILE_H_HALF,
@@ -151,7 +150,7 @@ export function preRenderRoom(
   furniture?: FurnitureSpec[],
   multiTileFurniture?: MultiTileFurnitureSpec[],
   spriteCache?: SpriteCache,
-  atlasName: string = 'furniture',
+  _atlasName: string = 'furniture',
   tileColorMap?: Map<string, HsbColor>,
 ): OffscreenCanvas {
   const offscreen = new OffscreenCanvas(physicalW, physicalH);
@@ -342,50 +341,4 @@ function drawFloorTile(
   ctx.strokeStyle = borderColor;
   ctx.lineWidth = 0.5;
   ctx.stroke();
-}
-
-/**
- * Draw left wall face (parallelogram hanging below left edge).
- * Module-private helper.
- */
-function drawLeftFace(
-  ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D,
-  sx: number,
-  sy: number,
-  hsb: HsbColor,
-): void {
-  const { left } = tileColors(hsb);
-
-  ctx.beginPath();
-  ctx.moveTo(sx - TILE_W_HALF, sy + TILE_H_HALF); // left vertex of rhombus
-  ctx.lineTo(sx, sy + TILE_H); // bottom vertex of rhombus
-  ctx.lineTo(sx, sy + TILE_H + WALL_HEIGHT); // bottom-left of wall strip
-  ctx.lineTo(sx - TILE_W_HALF, sy + TILE_H_HALF + WALL_HEIGHT); // top-left of wall strip
-  ctx.closePath();
-
-  ctx.fillStyle = left;
-  ctx.fill();
-}
-
-/**
- * Draw right wall face (parallelogram hanging below right edge).
- * Module-private helper.
- */
-function drawRightFace(
-  ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D,
-  sx: number,
-  sy: number,
-  hsb: HsbColor,
-): void {
-  const { right } = tileColors(hsb);
-
-  ctx.beginPath();
-  ctx.moveTo(sx + TILE_W_HALF, sy + TILE_H_HALF); // right vertex of rhombus
-  ctx.lineTo(sx, sy + TILE_H); // bottom vertex of rhombus
-  ctx.lineTo(sx, sy + TILE_H + WALL_HEIGHT); // bottom-right of wall strip
-  ctx.lineTo(sx + TILE_W_HALF, sy + TILE_H_HALF + WALL_HEIGHT); // top-right of wall strip
-  ctx.closePath();
-
-  ctx.fillStyle = right;
-  ctx.fill();
 }

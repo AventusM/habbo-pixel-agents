@@ -5,7 +5,7 @@
 import { tileToScreen, TILE_W_HALF, TILE_H_HALF } from "./isometricMath.js";
 import type { SpriteCache, NitroSpriteFrame } from "./isoSpriteCache.js";
 import type { Renderable } from "./isoTypes.js";
-import type { OutfitConfig, PartType } from "./avatarOutfitConfig.js";
+import type { PartType } from "./avatarOutfitConfig.js";
 import { outfitToFigureParts } from "./avatarOutfitConfig.js";
 import type { AvatarRenderer } from "./avatarRendererTypes.js";
 

@@ -41,8 +41,8 @@ console.error = (...args: unknown[]) => { pushLog('ERR', args); origConsole.erro
 (window as any).__devLogBuffer = logBuffer;
 
 // Generate floor template
-let currentTemplate = generateFloorTemplate('small');
-let FLOOR_HEIGHTMAP = currentTemplate.heightmap;
+const currentTemplate = generateFloorTemplate('small');
+const FLOOR_HEIGHTMAP = currentTemplate.heightmap;
 (window as any).floorTemplate = currentTemplate;
 
 // No VS Code API in standalone mode — set up extensionMessage relay as no-op source

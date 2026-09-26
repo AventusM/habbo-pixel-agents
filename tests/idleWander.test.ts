@@ -1,6 +1,6 @@
 // tests/idleWander.test.ts
 
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { IdleWanderManager } from '../src/idleWander.js';
 import { AvatarManager } from '../src/avatarManager.js';
 import { parseHeightmap } from '../src/isoTypes.js';

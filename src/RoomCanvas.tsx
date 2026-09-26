@@ -40,6 +40,8 @@ import type { TeleportEffect } from './teleportEffect.js';
 import { agentStore } from './state/agentStore.js';
 import { kanbanStore } from './state/kanbanStore.js';
 import { cameraStore } from './state/cameraStore.js';
+import { expRunStore } from './state/expRunStore.js';
+import { expHistoryFromRuns, syncExpRunsToAgents } from './expFeed.js';
 
 interface RoomCanvasProps {
   heightmap: string;
@@ -77,10 +79,6 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
   // Agents waiting to step out of booth after spawn animation completes
   // Maps agentId → booth tile {x, y}
   const pendingStepOutRef = useRef<Map<string, { x: number; y: number }>>(new Map());
-
-  // Agent popup card (shows role/team info on click)
-  const popupAgentRef = useRef<string | null>(null); // kept for click handling
-  const popupTimeRef = useRef<number>(0); // kept for click handling
 
   // Auto-follow camera toggle and state
   const autoFollowRef = useRef(false);
@@ -342,7 +340,7 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
               }
             } else {
               // Fallback: random tile
-              avatar = avatarManager.spawnAvatar(msg.agentId, msg.variant, grid, msg.terminalName, blocked, team);
+              avatarManager.spawnAvatar(msg.agentId, msg.variant, grid, msg.terminalName, blocked, team);
             }
 
             // Assign agent to section and record initial activity
@@ -596,6 +594,7 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
       kanbanStore.subscribe(() => stage.invalidate()),
       agentStore.subscribe(() => stage.invalidate()),
       cameraStore.subscribe(() => stage.invalidate()),
+      expRunStore.subscribe(() => stage.invalidate()),
     ];
 
     const grid: TileGrid = parseHeightmap(heightmap);
@@ -864,6 +863,7 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
         selectionManager: selectionManagerRef.current,
         teleportEffects: teleportEffectsRef.current,
         orchState: agentStore.snapshot(),
+        expHistory: expHistoryFromRuns(expRunStore.all(), expRunStore.visible),
         kanbanCards: kanbanStore.cards,
         kanbanFilter: kanbanStore.filter,
         expandedNote: expandedNoteRef.current,
@@ -882,6 +882,15 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
       stageRef.current = null;
     };
   }, [heightmap]);
+
+  // Mirror experiment runs as room agents (one avatar per active run).
+  useEffect(() => {
+    const unsubscribe = expRunStore.subscribe(() => {
+      syncExpRunsToAgents(agentStore, expRunStore.all(), agentStore.all().map(a => a.agentId));
+      stageRef.current?.invalidate();
+    });
+    return () => unsubscribe();
+  }, []);
 
   const handleClick = async (event: React.MouseEvent<HTMLCanvasElement>) => {
     // Skip click if user was dragging the camera
@@ -1304,6 +1313,7 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
     <>
       {/* Layout editor panel hidden — controls moved to orchestration sidebar.
           Kept in codebase for reference; will be removed in a future cleanup phase. */}
+      {/* eslint-disable-next-line no-constant-binary-expression */}
       {false && <LayoutEditorPanel
         editorMode={editorMode}
         onModeChange={setEditorMode}

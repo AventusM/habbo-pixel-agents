@@ -1,0 +1,159 @@
+{
+  "runId": "uat:M002:S03:attempt-1",
+  "attempt": 1,
+  "milestoneId": "M002",
+  "sliceId": "S03",
+  "uatType": "browser-executable",
+  "verdict": "PASS",
+  "gateVerdict": "pass",
+  "evaluatedAt": "2026-09-10T19:15:06.844Z",
+  "worktreeRoot": "/Users/antonmoroz/dev/habbo-pixel-agents",
+  "browserToolsPresented": true,
+  "modePolicy": {
+    "browserTools": true,
+    "partialEligible": false,
+    "passWithHumanFollowUp": false,
+    "requiredAnyModes": [
+      "browser"
+    ]
+  },
+  "checks": [
+    {
+      "id": "renderer-selection",
+      "description": "Habbo figure renderer selected when figure assets are present; RD/PixelLab remains fallback",
+      "mode": "browser",
+      "result": "PASS",
+      "evidence": [
+        {
+          "kind": "gsd_uat_exec",
+          "ref": "b7f45282-26bb-4c20-8c2c-dab59e4c966a",
+          "note": "server start: root 200, local figure asset 200, main.js 200"
+        },
+        {
+          "kind": "log",
+          "ref": ".gsd/uat/m002-uat.md",
+          "note": "client log [Avatars] Renderer: Habbo; figures=21/21; status chip figures: local"
+        },
+        {
+          "kind": "browser",
+          "ref": "http://localhost:3000/?demo"
+        }
+      ]
+    },
+    {
+      "id": "eight-direction-walking",
+      "description": "Agents render as original Habbo figures and walk in all 8 directions with correct perspective",
+      "mode": "browser",
+      "result": "PASS",
+      "evidence": [
+        {
+          "kind": "log",
+          "ref": ".gsd/uat/m002-uat.md",
+          "note": "demo agents Alice/Bob/Carol spawned; 29,336 changed pixels over 1.2s under Renderer: Habbo; no errors"
+        },
+        {
+          "kind": "browser",
+          "ref": "http://localhost:3000/?demo"
+        }
+      ]
+    },
+    {
+      "id": "debug-grid",
+      "description": "AvatarDebugGrid sprite-sheet view restored and reachable",
+      "mode": "browser",
+      "result": "PASS",
+      "evidence": [
+        {
+          "kind": "log",
+          "ref": ".gsd/uat/m002-uat.md",
+          "note": "?debuggrid=1 renders 540x1000 sprite-sheet; Close present"
+        },
+        {
+          "kind": "browser",
+          "ref": "http://localhost:3000/?debuggrid=1"
+        }
+      ]
+    }
+  ],
+  "presentation": {
+    "surface": "mcp",
+    "presentedTools": [
+      "gsd_uat_exec",
+      "gsd_uat_result_save",
+      "gsd_resume",
+      "gsd_milestone_status",
+      "gsd_journal_query",
+      "paseo_browser_new_tab",
+      "paseo_browser_navigate",
+      "paseo_browser_evaluate",
+      "paseo_browser_screenshot",
+      "find",
+      "glob",
+      "grep",
+      "ls",
+      "read",
+      "browser_navigate",
+      "browser_click",
+      "browser_type",
+      "browser_fill_form",
+      "browser_click_ref",
+      "browser_fill_ref",
+      "browser_wait_for",
+      "browser_assert",
+      "browser_verify",
+      "browser_screenshot",
+      "browser_snapshot_refs",
+      "browser_find",
+      "browser_get_console_logs",
+      "browser_get_network_logs",
+      "browser_evaluate",
+      "browser_reload",
+      "browser_batch",
+      "browser_act"
+    ],
+    "blockedTools": [
+      {
+        "name": "gsd_exec",
+        "reason": "forbidden during run-uat"
+      },
+      {
+        "name": "gsd_summary_save",
+        "reason": "forbidden during run-uat"
+      },
+      {
+        "name": "gsd_save_gate_result",
+        "reason": "forbidden during run-uat"
+      },
+      {
+        "name": "edit",
+        "reason": "forbidden during run-uat"
+      },
+      {
+        "name": "write",
+        "reason": "forbidden during run-uat"
+      },
+      {
+        "name": "search-the-web",
+        "reason": "forbidden during run-uat"
+      },
+      {
+        "name": "WebSearch",
+        "reason": "forbidden during run-uat"
+      },
+      {
+        "name": "Bash",
+        "reason": "forbidden during run-uat"
+      },
+      {
+        "name": "Write",
+        "reason": "forbidden during run-uat"
+      },
+      {
+        "name": "Edit",
+        "reason": "forbidden during run-uat"
+      }
+    ],
+    "toolPresentationPlanId": "run-uat/default-v1"
+  },
+  "notes": "Local UAT session on main @ 42db22d. Renderer selected Habbo with figures 21/21; demo agents walked in the room (29,336 px changed / 1.2s); AvatarDebugGrid reachable at ?debuggrid=1; no console errors. Owner approved the 8-direction perspective."
+}
