@@ -5,6 +5,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { createAvatarRenderable, createNitroAvatarRenderable, buildFrameKey, updateAvatarAnimation, WALK_FRAME_DURATION_MS, BLINK_INTERVAL_MIN_MS, BLINK_INTERVAL_MAX_MS, BLINK_FRAME_DURATION_MS } from '../src/isoAvatarRenderer.js';
 import type { AvatarSpec } from '../src/isoAvatarRenderer.js';
 import { SpriteCache } from '../src/isoSpriteCache.js';
+import { pixelLabRenderer } from '../src/pixelLabAvatarRenderer.js';
 import type { OutfitConfig, PartType } from '../src/avatarOutfitConfig.js';
 import { outfitToFigureParts, getDefaultPreset, getRequiredAssets } from '../src/avatarOutfitConfig.js';
 
@@ -633,6 +634,122 @@ describe('isoAvatarRenderer', () => {
     // hd (head) is NOT walk-capable
     const hdKey = buildFrameKey('hd', 'walk', 2, 1, 0);
     expect(hdKey).toBe('h_std_hd_1_2_0');
+  });
+
+  // --- Nitro-only outfit split (M006/S01) ---
+
+  const baseSpec = (overrides: Partial<AvatarSpec> = {}): AvatarSpec => ({
+    id: 'split',
+    tileX: 3,
+    tileY: 4,
+    tileZ: 0,
+    direction: 2,
+    variant: 0,
+    state: 'idle',
+    frame: 0,
+    lastUpdateMs: 0,
+    spawnProgress: 0,
+    ...overrides,
+  });
+
+  const nitroCache = (frameKeys: string[]): SpriteCache => ({
+    hasNitroAsset: () => true,
+    getNitroFrame: (_asset: string, key: string) => {
+      frameKeys.push(key);
+      return { bitmap: {} as ImageBitmap, x: 0, y: 0, w: 16, h: 32, offsetX: 0, offsetY: 0, flipH: false };
+    },
+  } as unknown as SpriteCache);
+
+  const captureTints = <T>(fn: () => T): { result: T; fills: string[] } => {
+    const globalRef = globalThis as unknown as { OffscreenCanvas: unknown };
+    const original = globalRef.OffscreenCanvas;
+    const fills: string[] = [];
+    globalRef.OffscreenCanvas = class {
+      width: number;
+      height: number;
+      constructor(width: number, height: number) {
+        this.width = width;
+        this.height = height;
+      }
+      getContext() {
+        const record: Record<string, unknown> = {
+          scale: () => {}, save: () => {}, restore: () => {}, translate: () => {},
+          beginPath: () => {}, moveTo: () => {}, lineTo: () => {}, closePath: () => {},
+          fill: () => {}, fillRect: () => {}, drawImage: () => {}, clip: () => {}, rect: () => {},
+          strokeStyle: '', lineWidth: 1, imageSmoothingEnabled: true,
+        };
+        Object.defineProperty(record, 'fillStyle', {
+          set: (value: string) => { fills.push(value); },
+          get: () => '',
+          configurable: true,
+        });
+        return record;
+      }
+    };
+    try {
+      return { result: fn(), fills };
+    } finally {
+      globalRef.OffscreenCanvas = original;
+    }
+  };
+
+  const idleCtx = { drawImage: () => {}, imageSmoothingEnabled: true } as unknown as CanvasRenderingContext2D;
+
+  it('Nitro draw path tints parts with spec.outfit colors', () => {
+    const base = getDefaultPreset(0);
+    const outfit: OutfitConfig = {
+      ...base,
+      colors: { ...base.colors, skin: '#040506', hair: '#070809', shirt: '#010203', pants: '#0A0B0C', shoes: '#0D0E0F' },
+    };
+
+    const { fills } = captureTints(() => {
+      const renderable = createNitroAvatarRenderable(baseSpec({ outfit }), nitroCache([]));
+      expect(renderable).not.toBeNull();
+      renderable!.draw(idleCtx);
+    });
+
+    expect(fills).toContain('#010203');
+    expect(fills).toContain('#0A0B0C');
+  });
+
+  it('Nitro draw path uses outfit part setIds in its frame keys', () => {
+    const outfit = getDefaultPreset(6);
+    const frameKeys: string[] = [];
+
+    captureTints(() => {
+      createNitroAvatarRenderable(baseSpec({ outfit }), nitroCache(frameKeys))!.draw(idleCtx);
+    });
+
+    expect(frameKeys.some((key) => key.includes('_hr_2073_'))).toBe(true);
+    expect(frameKeys.some((key) => key.includes('_ch_2110_'))).toBe(true);
+  });
+
+  it('Nitro draw path falls back to the variant palette when spec.outfit is absent', () => {
+    const { fills } = captureTints(() => {
+      createNitroAvatarRenderable(baseSpec({ variant: 1 }), nitroCache([]))!.draw(idleCtx);
+    });
+
+    expect(fills).toContain('#D55B5B');
+  });
+
+  it('PixelLab renderable makes identical atlas/frame lookups with and without spec.outfit', () => {
+    const frame = () => ({ bitmap: {} as ImageBitmap, x: 0, y: 0, w: 48, h: 48 });
+    const callsWithout: string[] = [];
+    const callsWith: string[] = [];
+    const cacheWithout = { getFrame: (atlas: string, key: string) => { callsWithout.push(`${atlas}|${key}`); return frame(); } } as unknown as SpriteCache;
+    const cacheWith = { getFrame: (atlas: string, key: string) => { callsWith.push(`${atlas}|${key}`); return frame(); } } as unknown as SpriteCache;
+
+    const without = pixelLabRenderer.createRenderable(baseSpec(), cacheWithout);
+    expect(without).not.toBeNull();
+    without!.draw(idleCtx);
+
+    const withOutfit = pixelLabRenderer.createRenderable(baseSpec({ outfit: getDefaultPreset(0) }), cacheWith);
+    expect(withOutfit).not.toBeNull();
+    withOutfit!.draw(idleCtx);
+
+    expect(callsWith).toEqual(callsWithout);
+    expect(withOutfit!.tileX).toBe(without!.tileX);
+    expect(withOutfit!.tileY).toBe(without!.tileY);
   });
 
 });
