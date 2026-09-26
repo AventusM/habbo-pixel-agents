@@ -9,7 +9,6 @@ import type { AvatarRenderer } from './avatarRendererTypes.js';
 import { pixelLabRenderer } from './pixelLabAvatarRenderer.js';
 import type { SpriteCache } from './isoSpriteCache.js';
 import { habboRenderer } from './isoAvatarRenderer.js';
-import { tileToScreen } from './isometricMath.js';
 import { KANBAN_FILTER_LABELS } from './kanbanFilter.js';
 import {
   rotateFurniture,
@@ -17,10 +16,7 @@ import {
   type EditorState,
 } from './isoLayoutEditor.js';
 import { getSupportedDirections } from './furnitureRegistry.js';
-import { onMessage } from './bus.js';
-import type { ExtensionMessage, TeamSection } from './agentTypes.js';
 import { drawKanbanNotes, createKanbanRenderState, type KanbanRenderState } from './isoKanbanRenderer.js';
-import { jumpToSection } from './cameraController.js';
 import { SectionManager } from './sectionManager.js';
 import { type FloorTemplate, buildSectionColorMap } from './roomLayoutEngine.js';
 import { agentStore } from './state/agentStore.js';
@@ -41,6 +37,8 @@ import { useRoomHud } from './hooks/useRoomHud.js';
 import { useRoomInput } from './hooks/useRoomInput.js';
 import { useRoomEditorIO } from './hooks/useRoomEditorIO.js';
 import { useRoomInteraction } from './hooks/useRoomInteraction.js';
+import { useRoomMessages } from './hooks/useRoomMessages.js';
+import { useKanbanKeyboard } from './hooks/useKanbanKeyboard.js';
 
 interface RoomCanvasProps {
   heightmap: string;
@@ -84,43 +82,6 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
   // Active avatar renderer (logged on change; Habbo figures vs PixelLab/RD)
   const activeRendererRef = useRef<AvatarRenderer | null>(null);
 
-  useEffect(() => {
-    const handleFilterKey = (e: KeyboardEvent) => {
-      const target = e.target as HTMLElement | null;
-      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) {
-        return;
-      }
-      if (e.key === 'g' || e.key === 'G') {
-        kanbanStore.cycleFilter();
-        return;
-      }
-      // Kanban traversal keys (only while a detail note is open)
-      if (!expandedNoteRef.current) return;
-      const visibleCards = kanbanStore.visibleCards();
-      if (visibleCards.length === 0) return;
-      const idx = Math.max(0, visibleCards.findIndex(c => c.id === expandedNoteRef.current));
-      if (e.key === 'ArrowRight' || e.key === 'n' || e.key === 'N') {
-        expandedNoteRef.current = visibleCards[(idx + 1) % visibleCards.length].id;
-      } else if (e.key === 'ArrowLeft' || e.key === 'p' || e.key === 'P') {
-        expandedNoteRef.current = visibleCards[(idx - 1 + visibleCards.length) % visibleCards.length].id;
-      } else if (e.key === 'b' || e.key === 'B') {
-        if (noteOriginRef.current) {
-          expandedAggregateRef.current = noteOriginRef.current;
-          noteOriginRef.current = null;
-          expandedNoteRef.current = null;
-        } else {
-          expandedNoteRef.current = null;
-        }
-      } else if (e.key === 'Escape') {
-        expandedNoteRef.current = null;
-        expandedAggregateRef.current = null;
-        noteOriginRef.current = null;
-      }
-    };
-    window.addEventListener('keydown', handleFilterKey);
-    return () => window.removeEventListener('keydown', handleFilterKey);
-  }, []);
-
   // Expanded sticky note (click-to-open)
   const expandedNoteRef = useRef<string | null>(null);
 
@@ -129,6 +90,9 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
 
   // Expanded aggregate note (todo / done)
   const expandedAggregateRef = useRef<'todo' | 'done' | null>(null);
+
+  // Kanban keyboard navigation (M008/S04 T04)
+  useKanbanKeyboard({ expandedNoteRef, noteOriginRef, expandedAggregateRef });
 
   // Editor UI state
   const [editorMode, setEditorMode] = useState<EditorMode>(editorModeProp);
@@ -217,137 +181,31 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
   // Orchestration + experiment-history HUD data wiring (M008/S02 T04)
   const { getOrchState, getExpHistory } = useRoomHud();
 
-  // Listen for extension messages (agent events) via the typed bus
-  useEffect(() => {
-    function handleExtensionMessage(msg: ExtensionMessage) {
-      if (!msg || !msg.type) return;
-
-      // Initialize section manager lazily from global template
-      const sectionManager = ensureSectionManager();
-
-      switch (msg.type) {
-        case 'clearAgents': {
-          // Remove all avatars on reconnect — server will re-send current sessions
-          const allIds = avatarManager.getAllAvatarIds();
-          for (const id of allIds) {
-            avatarManager.removeAvatar(id);
-          }
-          // Store transition: agents clear, then repopulate as the server re-sends
-          agentStore.clear();
-          console.log(`[Room] Cleared ${allIds.length} stale agents on reconnect`);
-          break;
-        }
-        case 'agentCreated': {
-          handleAgentCreated(msg);
-          break;
-        }
-        case 'agentRemoved': {
-          handleAgentRemoved(msg);
-          break;
-        }
-        case 'agentStatus': {
-          handleAgentStatus(msg);
-          break;
-        }
-        case 'agentTool': {
-          handleAgentTool(msg);
-          break;
-        }
-        case 'agentLinkedTicket': {
-          handleAgentLinkedTicket(msg);
-          break;
-        }
-        case 'jumpToSection': {
-          const jumpMsg = msg as any;
-          const team = jumpMsg.team as TeamSection;
-          const stage = stageRef.current;
-          if (sectionManager && canvasRef.current && stage) {
-            const center = sectionManager.getSectionCenter(team);
-            if (center) {
-              const { x: sx, y: sy } = tileToScreen(center.x, center.y, 0);
-              const ox = renderState.current.cameraOrigin;
-              const canvas = canvasRef.current;
-              jumpToSection(
-                stage.camera,
-                sx + ox.x,
-                sy + ox.y,
-                canvas.offsetWidth,
-                canvas.offsetHeight,
-              );
-              cameraStore.notify();
-            }
-          }
-          break;
-        }
-        case 'toggleOverlay': {
-          agentStore.toggleVisible();
-          break;
-        }
-        case 'autoFollow': {
-          setAutoFollow((msg as any).enabled);
-          break;
-        }
-        case 'kanbanCards': {
-          kanbanStore.setCards(msg.cards);
-          break;
-        }
-        case 'devMode': {
-          uiStore.setDevMode(msg.enabled);
-          break;
-        }
-        // Layout editor commands from sidebar control panel
-        case 'editorMode': {
-          const mode = (msg as any).mode as EditorMode;
-          setEditorMode(mode);
-          break;
-        }
-        case 'editorColor': {
-          const { h, s, b } = msg as any;
-          setSelectedColor({ h, s, b });
-          break;
-        }
-        case 'editorFurniture': {
-          setSelectedFurniture((msg as any).furniture);
-          break;
-        }
-        case 'editorRotate': {
-          const sc: SpriteCache | undefined = (window as any).spriteCache;
-          const curFurn = renderState.current.editorState.selectedFurniture || 'hc_chr';
-          const curDir = renderState.current.editorState.furnitureDirection ?? 0;
-          const sup = sc ? getSupportedDirections(curFurn, sc) : undefined;
-          setFurnitureDirection(rotateFurniture(curDir, sup));
-          break;
-        }
-        case 'editorSave': {
-          handleSave();
-          break;
-        }
-        case 'editorLoad': {
-          // Trigger file input click programmatically
-          const input = document.createElement('input');
-          input.type = 'file';
-          input.accept = '.json';
-          input.onchange = () => {
-            const file = input.files?.[0];
-            if (file) handleLoad(file);
-          };
-          input.click();
-          break;
-        }
-        case 'devCapture': {
-          handleDevCapture();
-          break;
-        }
-        case 'playSound': {
-          playSound((msg as any).sound || 'notification');
-          break;
-        }
-      }
-    }
-
-    const unsubscribe = onMessage(handleExtensionMessage);
-    return () => unsubscribe();
-  }, []);
+  // Extension-message bus dispatcher (M008/S04 T04)
+  useRoomMessages({
+    canvasRef,
+    stageRef,
+    renderState,
+    avatarManager,
+    selectionManager,
+    sectionManagerRef,
+    ensureSectionManager,
+    handleAgentCreated,
+    handleAgentRemoved,
+    handleAgentStatus,
+    handleAgentTool,
+    handleAgentLinkedTicket,
+    setAutoFollow,
+    playSound,
+    setEditorMode,
+    setSelectedColor,
+    setSelectedFurniture,
+    setFurnitureDirection,
+    renderRoomBuffer,
+    handleSave,
+    handleLoad,
+    handleDevCapture,
+  });
 
   // Stage lifecycle: canvas setup, room/notes layers, camera fit, frame loop.
   useEffect(() => {
