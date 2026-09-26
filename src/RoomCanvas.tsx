@@ -48,6 +48,7 @@ import { CharacterEditorPanel } from './components/CharacterEditorPanel.js';
 import { AvatarPreview } from './components/AvatarPreview.js';
 import { useRoomHud } from './hooks/useRoomHud.js';
 import { useCharacterEditor } from './hooks/useCharacterEditor.js';
+import { useOutfitLiveSync } from './hooks/useOutfitLiveSync.js';
 
 interface RoomCanvasProps {
   heightmap: string;
@@ -304,6 +305,9 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
 
   // Orchestration + experiment-history HUD data wiring (M008/S02 T04)
   const { getOrchState, getExpHistory } = useRoomHud();
+
+  // Live outfit sync (M006/S03): draft edits restyle walking agents in place.
+  useOutfitLiveSync(avatarManager);
 
   // Listen for extension messages (agent events) via the typed bus
   useEffect(() => {
@@ -1078,6 +1082,8 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
           selectedShirtColor={editor.outfit.colors.shirt}
           onSelectShirtColor={(hex) => editor.setColor('shirt', hex)}
           onResetRole={editor.resetRole}
+          onExportOutfits={editor.exportOutfits}
+          onImportOutfitsFile={editor.importOutfitsFile}
         >
           <AvatarPreview outfit={editor.outfit} spriteCache={previewSpriteCache} />
         </CharacterEditorPanel>

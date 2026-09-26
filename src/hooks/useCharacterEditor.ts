@@ -56,6 +56,8 @@ export interface CharacterEditorControls {
   setHair: (item: CatalogItem) => void;
   setShirt: (item: CatalogItem) => void;
   resetRole: (team: TeamSection) => void;
+  exportOutfits: () => void;
+  importOutfitsFile: (file: File) => void;
 }
 
 export type CharacterEditor = CharacterEditorView & CharacterEditorControls;
@@ -99,5 +101,31 @@ export function useCharacterEditor(): CharacterEditor {
   const setShirt = useCallback((item: CatalogItem) => outfitStore.setShirt(item), []);
   const resetRole = useCallback((team: TeamSection) => outfitStore.resetRole(team), []);
 
-  return { ...view, selectRole, setColor, setHair, setShirt, resetRole };
+  // File round-trip (M006/S03 review fix, issue #108 outcome 2): export
+  // downloads every draft as outfit JSON; import reads a picked file and
+  // applies its valid drafts through the store (same validation as storage).
+  const exportOutfits = useCallback(() => {
+    const blob = new Blob([outfitStore.exportOutfits()], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = 'outfits.json';
+    anchor.click();
+    URL.revokeObjectURL(url);
+  }, []);
+
+  const importOutfitsFile = useCallback((file: File): void => {
+    file.text().then(
+      (text) => {
+        if (outfitStore.importOutfits(text) === null) {
+          console.error('[useCharacterEditor] import: rejected (corrupt or wrong version)');
+        }
+      },
+      (error) => {
+        console.error('[useCharacterEditor] import: cannot read file', error);
+      },
+    );
+  }, []);
+
+  return { ...view, selectRole, setColor, setHair, setShirt, resetRole, exportOutfits, importOutfitsFile };
 }
