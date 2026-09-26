@@ -17,11 +17,17 @@
 //
 // Usage: node scripts/hooks/gsd-event-hook.mjs [--once] [--github] [--dry-run]
 //                                             [--event-log <path>] [--state <path>]
+//                                             [--milestone <id> --slice <id> --seal skipped|completed]
 //   --once       process the current tail once and exit (tests / --github catch-up)
 //   --github     enable LIVE GitHub reactions (gh comment/close); default off
 //   --dry-run    compute reactions, log intent, never write (read-only gh lookups)
 //   --event-log  override the event log path (fixtures)
 //   --state      override the reaction dedupe state path
+//   --seal       synthetic seal mode (no event log needed): react to a slice's
+//                terminal state directly. gsd-pi's skip-slice handler emits no
+//                event-log entry, so a lane that seals via skip-slice cannot use
+//                the tail; this builds the same reaction object and runs the
+//                same guarded write path, deduped by a stable key.
 //
 // Feed output: .gsd/hooks-feed.jsonl  (gitignored via .gsd rules)
 
@@ -149,6 +155,37 @@ function maybeReact(entry) {
   } catch (err) {
     console.error(`[gsd-github-reactions] ${err.message}`);
   }
+}
+
+// --- synthetic seal mode (M008 continuation lane) ---
+// Reflect a slice terminal state without depending on .gsd/event-log.jsonl.
+// Example:
+//   node scripts/hooks/gsd-event-hook.mjs --github --milestone M008 --slice S02 --seal skipped
+const seal = flagValue('--seal', null);
+if (seal) {
+  const mid = flagValue('--milestone', null);
+  const sid = flagValue('--slice', null);
+  if (!mid || !sid) {
+    console.error('[gsd-slice-reaction] --seal requires --milestone <id> and --slice <id>');
+    process.exit(2);
+  }
+  const cmd = seal === 'completed' ? 'complete-slice' : seal === 'skipped' ? 'skip-slice' : null;
+  if (!cmd) {
+    console.error(`[gsd-slice-reaction] unknown --seal '${seal}' (expected skipped|completed)`);
+    process.exit(2);
+  }
+  if (!githubLive && !dryRun) {
+    console.log('[gsd-slice-reaction] no --github or --dry-run; nothing to do (safe by default)');
+    process.exit(0);
+  }
+  maybeReact({
+    cmd,
+    params: { milestoneId: mid, sliceId: sid },
+    ts: new Date().toISOString(),
+    actor: 'agent',
+    hash: `manual:${mid}/${sid}:${cmd}`,
+  });
+  process.exit(0);
 }
 
 // --- event processing ---
