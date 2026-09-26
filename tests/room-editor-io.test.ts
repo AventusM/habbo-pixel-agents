@@ -45,6 +45,22 @@ describe('useRoomEditorIO module contract', () => {
   });
 });
 
+describe('useRoomEditorIO dev capture host branches', () => {
+  it('keeps the VS Code postMessage path verbatim', () => {
+    const src = read('hooks/useRoomEditorIO.ts');
+    expect(src).toContain("vscodeApi.postMessage({ type: 'devCapture', screenshot, logs })");
+  });
+
+  it('falls back to browser downloads + clipboard when no VS Code host is present', () => {
+    const src = read('hooks/useRoomEditorIO.ts');
+    expect(src).toContain('buildDevCapturePayload');
+    expect(src).toContain('triggerDownload');
+    expect(src).toContain('downloadJson');
+    expect(src).toContain('copyTextBestEffort');
+    expect(src).toContain('window.__devLogBuffer');
+  });
+});
+
 describe('RoomCanvas editor IO extraction', () => {
   it('no longer defines the IO functions inline', () => {
     const src = read('RoomCanvas.tsx');

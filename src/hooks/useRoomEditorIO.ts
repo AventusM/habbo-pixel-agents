@@ -10,6 +10,13 @@ import { computeCameraOrigin, createFurnitureRenderables } from '../isoTileRende
 import { saveLayout, loadLayout } from '../isoLayoutEditor.js';
 import { isTeleportBooth } from '../furnitureRegistry.js';
 import { parseHeightmap, type Renderable } from '../isoTypes.js';
+import {
+  buildDevCaptureFilename,
+  buildDevCapturePayload,
+  copyTextBestEffort,
+  downloadJson,
+  triggerDownload,
+} from '../devCapture.js';
 import type { SpriteCache } from '../isoSpriteCache.js';
 import type { CanvasStage } from '../render/CanvasStage.js';
 import type { RoomRenderState } from './useRoomInput.js';
@@ -130,11 +137,23 @@ export function useRoomEditorIO({ canvasRef, stageRef, renderState }: UseRoomEdi
     const canvas = canvasRef.current;
     if (!canvas) return;
     const screenshot = canvas.toDataURL('image/png');
-    const logs = [...((window as any).__devLogBuffer || [])];
-    const vscodeApi = (window as any).vscodeApi;
+    const logs = [...(window.__devLogBuffer ?? [])];
+    const vscodeApi = window.vscodeApi;
     if (vscodeApi) {
       vscodeApi.postMessage({ type: 'devCapture', screenshot, logs });
+      return;
     }
+
+    // Standalone web build: no extension host — deliver the same payload through
+    // browser-native downloads (PNG + JSON) and a best-effort clipboard copy.
+    const payload = buildDevCapturePayload(screenshot, logs);
+    const pngName = buildDevCaptureFilename(payload.timestamp, 'png');
+    const jsonName = buildDevCaptureFilename(payload.timestamp, 'json');
+    triggerDownload(payload.screenshot, pngName);
+    downloadJson(payload, jsonName);
+    void copyTextBestEffort(payload.logs.join('\n')).then((copied) => {
+      console.log(`Dev capture saved: ${pngName}, ${jsonName} (logs copied: ${copied ? 'yes' : 'no'})`);
+    });
   }, [canvasRef]);
 
   return { renderRoomBuffer, reRenderRoom, setBoothFrame, handleSave, handleLoad, handleDevCapture };
