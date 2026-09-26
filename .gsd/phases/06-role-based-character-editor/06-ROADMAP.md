@@ -10,13 +10,10 @@
 
 ## Slices
 
-- [ ] **S02: Character editor UI with live preview** `risk:medium` `depends:[S01]`
-  > After this: Open the editor, pick the Atlas role, change shirt color and hair, watch the preview avatar update live; switching roles shows each role's current outfit.
-
 - [ ] **S03: Outfit persistence + restyle live agents** `risk:medium` `depends:[S02]`
   > After this: Customize Sisyphus outfit, reload the page, outfit persists; restyle a live walking agent without respawning it.
 
 ## Boundary Map
 
 Not provided.
-<!-- gsd:state-version=133:0 -->
+<!-- gsd:state-version=140:0 -->
