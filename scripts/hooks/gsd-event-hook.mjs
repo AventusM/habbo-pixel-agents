@@ -1,25 +1,50 @@
 #!/usr/bin/env node
 // scripts/hooks/gsd-event-hook.mjs
-// PROTOTYPE (M003/S07): reacts to GSD workflow events from .gsd/event-log.jsonl.
+// PROTOTYPE (M003/S07), extended for M005/S06: reacts to GSD workflow events
+// from .gsd/event-log.jsonl.
 //
-// Demonstrates the deterministic-reaction data path for GSD roles (planner /
-// executor / reviewer): every GSD mutation (plan-slice, plan-milestone,
-// task-complete, ...) is appended to the event log; this watcher tails it and
-// emits a structured "hook feed" event that downstream consumers (the room's
-// web-server, a status chip, a board updater) could act on.
+// Feed path: mapped GSD mutations append a structured "hook feed" event to
+// .gsd/hooks-feed.jsonl (room / status consumers).
 //
-// Usage: node scripts/hooks/gsd-event-hook.mjs [--once]
-//   --once : process the current tail position and exit (for tests)
+// GitHub path (M005/S06): slice terminal events (complete-slice, skip-slice)
+// become GitHub reactions — comment (and close on completion) the M00X/S0X
+// titled issue, guarded so the two sync halves never ping-pong:
+//   - comments carry the <!-- gsd-sync --> marker so S05's receiver ignores the echo
+//   - dedupe by event hash in a state file: at most once, across restarts
+//   - actor 'github-sync' events are never echoed (one hop max)
+//
+// Usage: node scripts/hooks/gsd-event-hook.mjs [--once] [--github] [--dry-run]
+//                                             [--event-log <path>] [--state <path>]
+//   --once       process the current tail position and exit (for tests)
+//   --github     enable LIVE GitHub reactions (gh comment/close); default off
+//   --dry-run    compute reactions, log intent, never write (read-only gh lookups)
+//   --event-log  override the event log path (fixtures)
+//   --state      override the reaction dedupe state path
 //
 // Feed output: .gsd/hooks-feed.jsonl  (gitignored via .gsd rules)
 
 import fs from 'fs';
 import path from 'path';
+import { execFileSync } from 'node:child_process';
+import {
+  classifyGsdEvent,
+  buildReactionComment,
+  matchesIssueTitle,
+} from '../gsd-github-reactions.mjs';
 
-const EVENT_LOG = '.gsd/event-log.jsonl';
+const argv = process.argv.slice(2);
+const once = argv.includes('--once');
+const githubLive = argv.includes('--github');
+const dryRun = argv.includes('--dry-run');
+function flagValue(name, fallback) {
+  const idx = argv.indexOf(name);
+  return idx !== -1 && argv[idx + 1] ? argv[idx + 1] : fallback;
+}
+const EVENT_LOG = flagValue('--event-log', '.gsd/event-log.jsonl');
 const FEED = '.gsd/hooks-feed.jsonl';
+const STATE_PATH = flagValue('--state', '.gsd/runtime/github-sync/gsd-events-state.json');
 
-// Which GSD commands trigger which deterministic reactions (role mapping)
+// Which GSD commands trigger which deterministic feed reactions (role mapping)
 const REACTIONS = {
   'plan-milestone': { role: 'planner', action: 'room-notify', text: 'milestone planned' },
   'plan-slice': { role: 'planner', action: 'room-notify', text: 'slice planned' },
@@ -35,7 +60,79 @@ function appendFeed(event) {
   fs.appendFileSync(FEED, JSON.stringify(event) + '\n');
 }
 
-function processLine(line) {
+// --- GitHub reactions (M005/S06) ---
+
+function loadState() {
+  try {
+    const parsed = JSON.parse(fs.readFileSync(STATE_PATH, 'utf8'));
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveState(state) {
+  fs.mkdirSync(path.dirname(STATE_PATH), { recursive: true });
+  fs.writeFileSync(STATE_PATH, JSON.stringify(state, null, 2) + '\n');
+}
+
+const reactionState = loadState();
+
+function findIssue(reaction) {
+  const query = `${reaction.milestoneId}/${reaction.sliceId} in:title`;
+  const out = execFileSync(
+    'gh',
+    [
+      'issue', 'list', '--state', 'all', '--search', query,
+      '--json', 'number,title,state', '--limit', '10',
+    ],
+    { encoding: 'utf8' },
+  );
+  return JSON.parse(out).find((issue) => matchesIssueTitle(issue.title, reaction)) ?? null;
+}
+
+function reactToGsd(reaction) {
+  if (reactionState[reaction.key]) {
+    console.log(`[gsd-github-reactions] ${reaction.milestoneId}/${reaction.sliceId} already handled`);
+    return;
+  }
+  const issue = findIssue(reaction);
+  if (!issue) {
+    console.log(`[gsd-github-reactions] ${reaction.milestoneId}/${reaction.sliceId} — no matching issue`);
+    return;
+  }
+  if (!githubLive) {
+    const closeNote = reaction.close ? ' and close it' : '';
+    console.log(`[gsd-github-reactions] would comment on #${issue.number} "${issue.title}"${closeNote}`);
+    return;
+  }
+  reactionState[reaction.key] = new Date().toISOString();
+  saveState(reactionState);
+  execFileSync(
+    'gh',
+    ['issue', 'comment', String(issue.number), '--body', buildReactionComment(reaction)],
+    { encoding: 'utf8' },
+  );
+  if (reaction.close) {
+    execFileSync('gh', ['issue', 'close', String(issue.number)], { encoding: 'utf8' });
+  }
+  console.log(`[gsd-github-reactions] #${issue.number} ${reaction.close ? 'commented + closed' : 'commented'}`);
+}
+
+function maybeReact(entry) {
+  if (!githubLive && !dryRun) return;
+  const reaction = classifyGsdEvent(entry);
+  if (!reaction) return;
+  try {
+    reactToGsd(reaction);
+  } catch (err) {
+    console.error(`[gsd-github-reactions] ${err.message}`);
+  }
+}
+
+// --- event processing ---
+
+function processLine(line, { react = false } = {}) {
   if (!line.trim()) return;
   let entry;
   try {
@@ -43,20 +140,22 @@ function processLine(line) {
   } catch {
     return; // partial line or noise
   }
-  const reaction = REACTIONS[entry.cmd];
-  if (!reaction) return;
-  const event = {
-    source: 'gsd-event-hook',
-    ts: new Date().toISOString(),
-    gsdCmd: entry.cmd,
-    params: entry.params ?? {},
-    actor: entry.actor,
-    role: reaction.role,
-    action: reaction.action,
-    text: reaction.text,
-  };
-  appendFeed(event);
-  console.log(`[gsd-event-hook] ${entry.cmd} -> ${reaction.role}/${reaction.action}`);
+  const feedMapping = REACTIONS[entry.cmd];
+  if (feedMapping) {
+    const event = {
+      source: 'gsd-event-hook',
+      ts: new Date().toISOString(),
+      gsdCmd: entry.cmd,
+      params: entry.params ?? {},
+      actor: entry.actor,
+      role: feedMapping.role,
+      action: feedMapping.action,
+      text: feedMapping.text,
+    };
+    appendFeed(event);
+    console.log(`[gsd-event-hook] ${entry.cmd} -> ${feedMapping.role}/${feedMapping.action}`);
+  }
+  if (react) maybeReact(entry);
 }
 
 function tailFromEnd(filePath, onData) {
@@ -80,15 +179,15 @@ function tailFromEnd(filePath, onData) {
   return () => watcher.close();
 }
 
-const once = process.argv.includes('--once');
 if (!fs.existsSync(EVENT_LOG)) {
   console.error(`no event log at ${EVENT_LOG}`);
   process.exit(1);
 }
 
-// Process existing tail content once (last 10 lines) so tests see recent events
+// Process the existing tail once so tests see recent events. Historical
+// entries never trigger live reactions; --dry-run may inspect them.
 const existing = fs.readFileSync(EVENT_LOG, 'utf8').trimEnd().split('\n').slice(-10);
-for (const line of existing) processLine(line);
+for (const line of existing) processLine(line, { react: dryRun });
 
 if (once) {
   console.log('[gsd-event-hook] --once done');
@@ -96,7 +195,7 @@ if (once) {
 }
 
 console.log(`[gsd-event-hook] watching ${EVENT_LOG} (ctrl-c to stop)`);
-const stop = tailFromEnd(EVENT_LOG, processLine);
+const stop = tailFromEnd(EVENT_LOG, (line) => processLine(line, { react: true }));
 process.on('SIGINT', () => {
   stop();
   process.exit(0);
