@@ -10,9 +10,6 @@
 
 ## Slices
 
-- [ ] **S01: Role outfits render at spawn** `risk:low` `depends:[]`
-  > After this: Spawn one agent per role (Atlas, Sisyphus, core-dev, planning): each renders a visually distinct Nitro outfit instead of the hardcoded fallback.
-
 - [ ] **S02: Character editor UI with live preview** `risk:medium` `depends:[S01]`
   > After this: Open the editor, pick the Atlas role, change shirt color and hair, watch the preview avatar update live; switching roles shows each role's current outfit.
 
@@ -22,4 +19,4 @@
 ## Boundary Map
 
 Not provided.
-<!-- gsd:state-version=132:0 -->
+<!-- gsd:state-version=133:0 -->
