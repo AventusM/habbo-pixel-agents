@@ -13,7 +13,10 @@ import { createStore, type Store, type Unsubscribe } from './store.js';
 import {
   defaultOutfitStorage,
   loadOutfitDrafts,
+  parseOutfitDraftsFile,
   saveOutfitDrafts,
+  serializeOutfitDrafts,
+  type OutfitDraftRecord,
   type OutfitStorage,
 } from './outfitPersistence.js';
 
@@ -148,6 +151,36 @@ export class OutfitStore {
     }));
     this.persist();
     console.debug(`[outfitStore] resetRole ${team}`);
+  }
+
+  /**
+   * Serialize all current drafts to an outfit JSON file string (export
+   * download). Same versioned envelope as the localStorage payload.
+   */
+  exportOutfits(): string {
+    return serializeOutfitDrafts(this.store.get().drafts);
+  }
+
+  /**
+   * Apply an outfit JSON file string (import upload). Returns null when the
+   * file is corrupt, version-mismatched, or a non-object payload (caller
+   * rejects the file, drafts untouched); otherwise replaces each valid role's
+   * draft, persists, and returns the applied roles (possibly empty when the
+   * file holds no valid known-role draft).
+   */
+  importOutfits(jsonString: string): TeamSection[] | null {
+    const parsed: Partial<OutfitDraftRecord> | null = parseOutfitDraftsFile(jsonString);
+    if (parsed === null) return null;
+    // parseOutfitDraftsFile already keeps known valid roles only.
+    const applied = Object.keys(parsed) as TeamSection[];
+    if (applied.length === 0) return applied;
+    this.store.update((state) => ({
+      ...state,
+      drafts: { ...state.drafts, ...parsed },
+    }));
+    this.persist();
+    console.debug(`[outfitStore] importOutfits ${applied.join(',')}`);
+    return applied;
   }
 
   private replacePart(item: CatalogItem, slot: 'hair' | 'shirt'): void {

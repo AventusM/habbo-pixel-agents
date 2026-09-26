@@ -7,6 +7,8 @@
 // version, and role keys strictly — corrupt, wrong-version, or missing storage
 // returns null so callers fall back to ROLE_OUTFIT_PRESETS; unknown role keys
 // are ignored and invalid partial drafts are dropped per role.
+// serializeOutfitDrafts/parseOutfitDraftsFile expose the same versioned
+// envelope as a JSON file round-trip (export download + import upload).
 import type { OutfitConfig } from '../avatarOutfitConfig.js';
 import type { TeamSection } from '../agentTypes.js';
 import { TEAM_SECTIONS } from './outfitStore.js';
@@ -95,6 +97,72 @@ function cloneOutfit(outfit: OutfitConfig): OutfitConfig {
 }
 
 /**
+ * Build the versioned envelope shared by storage saves and file exports.
+ * Only known TeamSection roles with valid drafts are included; unknown keys
+ * and invalid partial drafts are dropped.
+ */
+function encodeOutfitDrafts(drafts: Partial<Record<string, OutfitConfig>>): PersistedOutfitPayload {
+  const knownRoles = new Set<string>(TEAM_SECTIONS);
+  const payload: PersistedOutfitPayload = { version: OUTFIT_STORAGE_VERSION, drafts: {} };
+  for (const [role, draft] of Object.entries(drafts)) {
+    if (!knownRoles.has(role)) continue;
+    if (!isValidOutfitDraft(draft)) continue;
+    payload.drafts[role] = cloneOutfit(draft);
+  }
+  return payload;
+}
+
+/**
+ * Validate a parsed envelope: version must match and `drafts` must be an
+ * object. Returns null for version-mismatched or non-object payloads;
+ * otherwise a record holding only the valid known-role drafts (unknown role
+ * keys ignored, invalid partial drafts dropped).
+ */
+function decodeOutfitPayload(payload: unknown): Partial<OutfitDraftRecord> | null {
+  if (typeof payload !== 'object' || payload === null) return null;
+  const envelope = payload as Record<string, unknown>;
+  if (envelope['version'] !== OUTFIT_STORAGE_VERSION) return null;
+  if (typeof envelope['drafts'] !== 'object' || envelope['drafts'] === null) return null;
+  const knownRoles = new Set<string>(TEAM_SECTIONS);
+  const result: Partial<OutfitDraftRecord> = {};
+  for (const [role, draft] of Object.entries(envelope['drafts'] as Record<string, unknown>)) {
+    if (!knownRoles.has(role)) continue;
+    if (!isValidOutfitDraft(draft)) continue;
+    result[role as TeamSection] = cloneOutfit(draft);
+  }
+  return result;
+}
+
+/**
+ * Serialize per-role outfit drafts to a JSON file string. Same versioned
+ * envelope as the localStorage payload, so an export round-trips through
+ * parseOutfitDraftsFile. Follows the layout-JSON file precedent
+ * (src/isoLayoutEditor.ts saveLayout). Never throws for valid drafts.
+ */
+export function serializeOutfitDrafts(
+  drafts: Partial<Record<string, OutfitConfig>>,
+): string {
+  return JSON.stringify(encodeOutfitDrafts(drafts), null, 2);
+}
+
+/**
+ * Parse an outfit JSON file string (the export counterpart of
+ * serializeOutfitDrafts, the load counterpart of loadLayout). Returns null
+ * when the text is corrupt JSON, version-mismatched, or a non-object payload
+ * (callers reject the file); otherwise the valid known-role drafts. Never
+ * throws.
+ */
+export function parseOutfitDraftsFile(jsonString: string): Partial<OutfitDraftRecord> | null {
+  let payload: unknown;
+  try {
+    payload = JSON.parse(jsonString);
+  } catch {
+    return null;
+  }
+  return decodeOutfitPayload(payload);
+}
+
+/**
  * Persist per-role outfit drafts. Only known TeamSection roles are written;
  * unknown keys are dropped. Never throws — unavailable storage is a no-op.
  */
@@ -103,15 +171,8 @@ export function saveOutfitDrafts(
   storage: OutfitStorage | null = defaultOutfitStorage(),
 ): void {
   if (storage === null) return;
-  const knownRoles = new Set<string>(TEAM_SECTIONS);
-  const payload: PersistedOutfitPayload = { version: OUTFIT_STORAGE_VERSION, drafts: {} };
-  for (const [role, draft] of Object.entries(drafts)) {
-    if (!knownRoles.has(role)) continue;
-    if (!isValidOutfitDraft(draft)) continue;
-    payload.drafts[role] = cloneOutfit(draft);
-  }
   try {
-    storage.setItem(OUTFIT_STORAGE_KEY, JSON.stringify(payload));
+    storage.setItem(OUTFIT_STORAGE_KEY, JSON.stringify(encodeOutfitDrafts(drafts)));
   } catch {
     // Private mode / quota / unavailable storage: persistence is best-effort.
   }
@@ -140,16 +201,5 @@ export function loadOutfitDrafts(
   } catch {
     return null;
   }
-  if (typeof payload !== 'object' || payload === null) return null;
-  const envelope = payload as Record<string, unknown>;
-  if (envelope['version'] !== OUTFIT_STORAGE_VERSION) return null;
-  if (typeof envelope['drafts'] !== 'object' || envelope['drafts'] === null) return null;
-  const knownRoles = new Set<string>(TEAM_SECTIONS);
-  const result: Partial<OutfitDraftRecord> = {};
-  for (const [role, draft] of Object.entries(envelope['drafts'] as Record<string, unknown>)) {
-    if (!knownRoles.has(role)) continue;
-    if (!isValidOutfitDraft(draft)) continue;
-    result[role as TeamSection] = cloneOutfit(draft);
-  }
-  return result;
+  return decodeOutfitPayload(payload);
 }

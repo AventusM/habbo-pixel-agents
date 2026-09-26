@@ -105,6 +105,8 @@ export interface CharacterEditorPanelProps {
   selectedShirtColor: string;
   onSelectShirtColor: (hex: string) => void;
   onResetRole: (role: TeamSection) => void;
+  onExportOutfits: () => void;
+  onImportOutfitsFile: (file: File) => void;
   /** Live preview slot. */
   children?: ReactNode;
 }
@@ -123,6 +125,8 @@ export function CharacterEditorPanel({
   selectedShirtColor,
   onSelectShirtColor,
   onResetRole,
+  onExportOutfits,
+  onImportOutfitsFile,
   children,
 }: CharacterEditorPanelProps) {
   const selectedHairId =
@@ -130,9 +134,20 @@ export function CharacterEditorPanel({
       (item) => item.asset === selectedHairPart.asset && item.setId === selectedHairPart.setId,
     )?.id ?? '';
 
+  // Hidden import input, hook-free on purpose (the panel is unit-tested by
+  // direct invocation, outside a renderer): a closure slot holds the element,
+  // and the value resets so the same file can be re-picked.
+  let importInput: HTMLInputElement | null = null;
+
   const handleHairChange = (id: string) => {
     const item = hairOptions.find((option) => option.id === id);
     if (item) onSelectHair(item);
+  };
+
+  const handleImportChange = (files: FileList | null) => {
+    const file = files?.[0];
+    if (importInput) importInput.value = '';
+    if (file) onImportOutfitsFile(file);
   };
 
   return (
@@ -232,6 +247,32 @@ export function CharacterEditorPanel({
         >
           Reset {ROLE_LABELS[activeRole]}
         </button>
+      </div>
+
+      {/* Outfit file round-trip (issue #108 outcome 2) */}
+      <div style={sectionStyle}>
+        <div style={labelStyle}>Outfit file</div>
+        <button type="button" data-export-outfits="true" style={roleButtonStyle} onClick={onExportOutfits}>
+          Export outfits
+        </button>
+        <button
+          type="button"
+          data-import-outfits="true"
+          style={roleButtonStyle}
+          onClick={() => importInput?.click()}
+        >
+          Import outfits
+        </button>
+        <input
+          ref={(el) => {
+            importInput = el;
+          }}
+          type="file"
+          accept="application/json,.json"
+          hidden={true}
+          data-import-outfits-input="true"
+          onChange={(e) => handleImportChange(e.target.files)}
+        />
       </div>
     </div>
   );

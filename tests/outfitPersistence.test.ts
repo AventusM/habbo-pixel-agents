@@ -9,7 +9,9 @@ import {
   OUTFIT_STORAGE_VERSION,
   isValidOutfitDraft,
   loadOutfitDrafts,
+  parseOutfitDraftsFile,
   saveOutfitDrafts,
+  serializeOutfitDrafts,
   type OutfitStorage,
 } from '../src/state/outfitPersistence.js';
 import { ROLE_OUTFIT_PRESETS } from '../src/avatarOutfitConfig.js';
@@ -173,5 +175,57 @@ describe('outfitPersistence role and draft validation', () => {
     ).toBe(false);
     expect(isValidOutfitDraft(null)).toBe(false);
     expect(isValidOutfitDraft('planning')).toBe(false);
+  });
+});
+
+describe('outfitPersistence file round-trip (issue #108 outcome 2)', () => {
+  it('serialize→parse round-trips every draft through the versioned envelope', () => {
+    const file = serializeOutfitDrafts({
+      planning: validDraft,
+      'core-dev': { ...validDraft, colors: { ...validDraft.colors, shirt: '#ABCDEF' } },
+    });
+    expect(JSON.parse(file).version).toBe(OUTFIT_STORAGE_VERSION);
+    const parsed = parseOutfitDraftsFile(file);
+    expect(parsed).not.toBeNull();
+    expect(parsed!['planning']).toEqual(validDraft);
+    expect(parsed!['core-dev']!.colors.shirt).toBe('#ABCDEF');
+  });
+
+  it('an export file loads through the storage path unchanged', () => {
+    const storage = makeMemoryStorage();
+    const file = serializeOutfitDrafts({ planning: validDraft });
+    storage.data[OUTFIT_STORAGE_KEY] = file;
+    expect(loadOutfitDrafts(storage)!['planning']).toEqual(validDraft);
+  });
+
+  it('returns null for a corrupt file', () => {
+    expect(parseOutfitDraftsFile('{not-json')).toBeNull();
+  });
+
+  it('returns null for a wrong schema version', () => {
+    expect(
+      parseOutfitDraftsFile(
+        JSON.stringify({ version: OUTFIT_STORAGE_VERSION + 99, drafts: { planning: validDraft } }),
+      ),
+    ).toBeNull();
+  });
+
+  it('returns null for a non-object payload', () => {
+    expect(parseOutfitDraftsFile('[1,2,3]')).toBeNull();
+    expect(parseOutfitDraftsFile('null')).toBeNull();
+  });
+
+  it('applies valid roles and drops invalid ones from a mixed file', () => {
+    const partial = { ...validDraft, colors: { ...validDraft.colors } } as Record<string, unknown>;
+    delete (partial['colors'] as Record<string, unknown>)['shirt'];
+    const parsed = parseOutfitDraftsFile(
+      JSON.stringify({
+        version: OUTFIT_STORAGE_VERSION,
+        drafts: { planning: validDraft, 'core-dev': partial, 'design-lead': validDraft },
+      }),
+    )!;
+    expect(parsed['planning']).toEqual(validDraft);
+    expect(parsed['core-dev']).toBeUndefined();
+    expect(Object.keys(parsed)).toEqual(['planning']);
   });
 });

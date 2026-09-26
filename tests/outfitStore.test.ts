@@ -214,3 +214,75 @@ describe('OutfitStore persistence hydration (M006/S03 T02)', () => {
     });
   });
 });
+
+describe('OutfitStore file export/import (M006/S03 review fix, issue #108 outcome 2)', () => {
+  function makeMemoryStorage(initial: Record<string, string> = {}): {
+    data: Record<string, string>;
+    getItem(key: string): string | null;
+    setItem(key: string, value: string): void;
+  } {
+    return {
+      data: { ...initial },
+      getItem(key: string): string | null {
+        return Object.hasOwn(this.data, key) ? this.data[key] : null;
+      },
+      setItem(key: string, value: string): void {
+        this.data[key] = value;
+      },
+    };
+  }
+
+  it('exportOutfits serializes the live drafts; a fresh store applies the file', () => {
+    const storage = makeMemoryStorage();
+    const source = new OutfitStore(storage);
+    source.setColor('shirt', '#112233');
+    source.selectRole('support');
+    source.setColor('hair', '#445566');
+
+    const target = new OutfitStore(makeMemoryStorage());
+    const applied = target.importOutfits(source.exportOutfits());
+    expect(applied?.sort()).toEqual(['core-dev', 'infrastructure', 'planning', 'support']);
+    expect(target.drafts['planning'].colors.shirt).toBe('#112233');
+    expect(target.drafts['support'].colors.hair).toBe('#445566');
+  });
+
+  it('importOutfits persists the applied drafts to storage', () => {
+    const source = new OutfitStore(makeMemoryStorage());
+    source.setColor('shirt', '#778899');
+    const storage = makeMemoryStorage();
+    const target = new OutfitStore(storage);
+    expect(target.importOutfits(source.exportOutfits())).not.toBeNull();
+    expect(JSON.parse(storage.data[OUTFIT_STORAGE_KEY]).drafts['planning'].colors.shirt).toBe(
+      '#778899',
+    );
+  });
+
+  it('importOutfits returns null and leaves drafts untouched for corrupt files', () => {
+    const storage = makeMemoryStorage();
+    const store = new OutfitStore(storage);
+    const before = JSON.parse(JSON.stringify(store.drafts));
+    expect(store.importOutfits('{broken')).toBeNull();
+    expect(
+      store.importOutfits(JSON.stringify({ version: OUTFIT_STORAGE_VERSION + 99, drafts: {} })),
+    ).toBeNull();
+    expect(store.drafts).toEqual(before);
+    expect(OUTFIT_STORAGE_KEY in storage.data).toBe(false);
+  });
+
+  it('importOutfits applies the valid roles of a mixed file and reports them', () => {
+    const edited = {
+      ...ROLE_OUTFIT_PRESETS['core-dev'],
+      colors: { ...ROLE_OUTFIT_PRESETS['core-dev'].colors, shirt: '#0B0C0D' },
+    };
+    const store = new OutfitStore(makeMemoryStorage());
+    const applied = store.importOutfits(
+      JSON.stringify({
+        version: OUTFIT_STORAGE_VERSION,
+        drafts: { 'core-dev': edited, 'design-lead': edited },
+      }),
+    );
+    expect(applied).toEqual(['core-dev']);
+    expect(store.drafts['core-dev'].colors.shirt).toBe('#0B0C0D');
+    expect(store.drafts['planning']).toEqual(ROLE_OUTFIT_PRESETS['planning']);
+  });
+});

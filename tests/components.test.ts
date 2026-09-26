@@ -165,6 +165,8 @@ describe('CharacterEditorPanel render + handler parity', () => {
     selectedShirtColor: shirtColors[0],
     onSelectShirtColor: () => undefined,
     onResetRole: () => undefined,
+    onExportOutfits: () => undefined,
+    onImportOutfitsFile: () => undefined,
   };
 
   it('renders the four role labels and the swatch/selector surfaces', () => {
@@ -179,6 +181,9 @@ describe('CharacterEditorPanel render + handler parity', () => {
     expect(html).toContain('Reset Core Dev');
     expect(html).toContain('data-pixellab-notice="true"');
     expect(html).toContain('PixelLab agents are out of scope');
+    expect(html).toContain('data-export-outfits="true"');
+    expect(html).toContain('data-import-outfits="true"');
+    expect(html).toContain('data-import-outfits-input="true"');
   });
 
   it('invokes the supplied callbacks with the expected values', () => {
@@ -187,6 +192,8 @@ describe('CharacterEditorPanel render + handler parity', () => {
     const onSelectHairColor = vi.fn();
     const onSelectHair = vi.fn();
     const onResetRole = vi.fn();
+    const onExportOutfits = vi.fn();
+    const onImportOutfitsFile = vi.fn();
     const tree = CharacterEditorPanel({
       ...baseProps,
       onSelectRole,
@@ -194,6 +201,8 @@ describe('CharacterEditorPanel render + handler parity', () => {
       onSelectHairColor,
       onSelectHair,
       onResetRole,
+      onExportOutfits,
+      onImportOutfitsFile,
     });
     const elements = collectElements(tree);
 
@@ -216,5 +225,14 @@ describe('CharacterEditorPanel render + handler parity', () => {
     const resetButton = elements.find((el) => el.props['data-reset'] === 'core-dev');
     (resetButton?.props.onClick as () => void)();
     expect(onResetRole).toHaveBeenCalledWith('core-dev');
+
+    const exportButton = elements.find((el) => el.props['data-export-outfits'] === 'true');
+    (exportButton?.props.onClick as () => void)();
+    expect(onExportOutfits).toHaveBeenCalledTimes(1);
+
+    const importInput = elements.find((el) => el.props['data-import-outfits-input'] === 'true');
+    const importFile = { name: 'outfits.json' } as File;
+    (importInput?.props.onChange as (e: unknown) => void)({ target: { files: [importFile] } });
+    expect(onImportOutfitsFile).toHaveBeenCalledWith(importFile);
   });
 });

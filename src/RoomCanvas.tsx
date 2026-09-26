@@ -1082,6 +1082,8 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
           selectedShirtColor={editor.outfit.colors.shirt}
           onSelectShirtColor={(hex) => editor.setColor('shirt', hex)}
           onResetRole={editor.resetRole}
+          onExportOutfits={editor.exportOutfits}
+          onImportOutfitsFile={editor.importOutfitsFile}
         >
           <AvatarPreview outfit={editor.outfit} spriteCache={previewSpriteCache} />
         </CharacterEditorPanel>
