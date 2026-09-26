@@ -20,6 +20,8 @@ export interface RoomRenderState {
   editorState: EditorState;
   grid: TileGrid | null;
   tileColorMap: Map<string, HsbColor>;
+  wallColorMap: Map<string, HsbColor>;
+  sectionWallColors: Record<string, HsbColor>;
   furniture: FurnitureSpec[];
   multiTileFurniture: MultiTileFurnitureSpec[];
   furnitureRenderables: Renderable[];

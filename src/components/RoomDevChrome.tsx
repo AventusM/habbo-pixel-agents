@@ -29,6 +29,10 @@ export interface RoomDevChromeProps {
   moveArmed?: boolean;
   onMoveSelected?: () => void;
   onDeleteSelected?: () => void;
+  wallColorSections?: ReadonlyArray<{ id: string; label: string }>;
+  wallColors?: Record<string, HsbColor>;
+  onWallColorChange?: (sectionId: string, color: HsbColor) => void;
+  onWallColorClear?: (sectionId: string) => void;
   /** Whether the layout editor panel is expanded (shell-owned). */
   editorOpen: boolean;
   /** Toggle the layout editor panel (shell-owned). */
@@ -70,6 +74,10 @@ export function RoomDevChrome({
   moveArmed,
   onMoveSelected,
   onDeleteSelected,
+  wallColorSections,
+  wallColors,
+  onWallColorChange,
+  onWallColorClear,
   editorOpen,
   onEditorToggle,
 }: RoomDevChromeProps) {
@@ -106,6 +114,10 @@ export function RoomDevChrome({
           moveArmed={moveArmed}
           onMoveSelected={onMoveSelected}
           onDeleteSelected={onDeleteSelected}
+          wallColorSections={wallColorSections}
+          wallColors={wallColors}
+          onWallColorChange={onWallColorChange}
+          onWallColorClear={onWallColorClear}
         />
       )}
     </>

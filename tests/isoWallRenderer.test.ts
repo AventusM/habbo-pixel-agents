@@ -27,6 +27,15 @@ function makeMockCtx() {
 const DEFAULT_HSB = { h: 220, s: 25, b: 80 };
 const CAMERA_ORIGIN = { x: 0, y: 0 };
 
+/** Mock that records the fillStyle in force at each fill() call. */
+function makeRecordingCtx(fills: string[]) {
+  const ctx = makeMockCtx();
+  (ctx as unknown as { fill: unknown }).fill = vi.fn(function (this: { fillStyle: string }) {
+    fills.push(this.fillStyle);
+  });
+  return ctx;
+}
+
 describe('drawWallPanels', () => {
   it('should be callable with a simple 3x3 grid without throwing', () => {
     const grid = parseHeightmap('000\n000\n000');
@@ -111,6 +120,31 @@ describe('drawWallPanels', () => {
 
       // Corner slit still renders with path fills when tileColorMap provides override
       expect(ctx.fill).toHaveBeenCalled();
+    });
+  });
+
+  describe('explicit per-section wall colors', () => {
+    it('fills a wall segment with its explicit wall color when provided', () => {
+      const grid = parseHeightmap('00\n00');
+      const fills: string[] = [];
+      const ctx = makeRecordingCtx(fills);
+      const wallColorMap = new Map([['0,0', { h: 0, s: 100, b: 100 }]]);
+
+      drawWallPanels(ctx, grid, CAMERA_ORIGIN, DEFAULT_HSB, undefined, wallColorMap);
+
+      // h=0,s=100,b=100 → HSL l=50; left-wall face shade is l-10 = 40
+      expect(fills).toContain('hsl(0, 100%, 40%)');
+    });
+
+    it('falls back to the derived neutral when no wall color is set', () => {
+      const grid = parseHeightmap('00\n00');
+      const fills: string[] = [];
+      const ctx = makeRecordingCtx(fills);
+
+      drawWallPanels(ctx, grid, CAMERA_ORIGIN, DEFAULT_HSB, undefined, new Map());
+
+      const derived = fills.some((f) => f.startsWith('hsl(220, 0%'));
+      expect(derived).toBe(true);
     });
   });
 });

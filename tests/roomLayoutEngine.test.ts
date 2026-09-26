@@ -5,6 +5,7 @@ import {
   getSectionForTeam,
   getTemplateSize,
   TEMPLATE_SIZES,
+  buildWallColorMap,
 } from '../src/roomLayoutEngine.js';
 import { parseHeightmap } from '../src/isoTypes.js';
 
@@ -272,5 +273,38 @@ describe('roomLayoutEngine', () => {
       const t = generateFloorTemplate('small');
       expect(getSectionForTeam(t, 'nonexistent' as any)).toBeUndefined();
     });
+  });
+});
+
+describe('buildWallColorMap', () => {
+  it('maps a corner section color onto its left and back wall tiles', () => {
+    const t = generateFloorTemplate('small');
+    const color = { h: 10, s: 80, b: 90 };
+
+    const map = buildWallColorMap(t, { planning: color });
+
+    expect(map.get('0,0')).toEqual(color);
+    expect(map.get('0,6')).toEqual(color);
+    expect(map.get('6,0')).toEqual(color);
+    expect(map.get('0,14')).toBeUndefined();
+    expect(map.get('14,0')).toBeUndefined();
+  });
+
+  it('ignores sections that touch no wall and unset colors', () => {
+    const t = generateFloorTemplate('small');
+
+    expect(buildWallColorMap(t, { support: { h: 1, s: 1, b: 1 } }).size).toBe(0);
+    expect(buildWallColorMap(t, {}).size).toBe(0);
+  });
+
+  it('uses each section own color for its perimeter tiles', () => {
+    const t = generateFloorTemplate('small');
+    const planning = { h: 1, s: 1, b: 1 };
+    const coreDev = { h: 2, s: 2, b: 2 };
+
+    const map = buildWallColorMap(t, { planning, 'core-dev': coreDev });
+
+    expect(map.get('0,0')).toEqual(planning);
+    expect(map.get('14,0')).toEqual(coreDev);
   });
 });

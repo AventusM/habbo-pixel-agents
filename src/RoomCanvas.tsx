@@ -19,7 +19,7 @@ import {
 import { getSupportedDirections } from './furnitureRegistry.js';
 import { drawKanbanNotes, createKanbanRenderState, type KanbanRenderState } from './isoKanbanRenderer.js';
 import { SectionManager } from './sectionManager.js';
-import { type FloorTemplate, buildSectionColorMap } from './roomLayoutEngine.js';
+import { type FloorTemplate, buildSectionColorMap, buildWallColorMap, SECTION_WALL_OPTIONS } from './roomLayoutEngine.js';
 import { agentStore } from './state/agentStore.js';
 import { kanbanStore } from './state/kanbanStore.js';
 import { cameraStore } from './state/cameraStore.js';
@@ -151,12 +151,31 @@ export function RoomCanvas({
   const handleMoveConsumed = useCallback(() => setMoveArmed(false), []);
   const handleArmMove = useCallback(() => setMoveArmed(true), []);
 
+  // Explicit per-section wall colors (M009/S02). Empty record → the renderer
+  // falls back to today's derived neutral for every wall segment.
+  const [wallColors, setWallColors] = useState<Record<string, HsbColor>>({});
+
+  const handleWallColorChange = useCallback((sectionId: string, color: HsbColor) => {
+    setWallColors((prev) => ({ ...prev, [sectionId]: color }));
+  }, []);
+
+  const handleWallColorClear = useCallback((sectionId: string) => {
+    setWallColors((prev) => {
+      if (!(sectionId in prev)) return prev;
+      const next = { ...prev };
+      delete next[sectionId];
+      return next;
+    });
+  }, []);
+
   const renderState = useRef<{
     cameraOrigin: { x: number; y: number };
     lastFrameTimeMs: number;
     editorState: EditorState;
     grid: TileGrid | null;
     tileColorMap: Map<string, HsbColor>;
+    wallColorMap: Map<string, HsbColor>;
+    sectionWallColors: Record<string, HsbColor>;
     furniture: FurnitureSpec[];
     multiTileFurniture: MultiTileFurnitureSpec[];
     furnitureRenderables: Renderable[];
@@ -170,6 +189,8 @@ export function RoomCanvas({
     },
     grid: null,
     tileColorMap: new Map(),
+    wallColorMap: new Map(),
+    sectionWallColors: {},
     furniture: [],
     multiTileFurniture: [],
     furnitureRenderables: [],
@@ -205,7 +226,16 @@ export function RoomCanvas({
   // swaps, save/load and dev capture. Called before useRoomAgents so its
   // setBoothFrame is available to the spawn/despawn orchestration.
   const { renderRoomBuffer, reRenderRoom, setBoothFrame, handleSave, handleLoad, handleDevCapture } =
-    useRoomEditorIO({ canvasRef, stageRef, renderState });
+    useRoomEditorIO({ canvasRef, stageRef, renderState, onWallColorsLoaded: setWallColors });
+
+  // Rebuild the wall color map whenever the explicit per-section colors change
+  // and repaint the room layer (M009/S02).
+  useEffect(() => {
+    const tmpl = (window as unknown as { floorTemplate?: FloorTemplate }).floorTemplate;
+    renderState.current.sectionWallColors = wallColors;
+    renderState.current.wallColorMap = tmpl ? buildWallColorMap(tmpl, wallColors) : new Map();
+    if (renderState.current.grid) reRenderRoom();
+  }, [wallColors, reRenderRoom]);
 
   // Room orchestration hook (M008/S01): owns the lifecycle managers and the
   // agent spawn/despawn/status/tool/wander glue; the shell only consumes it.
@@ -550,6 +580,10 @@ export function RoomCanvas({
         moveArmed={moveArmed}
         onMoveSelected={handleArmMove}
         onDeleteSelected={furnitureEditor.deleteSelected}
+        wallColorSections={SECTION_WALL_OPTIONS}
+        wallColors={wallColors}
+        onWallColorChange={handleWallColorChange}
+        onWallColorClear={handleWallColorClear}
         onRotate={() => {
           const spriteCache: SpriteCache | undefined = (window as any).spriteCache;
           const supported = spriteCache

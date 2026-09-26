@@ -255,6 +255,43 @@ describe('LayoutEditorPanel furniture affordances', () => {
   });
 });
 
+describe('LayoutEditorPanel wall color control', () => {
+  const baseProps = {
+    editorMode: 'view' as EditorMode,
+    onModeChange: () => undefined,
+    selectedColor: { h: 0, s: 0, b: 100 } as HsbColor,
+    onColorChange: () => undefined,
+    selectedFurniture: 'hc_chr',
+    onFurnitureChange: () => undefined,
+    furnitureDirection: 0,
+    onRotate: () => undefined,
+    onSave: () => undefined,
+    onLoad: () => undefined,
+    onClose: () => undefined,
+  };
+
+  it('renders the per-section wall color control when sections are provided', () => {
+    const html = renderToStaticMarkup(
+      React.createElement(LayoutEditorPanel, {
+        ...baseProps,
+        wallColorSections: [{ id: 'planning', label: 'Planning' }],
+        wallColors: {},
+        onWallColorChange: () => undefined,
+        onWallColorClear: () => undefined,
+      }),
+    );
+    expect(html).toContain('data-wall-color-control="true"');
+    expect(html).toContain('Wall Color');
+    expect(html).toContain('Planning');
+    expect(html).toContain('data-wall-color-clear="true"');
+  });
+
+  it('omits the wall color control without sections', () => {
+    const html = renderToStaticMarkup(React.createElement(LayoutEditorPanel, baseProps));
+    expect(html).not.toContain('data-wall-color-control="true"');
+  });
+});
+
 describe('CharacterEditorPanel render + handler parity', () => {
   const roles: TeamSection[] = ['planning', 'core-dev', 'infrastructure', 'support'];
   const hairOptions = FIGURE_CATALOG.filter((item) => item.category === 'hair');

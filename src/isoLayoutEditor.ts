@@ -602,6 +602,8 @@ export interface LayoutData {
   tileColors: Record<string, HsbColor>;
   furniture: FurnitureSpec[];
   multiTileFurniture: MultiTileFurnitureSpec[];
+  /** Explicit per-section wall colors (M009/S02); absent in pre-S02 layouts. */
+  sectionWallColors?: Record<string, HsbColor>;
 }
 
 /**
@@ -620,6 +622,7 @@ export function saveLayout(
   furniture: FurnitureSpec[],
   multiTileFurniture: MultiTileFurnitureSpec[],
   doorCoords: { x: number; y: number; z: number; dir: number },
+  sectionWallColors?: Record<string, HsbColor>,
 ): string {
   const data: LayoutData = {
     heightmap: gridToHeightmap(grid),
@@ -631,6 +634,10 @@ export function saveLayout(
     furniture,
     multiTileFurniture,
   };
+
+  if (sectionWallColors && Object.keys(sectionWallColors).length > 0) {
+    data.sectionWallColors = sectionWallColors;
+  }
 
   return JSON.stringify(data, null, 2);
 }

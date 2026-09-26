@@ -10,6 +10,7 @@ import { useState, type CSSProperties, type ChangeEvent } from 'react';
 import type { EditorMode, PlacedFurnitureInfo } from './isoLayoutEditor.js';
 import type { HsbColor } from './isoTypes.js';
 import { getCatalogByCategory, CATEGORY_LABELS } from './furnitureRegistry.js';
+import { DEFAULT_WALL_COLOR } from './roomLayoutEngine.js';
 
 export interface LayoutEditorPanelProps {
   editorMode: EditorMode;
@@ -29,6 +30,12 @@ export interface LayoutEditorPanelProps {
   moveArmed?: boolean;
   onMoveSelected?: () => void;
   onDeleteSelected?: () => void;
+  /** Selectable sections for the per-section wall color control. */
+  wallColorSections?: ReadonlyArray<{ id: string; label: string }>;
+  /** Explicit wall colors keyed by section id; missing keys use the default. */
+  wallColors?: Record<string, HsbColor>;
+  onWallColorChange?: (sectionId: string, color: HsbColor) => void;
+  onWallColorClear?: (sectionId: string) => void;
   devMode?: boolean;
   onDevCapture?: () => void;
   onDebugGrid?: () => void;
@@ -178,6 +185,10 @@ export function LayoutEditorPanel({
   moveArmed,
   onMoveSelected,
   onDeleteSelected,
+  wallColorSections,
+  wallColors,
+  onWallColorChange,
+  onWallColorClear,
   devMode,
   onDevCapture,
   onDebugGrid,
@@ -186,6 +197,7 @@ export function LayoutEditorPanel({
   audioReady,
 }: LayoutEditorPanelProps) {
   const [selectedSound, setSelectedSound] = useState(availableSounds?.[0] ?? '');
+  const [wallSectionId, setWallSectionId] = useState(wallColorSections?.[0]?.id ?? 'planning');
 
   const handleFileInput = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -193,6 +205,8 @@ export function LayoutEditorPanel({
       onLoad(file);
     }
   };
+
+  const activeWallColor = wallColors?.[wallSectionId] ?? DEFAULT_WALL_COLOR;
 
   return (
     <div style={panelStyle} data-room-editor="true">
@@ -319,6 +333,73 @@ export function LayoutEditorPanel({
             </>
           ) : (
             <div style={hintStyle}>Click a placed item to select it</div>
+          )}
+        </div>
+      )}
+
+      {/* Per-section wall color (M009/S02) */}
+      {wallColorSections && wallColorSections.length > 0 && onWallColorChange && (
+        <div style={sectionStyle} data-wall-color-control="true">
+          <div style={sectionTitleStyle}>Wall Color</div>
+          <select
+            value={wallSectionId}
+            onChange={(e) => setWallSectionId(e.target.value)}
+            style={selectStyle}
+          >
+            {wallColorSections.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.label}
+              </option>
+            ))}
+          </select>
+          <label style={sliderLabelStyle}>
+            H: {activeWallColor.h}
+            <input
+              type="range"
+              min="0"
+              max="360"
+              value={activeWallColor.h}
+              onChange={(e) => onWallColorChange(wallSectionId, { ...activeWallColor, h: parseInt(e.target.value, 10) })}
+              style={sliderStyle}
+            />
+          </label>
+          <label style={sliderLabelStyle}>
+            S: {activeWallColor.s}%
+            <input
+              type="range"
+              min="0"
+              max="100"
+              value={activeWallColor.s}
+              onChange={(e) => onWallColorChange(wallSectionId, { ...activeWallColor, s: parseInt(e.target.value, 10) })}
+              style={sliderStyle}
+            />
+          </label>
+          <label style={sliderLabelStyle}>
+            B: {activeWallColor.b}%
+            <input
+              type="range"
+              min="0"
+              max="100"
+              value={activeWallColor.b}
+              onChange={(e) => onWallColorChange(wallSectionId, { ...activeWallColor, b: parseInt(e.target.value, 10) })}
+              style={sliderStyle}
+            />
+          </label>
+          <div
+            style={{
+              ...previewStyle,
+              backgroundColor: `hsl(${activeWallColor.h}, ${activeWallColor.s}%, ${activeWallColor.b}%)`,
+            }}
+          />
+          {onWallColorClear && (
+            <button
+              type="button"
+              onClick={() => onWallColorClear(wallSectionId)}
+              style={buttonStyle}
+              data-wall-color-clear="true"
+            >
+              Clear (use default)
+            </button>
           )}
         </div>
       )}

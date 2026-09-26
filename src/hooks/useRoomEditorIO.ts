@@ -8,8 +8,9 @@ import { useCallback } from 'react';
 import type { RefObject } from 'react';
 import { computeCameraOrigin, createFurnitureRenderables } from '../isoTileRenderer.js';
 import { saveLayout, loadLayout } from '../isoLayoutEditor.js';
+import { buildWallColorMap, type FloorTemplate } from '../roomLayoutEngine.js';
 import { isTeleportBooth } from '../furnitureRegistry.js';
-import { parseHeightmap, type Renderable } from '../isoTypes.js';
+import { parseHeightmap, type HsbColor, type Renderable } from '../isoTypes.js';
 import {
   buildDevCaptureFilename,
   buildDevCapturePayload,
@@ -25,9 +26,15 @@ export interface UseRoomEditorIOOptions {
   canvasRef: RefObject<HTMLCanvasElement | null>;
   stageRef: RefObject<CanvasStage | null>;
   renderState: RefObject<RoomRenderState>;
+  onWallColorsLoaded?: (colors: Record<string, HsbColor>) => void;
 }
 
-export function useRoomEditorIO({ canvasRef, stageRef, renderState }: UseRoomEditorIOOptions) {
+export function useRoomEditorIO({
+  canvasRef,
+  stageRef,
+  renderState,
+  onWallColorsLoaded,
+}: UseRoomEditorIOOptions) {
   /**
    * (Re-)render the room layer. The layer is sized to the ROOM's world extent
    * (not the viewport) via src/render/layers.ts; current call sites force a
@@ -46,6 +53,7 @@ export function useRoomEditorIO({ canvasRef, stageRef, renderState }: UseRoomEdi
       canvasCssH: canvas.offsetHeight,
       version: `manual-${renderState.current.lastFrameTimeMs}-${grid.width}x${grid.height}`,
       tileColorMap: renderState.current.tileColorMap,
+      wallColorMap: renderState.current.wallColorMap,
       furniture: renderState.current.furniture,
       multiTileFurniture: renderState.current.multiTileFurniture,
       spriteCache,
@@ -91,7 +99,8 @@ export function useRoomEditorIO({ canvasRef, stageRef, renderState }: UseRoomEdi
       renderState.current.tileColorMap,
       renderState.current.furniture,
       renderState.current.multiTileFurniture,
-      { x: 0, y: 0, z: 0, dir: 2 }
+      { x: 0, y: 0, z: 0, dir: 2 },
+      renderState.current.sectionWallColors,
     );
 
     const blob = new Blob([json], { type: 'application/json' });
@@ -118,6 +127,14 @@ export function useRoomEditorIO({ canvasRef, stageRef, renderState }: UseRoomEdi
         renderState.current.furniture = data.furniture;
         renderState.current.multiTileFurniture = data.multiTileFurniture;
 
+        const sectionWallColors = data.sectionWallColors ?? {};
+        renderState.current.sectionWallColors = sectionWallColors;
+        const tmpl = (window as unknown as { floorTemplate?: FloorTemplate }).floorTemplate;
+        renderState.current.wallColorMap = tmpl
+          ? buildWallColorMap(tmpl, sectionWallColors)
+          : new Map();
+        onWallColorsLoaded?.(sectionWallColors);
+
         renderState.current.cameraOrigin = computeCameraOrigin(
           newGrid,
           canvasRef.current.offsetWidth,
@@ -131,7 +148,7 @@ export function useRoomEditorIO({ canvasRef, stageRef, renderState }: UseRoomEdi
       }
     };
     reader.readAsText(file);
-  }, [canvasRef, renderState, reRenderRoom]);
+  }, [canvasRef, renderState, reRenderRoom, onWallColorsLoaded]);
 
   const handleDevCapture = useCallback(() => {
     const canvas = canvasRef.current;

@@ -86,7 +86,7 @@ export class CanvasStage {
     this.roomLayer = new RoomLayer(
       computeRoomBounds,
       computeCameraOrigin,
-      (grid, origin, physicalW, physicalH, dpr, tileColorMap) =>
+      (grid, origin, physicalW, physicalH, dpr, tileColorMap, wallColorMap) =>
         preRenderRoom(
           grid,
           origin,
@@ -99,6 +99,7 @@ export class CanvasStage {
           undefined,
           'furniture',
           tileColorMap as Map<string, HsbColor> | undefined,
+          wallColorMap as Map<string, HsbColor> | undefined,
         ),
       createFurnitureRenderables as unknown as ConstructorParameters<typeof RoomLayer>[3],
     );

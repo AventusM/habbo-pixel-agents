@@ -491,6 +491,40 @@ describe('saveLayout and loadLayout', () => {
     expect(loaded.furniture).toEqual(furniture);
     expect(loaded.multiTileFurniture).toEqual(multiTileFurniture);
   });
+
+  it('round-trips explicit per-section wall colors', () => {
+    const grid = parseHeightmap('00\n00');
+    const wallColors = { planning: { h: 10, s: 80, b: 90 } };
+
+    const json = saveLayout(grid, new Map(), [], [], { x: 0, y: 0, z: 0, dir: 2 }, wallColors);
+    const loaded = loadLayout(json);
+
+    expect(loaded.sectionWallColors).toEqual(wallColors);
+  });
+
+  it('omits wall colors when none are set (backward-compatible output)', () => {
+    const grid = parseHeightmap('00\n00');
+
+    const json = saveLayout(grid, new Map(), [], [], { x: 0, y: 0, z: 0, dir: 2 });
+
+    expect(json).not.toContain('sectionWallColors');
+    expect(loadLayout(json).sectionWallColors).toBeUndefined();
+  });
+
+  it('loads a pre-S02 layout without wall colors', () => {
+    const legacy = JSON.stringify({
+      heightmap: '00\n00',
+      doorX: 0,
+      doorY: 0,
+      doorZ: 0,
+      doorDir: 2,
+      tileColors: {},
+      furniture: [],
+      multiTileFurniture: [],
+    });
+
+    expect(loadLayout(legacy).sectionWallColors).toBeUndefined();
+  });
 });
 
 describe('findFurnitureAtTile', () => {

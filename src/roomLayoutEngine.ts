@@ -340,3 +340,50 @@ export function buildSectionColorMap(
 
   return map;
 }
+
+/** Team sections in editor-control order, paired with human labels. */
+export const SECTION_WALL_OPTIONS: ReadonlyArray<{ id: TeamSection; label: string }> = [
+  { id: "planning", label: "Planning" },
+  { id: "core-dev", label: "Core Dev" },
+  { id: "infrastructure", label: "Infrastructure" },
+  { id: "support", label: "Support" },
+];
+
+/** Neutral wall color the editor control shows before an explicit color is set. */
+export const DEFAULT_WALL_COLOR: HsbColor = { h: 220, s: 0, b: 85 };
+
+/**
+ * Map explicit per-section wall colors onto the perimeter tiles whose wall
+ * segments they color: column 0 (left wall) for sections touching the left
+ * edge and row 0 (back wall) for sections touching the back edge. Tiles absent
+ * from the map fall back to the renderer's derived neutral.
+ */
+export function buildWallColorMap(
+  template: FloorTemplate,
+  sectionWallColors: Record<string, HsbColor>,
+): Map<string, HsbColor> {
+  const map = new Map<string, HsbColor>();
+
+  for (const section of template.sections) {
+    const color = sectionWallColors[section.team];
+    if (!color) continue;
+
+    const x0 = section.originTile.x;
+    const y0 = section.originTile.y;
+    const x1 = x0 + section.widthTiles;
+    const y1 = y0 + section.heightTiles;
+
+    if (x0 === 0) {
+      for (let y = y0; y < y1; y++) {
+        map.set(`0,${y}`, color);
+      }
+    }
+    if (y0 === 0) {
+      for (let x = x0; x < x1; x++) {
+        map.set(`${x},0`, color);
+      }
+    }
+  }
+
+  return map;
+}
