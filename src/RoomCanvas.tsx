@@ -11,7 +11,7 @@ import { pixelLabRenderer } from './pixelLabAvatarRenderer.js';
 import type { SpriteCache } from './isoSpriteCache.js';
 import { habboRenderer } from './isoAvatarRenderer.js';
 import { tileToScreen, TILE_H_HALF, screenToTile } from './isometricMath.js';
-import { KANBAN_FILTER_LABELS, type KanbanFilterMode } from './kanbanFilter.js';
+import { KANBAN_FILTER_LABELS } from './kanbanFilter.js';
 import {
   toggleTileWalkability,
   setTileColor,
@@ -42,6 +42,7 @@ import { kanbanStore } from './state/kanbanStore.js';
 import { cameraStore } from './state/cameraStore.js';
 import { expRunStore } from './state/expRunStore.js';
 import { expHistoryFromRuns, syncExpRunsToAgents } from './expFeed.js';
+import { useKanbanFilter } from './hooks/useKanbanFilter.js';
 
 interface RoomCanvasProps {
   heightmap: string;
@@ -88,18 +89,14 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
   // Dev mode flag (set by extension in Development mode)
   const [devMode, setDevMode] = useState(false);
 
-  // Kanban source filter (All / GSD only / Non-GSD) — toggle with the G key.
-  // Mirrored from kanbanStore (source of truth) for the HUD.
-  const [kanbanFilter, setKanbanFilter] = useState<KanbanFilterMode>(kanbanStore.filter);
+  // Kanban source filter (All / GSD only / Non-GSD) — mirrored from kanbanStore for the HUD.
+  const kanbanFilter = useKanbanFilter();
 
   // Per-render kanban hit-test state (replaces renderer module-level state)
   const kanbanRenderStateRef = useRef<KanbanRenderState>(createKanbanRenderState());
 
   // Active avatar renderer (logged on change; Habbo figures vs PixelLab/RD)
   const activeRendererRef = useRef<AvatarRenderer | null>(null);
-
-  // Mirror the kanban filter store into React state for the HUD
-  useEffect(() => kanbanStore.subscribeSelector((state) => state.filter, setKanbanFilter), []);
 
   useEffect(() => {
     const handleFilterKey = (e: KeyboardEvent) => {
