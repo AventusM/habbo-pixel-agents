@@ -123,6 +123,7 @@ export const pixelLabRenderer: AvatarRenderer = {
           frameKey = `pl_rot_${spec.direction}`;
         }
 
+        // NOTE: role outfits are Nitro-only; PixelLab avatars select sprites by team and ignore spec.outfit (M006/S01)
         const atlasName = getAtlasForTeam(spec.team);
         const frame = spriteCache.getFrame(atlasName, frameKey)
           || spriteCache.getFrame(atlasName, `pl_rot_${spec.direction}`)

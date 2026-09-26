@@ -9,6 +9,7 @@ import { pathToIsometricPositions } from './isoAgentBehavior.js';
 import { findPath, getRandomWalkableTile, isTileOccupied } from './isoPathfinding.js';
 import { tileToScreen } from './isometricMath.js';
 import type { TeamSection } from './agentTypes.js';
+import { getRolePreset } from './avatarOutfitConfig.js';
 
 /** Time per tile step in ms (walk speed) */
 const TILE_STEP_DURATION_MS = 350;
@@ -25,6 +26,13 @@ interface PathState {
 export class AvatarManager {
   private avatars = new Map<string, AvatarSpec>();
   private pathStates = new Map<string, PathState>();
+  private loggedRoleResolutions = new Set<string>();
+
+  private logRoleResolution(spec: AvatarSpec): void {
+    if (this.loggedRoleResolutions.has(spec.id)) return;
+    this.loggedRoleResolutions.add(spec.id);
+    console.debug(`[avatarManager] role outfit resolved for ${spec.id}: team=${spec.team} shirt=${spec.outfit?.colors.shirt}`);
+  }
 
   /**
    * Spawn a new avatar at a random walkable tile.
@@ -62,9 +70,11 @@ export class AvatarManager {
       isSelected: false,
       displayName,
       team: team || 'core-dev',
+      outfit: getRolePreset(team ?? 'core-dev', variant),
     };
 
     this.avatars.set(agentId, spec);
+    this.logRoleResolution(spec);
     return spec;
   }
 
@@ -96,9 +106,11 @@ export class AvatarManager {
       isSelected: false,
       displayName,
       team: team || 'core-dev',
+      outfit: getRolePreset(team ?? 'core-dev', variant),
     };
 
     this.avatars.set(agentId, spec);
+    this.logRoleResolution(spec);
     return spec;
   }
 
