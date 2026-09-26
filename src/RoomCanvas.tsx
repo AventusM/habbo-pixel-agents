@@ -40,6 +40,7 @@ import { useKanbanFilter } from './hooks/useKanbanFilter.js';
 import { useRoomAudio } from './hooks/useRoomAudio.js';
 import { useAutoFollowCamera } from './hooks/useAutoFollowCamera.js';
 import { useRoomAgents } from './hooks/useRoomAgents.js';
+import { KanbanFilterChip } from './components/KanbanFilterChip.js';
 
 interface RoomCanvasProps {
   heightmap: string;
@@ -1016,23 +1017,7 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
         onContextMenu={handleContextMenu}
       />
       {/* Kanban source filter HUD */}
-      <div
-        style={{
-          position: 'fixed',
-          left: 12,
-          bottom: 12,
-          zIndex: 10,
-          padding: '6px 10px',
-          borderRadius: 8,
-          background: 'rgba(15, 23, 42, 0.78)',
-          color: '#e2e8f0',
-          font: '12px/1.4 monospace',
-          border: '1px solid rgba(148, 163, 184, 0.35)',
-          pointerEvents: 'none',
-        }}
-      >
-        Kanban: {KANBAN_FILTER_LABELS[kanbanFilter]} &middot; press G
-      </div>
+      <KanbanFilterChip label={KANBAN_FILTER_LABELS[kanbanFilter]} />
     </>
   );
 }
