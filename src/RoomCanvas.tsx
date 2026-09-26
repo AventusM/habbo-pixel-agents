@@ -34,7 +34,7 @@ import { agentStore } from './state/agentStore.js';
 import { kanbanStore } from './state/kanbanStore.js';
 import { cameraStore } from './state/cameraStore.js';
 import { expRunStore } from './state/expRunStore.js';
-import { expHistoryFromRuns, syncExpRunsToAgents } from './expFeed.js';
+import { syncExpRunsToAgents } from './expFeed.js';
 import { useKanbanFilter } from './hooks/useKanbanFilter.js';
 import { useRoomAudio } from './hooks/useRoomAudio.js';
 import { useAutoFollowCamera } from './hooks/useAutoFollowCamera.js';
@@ -42,6 +42,7 @@ import { useRoomAgents } from './hooks/useRoomAgents.js';
 import { KanbanFilterChip } from './components/KanbanFilterChip.js';
 import { RoomStage } from './components/RoomStage.js';
 import { RoomDevChrome } from './components/RoomDevChrome.js';
+import { useRoomHud } from './hooks/useRoomHud.js';
 
 interface RoomCanvasProps {
   heightmap: string;
@@ -260,6 +261,9 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
     getCameraOrigin: () => renderState.current.cameraOrigin,
     setBoothFrame,
   });
+
+  // Orchestration + experiment-history HUD data wiring (M008/S02 T04)
+  const { getOrchState, getExpHistory } = useRoomHud();
 
   // Listen for extension messages (agent events) via the typed bus
   useEffect(() => {
@@ -584,8 +588,8 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
         sectionManager: sectionManagerRef.current,
         selectionManager,
         teleportEffects: teleportEffectsRef.current,
-        orchState: agentStore.snapshot(),
-        expHistory: expHistoryFromRuns(expRunStore.all(), expRunStore.visible),
+        orchState: getOrchState(),
+        expHistory: getExpHistory(),
         kanbanCards: kanbanStore.cards,
         kanbanFilter: kanbanStore.filter,
         expandedNote: expandedNoteRef.current,
