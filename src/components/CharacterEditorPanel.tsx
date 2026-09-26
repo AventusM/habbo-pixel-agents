@@ -2,10 +2,11 @@
 // Presentational character editor panel (M006/S02, D021 convention).
 // Props in, JSX out: a role selector for the four TeamSection roles, shirt and
 // hair color swatches plus a hair-style selector rendered from the view model the
-// shell passes, and a `children` slot that hosts the live preview. It imports no
-// stores/clients and contains no application logic or data wiring — it only
-// renders values and calls the callbacks it is given. Styling follows the dark
-// room-overlay idiom used by the other editor panels.
+// shell passes, an explicit PixelLab out-of-scope notice (issue #107: PixelLab
+// agents are not styled by this editor), and a `children` slot that hosts the
+// live preview. It imports no stores/clients and contains no application logic
+// or data wiring — it only renders values and calls the callbacks it is given.
+// Styling follows the dark room-overlay idiom used by the other editor panels.
 import type { CSSProperties, ReactNode } from 'react';
 import type { CatalogItem } from '../avatarOutfitConfig.js';
 import type { TeamSection } from '../agentTypes.js';
@@ -81,6 +82,15 @@ const selectStyle: CSSProperties = {
   boxSizing: 'border-box',
 };
 
+const noticeStyle: CSSProperties = {
+  marginTop: 8,
+  padding: '6px 8px',
+  border: '1px solid #666',
+  borderRadius: 3,
+  fontSize: 11,
+  opacity: 0.75,
+};
+
 export interface CharacterEditorPanelProps {
   roles: readonly TeamSection[];
   activeRole: TeamSection;
@@ -128,6 +138,11 @@ export function CharacterEditorPanel({
   return (
     <div style={panelStyle}>
       <div style={{ fontWeight: 'bold' }}>Character Editor</div>
+
+      {/* PixelLab out-of-scope notice (issue #107 acceptance criterion) */}
+      <div data-pixellab-notice="true" style={noticeStyle}>
+        PixelLab agents are out of scope — this editor styles Nitro outfits only.
+      </div>
 
       {/* Live preview slot */}
       {children}

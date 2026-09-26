@@ -177,6 +177,8 @@ describe('CharacterEditorPanel render + handler parity', () => {
     expect(html).toContain('data-hair-swatch="#C4651A"');
     expect(html).toContain('data-hair-select="true"');
     expect(html).toContain('Reset Core Dev');
+    expect(html).toContain('data-pixellab-notice="true"');
+    expect(html).toContain('PixelLab agents are out of scope');
   });
 
   it('invokes the supplied callbacks with the expected values', () => {
