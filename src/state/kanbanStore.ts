@@ -21,6 +21,10 @@ export class KanbanStore {
     filter: 'all',
   });
 
+  get(): KanbanState {
+    return this.store.get();
+  }
+
   get cards(): KanbanCard[] {
     return this.store.get().cards;
   }
