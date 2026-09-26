@@ -41,6 +41,7 @@ import { useRoomAudio } from './hooks/useRoomAudio.js';
 import { useAutoFollowCamera } from './hooks/useAutoFollowCamera.js';
 import { useRoomAgents } from './hooks/useRoomAgents.js';
 import { KanbanFilterChip } from './components/KanbanFilterChip.js';
+import { RoomStage } from './components/RoomStage.js';
 
 interface RoomCanvasProps {
   heightmap: string;
@@ -1009,13 +1010,7 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
         onSave={handleSave}
         onLoad={handleLoad}
       />}
-      <canvas
-        ref={canvasRef}
-        style={{ width: '100%', height: '100%', display: 'block', touchAction: 'none' }}
-        /* camera drag/pan, wheel zoom and touch gestures handled natively by CanvasStage */
-        onClick={handleClick}
-        onContextMenu={handleContextMenu}
-      />
+      <RoomStage canvasRef={canvasRef} onClick={handleClick} onContextMenu={handleContextMenu} />
       {/* Kanban source filter HUD */}
       <KanbanFilterChip label={KANBAN_FILTER_LABELS[kanbanFilter]} />
     </>
