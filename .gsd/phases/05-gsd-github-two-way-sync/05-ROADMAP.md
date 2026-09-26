@@ -10,16 +10,7 @@
 
 ## Slices
 
-- [ ] **S05: GitHub→GSD webhook branch** `risk:medium` `depends:[]`
-  > After this: Close a scratch M00X/S0X-titled issue on GitHub; GSD records validation evidence (or flags the slice) within the webhook debounce window.
-
-- [ ] **S06: GSD→GitHub hook reactions** `risk:medium` `depends:[S05]`
-  > After this: Skip/complete a GSD slice; the linked GitHub issue receives a bot comment (and closes on completion) within seconds.
-
-- [ ] **S07: Backfill + UAT round-trip** `risk:low` `depends:[S06]`
-  > After this: One-time bidirectional reconcile report, then a live close→sync→reopen→sync round-trip on a scratch issue with both sides agreeing at each step.
-
 ## Boundary Map
 
 Not provided.
-<!-- gsd:state-version=93:0 -->
+<!-- gsd:state-version=99:0 -->

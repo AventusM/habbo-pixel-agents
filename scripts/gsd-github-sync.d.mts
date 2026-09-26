@@ -1,6 +1,8 @@
 // scripts/gsd-github-sync.d.mts
 // Type declarations for the pure GitHub→GSD sync classifier (M005/S05).
 
+export const SYNC_LABEL: 'gsd:synced';
+
 export interface TitlePrefix {
   milestoneId: string;
   sliceId?: string;
@@ -14,6 +16,7 @@ export interface GithubIssuePayload {
     body?: unknown;
     closed_at?: string | null;
     updated_at?: string | null;
+    labels?: Array<{ name?: string }> | null;
   } | null;
   sender?: { login?: string; type?: string } | null;
 }

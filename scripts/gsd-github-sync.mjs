@@ -7,6 +7,7 @@
 const TITLE_PREFIX = /^(M\d{3})(?:\/(S\d{2}))?\b/;
 const TRANSITIONS = new Set(['closed', 'reopened']);
 const BOT_MARKER = '<!-- gsd-sync -->';
+export const SYNC_LABEL = 'gsd:synced';
 
 /** Parse the M00X(/S0X) title-prefix convention into ids; null when absent. */
 export function parseTitlePrefix(title) {
@@ -20,6 +21,12 @@ function isBotSender(sender) {
   if (!sender || typeof sender !== 'object') return false;
   if (sender.type === 'Bot') return true;
   return typeof sender.login === 'string' && /\[bot\]$/i.test(sender.login);
+}
+
+function hasSyncLabel(issue) {
+  return (
+    Array.isArray(issue?.labels) && issue.labels.some((label) => label?.name === SYNC_LABEL)
+  );
 }
 
 function hasBotMarker(payload, marker) {
@@ -37,7 +44,8 @@ export function dedupeKey(issueNumber, action, issue) {
 /**
  * Classify one GitHub webhook delivery into a sync intent, or null to ignore.
  * Guards: issues event only; closed/reopened transitions only; M00X(/S0X)
- * title required; bot senders and gsd-sync-marked bodies ignored (one hop).
+ * title required; bot senders, gsd-sync-marked bodies, and gsd:synced-labeled
+ * issues ignored (one hop).
  */
 export function classifyGithubSyncEvent(event, payload, opts = {}) {
   if (event !== 'issues') return null;
@@ -48,7 +56,9 @@ export function classifyGithubSyncEvent(event, payload, opts = {}) {
   const prefix = parseTitlePrefix(issue.title);
   if (!prefix) return null;
   const marker = typeof opts.botMarker === 'string' ? opts.botMarker : BOT_MARKER;
-  if (isBotSender(payload?.sender) || hasBotMarker(payload, marker)) return null;
+  if (isBotSender(payload?.sender) || hasBotMarker(payload, marker) || hasSyncLabel(issue)) {
+    return null;
+  }
   return {
     v: 1,
     kind: 'github-sync-intent',
