@@ -43,6 +43,7 @@ import { expRunStore } from './state/expRunStore.js';
 import { expHistoryFromRuns, syncExpRunsToAgents } from './expFeed.js';
 import { useKanbanFilter } from './hooks/useKanbanFilter.js';
 import { useRoomAudio } from './hooks/useRoomAudio.js';
+import { useAutoFollowCamera } from './hooks/useAutoFollowCamera.js';
 
 interface RoomCanvasProps {
   heightmap: string;
@@ -78,10 +79,7 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
   // Maps agentId → booth tile {x, y}
   const pendingStepOutRef = useRef<Map<string, { x: number; y: number }>>(new Map());
 
-  // Auto-follow camera toggle and state
-  const autoFollowRef = useRef(false);
-  const lastAutoFollowCheckRef = useRef<number>(0);
-  const autoFollowTargetRef = useRef<{ panX: number; panY: number } | null>(null);
+  const { setEnabled: setAutoFollow, tick: autoFollowTick } = useAutoFollowCamera();
 
   // Dev mode flag (set by extension in Development mode)
   const [devMode, setDevMode] = useState(false);
@@ -487,10 +485,7 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
           break;
         }
         case 'autoFollow': {
-          autoFollowRef.current = (msg as any).enabled ?? !autoFollowRef.current;
-          if (!autoFollowRef.current) {
-            autoFollowTargetRef.current = null;
-          }
+          setAutoFollow((msg as any).enabled);
           break;
         }
         case 'kanbanCards': {
@@ -765,36 +760,14 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
       }
 
       // Auto-follow camera: every 3 seconds check most active section
-      if (autoFollowRef.current && sectionManagerRef.current) {
-        if (nowMs - lastAutoFollowCheckRef.current > 3000) {
-          lastAutoFollowCheckRef.current = nowMs;
-          const activeTeam = sectionManagerRef.current.getMostActiveSection();
-          if (activeTeam) {
-            const center = sectionManagerRef.current.getSectionCenter(activeTeam);
-            if (center) {
-              const { x: sx, y: sy } = tileToScreen(center.x, center.y, 0);
-              const ox = renderState.current.cameraOrigin;
-              // Compute target pan values
-              const targetPanX = canvas.offsetWidth / 2 - (sx + ox.x);
-              const targetPanY = canvas.offsetHeight / 2 - (sy + ox.y);
-              autoFollowTargetRef.current = { panX: targetPanX, panY: targetPanY };
-            }
-          }
-        }
-        // Lerp camera toward target (10% per frame for smooth pan)
-        if (autoFollowTargetRef.current) {
-          const cam = stage.camera;
-          const target = autoFollowTargetRef.current;
-          cam.panX += (target.panX - cam.panX) * 0.1;
-          cam.panY += (target.panY - cam.panY) * 0.1;
-          // Stop lerping when close enough
-          if (Math.abs(target.panX - cam.panX) < 0.5 && Math.abs(target.panY - cam.panY) < 0.5) {
-            cam.panX = target.panX;
-            cam.panY = target.panY;
-            autoFollowTargetRef.current = null;
-          }
-        }
-      }
+      autoFollowTick(
+        nowMs,
+        stage.camera,
+        canvas.offsetWidth,
+        canvas.offsetHeight,
+        renderState.current.cameraOrigin,
+        sectionManagerRef.current,
+      );
 
       const spriteCache = (window as any).spriteCache as SpriteCache | undefined;
       const avatars = avatarManagerRef.current.getAvatars();
