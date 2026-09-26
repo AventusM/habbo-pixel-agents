@@ -1,7 +1,7 @@
 {
   "schema": 2,
   "lastWriter": "gsd-pi",
-  "lastProjectedAt": "2026-09-26T10:03:47.472Z",
+  "lastProjectedAt": "2026-09-26T11:34:37.493Z",
   "projections": {
     "phases/01-retrodiffusion-as-primary-pixel-art-sour/01-ROADMAP.md": {
       "sha": "9ece1470358ec922",
@@ -206,7 +206,7 @@
       ]
     },
     "phases/08-refactoring-into-pattern-presentational/08-ROADMAP.md": {
-      "sha": "b8c57b78b01dfa66",
+      "sha": "ace013b886afd77f",
       "entities": [
         "M008"
       ]
@@ -262,6 +262,13 @@
     },
     "phases/08-refactoring-into-pattern-presentational/08-01-PLAN.md": {
       "sha": "20a08f93ecf0a1fa",
+      "entities": [
+        "M008",
+        "M008/S01"
+      ]
+    },
+    "phases/08-refactoring-into-pattern-presentational/08-01-SUMMARY.md": {
+      "sha": "cbc5785171a5b240",
       "entities": [
         "M008",
         "M008/S01"
