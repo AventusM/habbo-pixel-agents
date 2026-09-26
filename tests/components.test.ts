@@ -36,6 +36,7 @@ const COMPONENT_FILES = [
   'RoomStage.tsx',
   'RoomDevChrome.tsx',
   'CharacterEditorPanel.tsx',
+  'AvatarPreview.tsx',
 ] as const;
 
 /** Recursively collect a JSX element tree so tests can invoke handlers directly. */
