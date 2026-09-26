@@ -11,10 +11,7 @@
 
 ## Slices
 
-- [ ] **S03: Room agents (dynamic N) + history panel** `risk:medium` `depends:[S01,S02]`
-  > After this: A simultaneous multi-model run renders one room agent per active run plus a viewport history panel with per-agent summaries and PR links; owner gives visual sign-off.
-
 ## Boundary Map
 
 Not provided.
-<!-- gsd:state-version=91:0 -->
+<!-- gsd:state-version=102:0 -->
