@@ -10,6 +10,12 @@ import type { CatalogItem, OutfitConfig } from '../avatarOutfitConfig.js';
 import { ROLE_OUTFIT_PRESETS } from '../avatarOutfitConfig.js';
 import type { TeamSection } from '../agentTypes.js';
 import { createStore, type Store, type Unsubscribe } from './store.js';
+import {
+  defaultOutfitStorage,
+  loadOutfitDrafts,
+  saveOutfitDrafts,
+  type OutfitStorage,
+} from './outfitPersistence.js';
 
 /** The four TeamSection roles, in editor display order. */
 export const TEAM_SECTIONS: readonly TeamSection[] = [
@@ -44,20 +50,29 @@ function cloneOutfit(outfit: OutfitConfig): OutfitConfig {
   };
 }
 
-function seedDrafts(): Record<TeamSection, OutfitConfig> {
+function seedDrafts(storage: OutfitStorage | null): Record<TeamSection, OutfitConfig> {
+  // Hydrate from persisted drafts when present: saved drafts win per role,
+  // missing or invalid roles fall back to preset clones (M006/S03 T02).
+  const saved = loadOutfitDrafts(storage);
   return {
-    'planning': cloneOutfit(ROLE_OUTFIT_PRESETS['planning']),
-    'core-dev': cloneOutfit(ROLE_OUTFIT_PRESETS['core-dev']),
-    'infrastructure': cloneOutfit(ROLE_OUTFIT_PRESETS['infrastructure']),
-    'support': cloneOutfit(ROLE_OUTFIT_PRESETS['support']),
+    'planning': saved?.['planning'] ?? cloneOutfit(ROLE_OUTFIT_PRESETS['planning']),
+    'core-dev': saved?.['core-dev'] ?? cloneOutfit(ROLE_OUTFIT_PRESETS['core-dev']),
+    'infrastructure': saved?.['infrastructure'] ?? cloneOutfit(ROLE_OUTFIT_PRESETS['infrastructure']),
+    'support': saved?.['support'] ?? cloneOutfit(ROLE_OUTFIT_PRESETS['support']),
   };
 }
 
 export class OutfitStore {
-  private readonly store: Store<OutfitState> = createStore<OutfitState>({
-    drafts: seedDrafts(),
-    activeRole: 'planning',
-  });
+  private readonly storage: OutfitStorage | null;
+  private readonly store: Store<OutfitState>;
+
+  constructor(storage?: OutfitStorage | null) {
+    this.storage = storage === undefined ? defaultOutfitStorage() : storage;
+    this.store = createStore<OutfitState>({
+      drafts: seedDrafts(this.storage),
+      activeRole: 'planning',
+    });
+  }
 
   get(): OutfitState {
     return this.store.get();
@@ -87,6 +102,10 @@ export class OutfitStore {
     return this.store.subscribeSelector(selector, listener);
   }
 
+  private persist(): void {
+    saveOutfitDrafts(this.store.get().drafts, this.storage);
+  }
+
   /** Switch the edited role. No-op when already active. */
   selectRole(team: TeamSection): void {
     const prev = this.store.get();
@@ -106,6 +125,7 @@ export class OutfitStore {
       ...state,
       drafts: { ...state.drafts, [state.activeRole]: next },
     }));
+    this.persist();
     console.debug(`[outfitStore] setColor ${slot}=${hex} (${prev.activeRole})`);
   }
 
@@ -126,6 +146,7 @@ export class OutfitStore {
       ...state,
       drafts: { ...state.drafts, [team]: next },
     }));
+    this.persist();
     console.debug(`[outfitStore] resetRole ${team}`);
   }
 
@@ -140,6 +161,7 @@ export class OutfitStore {
       ...state,
       drafts: { ...state.drafts, [state.activeRole]: next },
     }));
+    this.persist();
     console.debug(
       `[outfitStore] set${slot === 'hair' ? 'Hair' : 'Shirt'} ${item.id} (${prev.activeRole})`,
     );

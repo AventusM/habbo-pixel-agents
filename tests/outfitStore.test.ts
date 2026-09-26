@@ -17,6 +17,7 @@ import {
   FIGURE_CATALOG,
   ROLE_OUTFIT_PRESETS,
 } from '../src/avatarOutfitConfig.js';
+import { OUTFIT_STORAGE_KEY, OUTFIT_STORAGE_VERSION } from '../src/state/outfitPersistence.js';
 import type { TeamSection } from '../src/agentTypes.js';
 
 const hairCatalogItem = FIGURE_CATALOG.find((i) => i.category === 'hair')!;
@@ -146,5 +147,70 @@ describe('outfitStore singleton', () => {
   it('is exported and starts on the planning role', () => {
     expect(outfitStore).toBeInstanceOf(OutfitStore);
     expect(outfitStore.activeRole).toBe('planning');
+  });
+});
+
+describe('OutfitStore persistence hydration (M006/S03 T02)', () => {
+  function makeMemoryStorage(initial: Record<string, string> = {}): {
+    data: Record<string, string>;
+    getItem(key: string): string | null;
+    setItem(key: string, value: string): void;
+  } {
+    return {
+      data: { ...initial },
+      getItem(key: string): string | null {
+        return Object.hasOwn(this.data, key) ? this.data[key] : null;
+      },
+      setItem(key: string, value: string): void {
+        this.data[key] = value;
+      },
+    };
+  }
+
+  function savedStorageFor(drafts: Record<string, unknown>): ReturnType<typeof makeMemoryStorage> {
+    const storage = makeMemoryStorage();
+    storage.data[OUTFIT_STORAGE_KEY] = JSON.stringify({ version: OUTFIT_STORAGE_VERSION, drafts });
+    return storage;
+  }
+
+  it('uses hydrated drafts when storage holds valid data', () => {
+    const edited = {
+      ...ROLE_OUTFIT_PRESETS['support'],
+      colors: { ...ROLE_OUTFIT_PRESETS['support'].colors, shirt: '#010203' },
+    };
+    const store = new OutfitStore(savedStorageFor({ support: edited }));
+    expect(store.drafts['support']).toEqual(edited);
+    expect(store.drafts['planning']).toEqual(ROLE_OUTFIT_PRESETS['planning']);
+  });
+
+  it('falls back to presets per role when storage is corrupt', () => {
+    const storage = makeMemoryStorage({ [OUTFIT_STORAGE_KEY]: '{broken' });
+    const store = new OutfitStore(storage);
+    for (const team of TEAM_SECTIONS) {
+      expect(store.drafts[team]).toEqual(ROLE_OUTFIT_PRESETS[team]);
+    }
+  });
+
+  it('saves updated drafts after setColor and resetRole', () => {
+    const storage = makeMemoryStorage();
+    const store = new OutfitStore(storage);
+    store.setColor('shirt', '#0A0B0C');
+    const afterColor = JSON.parse(storage.data[OUTFIT_STORAGE_KEY]);
+    expect(afterColor.drafts['planning'].colors.shirt).toBe('#0A0B0C');
+    store.resetRole('planning');
+    const afterReset = JSON.parse(storage.data[OUTFIT_STORAGE_KEY]);
+    expect(afterReset.drafts['planning']).toEqual(ROLE_OUTFIT_PRESETS['planning']);
+  });
+
+  it('round-trips through a fresh store: saved drafts win on rehydrate', () => {
+    const storage = makeMemoryStorage();
+    const first = new OutfitStore(storage);
+    first.selectRole('core-dev');
+    first.setShirt(shirtCatalogItem);
+    const second = new OutfitStore(storage);
+    expect(second.drafts['core-dev'].parts.shirt).toEqual({
+      asset: shirtCatalogItem.asset,
+      setId: shirtCatalogItem.setId,
+    });
   });
 });
