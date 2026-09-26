@@ -1,7 +1,7 @@
 {
   "schema": 2,
   "lastWriter": "gsd-pi",
-  "lastProjectedAt": "2026-09-26T09:18:34.795Z",
+  "lastProjectedAt": "2026-09-26T09:25:39.649Z",
   "projections": {
     "phases/01-retrodiffusion-as-primary-pixel-art-sour/01-ROADMAP.md": {
       "sha": "9ece1470358ec922",
@@ -10,7 +10,7 @@
       ]
     },
     "DECISIONS.md": {
-      "sha": "8b2fbfd80389a52c",
+      "sha": "68111a866274e576",
       "entities": []
     },
     "phases/01-retrodiffusion-as-primary-pixel-art-sour/01-01-RESEARCH.md": {
@@ -110,7 +110,7 @@
       ]
     },
     "phases/05-gsd-github-two-way-sync/05-ROADMAP.md": {
-      "sha": "124ef32a00f5c5f6",
+      "sha": "fd2202ffda2ab244",
       "entities": [
         "M005"
       ]
@@ -223,6 +223,20 @@
       "entities": [
         "M005",
         "M005/S05"
+      ]
+    },
+    "phases/05-gsd-github-two-way-sync/05-06-PLAN.md": {
+      "sha": "d3508c9f6113ce7b",
+      "entities": [
+        "M005",
+        "M005/S06"
+      ]
+    },
+    "phases/05-gsd-github-two-way-sync/05-06-SUMMARY.md": {
+      "sha": "15f9131d5d94b5fe",
+      "entities": [
+        "M005",
+        "M005/S06"
       ]
     }
   },
