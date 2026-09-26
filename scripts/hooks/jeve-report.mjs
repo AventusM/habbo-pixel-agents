@@ -136,6 +136,12 @@ function slug(value) {
   return String(value || 'detached').toLowerCase().replace(/\//g, '-');
 }
 
+/** Normalize a --head-sha/--base-sha override: resolve refs, keep raw test shas. */
+function resolveSha(root, value) {
+  if (!value) return null;
+  return gitOk(root, ['rev-parse', '--verify', `${value}^{commit}`]) || value;
+}
+
 /** Best-effort live check: `abide check --json` over uncommitted changed files. */
 function runLive(root, changedFiles) {
   let porcelain = '';
@@ -218,13 +224,13 @@ function main() {
 
   const notes = [];
   const headRef = options.head;
-  const headSha = options.headSha || git(root, ['rev-parse', headRef]);
+  const headSha = resolveSha(root, options.headSha) || git(root, ['rev-parse', headRef]);
   const subject =
     gitOk(root, ['log', '-1', '--format=%s', headSha]) ||
     gitOk(root, ['log', '-1', '--format=%s', headRef]) ||
     '';
 
-  let baseSha = options.baseSha || gitOk(root, ['merge-base', options.base, headRef]);
+  let baseSha = resolveSha(root, options.baseSha) || gitOk(root, ['merge-base', options.base, headRef]);
   if (!baseSha && options.headSha) baseSha = gitOk(root, ['merge-base', options.base, options.headSha]);
   if (!baseSha) baseSha = gitOk(root, ['rev-parse', options.base]);
   if (!baseSha) throw new Error(`cannot resolve base ${options.base}`);
