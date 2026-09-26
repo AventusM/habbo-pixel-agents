@@ -1,35 +1,65 @@
 # M006/S02 — abide/JEV evidence for the changed files
 
 - PR branch: `gsd/m006-s02-character-editor-ui`
-- Head sha at evidence time: **`8edf245`** (slice seal commit; this report commit is report-only after it)
-- Slice: M006/S02 (character editor UI with live preview), sealed as skipped with delivery
-  reasons per the D014 precedent; issue #107 reconciled (comment-only).
-- Q15 handoff tooling: **not merged** — `scripts/hooks/jeve-report.mjs` does not exist on
-  `origin/main` (it lives only on the unmerged `gsd/q15-jeve-handoff` branch), so no Q15
-  `.abide/reports/*-<sha8>.{json,md}` pair could be produced.
+- Reviewed head sha at evidence time: **`8edf245`** (slice seal commit; the report commits after it are report-only)
+- Slice: M006/S02 (character editor UI with live preview), sealed as skipped with delivery reasons per the D014 precedent; issue #107 reconciled (comment-only).
+- **Judge model: paid `jev-1.13`** (not the free tier).
+- Q15 handoff tooling: **not merged** — `scripts/hooks/jeve-report.mjs` does not exist on `origin/main` (it lives only on the unmerged `gsd/q15-jeve-handoff` branch), so no Q15 `.abide/reports/*-<sha8>.{json,md}` pair could be produced. Per the #128 repair pattern the raw `abide check`/`abide audit` output is committed verbatim instead.
 
-## abide/JEV status: gateway rate-limited — NO VERDICTS PRODUCED
+## Paid judge model (free tier was rate-limited)
 
-The abide/JEV gateway returned **`429 FreeUsageLimitError` ("Rate limit exceeded. Please try
-again later.")** for every judgment attempt during this pass. No abide verdicts exist for the
-S02 changed files, and **none are fabricated here**.
+The first attempt this pass used abide's default judge, the free tier `jev-1.13-free`, which the
+gateway rejected with `429 FreeUsageLimitError` for every request — both the edit-phase hook and
+manual runs. abide freezes its judge model from `TYPESAFE_AI_MODEL_ID` at import (default
+`jev-1.13-free`), so a `.env` entry never reached it. The paid model is now pinned wherever abide
+is invoked:
 
-Evidence of the failure is inspectable in two places:
+- `~/.local/bin/abide` (CLI wrapper) — `export TYPESAFE_AI_MODEL_ID=jev-1.13`
+- `~/.config/opencode/plugins/abide.js` (the opencode hook, which spawns `dist/abide-hook.js` with
+  this process env) — `process.env.TYPESAFE_AI_MODEL_ID = "jev-1.13"`
 
-1. `.abide/reports/m006-s02-abide-check.json` — the raw abide CLI failure output committed
-   verbatim (`status: CHECK_FAILED`, `verdicts: []`). This is a failure record, not a verdict
-   report. Reproduced by checking the S02 diff out of an isolated worktree and running
-   `abide check --json` (twice, ~8 minutes apart, both 429).
-2. The JEV edit-phase hook event log (`.abide/events.jsonl`, gitignored): for this session
-   (`ses_f20e9496fffenK9KjD41IJkLcC`) every one of the **15** recorded edit-phase judgments is
-   `{"kind":"error","code":"CHECK_FAILED"}` between `2026-09-26T19:04:09Z` and
-   `2026-09-26T19:09:03Z` — i.e. the hook fired on each edit but the gateway blocked it. No
-   verdict was silently dropped or self-reported.
+With the paid judge, `abide check` and `abide audit` both run (no 429).
 
-The same key is used by the repo `.env` and the global `~/.abide/.env`, so this is an
-account-wide free-tier limit, not a misconfiguration of the slice.
+## Result — edit check: 10 files, every governed rule `clear`
 
-## Deterministic evidence that DID pass (inspectable, reproducible)
+Raw output: `.abide/reports/m006-s02-abide-check.json` (produced from this branch's diff checked out
+over `origin/main` in an isolated worktree).
+
+| changed file | rules judged | verdict |
+| --- | --- | --- |
+| `src/RoomCanvas.tsx` | 9 | all `clear` (incl. `no-frame-allocations` 0.18, `no-app-logic-in-components` 0.18) |
+| `src/components/AvatarPreview.tsx` | 8 | all `clear` |
+| `src/components/CharacterEditorPanel.tsx` | 8 | all `clear` |
+| `src/hooks/useCharacterEditor.ts` | 2 | all `clear` |
+| `src/render/avatarPreview.ts` | 2 | all `clear` |
+| `src/state/outfitStore.ts` | 2 | all `clear` |
+| `tests/avatarPreview.test.ts` | 2 | all `clear` |
+| `tests/characterEditorViewModel.test.ts` | 2 | all `clear` |
+| `tests/components.test.ts` | 2 | all `clear` |
+| `tests/outfitStore.test.ts` | 2 | all `clear` |
+
+No `act` and no `blocked` bands at the diff level.
+
+## Whole-file audit — RoomCanvas findings are pre-existing on `origin/main`
+
+`abide audit` judges a whole file *"as if just written"* (a different lens; it includes code the
+diff did not touch). It reports `act` for `no-frame-allocations` and `no-app-logic-in-components`
+on `src/RoomCanvas.tsx` and `flag` for `no-listener-without-cleanup`.
+
+These are **identical on `origin/main` without this change**, so they are pre-existing and advisory
+(the review rule blocks only diff-level bands). Base comparison committed at
+`.abide/reports/m006-s02-abide-audit-baseroomcanvas.json`:
+
+| rule | `src/RoomCanvas.tsx` on `origin/main` | on this branch (diff adds only a hook call + overlay JSX) |
+| --- | --- | --- |
+| `no-app-logic-in-components` | act 0.94 | act (whole-file; diff `clear` 0.18) |
+| `no-frame-allocations` | act 0.94 | act (whole-file; diff `clear` 0.18) |
+| `no-listener-without-cleanup` | clear 0.32 | flag (whole-file; diff `clear` 0.08) |
+
+Full audit: `.abide/reports/m006-s02-abide-audit.json` (files=10, `broken` only on `RoomCanvas` for
+the two pre-existing rules).
+
+## Deterministic evidence that also passed
 
 | gate | command | result |
 | --- | --- | --- |
@@ -38,18 +68,7 @@ account-wide free-tier limit, not a misconfiguration of the slice.
 | lint | `npm run lint` | **0 errors** (warnings only — pre-existing `no-explicit-any` backlog) |
 | build | `node esbuild.config.mjs` | **exit 0** (extension + webview + web; assets copied) |
 
-## Rule scope (for the reviewer, not a substitute for a verdict)
-
-Per `.abide/rubric.json`, the `.tsx`-scoped judged rules (`no-new-object-in-memo-props`,
-`no-new-object-in-context-value`, `no-fetch-in-components`, `lazy-loading-fallback`,
-`no-children-clone-for-state`, `no-app-logic-in-components`) and the `.ts`-scoped
-`no-derived-state-effect` / `no-listener-without-cleanup` rules are the ones that would have
-governed these files; `src/RoomCanvas.tsx` is additionally under `no-frame-allocations`. The
-implementation was written to those rules (logic in the store/hook, purely presentational
-components, effect cleanup in `AvatarPreview`), but abide did not return verdicts, so this
-section is context only.
-
-## How to re-run the evidence when the gateway is available
+## How to reproduce
 
 ```bash
 git worktree add --detach /tmp/m006s02-abide origin/main
@@ -61,4 +80,7 @@ git -C /tmp/m006s02-abide checkout gsd/m006-s02-character-editor-ui -- \
   tests/avatarPreview.test.ts src/RoomCanvas.tsx
 cd /tmp/m006s02-abide && abide check --json
 cd /tmp/m006s02-abide && abide audit <same files> --json
+# base comparison
+git worktree add --detach /tmp/m006s02-base origin/main
+cd /tmp/m006s02-base && abide audit src/RoomCanvas.tsx --json
 ```
