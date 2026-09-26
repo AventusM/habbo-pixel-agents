@@ -34,7 +34,7 @@ import { useRoomAgents } from './hooks/useRoomAgents.js';
 import { KanbanFilterChip } from './components/KanbanFilterChip.js';
 import { RoomStage } from './components/RoomStage.js';
 import { RoomDevChrome } from './components/RoomDevChrome.js';
-import { AvatarDebugGrid } from './AvatarDebugGrid.js';
+import { DebugSurfaces } from './components/DebugSurfaces.js';
 import { useRoomHud } from './hooks/useRoomHud.js';
 import { useRoomInput } from './hooks/useRoomInput.js';
 import { useRoomEditorIO } from './hooks/useRoomEditorIO.js';
@@ -615,7 +615,7 @@ export function RoomCanvas({
       />
       {/* Kanban source filter HUD */}
       <KanbanFilterChip label={KANBAN_FILTER_LABELS[kanbanFilter]} />
-      {debugOpen && <AvatarDebugGrid onClose={handleCloseDebug} />}
+      {debugOpen && <DebugSurfaces spriteCache={previewSpriteCache} onClose={handleCloseDebug} />}
       <button
         type="button"
         style={editorToggleStyle}

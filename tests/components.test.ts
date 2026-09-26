@@ -24,6 +24,7 @@ import { RoomStage } from '../src/components/RoomStage.js';
 import { RoomDevChrome } from '../src/components/RoomDevChrome.js';
 import { CharacterEditorPanel } from '../src/components/CharacterEditorPanel.js';
 import { RoleOutfitMatrix } from '../src/components/RoleOutfitMatrix.js';
+import { DebugSurfaces } from '../src/components/DebugSurfaces.js';
 import { LayoutEditorPanel } from '../src/LayoutEditorPanel.js';
 import type { CharacterEditorPanelProps } from '../src/components/CharacterEditorPanel.js';
 import type { SpriteCache } from '../src/isoSpriteCache.js';
@@ -42,6 +43,7 @@ const COMPONENT_FILES = [
   'CharacterEditorPanel.tsx',
   'AvatarPreview.tsx',
   'RoleOutfitMatrix.tsx',
+  'DebugSurfaces.tsx',
 ] as const;
 
 /** Recursively collect a JSX element tree so tests can invoke handlers directly. */
@@ -382,6 +384,33 @@ describe('RoleOutfitMatrix render parity (M009/S03)', () => {
     );
     expect(html).toContain('data-role-outfit-matrix-fallback="true"');
     expect(html).not.toContain('<canvas');
+  });
+});
+
+describe('DebugSurfaces render parity (M009/S03)', () => {
+  const stubCache = {
+    hasNitroAsset: (name: string) => name === 'hh_human_body',
+  } as unknown as SpriteCache;
+
+  it('hosts both matrices with role/direction controls and a close control', () => {
+    const html = renderToStaticMarkup(
+      React.createElement(DebugSurfaces, {
+        spriteCache: stubCache,
+        onClose: () => undefined,
+      }),
+    );
+    expect(html).toContain('data-debug-surfaces="true"');
+    expect(html).toContain('data-debug-role="true"');
+    expect(html).toContain('data-debug-direction-set="true"');
+    expect(html).toContain('data-debug-close="true"');
+    expect(html).toContain('Sprite Sheet Matrix');
+    expect(html).toContain('data-avatar-debug-grid="true"');
+    expect(html).toContain('data-spritesheet-matrix="true"');
+    expect(html).toContain('Role Outfit Matrix');
+    expect(html).toContain('data-role-outfit-matrix="true"');
+    for (const label of ['Planning', 'Core Dev', 'Infrastructure', 'Support']) {
+      expect(html).toContain(label);
+    }
   });
 });
 

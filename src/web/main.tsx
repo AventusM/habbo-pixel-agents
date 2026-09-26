@@ -111,6 +111,7 @@ const spriteCache = new SpriteCache();
       if (new URLSearchParams(window.location.search).has('debuggrid')) {
         console.log('✓ Rendering AvatarDebugGrid (sprite-sheet debug view)');
         rootElement.render(React.createElement(AvatarDebugGrid, {
+          spriteCache,
           onClose: () => rootElement.render(React.createElement(RoomCanvas, { heightmap: FLOOR_HEIGHTMAP, initialEditorOpen })),
         }));
       } else {
