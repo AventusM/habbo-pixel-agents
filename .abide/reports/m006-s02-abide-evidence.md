@@ -84,3 +84,24 @@ cd /tmp/m006s02-abide && abide audit <same files> --json
 git worktree add --detach /tmp/m006s02-base origin/main
 cd /tmp/m006s02-base && abide audit src/RoomCanvas.tsx --json
 ```
+
+## Addendum — fix commit `5007e01` (PixelLab out-of-scope notice, review fix pass)
+
+- Fix commit: **`5007e01`** `fix(M006/S02): add explicit PixelLab out-of-scope notice to character editor`
+  (answers the PR #133 verdict finding "PixelLab out-of-scope notice STILL MISSING").
+- Change: static presentational notice div (`data-pixellab-notice`) in
+  `src/components/CharacterEditorPanel.tsx` + two render assertions in
+  `tests/components.test.ts`. No logic, no hooks, no store wiring (D021-safe).
+- Raw edit-check output for the incremental diff:
+  `.abide/reports/m006-s02-fix-pixellab-notice-check.json` — **10 verdicts, all `clear`**,
+  no `act`, no `blocked` (8 rules on the panel file, 2 on the test file).
+- Q15 handoff tooling: **not merged** — `scripts/hooks/jeve-report.mjs` does not exist on this
+  branch either, so no Q15 pair; raw `abide check` output committed verbatim per the #128 pattern.
+- Deterministic gates re-run on the fix commit:
+
+| gate | command | result |
+| --- | --- | --- |
+| tests | `npx vitest run` | **762 passed** (58 files) |
+| types | `npx tsc --noEmit` | **exit 0** |
+| lint | `npm run lint` | **0 errors** (91 warnings, none in the changed files) |
+| build | `node esbuild.config.mjs` | **exit 0** |
