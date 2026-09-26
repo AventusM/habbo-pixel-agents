@@ -9,13 +9,15 @@
 // GitHub path (M005/S06): slice terminal events (complete-slice, skip-slice)
 // become GitHub reactions — comment (and close on completion) the M00X/S0X
 // titled issue, guarded so the two sync halves never ping-pong:
-//   - comments carry the <!-- gsd-sync --> marker so S05's receiver ignores the echo
+//   - comments carry the <!-- gsd-sync --> marker AND issues get the gsd:synced
+//     label, so S05's receiver ignores the echo even though the actor is the
+//     authenticated repo user rather than a bot account
 //   - dedupe by event hash in a state file: at most once, across restarts
 //   - actor 'github-sync' events are never echoed (one hop max)
 //
 // Usage: node scripts/hooks/gsd-event-hook.mjs [--once] [--github] [--dry-run]
 //                                             [--event-log <path>] [--state <path>]
-//   --once       process the current tail position and exit (for tests)
+//   --once       process the current tail once and exit (tests / --github catch-up)
 //   --github     enable LIVE GitHub reactions (gh comment/close); default off
 //   --dry-run    compute reactions, log intent, never write (read-only gh lookups)
 //   --event-log  override the event log path (fixtures)
@@ -31,6 +33,7 @@ import {
   buildReactionComment,
   matchesIssueTitle,
 } from '../gsd-github-reactions.mjs';
+import { SYNC_LABEL } from '../gsd-github-sync.mjs';
 
 const argv = process.argv.slice(2);
 const once = argv.includes('--once');
@@ -103,11 +106,29 @@ function reactToGsd(reaction) {
   }
   if (!githubLive) {
     const closeNote = reaction.close ? ' and close it' : '';
-    console.log(`[gsd-github-reactions] would comment on #${issue.number} "${issue.title}"${closeNote}`);
+    console.log(
+      `[gsd-github-reactions] would label + comment on #${issue.number} "${issue.title}"${closeNote}`,
+    );
     return;
   }
   reactionState[reaction.key] = new Date().toISOString();
   saveState(reactionState);
+  try {
+    execFileSync(
+      'gh',
+      [
+        'label', 'create', SYNC_LABEL,
+        '--description', 'Synced by the GSD two-way sync',
+        '--color', '5319e7',
+      ],
+      { encoding: 'utf8', stdio: ['ignore', 'ignore', 'ignore'] },
+    );
+  } catch {
+    // label already exists
+  }
+  execFileSync('gh', ['issue', 'edit', String(issue.number), '--add-label', SYNC_LABEL], {
+    encoding: 'utf8',
+  });
   execFileSync(
     'gh',
     ['issue', 'comment', String(issue.number), '--body', buildReactionComment(reaction)],
@@ -185,9 +206,10 @@ if (!fs.existsSync(EVENT_LOG)) {
 }
 
 // Process the existing tail once so tests see recent events. Historical
-// entries never trigger live reactions; --dry-run may inspect them.
+// entries react only in --dry-run or explicit --once --github catch-up runs.
 const existing = fs.readFileSync(EVENT_LOG, 'utf8').trimEnd().split('\n').slice(-10);
-for (const line of existing) processLine(line, { react: dryRun });
+const reactHistorical = dryRun || (once && githubLive);
+for (const line of existing) processLine(line, { react: reactHistorical });
 
 if (once) {
   console.log('[gsd-event-hook] --once done');

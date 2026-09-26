@@ -8,6 +8,7 @@ import {
   classifyGithubSyncEvent,
   dedupeKey,
   toNotification,
+  SYNC_LABEL,
 } from '../scripts/gsd-github-sync.mjs';
 
 const issue = (over: Record<string, unknown> = {}) => ({
@@ -88,6 +89,16 @@ describe('classifyGithubSyncEvent', () => {
 
     const marked = payload({ issue: issue({ body: 'handled <!-- gsd-sync -->' }) });
     expect(classifyGithubSyncEvent('issues', marked)).toBeNull();
+  });
+
+  it('ignores gsd:synced-labeled issues but accepts other labels', () => {
+    expect(SYNC_LABEL).toBe('gsd:synced');
+
+    const labeled = payload({ issue: issue({ labels: [{ name: 'gsd:synced' }] }) });
+    expect(classifyGithubSyncEvent('issues', labeled)).toBeNull();
+
+    const other = payload({ issue: issue({ labels: [{ name: 'enhancement' }] }) });
+    expect(classifyGithubSyncEvent('issues', other)).not.toBeNull();
   });
 
   it('ignores payloads without an issue number', () => {
