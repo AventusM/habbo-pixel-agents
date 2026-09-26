@@ -57,6 +57,20 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
   // Canvas lifecycle, camera, input, layers and frame scheduling (M003/S03)
   const stageRef = useRef<CanvasStage | null>(null);
 
+  // Frame-path refs intentionally kept (M008/S03). These are imperative per-frame
+  // resources and scratch/hit-test state — NOT mirrors of a src/state value. They
+  // are refs so the render path stays allocation-free (no-frame-allocations) and
+  // per-tick mutation never re-renders React:
+  //   canvasRef / stageRef   — DOM canvas + stage handles (infra).
+  //   renderState            — mutable camera/editor/room scratch read each frame.
+  //   activeRendererRef      — avatar renderer instance; logged on change, not rendered.
+  //   kanbanRenderStateRef   — per-render kanban hit-test state, mutated in draw.
+  //   expandedNoteRef / noteOriginRef / expandedAggregateRef
+  //                          — "which note is open" local UI state the canvas reads
+  //                            directly; never needs a React render.
+  // Store-backed values (dev mode, audio readiness, kanban filter) are read through
+  // useStoreValue and are deliberately absent here.
+
   const { ensureInitialized, playSound, availableSounds, ready } = useRoomAudio();
 
   const { setEnabled: setAutoFollow, tick: autoFollowTick } = useAutoFollowCamera();
