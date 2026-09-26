@@ -47,6 +47,8 @@ import { useOutfitLiveSync } from './hooks/useOutfitLiveSync.js';
 interface RoomCanvasProps {
   heightmap: string;
   editorMode?: EditorMode; // Optional, defaults to 'view'
+  /** Start with the room (layout) editor panel expanded (web `?editor=1`). */
+  initialEditorOpen?: boolean;
 }
 
 const editorToggleStyle: React.CSSProperties = {
@@ -63,7 +65,11 @@ const editorToggleStyle: React.CSSProperties = {
   cursor: 'pointer',
 };
 
-export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: RoomCanvasProps) {
+export function RoomCanvas({
+  heightmap,
+  editorMode: editorModeProp = 'view',
+  initialEditorOpen = false,
+}: RoomCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   // Canvas lifecycle, camera, input, layers and frame scheduling (M003/S03)
@@ -99,6 +105,10 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
   // it is never part of the per-frame render path.
   const editor = useCharacterEditor();
   const [editorOpen, setEditorOpen] = useState(false);
+
+  // Room (layout) editor panel open state — local UI toggle (D021 exemption),
+  // shared by both hosts; the web entry can start it expanded via ?editor=1.
+  const [layoutEditorOpen, setLayoutEditorOpen] = useState(initialEditorOpen);
 
   // Per-render kanban hit-test state (replaces renderer module-level state)
   const kanbanRenderStateRef = useRef<KanbanRenderState>(createKanbanRenderState());
@@ -499,6 +509,8 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
         }}
         onSave={handleSave}
         onLoad={handleLoad}
+        editorOpen={layoutEditorOpen}
+        onEditorToggle={() => setLayoutEditorOpen((open) => !open)}
       />
       <RoomStage canvasRef={canvasRef} onClick={handleClick} onContextMenu={handleContextMenu} />
       {/* Kanban source filter HUD */}

@@ -1,12 +1,17 @@
 // src/LayoutEditorPanel.tsx
-// React UI component for layout editor controls
+// Presentational room (layout) editor panel (M009/S01, D021 convention).
+// A floating, collapsible dark-glass card matching the room HUD idiom (slate
+// glass + monospace) so it works as an overlay in both the VS Code webview and
+// the standalone web build. Props in, JSX out — the shell owns the editor state
+// and every callback; the only local state is the dev sound selection (UI-only,
+// exempt under D021). No host imports, no application logic.
 
-import React from 'react';
+import { useState, type CSSProperties, type ChangeEvent } from 'react';
 import type { EditorMode } from './isoLayoutEditor.js';
 import type { HsbColor } from './isoTypes.js';
 import { getCatalogByCategory, CATEGORY_LABELS } from './furnitureRegistry.js';
 
-interface LayoutEditorPanelProps {
+export interface LayoutEditorPanelProps {
   editorMode: EditorMode;
   onModeChange: (mode: EditorMode) => void;
   selectedColor: HsbColor;
@@ -17,6 +22,8 @@ interface LayoutEditorPanelProps {
   onRotate: () => void;
   onSave: () => void;
   onLoad: (file: File) => void;
+  /** Collapse the panel (shell-owned open state). */
+  onClose: () => void;
   devMode?: boolean;
   onDevCapture?: () => void;
   onDebugGrid?: () => void;
@@ -26,6 +33,110 @@ interface LayoutEditorPanelProps {
 }
 
 const GROUPED_CATALOG = getCatalogByCategory();
+
+const EDITOR_MODES: ReadonlyArray<{ mode: EditorMode; label: string }> = [
+  { mode: 'view', label: 'View' },
+  { mode: 'paint', label: 'Paint' },
+  { mode: 'color', label: 'Color' },
+  { mode: 'furniture', label: 'Furniture' },
+];
+
+// --- styles (module-level constants: no per-render allocation) ---
+
+const panelStyle: CSSProperties = {
+  position: 'fixed',
+  top: 10,
+  right: 10,
+  zIndex: 1000,
+  width: 236,
+  maxHeight: 'calc(100vh - 64px)',
+  overflowY: 'auto',
+  padding: 10,
+  borderRadius: 8,
+  background: 'rgba(15, 23, 42, 0.92)',
+  border: '1px solid rgba(148, 163, 184, 0.35)',
+  color: '#e2e8f0',
+  font: '12px/1.4 monospace',
+  boxSizing: 'border-box',
+  textAlign: 'left',
+};
+
+const headerStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  marginBottom: 8,
+  fontWeight: 'bold',
+};
+
+const closeButtonStyle: CSSProperties = {
+  padding: '0 6px',
+  border: '1px solid rgba(148, 163, 184, 0.35)',
+  borderRadius: 4,
+  background: 'transparent',
+  color: '#e2e8f0',
+  font: '12px/1.4 monospace',
+  cursor: 'pointer',
+};
+
+const modeRowStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: '1fr 1fr',
+  gap: 4,
+};
+
+const buttonStyle: CSSProperties = {
+  display: 'block',
+  width: '100%',
+  padding: '6px',
+  margin: '4px 0',
+  border: 'none',
+  borderRadius: 4,
+  cursor: 'pointer',
+  fontSize: 11,
+  background: '#334155',
+  color: '#e2e8f0',
+  boxSizing: 'border-box',
+};
+
+const activeButtonStyle: CSSProperties = {
+  ...buttonStyle,
+  background: '#0066cc',
+  fontWeight: 'bold',
+};
+
+const sectionStyle: CSSProperties = {
+  marginTop: 10,
+  paddingTop: 8,
+  borderTop: '1px solid rgba(148, 163, 184, 0.25)',
+};
+
+const sectionTitleStyle: CSSProperties = { marginBottom: 4, opacity: 0.85 };
+
+const sliderLabelStyle: CSSProperties = { display: 'block', fontSize: 10 };
+
+const sliderStyle: CSSProperties = { width: '100%', margin: '4px 0' };
+
+const previewStyle: CSSProperties = {
+  width: '100%',
+  height: 20,
+  marginTop: 4,
+  border: '1px solid rgba(148, 163, 184, 0.35)',
+};
+
+const selectStyle: CSSProperties = {
+  width: '100%',
+  padding: 4,
+  marginBottom: 4,
+  boxSizing: 'border-box',
+};
+
+const fileLabelStyle: CSSProperties = {
+  ...buttonStyle,
+  textAlign: 'center',
+};
+
+const hiddenInputStyle: CSSProperties = { display: 'none' };
 
 export function LayoutEditorPanel({
   editorMode,
@@ -38,6 +149,7 @@ export function LayoutEditorPanel({
   onRotate,
   onSave,
   onLoad,
+  onClose,
   devMode,
   onDevCapture,
   onDebugGrid,
@@ -45,127 +157,84 @@ export function LayoutEditorPanel({
   availableSounds,
   audioReady,
 }: LayoutEditorPanelProps) {
-  const [selectedSound, setSelectedSound] = React.useState(availableSounds?.[0] ?? '');
-  const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const [selectedSound, setSelectedSound] = useState(availableSounds?.[0] ?? '');
+
+  const handleFileInput = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       onLoad(file);
     }
   };
 
-  const panelStyle: React.CSSProperties = {
-    position: 'absolute',
-    left: '10px',
-    top: '10px',
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
-    color: 'white',
-    padding: '10px',
-    borderRadius: '4px',
-    fontSize: '12px',
-    fontFamily: 'Arial, sans-serif',
-    minWidth: '150px',
-    zIndex: 1000,
-  };
-
-  const buttonStyle: React.CSSProperties = {
-    display: 'block',
-    width: '100%',
-    padding: '6px',
-    margin: '4px 0',
-    border: 'none',
-    borderRadius: '3px',
-    cursor: 'pointer',
-    fontSize: '11px',
-    backgroundColor: '#444',
-    color: 'white',
-    boxSizing: 'border-box',
-  };
-
-  const activeButtonStyle: React.CSSProperties = {
-    ...buttonStyle,
-    backgroundColor: '#0066cc',
-    fontWeight: 'bold',
-  };
-
-  const sliderStyle: React.CSSProperties = {
-    width: '100%',
-    margin: '4px 0',
-  };
-
   return (
-    <div style={panelStyle}>
-      <div style={{ marginBottom: '10px', fontWeight: 'bold' }}>Layout Editor</div>
+    <div style={panelStyle} data-room-editor="true">
+      <div style={headerStyle}>
+        <span>Room Editor</span>
+        <button
+          type="button"
+          style={closeButtonStyle}
+          aria-label="Close room editor"
+          onClick={onClose}
+        >
+          ×
+        </button>
+      </div>
 
       {/* Mode buttons */}
-      <button
-        style={editorMode === 'view' ? activeButtonStyle : buttonStyle}
-        onClick={() => onModeChange('view')}
-      >
-        View
-      </button>
-      <button
-        style={editorMode === 'paint' ? activeButtonStyle : buttonStyle}
-        onClick={() => onModeChange('paint')}
-      >
-        Paint
-      </button>
-      <button
-        style={editorMode === 'color' ? activeButtonStyle : buttonStyle}
-        onClick={() => onModeChange('color')}
-      >
-        Color
-      </button>
-      <button
-        style={editorMode === 'furniture' ? activeButtonStyle : buttonStyle}
-        onClick={() => onModeChange('furniture')}
-      >
-        Furniture
-      </button>
+      <div style={modeRowStyle}>
+        {EDITOR_MODES.map(({ mode, label }) => (
+          <button
+            key={mode}
+            type="button"
+            style={editorMode === mode ? activeButtonStyle : buttonStyle}
+            onClick={() => onModeChange(mode)}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
 
       {/* Color picker (visible when color mode) */}
       {editorMode === 'color' && (
-        <div style={{ marginTop: '10px', padding: '8px', backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: '3px' }}>
-          <div style={{ marginBottom: '4px' }}>Color Picker</div>
-          <label style={{ display: 'block', fontSize: '10px' }}>
+        <div style={sectionStyle}>
+          <div style={sectionTitleStyle}>Color Picker</div>
+          <label style={sliderLabelStyle}>
             H: {selectedColor.h}
             <input
               type="range"
               min="0"
               max="360"
               value={selectedColor.h}
-              onChange={(e) => onColorChange({ ...selectedColor, h: parseInt(e.target.value) })}
+              onChange={(e) => onColorChange({ ...selectedColor, h: parseInt(e.target.value, 10) })}
               style={sliderStyle}
             />
           </label>
-          <label style={{ display: 'block', fontSize: '10px' }}>
+          <label style={sliderLabelStyle}>
             S: {selectedColor.s}%
             <input
               type="range"
               min="0"
               max="100"
               value={selectedColor.s}
-              onChange={(e) => onColorChange({ ...selectedColor, s: parseInt(e.target.value) })}
+              onChange={(e) => onColorChange({ ...selectedColor, s: parseInt(e.target.value, 10) })}
               style={sliderStyle}
             />
           </label>
-          <label style={{ display: 'block', fontSize: '10px' }}>
+          <label style={sliderLabelStyle}>
             B: {selectedColor.b}%
             <input
               type="range"
               min="0"
               max="100"
               value={selectedColor.b}
-              onChange={(e) => onColorChange({ ...selectedColor, b: parseInt(e.target.value) })}
+              onChange={(e) => onColorChange({ ...selectedColor, b: parseInt(e.target.value, 10) })}
               style={sliderStyle}
             />
           </label>
           <div
             style={{
-              width: '100%',
-              height: '20px',
-              marginTop: '4px',
+              ...previewStyle,
               backgroundColor: `hsl(${selectedColor.h}, ${selectedColor.s}%, ${selectedColor.b}%)`,
-              border: '1px solid white',
             }}
           />
         </div>
@@ -173,12 +242,12 @@ export function LayoutEditorPanel({
 
       {/* Furniture selector (visible when furniture mode) */}
       {editorMode === 'furniture' && (
-        <div style={{ marginTop: '10px', padding: '8px', backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: '3px' }}>
-          <div style={{ marginBottom: '4px' }}>Furniture</div>
+        <div style={sectionStyle}>
+          <div style={sectionTitleStyle}>Furniture</div>
           <select
             value={selectedFurniture}
             onChange={(e) => onFurnitureChange(e.target.value)}
-            style={{ width: '100%', padding: '4px', marginBottom: '4px' }}
+            style={selectStyle}
           >
             {Array.from(GROUPED_CATALOG.entries()).map(([category, entries]) => (
               <optgroup key={category} label={CATEGORY_LABELS[category] || category}>
@@ -190,36 +259,36 @@ export function LayoutEditorPanel({
               </optgroup>
             ))}
           </select>
-          <button onClick={onRotate} style={buttonStyle}>
+          <button type="button" onClick={onRotate} style={buttonStyle}>
             Rotate (dir: {furnitureDirection})
           </button>
         </div>
       )}
 
       {/* Save/Load buttons */}
-      <div style={{ marginTop: '10px', borderTop: '1px solid #666', paddingTop: '8px' }}>
-        <button onClick={onSave} style={buttonStyle}>
+      <div style={sectionStyle}>
+        <button type="button" onClick={onSave} style={buttonStyle}>
           Save Layout
         </button>
-        <label style={{ ...buttonStyle, textAlign: 'center' }}>
+        <label style={fileLabelStyle}>
           Load Layout
           <input
             type="file"
             accept=".json"
             onChange={handleFileInput}
-            style={{ display: 'none' }}
+            style={hiddenInputStyle}
           />
         </label>
       </div>
 
       {/* Dev capture button (dev mode only) */}
       {devMode && onDevCapture && (
-        <div style={{ marginTop: '10px', borderTop: '1px solid #666', paddingTop: '8px' }}>
-          <button onClick={onDevCapture} style={buttonStyle}>
+        <div style={sectionStyle}>
+          <button type="button" onClick={onDevCapture} style={buttonStyle}>
             Dev Capture
           </button>
           {onDebugGrid && (
-            <button onClick={onDebugGrid} style={buttonStyle}>
+            <button type="button" onClick={onDebugGrid} style={buttonStyle}>
               Debug Walk Grid
             </button>
           )}
@@ -228,21 +297,22 @@ export function LayoutEditorPanel({
 
       {/* Sound tester (dev mode only) */}
       {devMode && onPlaySound && availableSounds && availableSounds.length > 0 && (
-        <div style={{ marginTop: '10px', borderTop: '1px solid #666', paddingTop: '8px' }}>
-          <div style={{ marginBottom: '4px' }}>Sounds</div>
+        <div style={sectionStyle}>
+          <div style={sectionTitleStyle}>Sounds</div>
           <select
             value={selectedSound}
             onChange={(e) => setSelectedSound(e.target.value)}
-            style={{ width: '100%', padding: '4px', marginBottom: '4px' }}
+            style={selectStyle}
           >
             {availableSounds.map((name) => (
               <option key={name} value={name}>{name}</option>
             ))}
           </select>
-          <div style={{ marginBottom: '4px', color: audioReady ? '#8f8' : '#f88' }}>
+          <div style={{ marginBottom: 4, color: audioReady ? '#8f8' : '#f88' }}>
             {audioReady ? 'ready' : 'not ready'}
           </div>
           <button
+            type="button"
             onClick={() => onPlaySound(selectedSound)}
             style={buttonStyle}
             disabled={!audioReady}

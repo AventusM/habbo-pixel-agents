@@ -7,7 +7,8 @@
 //      stores/clients/host modules and makes no network calls (props in,
 //      JSX out — local UI state only).
 //   2. Parity: each pure render surface still produces the same output the
-//      shell used to inline (chip label, full-bleed canvas, dead dev gate).
+//      shell used to inline (chip label, full-bleed canvas, editor entry +
+//      panel gated by the shell-owned open flag).
 //
 // Rendering goes through react-dom/server so the suite stays in the existing
 // `node` vitest environment with no new dependencies or config changes.
@@ -22,6 +23,7 @@ import { KanbanFilterChip } from '../src/components/KanbanFilterChip.js';
 import { RoomStage } from '../src/components/RoomStage.js';
 import { RoomDevChrome } from '../src/components/RoomDevChrome.js';
 import { CharacterEditorPanel } from '../src/components/CharacterEditorPanel.js';
+import { LayoutEditorPanel } from '../src/LayoutEditorPanel.js';
 import type { CharacterEditorPanelProps } from '../src/components/CharacterEditorPanel.js';
 import type { CatalogItem } from '../src/avatarOutfitConfig.js';
 import { FIGURE_CATALOG } from '../src/avatarOutfitConfig.js';
@@ -120,26 +122,90 @@ describe('RoomDevChrome render parity', () => {
   const editorMode: EditorMode = 'view';
   const selectedColor: HsbColor = { h: 0, s: 0, b: 100 };
 
-  it('keeps the dev panel dead-gated: no visible chrome is emitted', () => {
+  const baseProps = {
+    editorMode,
+    onModeChange: () => undefined,
+    selectedColor,
+    onColorChange: () => undefined,
+    selectedFurniture: '',
+    onFurnitureChange: () => undefined,
+    furnitureDirection: 0,
+    devMode: false,
+    onDevCapture: () => undefined,
+    onPlaySound: () => undefined,
+    availableSounds: [],
+    onRotate: () => undefined,
+    onSave: () => undefined,
+    onLoad: () => undefined,
+  };
+
+  it('renders the floating Room Editor toggle as the entry point when closed', () => {
     const html = renderToStaticMarkup(
       React.createElement(RoomDevChrome, {
-        editorMode,
-        onModeChange: () => undefined,
-        selectedColor,
-        onColorChange: () => undefined,
-        selectedFurniture: '',
-        onFurnitureChange: () => undefined,
-        furnitureDirection: 0,
-        devMode: false,
-        onDevCapture: () => undefined,
-        onPlaySound: () => undefined,
-        availableSounds: [],
-        onRotate: () => undefined,
-        onSave: () => undefined,
-        onLoad: () => undefined,
+        ...baseProps,
+        editorOpen: false,
+        onEditorToggle: () => undefined,
       }),
     );
-    expect(html).toBe('');
+    expect(html).toContain('Room Editor');
+    expect(html).toContain('position:fixed');
+    expect(html).not.toContain('Save Layout');
+  });
+
+  it('renders the full editor panel when open (modes, IO, rotate)', () => {
+    const html = renderToStaticMarkup(
+      React.createElement(RoomDevChrome, {
+        ...baseProps,
+        editorOpen: true,
+        onEditorToggle: () => undefined,
+      }),
+    );
+    for (const label of ['View', 'Paint', 'Color', 'Furniture', 'Save Layout', 'Load Layout']) {
+      expect(html).toContain(label);
+    }
+    expect(html).toContain('data-room-editor="true"');
+  });
+
+  it('gates dev-only affordances on devMode', () => {
+    const closed = renderToStaticMarkup(
+      React.createElement(RoomDevChrome, {
+        ...baseProps,
+        editorOpen: true,
+        onEditorToggle: () => undefined,
+      }),
+    );
+    expect(closed).not.toContain('Dev Capture');
+
+    const dev = renderToStaticMarkup(
+      React.createElement(RoomDevChrome, {
+        ...baseProps,
+        editorOpen: true,
+        onEditorToggle: () => undefined,
+        devMode: true,
+      }),
+    );
+    expect(dev).toContain('Dev Capture');
+  });
+
+  it('invokes the shell callbacks (toggle + mode change)', () => {
+    const onEditorToggle = vi.fn();
+    const onModeChange = vi.fn();
+    const tree = RoomDevChrome({
+      ...baseProps,
+      editorOpen: true,
+      onEditorToggle,
+      onModeChange,
+    });
+    const elements = collectElements(tree);
+
+    const toggle = elements.find((el) => el.props['aria-expanded'] !== undefined);
+    (toggle?.props.onClick as () => void)();
+    expect(onEditorToggle).toHaveBeenCalledTimes(1);
+
+    // The panel receives the shell callbacks unchanged (identity, not a copy).
+    const panel = elements.find((el) => el.type === LayoutEditorPanel);
+    expect(panel?.props.onModeChange).toBe(onModeChange);
+    expect(panel?.props.onClose).toBe(onEditorToggle);
   });
 });
 
