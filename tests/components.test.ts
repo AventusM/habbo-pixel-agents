@@ -187,6 +187,21 @@ describe('RoomDevChrome render parity', () => {
     expect(dev).toContain('Dev Capture');
   });
 
+  it('passes the shell debug-entry callback through to the panel', () => {
+    const onOpenDebug = vi.fn();
+    const tree = RoomDevChrome({
+      ...baseProps,
+      editorOpen: true,
+      onEditorToggle: vi.fn(),
+      devMode: true,
+      onOpenDebug,
+    });
+    const elements = collectElements(tree);
+    const panel = elements.find((el) => el.type === LayoutEditorPanel);
+    expect(panel?.props.onOpenDebug).toBe(onOpenDebug);
+    expect(panel?.props.onDebugGrid).toBeUndefined();
+  });
+
   it('invokes the shell callbacks (toggle + mode change)', () => {
     const onEditorToggle = vi.fn();
     const onModeChange = vi.fn();
@@ -289,6 +304,58 @@ describe('LayoutEditorPanel wall color control', () => {
   it('omits the wall color control without sections', () => {
     const html = renderToStaticMarkup(React.createElement(LayoutEditorPanel, baseProps));
     expect(html).not.toContain('data-wall-color-control="true"');
+  });
+});
+
+describe('LayoutEditorPanel debug entry (M009/S03)', () => {
+  const baseProps = {
+    editorMode: 'view' as EditorMode,
+    onModeChange: () => undefined,
+    selectedColor: { h: 0, s: 0, b: 100 } as HsbColor,
+    onColorChange: () => undefined,
+    selectedFurniture: 'hc_chr',
+    onFurnitureChange: () => undefined,
+    furnitureDirection: 0,
+    onRotate: () => undefined,
+    onSave: () => undefined,
+    onLoad: () => undefined,
+    onClose: () => undefined,
+  };
+
+  it('renders the Debug Surfaces entry in dev mode with a wired click handler', () => {
+    const html = renderToStaticMarkup(
+      React.createElement(LayoutEditorPanel, {
+        ...baseProps,
+        devMode: true,
+        onDevCapture: () => undefined,
+        onOpenDebug: () => undefined,
+      }),
+    );
+    expect(html).toContain('data-open-debug="true"');
+    expect(html).toContain('Debug Surfaces');
+  });
+
+  it('keeps the debug entry hidden outside dev mode', () => {
+    const html = renderToStaticMarkup(
+      React.createElement(LayoutEditorPanel, {
+        ...baseProps,
+        onOpenDebug: () => undefined,
+      }),
+    );
+    expect(html).not.toContain('data-open-debug="true"');
+    expect(html).not.toContain('Debug Surfaces');
+  });
+
+  it('renders the debug entry even without a dev-capture handler', () => {
+    const html = renderToStaticMarkup(
+      React.createElement(LayoutEditorPanel, {
+        ...baseProps,
+        devMode: true,
+        onOpenDebug: () => undefined,
+      }),
+    );
+    expect(html).toContain('data-open-debug="true"');
+    expect(html).not.toContain('Dev Capture');
   });
 });
 

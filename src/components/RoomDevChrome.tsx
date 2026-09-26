@@ -19,6 +19,8 @@ export interface RoomDevChromeProps {
   furnitureDirection: number;
   devMode: boolean;
   onDevCapture: () => void;
+  /** Open the debug surfaces overlay (shell owns the open state, M009/S03). */
+  onOpenDebug?: () => void;
   onPlaySound: (soundName: string) => void;
   availableSounds: string[];
   audioReady?: boolean;
@@ -64,6 +66,7 @@ export function RoomDevChrome({
   furnitureDirection,
   devMode,
   onDevCapture,
+  onOpenDebug,
   onPlaySound,
   availableSounds,
   audioReady,
@@ -102,7 +105,7 @@ export function RoomDevChrome({
           furnitureDirection={furnitureDirection}
           devMode={devMode}
           onDevCapture={onDevCapture}
-          onDebugGrid={undefined}
+          onOpenDebug={onOpenDebug}
           onPlaySound={onPlaySound}
           availableSounds={availableSounds}
           audioReady={audioReady}

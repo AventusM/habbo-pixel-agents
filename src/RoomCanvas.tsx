@@ -34,6 +34,7 @@ import { useRoomAgents } from './hooks/useRoomAgents.js';
 import { KanbanFilterChip } from './components/KanbanFilterChip.js';
 import { RoomStage } from './components/RoomStage.js';
 import { RoomDevChrome } from './components/RoomDevChrome.js';
+import { AvatarDebugGrid } from './AvatarDebugGrid.js';
 import { useRoomHud } from './hooks/useRoomHud.js';
 import { useRoomInput } from './hooks/useRoomInput.js';
 import { useRoomEditorIO } from './hooks/useRoomEditorIO.js';
@@ -112,6 +113,12 @@ export function RoomCanvas({
   // Room (layout) editor panel open state — local UI toggle (D021 exemption),
   // shared by both hosts; the web entry can start it expanded via ?editor=1.
   const [layoutEditorOpen, setLayoutEditorOpen] = useState(initialEditorOpen);
+
+  // Debug surfaces overlay open state — local UI toggle (D021 exemption). The
+  // overlay itself renders the spritesheet and role-outfit debug matrices.
+  const [debugOpen, setDebugOpen] = useState(false);
+  const handleOpenDebug = useCallback(() => setDebugOpen(true), []);
+  const handleCloseDebug = useCallback(() => setDebugOpen(false), []);
 
   // Per-render kanban hit-test state (replaces renderer module-level state)
   const kanbanRenderStateRef = useRef<KanbanRenderState>(createKanbanRenderState());
@@ -573,6 +580,7 @@ export function RoomCanvas({
         furnitureDirection={furnitureDirection}
         devMode={devMode}
         onDevCapture={handleDevCapture}
+        onOpenDebug={handleOpenDebug}
         onPlaySound={playSound}
         availableSounds={availableSounds}
         audioReady={ready}
@@ -607,6 +615,7 @@ export function RoomCanvas({
       />
       {/* Kanban source filter HUD */}
       <KanbanFilterChip label={KANBAN_FILTER_LABELS[kanbanFilter]} />
+      {debugOpen && <AvatarDebugGrid onClose={handleCloseDebug} />}
       <button
         type="button"
         style={editorToggleStyle}

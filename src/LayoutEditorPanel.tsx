@@ -38,7 +38,8 @@ export interface LayoutEditorPanelProps {
   onWallColorClear?: (sectionId: string) => void;
   devMode?: boolean;
   onDevCapture?: () => void;
-  onDebugGrid?: () => void;
+  /** Open the debug surfaces overlay (shell-owned open state, M009/S03). */
+  onOpenDebug?: () => void;
   onPlaySound?: (soundName: string) => void;
   availableSounds?: string[];
   audioReady?: boolean;
@@ -191,7 +192,7 @@ export function LayoutEditorPanel({
   onWallColorClear,
   devMode,
   onDevCapture,
-  onDebugGrid,
+  onOpenDebug,
   onPlaySound,
   availableSounds,
   audioReady,
@@ -420,15 +421,22 @@ export function LayoutEditorPanel({
         </label>
       </div>
 
-      {/* Dev capture button (dev mode only) */}
-      {devMode && onDevCapture && (
+      {/* Dev capture + debug surfaces (dev mode only) */}
+      {devMode && (onDevCapture || onOpenDebug) && (
         <div style={sectionStyle}>
-          <button type="button" onClick={onDevCapture} style={buttonStyle}>
-            Dev Capture
-          </button>
-          {onDebugGrid && (
-            <button type="button" onClick={onDebugGrid} style={buttonStyle}>
-              Debug Walk Grid
+          {onDevCapture && (
+            <button type="button" onClick={onDevCapture} style={buttonStyle}>
+              Dev Capture
+            </button>
+          )}
+          {onOpenDebug && (
+            <button
+              type="button"
+              onClick={onOpenDebug}
+              style={buttonStyle}
+              data-open-debug="true"
+            >
+              Debug Surfaces
             </button>
           )}
         </div>
