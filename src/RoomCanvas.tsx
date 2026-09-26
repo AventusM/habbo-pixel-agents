@@ -10,7 +10,7 @@ import type { AvatarRenderer } from './avatarRendererTypes.js';
 import { pixelLabRenderer } from './pixelLabAvatarRenderer.js';
 import type { SpriteCache } from './isoSpriteCache.js';
 import { habboRenderer } from './isoAvatarRenderer.js';
-import { tileToScreen, screenToTile } from './isometricMath.js';
+import { tileToScreen } from './isometricMath.js';
 import { KANBAN_FILTER_LABELS } from './kanbanFilter.js';
 import {
   toggleTileWalkability,
@@ -45,6 +45,7 @@ import { KanbanFilterChip } from './components/KanbanFilterChip.js';
 import { RoomStage } from './components/RoomStage.js';
 import { RoomDevChrome } from './components/RoomDevChrome.js';
 import { useRoomHud } from './hooks/useRoomHud.js';
+import { useRoomInput } from './hooks/useRoomInput.js';
 
 interface RoomCanvasProps {
   heightmap: string;
@@ -164,54 +165,8 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
     furnitureRenderables: [],
   });
 
-  /**
-   * Convert a pointer position (client coords) to tile coordinates, accounting
-   * for camera pan/zoom and the static camera origin offset.
-   */
-  function mouseToTile(clientX: number, clientY: number): { tileX: number; tileY: number } | null {
-    const canvas = canvasRef.current;
-    const stage = stageRef.current;
-    if (!canvas || !stage) return null;
-    const rect = canvas.getBoundingClientRect();
-    const scaleX = canvas.offsetWidth / rect.width;
-    const scaleY = canvas.offsetHeight / rect.height;
-    const mouseX = (clientX - rect.left) * scaleX;
-    const mouseY = (clientY - rect.top) * scaleY;
-
-    // Apply inverse camera transform to get world-space coordinates
-    const cam = stage.camera;
-    const world = screenToWorld(mouseX, mouseY, cam, canvas.offsetWidth, canvas.offsetHeight);
-
-    // Subtract cameraOrigin (static centering offset) to get isometric coordinates
-    const adjX = world.x - renderState.current.cameraOrigin.x;
-    const adjY = world.y - renderState.current.cameraOrigin.y;
-
-    const { x, y } = screenToTile(adjX, adjY);
-    const tileX = Math.floor(x);
-    const tileY = Math.floor(y);
-
-    if (tileX < 0 || tileY < 0) return null;
-    return { tileX, tileY };
-  }
-
-  /** Update the hovered-tile editor state from a pointer position. */
-  function updateHover(clientX: number, clientY: number) {
-    const grid = renderState.current.grid;
-    if (!grid) return;
-    const hoveredCoords = mouseToTile(clientX, clientY);
-    if (hoveredCoords) {
-      const { tileX, tileY } = hoveredCoords;
-      if (tileY >= 0 && tileY < grid.height && tileX >= 0 && tileX < grid.width) {
-        const tile = grid.tiles[tileY][tileX];
-        const tileZ = tile ? tile.height : 0;
-        renderState.current.editorState.hoveredTile = { x: tileX, y: tileY, z: tileZ };
-      } else {
-        renderState.current.editorState.hoveredTile = null;
-      }
-    } else {
-      renderState.current.editorState.hoveredTile = null;
-    }
-  }
+  // Pointer→tile mapping + hovered-tile state (M008/S04 T01)
+  const { mouseToTile, updateHover, onHoverEnd } = useRoomInput({ canvasRef, stageRef, renderState });
 
   // Reset direction to first supported direction when furniture type changes
   useEffect(() => {
@@ -422,10 +377,8 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
     const stage = new CanvasStage(canvas, {
       canDrag: (e) =>
         e.button === 1 || (e.button === 0 && renderState.current.editorState.mode === 'view'),
-      onHover: (clientX, clientY) => updateHover(clientX, clientY),
-      onHoverEnd: () => {
-        renderState.current.editorState.hoveredTile = null;
-      },
+      onHover: updateHover,
+      onHoverEnd,
       onResize: () => {
         if (renderState.current.grid) {
           renderRoomBuffer();
