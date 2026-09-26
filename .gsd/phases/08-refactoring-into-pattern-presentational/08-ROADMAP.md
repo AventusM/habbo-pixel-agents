@@ -11,9 +11,6 @@
 
 ## Slices
 
-- [ ] **S02: Presentational split of room chrome** `risk:low` `depends:[S01]`
-  > After this: Same visuals; chrome components in their own files, no store imports — props in, JSX out.
-
 - [ ] **S03: Complete store wiring: remove mirrored and ref state** `risk:medium` `depends:[S01]`
   > After this: Single source of truth per value; no setX mirrors of store data in the shell; behavior unchanged.
 
@@ -23,4 +20,4 @@
 ## Boundary Map
 
 In scope: src/RoomCanvas.tsx, new src/hooks/*, presentational components extracted from the shell, shell store wiring. Out of scope: renderer internals (src/iso*Renderer*.ts, src/render/*), asset pipeline, integrations clients, agent provisioning; no visual redesign; no frame-path changes beyond preserving the allocation-free invariant.
-<!-- gsd:state-version=111:0 -->
+<!-- gsd:state-version=112:0 -->
