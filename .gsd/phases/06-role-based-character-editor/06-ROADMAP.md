@@ -1,0 +1,25 @@
+# M006: Role-Based Character Editor
+
+**Vision:** Every agent role (Atlas, Sisyphus, Prometheus, Hephaestus, core-dev, planning, infrastructure, support) has a distinct, recognizable outfit in the Habbo room — assigned automatically at spawn and customizable through an in-room character editor with live preview and persistence across reloads.
+
+## Success Criteria
+
+- Each of the 8 agent roles renders a distinct outfit at spawn
+- Editor allows per-role customization with live WYSIWYG preview
+- Outfits persist across reload and apply to live agents without respawn
+
+## Slices
+
+- [ ] **S01: Role outfits render at spawn** `risk:low` `depends:[]`
+  > After this: Spawn one agent per role (Atlas, Sisyphus, core-dev, planning): each renders a visually distinct Nitro outfit instead of the hardcoded fallback.
+
+- [ ] **S02: Character editor UI with live preview** `risk:medium` `depends:[S01]`
+  > After this: Open the editor, pick the Atlas role, change shirt color and hair, watch the preview avatar update live; switching roles shows each role's current outfit.
+
+- [ ] **S03: Outfit persistence + restyle live agents** `risk:medium` `depends:[S02]`
+  > After this: Customize Sisyphus outfit, reload the page, outfit persists; restyle a live walking agent without respawning it.
+
+## Boundary Map
+
+Not provided.
+<!-- gsd:state-version=132:0 -->
