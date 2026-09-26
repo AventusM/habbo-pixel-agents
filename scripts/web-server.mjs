@@ -19,7 +19,9 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execFileSync } from 'node:child_process';
 import { WebSocketServer } from 'ws';
+import { randomUUID } from 'node:crypto';
 import { mapFeedLineToRoomEvents } from './hooks-feed-mapper.mjs';
+import { classifyGithubSyncEvent, toNotification } from './gsd-github-sync.mjs';
 
 // Dynamic import of the compiled server module (built by esbuild)
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -117,6 +119,37 @@ function readRawBody(req) {
 }
 
 /**
+ * Record an accepted GitHub→GSD sync intent exactly once: append to the
+ * runtime inbox, remember its dedupe key, surface a GSD notification.
+ * Best-effort — the webhook's 202 contract must never depend on this.
+ */
+function recordGithubSyncIntent(intent) {
+  const dir = path.resolve(projectDir, '.gsd', 'runtime', 'github-sync');
+  fs.mkdirSync(dir, { recursive: true });
+  const statePath = path.join(dir, 'state.json');
+  let seen = {};
+  try {
+    seen = JSON.parse(fs.readFileSync(statePath, 'utf8'));
+  } catch {
+    seen = {};
+  }
+  if (!seen || typeof seen !== 'object') seen = {};
+  if (seen[intent.key]) return false;
+  seen[intent.key] = intent.ts;
+  fs.appendFileSync(path.join(dir, 'inbox.jsonl'), JSON.stringify(intent) + '\n');
+  fs.writeFileSync(statePath, JSON.stringify(seen, null, 2) + '\n');
+  try {
+    fs.appendFileSync(
+      path.resolve(projectDir, '.gsd', 'notifications.jsonl'),
+      JSON.stringify(toNotification(intent, randomUUID())) + '\n',
+    );
+  } catch {
+    // notifications.jsonl is best-effort (GSD may not have created it yet)
+  }
+  return true;
+}
+
+/**
  * POST /webhooks/github. HMAC-validated when WEBHOOK_SECRET is set; relevant
  * events are debounced and trigger a full board fetch + broadcast.
  */
@@ -152,6 +185,14 @@ async function handleGithubWebhook(req, res) {
   }
 
   const event = req.headers['x-github-event'];
+
+  try {
+    const syncIntent = classifyGithubSyncEvent(event, payload);
+    if (syncIntent) recordGithubSyncIntent(syncIntent);
+  } catch {
+    // sync is best-effort; the webhook contract above all
+  }
+
   const relevant = boardDebouncer
     && boardHelpers.isRelevantBoardEvent(event, payload, REPO_FULL_NAME);
   if (relevant) boardDebouncer.trigger();
