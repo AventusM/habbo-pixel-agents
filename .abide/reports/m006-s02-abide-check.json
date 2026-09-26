@@ -1,0 +1,9 @@
+{
+  "reportKind": "abide-check",
+  "status": "CHECK_FAILED",
+  "reason": "gateway 429 FreeUsageLimitError — free usage limit exhausted; abide/JEV could not judge the diff",
+  "verdicts": [],
+  "fabricated": false,
+  "note": "No abide verdicts were produced for M006/S02. This file records the raw abide CLI failure verbatim (rawCliOutput) instead of inventing verdict data.",
+  "rawCliOutput": "╭──────────────────────────────────────────────────────────────────────────────╮\n│ ✗ Jev refused the check                                                      │\n│ the gateway answered 429 after 3 tries:                                      │\n│ {\"type\":\"error\",\"error\":{\"type\":\"FreeUsageLimitError\",\"message\":\"Rate limit  │\n│ exceeded. Please try again later.\"}}                                         │\n│ CHECK_FAILED                                                                 │\n╰──────────────────────────────────────────────────────────────────────────────╯\n\n"
+}
