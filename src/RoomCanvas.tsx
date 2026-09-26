@@ -57,7 +57,7 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
   // Canvas lifecycle, camera, input, layers and frame scheduling (M003/S03)
   const stageRef = useRef<CanvasStage | null>(null);
 
-  const { ensureInitialized, playSound, availableSounds } = useRoomAudio();
+  const { ensureInitialized, playSound, availableSounds, ready } = useRoomAudio();
 
   const { setEnabled: setAutoFollow, tick: autoFollowTick } = useAutoFollowCamera();
 
@@ -1003,6 +1003,7 @@ export function RoomCanvas({ heightmap, editorMode: editorModeProp = 'view' }: R
         onDevCapture={handleDevCapture}
         onPlaySound={playSound}
         availableSounds={availableSounds}
+        audioReady={ready}
         onRotate={() => {
           const spriteCache: SpriteCache | undefined = (window as any).spriteCache;
           const supported = spriteCache

@@ -22,6 +22,7 @@ interface LayoutEditorPanelProps {
   onDebugGrid?: () => void;
   onPlaySound?: (soundName: string) => void;
   availableSounds?: string[];
+  audioReady?: boolean;
 }
 
 const GROUPED_CATALOG = getCatalogByCategory();
@@ -42,6 +43,7 @@ export function LayoutEditorPanel({
   onDebugGrid,
   onPlaySound,
   availableSounds,
+  audioReady,
 }: LayoutEditorPanelProps) {
   const [selectedSound, setSelectedSound] = React.useState(availableSounds?.[0] ?? '');
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -237,7 +239,14 @@ export function LayoutEditorPanel({
               <option key={name} value={name}>{name}</option>
             ))}
           </select>
-          <button onClick={() => onPlaySound(selectedSound)} style={buttonStyle}>
+          <div style={{ marginBottom: '4px', color: audioReady ? '#8f8' : '#f88' }}>
+            {audioReady ? 'ready' : 'not ready'}
+          </div>
+          <button
+            onClick={() => onPlaySound(selectedSound)}
+            style={buttonStyle}
+            disabled={!audioReady}
+          >
             Play Sound
           </button>
         </div>

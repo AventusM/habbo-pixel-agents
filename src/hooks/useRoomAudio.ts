@@ -1,13 +1,19 @@
 // src/hooks/useRoomAudio.ts
 // Audio manager lifecycle + sound playback (M008/S01, extracted from RoomCanvas).
+// Audio readiness is a uiStore value (M008/S03): the store is the single source
+// of truth, written once initialization succeeds and read back via useStoreValue.
+// managerRef/buffersRef stay imperative audio resources, not mirrored state.
 import { useRef } from 'react';
 import { AudioManager } from '../isoAudioManager.js';
+import { uiStore, selectAudioReady } from '../state/uiStore.js';
+import { useStoreValue } from './useStoreValue.js';
 
 const AVAILABLE_SOUNDS = ['notification'];
 
 export function useRoomAudio() {
   const managerRef = useRef<AudioManager | null>(null);
   const buffersRef = useRef<Map<string, AudioBuffer>>(new Map());
+  const ready = useStoreValue(uiStore, selectAudioReady);
 
   const ensureInitialized = async () => {
     if (managerRef.current) return;
@@ -18,6 +24,7 @@ export function useRoomAudio() {
       const buf = await managerRef.current.loadSound(uris.notificationSound);
       if (buf) buffersRef.current.set('notification', buf);
     }
+    uiStore.setAudioReady(true);
   };
 
   const playSound = async (soundName: string) => {
@@ -43,5 +50,5 @@ export function useRoomAudio() {
     }
   };
 
-  return { ensureInitialized, playSound, availableSounds: AVAILABLE_SOUNDS };
+  return { ensureInitialized, playSound, availableSounds: AVAILABLE_SOUNDS, ready };
 }
