@@ -4,7 +4,8 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { AvatarManager } from '../src/avatarManager.js';
 import { parseHeightmap } from '../src/isoTypes.js';
 import type { TileGrid } from '../src/isoTypes.js';
-import { ROLE_OUTFIT_PRESETS, getRolePreset } from '../src/avatarOutfitConfig.js';
+import { ROLE_OUTFIT_PRESETS } from '../src/avatarOutfitConfig.js';
+import { outfitStore } from '../src/state/outfitStore.js';
 import type { TeamSection } from '../src/agentTypes.js';
 
 function makeGrid(heightmap: string): TileGrid {
@@ -190,7 +191,7 @@ describe('AvatarManager', () => {
       const avatar = manager.spawnAvatarAt('agent-at', 0, 0, 0, 0, OPEN_GRID, undefined, team);
 
       expect(avatar).not.toBeNull();
-      expect(avatar!.outfit).toEqual(getRolePreset(team, 0));
+      expect(avatar!.outfit).toEqual(outfitStore.drafts[team]);
     });
 
     it('resolves identically for the same team and variant on repeated spawns', () => {
@@ -204,18 +205,18 @@ describe('AvatarManager', () => {
       const avatar = manager.spawnAvatar('unclassified', 1, OPEN_GRID);
 
       expect(avatar!.outfit).toBeDefined();
-      expect(avatar!.outfit).toEqual(getRolePreset('core-dev', 1));
+      expect(avatar!.outfit).toEqual(outfitStore.drafts['core-dev']);
       expect(avatar!.outfit!.colors.shirt).toBe(ROLE_OUTFIT_PRESETS['core-dev'].colors.shirt);
       expect(avatar!.team).toBe('core-dev');
     });
 
-    it('changes skin color with variant while preserving the team shirt color', () => {
+    it('resolves the draft outfit identically regardless of variant (M006/S03: drafts own the full outfit, variant-skin cycling retired)', () => {
       const team: TeamSection = 'planning';
       const v0 = manager.spawnAvatar('v0', 0, OPEN_GRID, undefined, undefined, team);
       const v1 = manager.spawnAvatar('v1', 1, OPEN_GRID, undefined, undefined, team);
 
-      expect(v0!.outfit!.colors.shirt).toBe(v1!.outfit!.colors.shirt);
-      expect(v0!.outfit!.colors.skin).not.toBe(v1!.outfit!.colors.skin);
+      expect(v0!.outfit).toEqual(outfitStore.drafts[team]);
+      expect(v1!.outfit).toEqual(outfitStore.drafts[team]);
     });
   });
 });
