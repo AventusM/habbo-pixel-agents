@@ -4,6 +4,8 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { AvatarManager } from '../src/avatarManager.js';
 import { parseHeightmap } from '../src/isoTypes.js';
 import type { TileGrid } from '../src/isoTypes.js';
+import { ROLE_OUTFIT_PRESETS, getRolePreset } from '../src/avatarOutfitConfig.js';
+import type { TeamSection } from '../src/agentTypes.js';
 
 function makeGrid(heightmap: string): TileGrid {
   return parseHeightmap(heightmap);
@@ -165,6 +167,55 @@ describe('AvatarManager', () => {
       // Very unlikely to be at 99,99
       const found = manager.getAvatarAtTile(99, 99);
       expect(found).toBeNull();
+    });
+  });
+
+  describe('role outfits at spawn', () => {
+    const TEAMS: TeamSection[] = ['planning', 'core-dev', 'infrastructure', 'support'];
+
+    it('spawnAvatar assigns a role outfit whose shirt is distinct per team', () => {
+      const shirts = TEAMS.map((team, i) => {
+        const avatar = manager.spawnAvatar(`agent-${i}`, 0, OPEN_GRID, undefined, undefined, team);
+        expect(avatar).not.toBeNull();
+        expect(avatar!.outfit).toBeDefined();
+        expect(avatar!.outfit!.colors.shirt).toBe(ROLE_OUTFIT_PRESETS[team].colors.shirt);
+        return avatar!.outfit!.colors.shirt;
+      });
+
+      expect(new Set(shirts).size).toBe(TEAMS.length);
+    });
+
+    it('spawnAvatarAt assigns the same role-resolved outfit', () => {
+      const team: TeamSection = 'infrastructure';
+      const avatar = manager.spawnAvatarAt('agent-at', 0, 0, 0, 0, OPEN_GRID, undefined, team);
+
+      expect(avatar).not.toBeNull();
+      expect(avatar!.outfit).toEqual(getRolePreset(team, 0));
+    });
+
+    it('resolves identically for the same team and variant on repeated spawns', () => {
+      const first = manager.spawnAvatar('a1', 2, OPEN_GRID, undefined, undefined, 'support');
+      const second = manager.spawnAvatar('a2', 2, OPEN_GRID, undefined, undefined, 'support');
+
+      expect(first!.outfit).toEqual(second!.outfit);
+    });
+
+    it('falls back deterministically to the core-dev preset when team is undefined', () => {
+      const avatar = manager.spawnAvatar('unclassified', 1, OPEN_GRID);
+
+      expect(avatar!.outfit).toBeDefined();
+      expect(avatar!.outfit).toEqual(getRolePreset('core-dev', 1));
+      expect(avatar!.outfit!.colors.shirt).toBe(ROLE_OUTFIT_PRESETS['core-dev'].colors.shirt);
+      expect(avatar!.team).toBe('core-dev');
+    });
+
+    it('changes skin color with variant while preserving the team shirt color', () => {
+      const team: TeamSection = 'planning';
+      const v0 = manager.spawnAvatar('v0', 0, OPEN_GRID, undefined, undefined, team);
+      const v1 = manager.spawnAvatar('v1', 1, OPEN_GRID, undefined, undefined, team);
+
+      expect(v0!.outfit!.colors.shirt).toBe(v1!.outfit!.colors.shirt);
+      expect(v0!.outfit!.colors.skin).not.toBe(v1!.outfit!.colors.skin);
     });
   });
 });
