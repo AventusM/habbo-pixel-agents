@@ -9,4 +9,7 @@
 - ✅ **M005: GSD↔GitHub Two-Way Sync** (`depends:[—]`)
 - ✅ **M007: Pattern-enforcement stack: curated patterns.dev skills + enforceable rules (ESLint + abide JEV) for agent-written code** (`depends:[—]`)
 - ✅ **M008: Refactoring into pattern: presentational-container extraction of the room shell (D021 convention)** (`depends:[—]`)
-- ⬜ **M006: Role-Based Character Editor** (`depends:[M008]`)
+- ✅ **M006: Role-Based Character Editor** (`depends:[M008]`)
+- ✅ **M009: Web-first editor surface** (`depends:[M008]`)
+- ⬜ **M010: Structured output: one GitHub contract for issues and PRs** (`depends:[—]`)
+- ⬜ **M011: JEV enforcement that actually runs + vetted rule examples** (`depends:[—]`)
