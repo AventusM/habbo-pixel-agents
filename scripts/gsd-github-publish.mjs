@@ -26,13 +26,14 @@ export function buildIssueTitle(milestoneId, sliceId, sliceTitle) {
 }
 
 /** Canonical gsd-meta trailer (contract section 3). */
-export function buildTrailer({ milestone, slice, parent = 'main', outcomes = [], humanMerge = false }) {
+export function buildTrailer({ milestone, slice, parent = 'main', stackedOn = '', outcomes = [], humanMerge = false }) {
   const list = Array.isArray(outcomes) ? outcomes.join(',') : outcomes;
   return [
     '<!-- gsd-meta',
     `milestone: ${milestone}`,
     `slice: ${slice}`,
     `parent: ${parent}`,
+    `stacked-on: ${stackedOn}`,
     `outcomes: ${list}`,
     `human-merge: ${humanMerge ? 'true' : 'false'}`,
     '-->',
