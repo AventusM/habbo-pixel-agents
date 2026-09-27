@@ -1,4 +1,4 @@
-# M010/S03 SUMMARY — Lane enforcement: parity, approval, JEV section, versioned prompts (delivered, PR pending review)
+# M010/S03 SUMMARY — Lane enforcement: parity, approval, JEV section, versioned prompts (delivered, merged via PR #154)
 
 All 4 planned tasks executed on branch gsd/m010-s03-lane-enforcement and verified green:
 
