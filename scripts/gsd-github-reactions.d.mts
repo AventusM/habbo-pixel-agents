@@ -31,3 +31,28 @@ export function buildReactionComment(
 export function isIssueTerminal(issue: { state?: unknown } | null | undefined): boolean;
 
 export function matchesIssueTitle(title: unknown, reaction: GsdGithubReaction): boolean;
+
+export interface ApprovalComment {
+  body?: unknown;
+  author?: string | { login?: string; type?: string } | null;
+  createdAt?: string;
+}
+
+export interface FreshApproval {
+  body: string;
+  author: string;
+  createdAt: string;
+}
+
+export function isApprovalBody(body: unknown): boolean;
+
+export function findFreshApproval(
+  comments: unknown,
+  headDateIso: string,
+  ownerLogins?: string[] | null,
+): { fresh: boolean; approval: FreshApproval | null };
+
+export function approvalLifts(args?: {
+  approval?: FreshApproval | null;
+  gates?: Record<string, unknown>;
+}): { lifted: string[]; stillBlocking: string[] };

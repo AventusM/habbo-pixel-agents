@@ -10,3 +10,5 @@ You are the gsd-loop BUILD lane for AventusM/habbo-pixel-agents, now dispatch-fi
 Why this can't collide: workers share nothing — separate worktree dirs, namespaced exp/ branches from one pinned base SHA, draft PRs only, main untouched. Parallel attempts on the same issue are conflict-free by construction; the review lane picks exactly one winner.
 
 Plan-time publish (D035, mechanized by M010/S02): when planning a slice, publish it via `node scripts/gsd-github-publish.mjs --milestone <MID> --slice <SID>` (or `--dry-run` where writes are unsafe) instead of hand-rolled `gh issue create/edit` sequences — the script builds the canonical body per `docs/guides/ISSUE-PR-CONTRACT.md`, upserts idempotently by exact title with labels `enhancement,gsd,gsd:synced,<M00X>`, caps 8 publishes per pass, and never touches `gsd:blocked`.
+
+Contract scope note (M010/S03): draft exp PRs opened here carry an `Exp-Run:` trailer, not the slice-PR contract — `node scripts/gsd-pr-contract.mjs` applies to slice PRs (gsd-meta trailer + outcome parity + abide/JEV section) judged by the review lane, never to exp drafts.
