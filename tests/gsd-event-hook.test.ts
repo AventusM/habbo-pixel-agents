@@ -82,11 +82,10 @@ describe('gsd-event-hook github reactions', () => {
     expect(out).toContain('commented + closed');
 
     const record = readFileSync(recordFile, 'utf8').trim().split('\n');
-    expect(record).toEqual([
-      'issue edit 110 --add-label gsd:synced',
-      'issue comment 110 --body GSD: M005/S06 completed — this issue is being closed to match GSD state. <!-- gsd-sync -->',
-      'issue close 110',
-    ]);
+    expect(record[0]).toBe('issue edit 110 --add-label gsd:synced');
+    expect(record[1]).toContain('issue comment 110 --body gsd-sync: M005/S06 delivered');
+    expect(record[1]).toContain('<!-- gsd-sync -->');
+    expect(record[2]).toBe('issue close 110');
     expect(readFileSync(statePath, 'utf8')).toContain('uat-hook-1');
 
     const out2 = runHook(['--once', '--github', '--event-log', logPath, '--state', statePath]);
@@ -111,10 +110,11 @@ describe('gsd-event-hook synthetic seal (continuation lane)', () => {
   it('skip seal comments without closing, and dedupes on re-run', () => {
     const { dir, args } = sealArgs('skipped');
     expect(runHook(args)).toContain('#123 commented');
-    expect(readFileSync(recordFile, 'utf8').trim().split('\n')).toEqual([
-      'issue edit 123 --add-label gsd:synced',
-      'issue comment 123 --body GSD: M008/S02 skipped — GSD state cancelled this slice; leaving the issue open for triage. <!-- gsd-sync -->',
-    ]);
+    const lines = readFileSync(recordFile, 'utf8').trim().split('\n');
+    expect(lines[0]).toBe('issue edit 123 --add-label gsd:synced');
+    expect(lines[1]).toContain('issue comment 123 --body gsd-sync: M008/S02 sealed skipped');
+    expect(lines[1]).toContain('<!-- gsd-sync -->');
+    expect(lines).toHaveLength(2);
     expect(runHook(args)).toContain('already handled');
     expect(readFileSync(recordFile, 'utf8').trim().split('\n')).toHaveLength(2);
     rmSync(dir, { recursive: true, force: true });
@@ -123,11 +123,11 @@ describe('gsd-event-hook synthetic seal (continuation lane)', () => {
   it('complete seal comments and closes', () => {
     const { dir, args } = sealArgs('completed');
     expect(runHook(args)).toContain('#123 commented + closed');
-    expect(readFileSync(recordFile, 'utf8').trim().split('\n')).toEqual([
-      'issue edit 123 --add-label gsd:synced',
-      'issue comment 123 --body GSD: M008/S02 completed — this issue is being closed to match GSD state. <!-- gsd-sync -->',
-      'issue close 123',
-    ]);
+    const lines = readFileSync(recordFile, 'utf8').trim().split('\n');
+    expect(lines[0]).toBe('issue edit 123 --add-label gsd:synced');
+    expect(lines[1]).toContain('issue comment 123 --body gsd-sync: M008/S02 delivered');
+    expect(lines[1]).toContain('<!-- gsd-sync -->');
+    expect(lines[2]).toBe('issue close 123');
     rmSync(dir, { recursive: true, force: true });
   });
 

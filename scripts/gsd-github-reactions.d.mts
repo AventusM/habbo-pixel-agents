@@ -23,6 +23,11 @@ export interface GsdGithubReaction {
 
 export function classifyGsdEvent(entry: GsdEventEntry | null | undefined): GsdGithubReaction | null;
 
-export function buildReactionComment(reaction: GsdGithubReaction): string;
+export function buildReactionComment(
+  reaction: GsdGithubReaction,
+  opts?: { mergeSha?: string; evidence?: string; reasons?: string; key?: string },
+): string;
+
+export function isIssueTerminal(issue: { state?: unknown } | null | undefined): boolean;
 
 export function matchesIssueTitle(title: unknown, reaction: GsdGithubReaction): boolean;

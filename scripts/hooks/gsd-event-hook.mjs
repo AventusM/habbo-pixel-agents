@@ -38,6 +38,7 @@ import {
   classifyGsdEvent,
   buildReactionComment,
   matchesIssueTitle,
+  isIssueTerminal,
 } from '../gsd-github-reactions.mjs';
 import { SYNC_LABEL } from '../gsd-github-sync.mjs';
 
@@ -100,7 +101,7 @@ function findIssue(reaction) {
   return JSON.parse(out).find((issue) => matchesIssueTitle(issue.title, reaction)) ?? null;
 }
 
-function reactToGsd(reaction) {
+function reactToGsd(reaction, opts = {}) {
   if (reactionState[reaction.key]) {
     console.log(`[gsd-github-reactions] ${reaction.milestoneId}/${reaction.sliceId} already handled`);
     return;
@@ -108,6 +109,10 @@ function reactToGsd(reaction) {
   const issue = findIssue(reaction);
   if (!issue) {
     console.log(`[gsd-github-reactions] ${reaction.milestoneId}/${reaction.sliceId} — no matching issue`);
+    return;
+  }
+  if (isIssueTerminal(issue)) {
+    console.log(`[gsd-github-reactions] #${issue.number} already in terminal state — skipping`);
     return;
   }
   if (!githubLive) {
@@ -137,7 +142,7 @@ function reactToGsd(reaction) {
   });
   execFileSync(
     'gh',
-    ['issue', 'comment', String(issue.number), '--body', buildReactionComment(reaction)],
+    ['issue', 'comment', String(issue.number), '--body', buildReactionComment(reaction, opts)],
     { encoding: 'utf8' },
   );
   if (reaction.close) {
@@ -146,12 +151,12 @@ function reactToGsd(reaction) {
   console.log(`[gsd-github-reactions] #${issue.number} ${reaction.close ? 'commented + closed' : 'commented'}`);
 }
 
-function maybeReact(entry) {
+function maybeReact(entry, opts = {}) {
   if (!githubLive && !dryRun) return;
   const reaction = classifyGsdEvent(entry);
   if (!reaction) return;
   try {
-    reactToGsd(reaction);
+    reactToGsd(reaction, opts);
   } catch (err) {
     console.error(`[gsd-github-reactions] ${err.message}`);
   }
@@ -161,10 +166,18 @@ function maybeReact(entry) {
 // Reflect a slice terminal state without depending on .gsd/event-log.jsonl.
 // Example:
 //   node scripts/hooks/gsd-event-hook.mjs --github --milestone M008 --slice S02 --seal skipped
+//   node scripts/hooks/gsd-event-hook.mjs --github --milestone M010 --slice S02 --seal completed --merge-sha abc123 --evidence "O-1 done"
+// Canonical wording per docs/guides/ISSUE-PR-CONTRACT.md section 6: delivered
+// heads `gsd-sync: <MID>/<SID> delivered` with merge commit + evidence then
+// close; seal-skipped heads `gsd-sync: <MID>/<SID> sealed skipped` with
+// delivery reasons and does not close. Already-closed issues are skipped.
 const seal = flagValue('--seal', null);
 if (seal) {
   const mid = flagValue('--milestone', null);
   const sid = flagValue('--slice', null);
+  const reasons = flagValue('--reasons', '');
+  const mergeSha = flagValue('--merge-sha', '');
+  const evidence = flagValue('--evidence', '');
   if (!mid || !sid) {
     console.error('[gsd-slice-reaction] --seal requires --milestone <id> and --slice <id>');
     process.exit(2);
@@ -178,13 +191,16 @@ if (seal) {
     console.log('[gsd-slice-reaction] no --github or --dry-run; nothing to do (safe by default)');
     process.exit(0);
   }
-  maybeReact({
-    cmd,
-    params: { milestoneId: mid, sliceId: sid },
-    ts: new Date().toISOString(),
-    actor: 'agent',
-    hash: `manual:${mid}/${sid}:${cmd}`,
-  });
+  maybeReact(
+    {
+      cmd,
+      params: { milestoneId: mid, sliceId: sid },
+      ts: new Date().toISOString(),
+      actor: 'agent',
+      hash: `manual:${mid}/${sid}:${cmd}`,
+    },
+    { reasons, mergeSha, evidence },
+  );
   process.exit(0);
 }
 

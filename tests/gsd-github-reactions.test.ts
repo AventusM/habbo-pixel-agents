@@ -59,18 +59,42 @@ describe('classifyGsdEvent', () => {
 });
 
 describe('buildReactionComment', () => {
-  it('carries the gsd-sync marker and the completion wording', () => {
+  it('carries the gsd-sync marker and the canonical delivered head', () => {
     const comment = buildReactionComment(classifyGsdEvent(entry())!);
-    expect(comment).toContain('M005/S06 completed');
+    expect(comment).toContain('gsd-sync: M005/S06 delivered');
     expect(comment).toContain('<!-- gsd-sync -->');
-    expect(comment).toContain('closed to match');
+    expect(comment).toContain('gsd-key: abc123');
+    expect(comment).toContain('closing to match');
   });
 
-  it('describes skips without a close', () => {
+  it('describes seal-skipped without a close', () => {
     const comment = buildReactionComment(classifyGsdEvent(entry({ cmd: 'skip-slice' }))!);
-    expect(comment).toContain('M005/S06 skipped');
+    expect(comment).toContain('gsd-sync: M005/S06 sealed skipped');
     expect(comment).toContain('leaving the issue open');
     expect(comment).toContain('<!-- gsd-sync -->');
+  });
+
+  it('names merge commit and evidence on delivered, reasons on skipped', () => {
+    const delivered = buildReactionComment(classifyGsdEvent(entry())!, {
+      mergeSha: 'abc1234',
+      evidence: 'O-1 done',
+    });
+    expect(delivered).toContain('abc1234');
+    expect(delivered).toContain('O-1 done');
+    const skipped = buildReactionComment(classifyGsdEvent(entry({ cmd: 'skip-slice' }))!, {
+      reasons: 'waiting on S01',
+    });
+    expect(skipped).toContain('waiting on S01');
+  });
+});
+
+describe('isIssueTerminal', () => {
+  it('skips already-closed issues', async () => {
+    const { isIssueTerminal } = await import('../scripts/gsd-github-reactions.mjs');
+    expect(isIssueTerminal({ state: 'CLOSED' })).toBe(true);
+    expect(isIssueTerminal({ state: 'closed' })).toBe(true);
+    expect(isIssueTerminal({ state: 'OPEN' })).toBe(false);
+    expect(isIssueTerminal(null)).toBe(false);
   });
 });
 
