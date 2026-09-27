@@ -152,6 +152,7 @@ export function preRenderRoom(
   spriteCache?: SpriteCache,
   _atlasName: string = 'furniture',
   tileColorMap?: Map<string, HsbColor>,
+  wallColorMap?: Map<string, HsbColor>,
 ): OffscreenCanvas {
   const offscreen = new OffscreenCanvas(physicalW, physicalH);
   const ctx = offscreen.getContext('2d')!;
@@ -165,7 +166,7 @@ export function preRenderRoom(
   const hsb = defaultHsb || DEFAULT_HSB;
 
   // Draw continuous wall panels BEFORE floor tiles so walls appear behind the floor.
-  drawWallPanels(ctx, grid, cameraOrigin, hsb, tileColorMap);
+  drawWallPanels(ctx, grid, cameraOrigin, hsb, tileColorMap, wallColorMap);
 
   // Build renderables array (one per non-void tile)
   const renderables: Renderable[] = [];

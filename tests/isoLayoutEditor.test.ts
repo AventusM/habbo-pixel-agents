@@ -5,10 +5,16 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import {
   getHoveredTile,
   drawHoverHighlight,
+  drawFurnitureSelection,
   toggleTileWalkability,
   setTileColor,
   gridToHeightmap,
   placeFurniture,
+  moveFurniture,
+  deleteFurniture,
+  findFurnitureAtTile,
+  getFurnitureInfoById,
+  ensureFurnitureIds,
   rotateFurniture,
   saveLayout,
   loadLayout,
@@ -186,6 +192,18 @@ describe('drawHoverHighlight', () => {
     expect(() => {
       drawHoverHighlight(ctx, 2, 2, 5, { x: 400, y: 300 });
     }).not.toThrow();
+  });
+});
+
+describe('drawFurnitureSelection', () => {
+  it('draws a cyan outline without throwing', () => {
+    const canvas = new OffscreenCanvas(200, 200) as unknown as HTMLCanvasElement;
+    const ctx = canvas.getContext('2d') as CanvasRenderingContext2D;
+
+    expect(() => {
+      drawFurnitureSelection(ctx, 1, 1, 0, { x: 100, y: 100 });
+    }).not.toThrow();
+    expect(ctx.strokeStyle).toBe('rgba(0, 255, 255, 0.9)');
   });
 });
 
@@ -472,5 +490,231 @@ describe('saveLayout and loadLayout', () => {
     expect(loaded.tileColors['1,1']).toEqual({ h: 120, s: 50, b: 75 });
     expect(loaded.furniture).toEqual(furniture);
     expect(loaded.multiTileFurniture).toEqual(multiTileFurniture);
+  });
+
+  it('round-trips explicit per-section wall colors', () => {
+    const grid = parseHeightmap('00\n00');
+    const wallColors = { planning: { h: 10, s: 80, b: 90 } };
+
+    const json = saveLayout(grid, new Map(), [], [], { x: 0, y: 0, z: 0, dir: 2 }, wallColors);
+    const loaded = loadLayout(json);
+
+    expect(loaded.sectionWallColors).toEqual(wallColors);
+  });
+
+  it('omits wall colors when none are set (backward-compatible output)', () => {
+    const grid = parseHeightmap('00\n00');
+
+    const json = saveLayout(grid, new Map(), [], [], { x: 0, y: 0, z: 0, dir: 2 });
+
+    expect(json).not.toContain('sectionWallColors');
+    expect(loadLayout(json).sectionWallColors).toBeUndefined();
+  });
+
+  it('loads a pre-S02 layout without wall colors', () => {
+    const legacy = JSON.stringify({
+      heightmap: '00\n00',
+      doorX: 0,
+      doorY: 0,
+      doorZ: 0,
+      doorDir: 2,
+      tileColors: {},
+      furniture: [],
+      multiTileFurniture: [],
+    });
+
+    expect(loadLayout(legacy).sectionWallColors).toBeUndefined();
+  });
+});
+
+describe('findFurnitureAtTile', () => {
+  it('finds single-tile furniture at its anchor tile', () => {
+    const furniture: FurnitureSpec[] = [
+      { name: 'chair', tileX: 2, tileY: 3, tileZ: 0, direction: 0 },
+    ];
+
+    const hit = findFurnitureAtTile(furniture, [], 2, 3);
+
+    expect(hit).not.toBeNull();
+    expect(hit?.name).toBe('chair');
+    expect(hit?.kind).toBe('single');
+    expect(hit?.id).toBe(furniture[0].id);
+  });
+
+  it('finds multi-tile furniture anywhere in its footprint', () => {
+    const multi: MultiTileFurnitureSpec[] = [
+      { name: 'desk', tileX: 1, tileY: 1, tileZ: 0, direction: 0, widthTiles: 3, heightTiles: 2 },
+    ];
+
+    const hit = findFurnitureAtTile([], multi, 2, 2);
+
+    expect(hit?.name).toBe('desk');
+    expect(hit?.kind).toBe('multi');
+    expect(hit?.tileX).toBe(1);
+    expect(hit?.tileY).toBe(1);
+  });
+
+  it('returns null when no item covers the tile', () => {
+    const furniture: FurnitureSpec[] = [
+      { name: 'chair', tileX: 0, tileY: 0, tileZ: 0, direction: 0 },
+    ];
+
+    expect(findFurnitureAtTile(furniture, [], 4, 4)).toBeNull();
+  });
+});
+
+describe('moveFurniture', () => {
+  it('moves single-tile furniture to a valid target and preserves its id', () => {
+    const grid = parseHeightmap('000\n111\n222');
+    const furniture: FurnitureSpec[] = [
+      { name: 'chair', tileX: 0, tileY: 0, tileZ: 0, direction: 2 },
+    ];
+    ensureFurnitureIds(furniture, []);
+    const id = furniture[0].id!;
+
+    const moved = moveFurniture(grid, furniture, [], id, 2, 1);
+
+    expect(moved).toBe(true);
+    expect(furniture[0]).toEqual({
+      name: 'chair',
+      tileX: 2,
+      tileY: 1,
+      tileZ: 1,
+      direction: 2,
+      id,
+    });
+  });
+
+  it('moves multi-tile furniture and keeps its footprint', () => {
+    const grid = parseHeightmap('0000\n1111\n2222');
+    const multi: MultiTileFurnitureSpec[] = [
+      { name: 'desk', tileX: 0, tileY: 0, tileZ: 0, direction: 0, widthTiles: 2, heightTiles: 1 },
+    ];
+    ensureFurnitureIds([], multi);
+    const id = multi[0].id!;
+
+    const moved = moveFurniture(grid, [], multi, id, 1, 2);
+
+    expect(moved).toBe(true);
+    expect(multi[0].tileX).toBe(1);
+    expect(multi[0].tileY).toBe(2);
+    expect(multi[0].tileZ).toBe(2);
+    expect(multi[0].widthTiles).toBe(2);
+  });
+
+  it('rejects an out-of-bounds target without mutating', () => {
+    const grid = parseHeightmap('000\n111');
+    const furniture: FurnitureSpec[] = [
+      { name: 'chair', tileX: 0, tileY: 0, tileZ: 0, direction: 0 },
+    ];
+    ensureFurnitureIds(furniture, []);
+    const id = furniture[0].id!;
+
+    const moved = moveFurniture(grid, furniture, [], id, 9, 9);
+
+    expect(moved).toBe(false);
+    expect(furniture[0].tileX).toBe(0);
+    expect(furniture[0].tileY).toBe(0);
+  });
+
+  it('rejects a target occupied by another item', () => {
+    const grid = parseHeightmap('000\n111');
+    const furniture: FurnitureSpec[] = [
+      { name: 'chair', tileX: 0, tileY: 0, tileZ: 0, direction: 0 },
+      { name: 'plant', tileX: 2, tileY: 1, tileZ: 1, direction: 0 },
+    ];
+    ensureFurnitureIds(furniture, []);
+    const id = furniture[0].id!;
+
+    const moved = moveFurniture(grid, furniture, [], id, 2, 1);
+
+    expect(moved).toBe(false);
+    expect(furniture[0].tileX).toBe(0);
+  });
+
+  it('moves onto its own tile (no self-collision)', () => {
+    const grid = parseHeightmap('000\n111');
+    const multi: MultiTileFurnitureSpec[] = [
+      { name: 'sofa', tileX: 0, tileY: 0, tileZ: 0, direction: 0, widthTiles: 2, heightTiles: 1 },
+    ];
+    ensureFurnitureIds([], multi);
+    const id = multi[0].id!;
+
+    const moved = moveFurniture(grid, [], multi, id, 1, 0);
+
+    expect(moved).toBe(true);
+    expect(multi[0].tileX).toBe(1);
+  });
+
+  it('returns false for an unknown id', () => {
+    const grid = parseHeightmap('000');
+    const furniture: FurnitureSpec[] = [];
+
+    expect(moveFurniture(grid, furniture, [], 'missing', 0, 0)).toBe(false);
+  });
+});
+
+describe('deleteFurniture', () => {
+  it('removes a single-tile item by id', () => {
+    const furniture: FurnitureSpec[] = [
+      { name: 'chair', tileX: 0, tileY: 0, tileZ: 0, direction: 0 },
+      { name: 'plant', tileX: 1, tileY: 0, tileZ: 0, direction: 0 },
+    ];
+    ensureFurnitureIds(furniture, []);
+    const id = furniture[1].id!;
+
+    expect(deleteFurniture(furniture, [], id)).toBe(true);
+    expect(furniture).toHaveLength(1);
+    expect(furniture[0].name).toBe('chair');
+  });
+
+  it('removes a multi-tile item by id', () => {
+    const multi: MultiTileFurnitureSpec[] = [
+      { name: 'desk', tileX: 1, tileY: 1, tileZ: 0, direction: 0, widthTiles: 2, heightTiles: 1 },
+    ];
+    ensureFurnitureIds([], multi);
+    const id = multi[0].id!;
+
+    expect(deleteFurniture([], multi, id)).toBe(true);
+    expect(multi).toHaveLength(0);
+  });
+
+  it('returns false for an unknown id', () => {
+    expect(deleteFurniture([], [], 'missing')).toBe(false);
+  });
+});
+
+describe('ensureFurnitureIds + getFurnitureInfoById', () => {
+  it('assigns stable, unique ids and is idempotent', () => {
+    const furniture: FurnitureSpec[] = [
+      { name: 'chair', tileX: 0, tileY: 0, tileZ: 0, direction: 0 },
+    ];
+    const multi: MultiTileFurnitureSpec[] = [
+      { name: 'desk', tileX: 1, tileY: 1, tileZ: 0, direction: 0, widthTiles: 2, heightTiles: 1 },
+    ];
+
+    ensureFurnitureIds(furniture, multi);
+    const firstIds = [furniture[0].id, multi[0].id];
+
+    ensureFurnitureIds(furniture, multi);
+
+    expect([furniture[0].id, multi[0].id]).toEqual(firstIds);
+    expect(firstIds[0]).not.toBe(firstIds[1]);
+  });
+
+  it('re-reads info by id after a move', () => {
+    const grid = parseHeightmap('000\n111');
+    const furniture: FurnitureSpec[] = [
+      { name: 'chair', tileX: 0, tileY: 0, tileZ: 0, direction: 0 },
+    ];
+    ensureFurnitureIds(furniture, []);
+    const id = furniture[0].id!;
+
+    moveFurniture(grid, furniture, [], id, 2, 1);
+    const info = getFurnitureInfoById(furniture, [], id);
+
+    expect(info?.tileX).toBe(2);
+    expect(info?.tileY).toBe(1);
+    expect(info?.tileZ).toBe(1);
   });
 });

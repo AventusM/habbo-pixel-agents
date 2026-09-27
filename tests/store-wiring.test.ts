@@ -60,6 +60,10 @@ describe('dev mode mirror removal', () => {
     const src = read('RoomCanvas.tsx');
     expect(src).not.toMatch(/\[\s*devMode\s*,\s*setDevMode\s*\]/);
     expect(src).toContain('useStoreValue(uiStore, selectDevMode)');
+  });
+
+  it('the message dispatcher writes devMode through uiStore', () => {
+    const src = read('hooks/useRoomMessages.ts');
     expect(src).toContain('uiStore.setDevMode');
   });
 });

@@ -7,7 +7,8 @@
 //      stores/clients/host modules and makes no network calls (props in,
 //      JSX out — local UI state only).
 //   2. Parity: each pure render surface still produces the same output the
-//      shell used to inline (chip label, full-bleed canvas, dead dev gate).
+//      shell used to inline (chip label, full-bleed canvas, editor entry +
+//      panel gated by the shell-owned open flag).
 //
 // Rendering goes through react-dom/server so the suite stays in the existing
 // `node` vitest environment with no new dependencies or config changes.
@@ -22,7 +23,11 @@ import { KanbanFilterChip } from '../src/components/KanbanFilterChip.js';
 import { RoomStage } from '../src/components/RoomStage.js';
 import { RoomDevChrome } from '../src/components/RoomDevChrome.js';
 import { CharacterEditorPanel } from '../src/components/CharacterEditorPanel.js';
+import { RoleOutfitMatrix } from '../src/components/RoleOutfitMatrix.js';
+import { DebugSurfaces } from '../src/components/DebugSurfaces.js';
+import { LayoutEditorPanel } from '../src/LayoutEditorPanel.js';
 import type { CharacterEditorPanelProps } from '../src/components/CharacterEditorPanel.js';
+import type { SpriteCache } from '../src/isoSpriteCache.js';
 import type { CatalogItem } from '../src/avatarOutfitConfig.js';
 import { FIGURE_CATALOG } from '../src/avatarOutfitConfig.js';
 import type { TeamSection } from '../src/agentTypes.js';
@@ -37,6 +42,8 @@ const COMPONENT_FILES = [
   'RoomDevChrome.tsx',
   'CharacterEditorPanel.tsx',
   'AvatarPreview.tsx',
+  'RoleOutfitMatrix.tsx',
+  'DebugSurfaces.tsx',
 ] as const;
 
 /** Recursively collect a JSX element tree so tests can invoke handlers directly. */
@@ -120,26 +127,290 @@ describe('RoomDevChrome render parity', () => {
   const editorMode: EditorMode = 'view';
   const selectedColor: HsbColor = { h: 0, s: 0, b: 100 };
 
-  it('keeps the dev panel dead-gated: no visible chrome is emitted', () => {
+  const baseProps = {
+    editorMode,
+    onModeChange: () => undefined,
+    selectedColor,
+    onColorChange: () => undefined,
+    selectedFurniture: '',
+    onFurnitureChange: () => undefined,
+    furnitureDirection: 0,
+    devMode: false,
+    onDevCapture: () => undefined,
+    onPlaySound: () => undefined,
+    availableSounds: [],
+    onRotate: () => undefined,
+    onSave: () => undefined,
+    onLoad: () => undefined,
+  };
+
+  it('renders the floating Room Editor toggle as the entry point when closed', () => {
     const html = renderToStaticMarkup(
       React.createElement(RoomDevChrome, {
-        editorMode,
-        onModeChange: () => undefined,
-        selectedColor,
-        onColorChange: () => undefined,
-        selectedFurniture: '',
-        onFurnitureChange: () => undefined,
-        furnitureDirection: 0,
-        devMode: false,
-        onDevCapture: () => undefined,
-        onPlaySound: () => undefined,
-        availableSounds: [],
-        onRotate: () => undefined,
-        onSave: () => undefined,
-        onLoad: () => undefined,
+        ...baseProps,
+        editorOpen: false,
+        onEditorToggle: () => undefined,
       }),
     );
-    expect(html).toBe('');
+    expect(html).toContain('Room Editor');
+    expect(html).toContain('position:fixed');
+    expect(html).not.toContain('Save Layout');
+  });
+
+  it('renders the full editor panel when open (modes, IO, rotate)', () => {
+    const html = renderToStaticMarkup(
+      React.createElement(RoomDevChrome, {
+        ...baseProps,
+        editorOpen: true,
+        onEditorToggle: () => undefined,
+      }),
+    );
+    for (const label of ['View', 'Paint', 'Color', 'Furniture', 'Save Layout', 'Load Layout']) {
+      expect(html).toContain(label);
+    }
+    expect(html).toContain('data-room-editor="true"');
+  });
+
+  it('gates dev-only affordances on devMode', () => {
+    const closed = renderToStaticMarkup(
+      React.createElement(RoomDevChrome, {
+        ...baseProps,
+        editorOpen: true,
+        onEditorToggle: () => undefined,
+      }),
+    );
+    expect(closed).not.toContain('Dev Capture');
+
+    const dev = renderToStaticMarkup(
+      React.createElement(RoomDevChrome, {
+        ...baseProps,
+        editorOpen: true,
+        onEditorToggle: () => undefined,
+        devMode: true,
+      }),
+    );
+    expect(dev).toContain('Dev Capture');
+  });
+
+  it('passes the shell debug-entry callback through to the panel', () => {
+    const onOpenDebug = vi.fn();
+    const tree = RoomDevChrome({
+      ...baseProps,
+      editorOpen: true,
+      onEditorToggle: vi.fn(),
+      devMode: true,
+      onOpenDebug,
+    });
+    const elements = collectElements(tree);
+    const panel = elements.find((el) => el.type === LayoutEditorPanel);
+    expect(panel?.props.onOpenDebug).toBe(onOpenDebug);
+    expect(panel?.props.onDebugGrid).toBeUndefined();
+  });
+
+  it('invokes the shell callbacks (toggle + mode change)', () => {
+    const onEditorToggle = vi.fn();
+    const onModeChange = vi.fn();
+    const tree = RoomDevChrome({
+      ...baseProps,
+      editorOpen: true,
+      onEditorToggle,
+      onModeChange,
+    });
+    const elements = collectElements(tree);
+
+    const toggle = elements.find((el) => el.props['aria-expanded'] !== undefined);
+    (toggle?.props.onClick as () => void)();
+    expect(onEditorToggle).toHaveBeenCalledTimes(1);
+
+    // The panel receives the shell callbacks unchanged (identity, not a copy).
+    const panel = elements.find((el) => el.type === LayoutEditorPanel);
+    expect(panel?.props.onModeChange).toBe(onModeChange);
+    expect(panel?.props.onClose).toBe(onEditorToggle);
+  });
+});
+
+describe('LayoutEditorPanel furniture affordances', () => {
+  const baseProps = {
+    editorMode: 'furniture' as EditorMode,
+    onModeChange: () => undefined,
+    selectedColor: { h: 0, s: 0, b: 100 } as HsbColor,
+    onColorChange: () => undefined,
+    selectedFurniture: 'hc_chr',
+    onFurnitureChange: () => undefined,
+    furnitureDirection: 0,
+    onRotate: () => undefined,
+    onSave: () => undefined,
+    onLoad: () => undefined,
+    onClose: () => undefined,
+  };
+
+  it('shows the selected-item indicator, Move and Delete with the key hint', () => {
+    const html = renderToStaticMarkup(
+      React.createElement(LayoutEditorPanel, {
+        ...baseProps,
+        selectedPlacement: {
+          id: 'f1',
+          kind: 'single' as const,
+          name: 'chair',
+          tileX: 2,
+          tileY: 3,
+          tileZ: 0,
+        },
+        onMoveSelected: () => undefined,
+        onDeleteSelected: () => undefined,
+      }),
+    );
+    expect(html).toContain('data-selected-furniture="true"');
+    expect(html).toContain('chair');
+    expect(html).toContain('data-move-selected="true"');
+    expect(html).toContain('data-delete-selected="true"');
+    expect(html).toContain('Delete / Backspace');
+  });
+
+  it('shows a select prompt and no affordances when nothing is selected', () => {
+    const html = renderToStaticMarkup(React.createElement(LayoutEditorPanel, baseProps));
+    expect(html).not.toContain('data-selected-furniture="true"');
+    expect(html).not.toContain('data-delete-selected="true"');
+    expect(html).toContain('Click a placed item to select it');
+  });
+});
+
+describe('LayoutEditorPanel wall color control', () => {
+  const baseProps = {
+    editorMode: 'view' as EditorMode,
+    onModeChange: () => undefined,
+    selectedColor: { h: 0, s: 0, b: 100 } as HsbColor,
+    onColorChange: () => undefined,
+    selectedFurniture: 'hc_chr',
+    onFurnitureChange: () => undefined,
+    furnitureDirection: 0,
+    onRotate: () => undefined,
+    onSave: () => undefined,
+    onLoad: () => undefined,
+    onClose: () => undefined,
+  };
+
+  it('renders the per-section wall color control when sections are provided', () => {
+    const html = renderToStaticMarkup(
+      React.createElement(LayoutEditorPanel, {
+        ...baseProps,
+        wallColorSections: [{ id: 'planning', label: 'Planning' }],
+        wallColors: {},
+        onWallColorChange: () => undefined,
+        onWallColorClear: () => undefined,
+      }),
+    );
+    expect(html).toContain('data-wall-color-control="true"');
+    expect(html).toContain('Wall Color');
+    expect(html).toContain('Planning');
+    expect(html).toContain('data-wall-color-clear="true"');
+  });
+
+  it('omits the wall color control without sections', () => {
+    const html = renderToStaticMarkup(React.createElement(LayoutEditorPanel, baseProps));
+    expect(html).not.toContain('data-wall-color-control="true"');
+  });
+});
+
+describe('LayoutEditorPanel debug entry (M009/S03)', () => {
+  const baseProps = {
+    editorMode: 'view' as EditorMode,
+    onModeChange: () => undefined,
+    selectedColor: { h: 0, s: 0, b: 100 } as HsbColor,
+    onColorChange: () => undefined,
+    selectedFurniture: 'hc_chr',
+    onFurnitureChange: () => undefined,
+    furnitureDirection: 0,
+    onRotate: () => undefined,
+    onSave: () => undefined,
+    onLoad: () => undefined,
+    onClose: () => undefined,
+  };
+
+  it('renders the Debug Surfaces entry in dev mode with a wired click handler', () => {
+    const html = renderToStaticMarkup(
+      React.createElement(LayoutEditorPanel, {
+        ...baseProps,
+        devMode: true,
+        onDevCapture: () => undefined,
+        onOpenDebug: () => undefined,
+      }),
+    );
+    expect(html).toContain('data-open-debug="true"');
+    expect(html).toContain('Debug Surfaces');
+  });
+
+  it('keeps the debug entry hidden outside dev mode', () => {
+    const html = renderToStaticMarkup(
+      React.createElement(LayoutEditorPanel, {
+        ...baseProps,
+        onOpenDebug: () => undefined,
+      }),
+    );
+    expect(html).not.toContain('data-open-debug="true"');
+    expect(html).not.toContain('Debug Surfaces');
+  });
+
+  it('renders the debug entry even without a dev-capture handler', () => {
+    const html = renderToStaticMarkup(
+      React.createElement(LayoutEditorPanel, {
+        ...baseProps,
+        devMode: true,
+        onOpenDebug: () => undefined,
+      }),
+    );
+    expect(html).toContain('data-open-debug="true"');
+    expect(html).not.toContain('Dev Capture');
+  });
+});
+
+describe('RoleOutfitMatrix render parity (M009/S03)', () => {
+  const stubCache = {
+    hasNitroAsset: (name: string) => name === 'hh_human_body',
+  } as unknown as SpriteCache;
+
+  it('renders the canvas grid for all four roles when figures are available', () => {
+    const html = renderToStaticMarkup(
+      React.createElement(RoleOutfitMatrix, { spriteCache: stubCache }),
+    );
+    expect(html).toContain('data-role-outfit-matrix="true"');
+    expect(html).toContain('data-roles="planning,core-dev,infrastructure,support"');
+    expect(html).toContain('<canvas');
+  });
+
+  it('shows a fallback without the figure cache', () => {
+    const html = renderToStaticMarkup(
+      React.createElement(RoleOutfitMatrix, { spriteCache: null }),
+    );
+    expect(html).toContain('data-role-outfit-matrix-fallback="true"');
+    expect(html).not.toContain('<canvas');
+  });
+});
+
+describe('DebugSurfaces render parity (M009/S03)', () => {
+  const stubCache = {
+    hasNitroAsset: (name: string) => name === 'hh_human_body',
+  } as unknown as SpriteCache;
+
+  it('hosts both matrices with role/direction controls and a close control', () => {
+    const html = renderToStaticMarkup(
+      React.createElement(DebugSurfaces, {
+        spriteCache: stubCache,
+        onClose: () => undefined,
+      }),
+    );
+    expect(html).toContain('data-debug-surfaces="true"');
+    expect(html).toContain('data-debug-role="true"');
+    expect(html).toContain('data-debug-direction-set="true"');
+    expect(html).toContain('data-debug-close="true"');
+    expect(html).toContain('Sprite Sheet Matrix');
+    expect(html).toContain('data-avatar-debug-grid="true"');
+    expect(html).toContain('data-spritesheet-matrix="true"');
+    expect(html).toContain('Role Outfit Matrix');
+    expect(html).toContain('data-role-outfit-matrix="true"');
+    for (const label of ['Planning', 'Core Dev', 'Infrastructure', 'Support']) {
+      expect(html).toContain(label);
+    }
   });
 });
 

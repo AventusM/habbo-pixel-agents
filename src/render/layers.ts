@@ -62,6 +62,7 @@ export interface RoomLayerInputs {
   /** Identity/version token: any change re-renders (tile colors, booth frames, layout) */
   version: string;
   tileColorMap: Map<string, unknown> | null;
+  wallColorMap: Map<string, unknown> | null;
   furniture: unknown[];
   multiTileFurniture: unknown[];
   spriteCache: SpriteCache | undefined;
@@ -89,6 +90,7 @@ export class RoomLayer implements WorldLayer<RoomLayerInputs> {
       physicalH: number,
       dpr: number,
       tileColorMap: Map<string, unknown> | null,
+      wallColorMap: Map<string, unknown> | null,
     ) => OffscreenCanvas,
     private readonly createFurnitureRenderables: FurnitureRenderableFactory,
   ) {}
@@ -123,6 +125,7 @@ export class RoomLayer implements WorldLayer<RoomLayerInputs> {
       Math.floor(bufferCssH * dpr),
       dpr,
       inputs.tileColorMap,
+      inputs.wallColorMap,
     );
 
     const furnitureRenderables = inputs.spriteCache

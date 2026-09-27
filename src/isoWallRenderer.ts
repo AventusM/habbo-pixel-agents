@@ -53,6 +53,34 @@ function wallPanelColors(hsb: HsbColor, face: 'left' | 'right'): {
   };
 }
 
+/** Wall face shade for one segment, without allocating a full color set. */
+function wallFaceColor(hsb: HsbColor, face: 'left' | 'right'): string {
+  const { h, s, l } = hsbToHsl(hsb);
+  const baseL = face === 'left' ? Math.max(0, l - 10) : Math.max(0, l - 20);
+  return `hsl(${h}, ${s}%, ${baseL}%)`;
+}
+
+/** Wall front-face (shadow side) shade for one segment. */
+function wallFrontFaceColor(hsb: HsbColor, face: 'left' | 'right'): string {
+  const { h, s, l } = hsbToHsl(hsb);
+  const baseL = face === 'left' ? Math.max(0, l - 10) : Math.max(0, l - 20);
+  return `hsl(${h}, ${s}%, ${Math.max(0, baseL - 18)}%)`;
+}
+
+/**
+ * Per-segment wall color: an explicit per-section color when the segment's
+ * perimeter tile is present in `wallColorMap`, else the derived fallback.
+ */
+function resolveWallHsb(
+  wallColorMap: Map<string, HsbColor> | undefined,
+  tileX: number,
+  tileY: number,
+  fallback: HsbColor,
+): HsbColor {
+  const explicit = wallColorMap?.get(`${tileX},${tileY}`);
+  return explicit ?? fallback;
+}
+
 /**
  * Draw horizontal panel stripes and separator lines within a wall polygon.
  * The wall polygon is defined by `bottomPoints` (floor edge) which is the
@@ -140,6 +168,7 @@ export function drawWallPanels(
   cameraOrigin: { x: number; y: number },
   hsb: HsbColor,
   tileColorMap?: Map<string, HsbColor>,
+  wallColorMap?: Map<string, HsbColor>,
 ): void {
   const rawHsb = (tileColorMap && tileColorMap.get('0,0')) || hsb;
   // Walls are always neutral gray — strip saturation, keep brightness.
@@ -163,7 +192,6 @@ export function drawWallPanels(
   }
 
   if (leftEdge.length > 0) {
-    const { left } = tileColors(tileHsb);
     const bottomPoints: Array<{ x: number; y: number }> = [];
 
     // Start at back corner: top vertex of first left-edge tile
@@ -193,24 +221,25 @@ export function drawWallPanels(
       p.y -= capD / 2;
     }
 
-    // Draw polygon: bottom edge forward, top edge (shifted up) backward
-    ctx.beginPath();
-    ctx.moveTo(bottomPoints[0].x, bottomPoints[0].y);
-    for (let i = 1; i < bottomPoints.length; i++) {
-      ctx.lineTo(bottomPoints[i].x, bottomPoints[i].y);
+    // Draw the wall face as one quad per edge tile so each section can carry
+    // its own explicit wall color (M009/S02); unset tiles use the fallback.
+    for (let k = 0; k < leftEdge.length; k++) {
+      const seg = leftEdge[k];
+      const segHsb = resolveWallHsb(wallColorMap, seg.tx, seg.ty, tileHsb);
+      ctx.beginPath();
+      ctx.moveTo(bottomPoints[k].x, bottomPoints[k].y);
+      ctx.lineTo(bottomPoints[k + 1].x, bottomPoints[k + 1].y);
+      ctx.lineTo(bottomPoints[k + 1].x, bottomPoints[k + 1].y - WALL_HEIGHT);
+      ctx.lineTo(bottomPoints[k].x, bottomPoints[k].y - WALL_HEIGHT);
+      ctx.closePath();
+      ctx.fillStyle = wallFaceColor(segHsb, 'left');
+      ctx.fill();
     }
-    for (let i = bottomPoints.length - 1; i >= 0; i--) {
-      ctx.lineTo(bottomPoints[i].x, bottomPoints[i].y - WALL_HEIGHT);
-    }
-    ctx.closePath();
-    ctx.fillStyle = left;
-    ctx.fill();
 
     // --- LEFT WALL TOP CAP (visible top surface of the wall slab) ---
     // The cap runs from the recessed wall outer edge to the floor edge (inner).
     // Includes index 0 (the corner point) so the cap fully covers the wall top
     // all the way to the corner — the corner diamond overlaps but uses the same color.
-    const topColors = wallPanelColors(tileHsb, 'left');
     if (bottomPoints.length > 1) {
       ctx.beginPath();
       // Outer ceiling edge (recessed wall top, back to front)
@@ -234,21 +263,24 @@ export function drawWallPanels(
 
     // --- LEFT WALL BOTTOM FACE (baseboard strip bridging wall to floor) ---
     // Connects recessed wall bottom to the floor edge — fills the gap.
-    ctx.beginPath();
-    ctx.moveTo(bottomPoints[0].x, bottomPoints[0].y);
-    for (let i = 1; i < bottomPoints.length; i++) {
-      ctx.lineTo(bottomPoints[i].x, bottomPoints[i].y);
+    for (let k = 0; k < leftEdge.length; k++) {
+      const seg = leftEdge[k];
+      const segHsb = resolveWallHsb(wallColorMap, seg.tx, seg.ty, tileHsb);
+      ctx.beginPath();
+      ctx.moveTo(bottomPoints[k].x, bottomPoints[k].y);
+      ctx.lineTo(bottomPoints[k + 1].x, bottomPoints[k + 1].y);
+      ctx.lineTo(floorEdgePoints[k + 1].x, floorEdgePoints[k + 1].y);
+      ctx.lineTo(floorEdgePoints[k].x, floorEdgePoints[k].y);
+      ctx.closePath();
+      ctx.fillStyle = wallFaceColor(segHsb, 'left');
+      ctx.fill();
     }
-    for (let i = floorEdgePoints.length - 1; i >= 0; i--) {
-      ctx.lineTo(floorEdgePoints[i].x, floorEdgePoints[i].y);
-    }
-    ctx.closePath();
-    ctx.fillStyle = topColors.base;
-    ctx.fill();
 
     // --- LEFT WALL FRONT FACE (pre-floor: behind floor tiles) ---
     const lastFloorPt = floorEdgePoints[floorEdgePoints.length - 1];
     const lastWallPt = bottomPoints[bottomPoints.length - 1];
+    const lastSeg = leftEdge[leftEdge.length - 1];
+    const lastSegHsb = resolveWallHsb(wallColorMap, lastSeg.tx, lastSeg.ty, tileHsb);
     const floorOverlapL = FLOOR_THICKNESS + 2;
     ctx.beginPath();
     ctx.moveTo(lastFloorPt.x, lastFloorPt.y + floorOverlapL);
@@ -256,7 +288,7 @@ export function drawWallPanels(
     ctx.lineTo(lastWallPt.x, lastWallPt.y - WALL_HEIGHT);
     ctx.lineTo(lastWallPt.x, lastWallPt.y + floorOverlapL);
     ctx.closePath();
-    ctx.fillStyle = topColors.capFront;
+    ctx.fillStyle = wallFrontFaceColor(lastSegHsb, 'left');
     ctx.fill();
   }
   const rightEdge: Array<{ tx: number; ty: number; height: number }> = [];
@@ -272,7 +304,6 @@ export function drawWallPanels(
   }
 
   if (rightEdge.length > 0) {
-    const { right } = tileColors(tileHsb);
     const bottomPoints: Array<{ x: number; y: number }> = [];
 
     // Start at back corner: top vertex of first right-edge tile
@@ -301,23 +332,23 @@ export function drawWallPanels(
       p.y -= capD / 2;
     }
 
-    ctx.beginPath();
-    ctx.moveTo(bottomPoints[0].x, bottomPoints[0].y);
-    for (let i = 1; i < bottomPoints.length; i++) {
-      ctx.lineTo(bottomPoints[i].x, bottomPoints[i].y);
+    for (let k = 0; k < rightEdge.length; k++) {
+      const seg = rightEdge[k];
+      const segHsb = resolveWallHsb(wallColorMap, seg.tx, seg.ty, tileHsb);
+      ctx.beginPath();
+      ctx.moveTo(bottomPoints[k].x, bottomPoints[k].y);
+      ctx.lineTo(bottomPoints[k + 1].x, bottomPoints[k + 1].y);
+      ctx.lineTo(bottomPoints[k + 1].x, bottomPoints[k + 1].y - WALL_HEIGHT);
+      ctx.lineTo(bottomPoints[k].x, bottomPoints[k].y - WALL_HEIGHT);
+      ctx.closePath();
+      ctx.fillStyle = wallFaceColor(segHsb, 'right');
+      ctx.fill();
     }
-    for (let i = bottomPoints.length - 1; i >= 0; i--) {
-      ctx.lineTo(bottomPoints[i].x, bottomPoints[i].y - WALL_HEIGHT);
-    }
-    ctx.closePath();
-    ctx.fillStyle = right;
-    ctx.fill();
 
     // --- RIGHT WALL TOP CAP (visible top surface of the wall slab) ---
     // The cap runs from the recessed wall outer edge to the floor edge (inner).
     // Includes index 0 (the corner point) so the cap fully covers the wall top
     // all the way to the corner — the corner diamond overlaps but uses the same color.
-    const topColors = wallPanelColors(tileHsb, 'right');
     if (bottomPoints.length > 1) {
       ctx.beginPath();
       // Outer ceiling edge (recessed wall top, back to front)
@@ -340,21 +371,24 @@ export function drawWallPanels(
 
 
     // --- RIGHT WALL BOTTOM FACE (baseboard strip bridging wall to floor) ---
-    ctx.beginPath();
-    ctx.moveTo(bottomPoints[0].x, bottomPoints[0].y);
-    for (let i = 1; i < bottomPoints.length; i++) {
-      ctx.lineTo(bottomPoints[i].x, bottomPoints[i].y);
+    for (let k = 0; k < rightEdge.length; k++) {
+      const seg = rightEdge[k];
+      const segHsb = resolveWallHsb(wallColorMap, seg.tx, seg.ty, tileHsb);
+      ctx.beginPath();
+      ctx.moveTo(bottomPoints[k].x, bottomPoints[k].y);
+      ctx.lineTo(bottomPoints[k + 1].x, bottomPoints[k + 1].y);
+      ctx.lineTo(floorEdgePoints[k + 1].x, floorEdgePoints[k + 1].y);
+      ctx.lineTo(floorEdgePoints[k].x, floorEdgePoints[k].y);
+      ctx.closePath();
+      ctx.fillStyle = wallFaceColor(segHsb, 'right');
+      ctx.fill();
     }
-    for (let i = floorEdgePoints.length - 1; i >= 0; i--) {
-      ctx.lineTo(floorEdgePoints[i].x, floorEdgePoints[i].y);
-    }
-    ctx.closePath();
-    ctx.fillStyle = topColors.base;
-    ctx.fill();
 
     // --- RIGHT WALL FRONT FACE (pre-floor: behind floor tiles) ---
     const lastFloorPt = floorEdgePoints[floorEdgePoints.length - 1];
     const lastWallPt = bottomPoints[bottomPoints.length - 1];
+    const lastSeg = rightEdge[rightEdge.length - 1];
+    const lastSegHsb = resolveWallHsb(wallColorMap, lastSeg.tx, lastSeg.ty, tileHsb);
     const floorOverlapR = FLOOR_THICKNESS + 2;
     ctx.beginPath();
     ctx.moveTo(lastFloorPt.x, lastFloorPt.y + floorOverlapR);
@@ -362,7 +396,7 @@ export function drawWallPanels(
     ctx.lineTo(lastWallPt.x, lastWallPt.y - WALL_HEIGHT);
     ctx.lineTo(lastWallPt.x, lastWallPt.y + floorOverlapR);
     ctx.closePath();
-    ctx.fillStyle = topColors.capFront;
+    ctx.fillStyle = wallFrontFaceColor(lastSegHsb, 'right');
     ctx.fill();
   }
   // --- BACK CORNER FILL (cross-section between the two walls) ---
@@ -377,7 +411,7 @@ export function drawWallPanels(
 
     // Corner wall colors — same shading as main walls
     const rawCornerHsb = (tileColorMap && tileColorMap.get('0,0')) || hsb;
-    const cornerHsb: HsbColor = { h: rawCornerHsb.h, s: 0, b: rawCornerHsb.b };
+    const cornerHsb: HsbColor = wallColorMap?.get('0,0') ?? { h: rawCornerHsb.h, s: 0, b: rawCornerHsb.b };
     const { left: cornerLeft, right: cornerRight } = tileColors(cornerHsb);
 
     const capD = WALL_THICKNESS;
