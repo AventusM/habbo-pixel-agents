@@ -1,0 +1,108 @@
+name: "GSD Slice"
+description: "Plan a GSD milestone slice — emits the canonical issue shape (docs/guides/ISSUE-PR-CONTRACT.md)"
+labels: ["enhancement", "gsd", "gsd:synced"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Canonical slice issue. Fill every section: Goal / Demo / Outcomes (O-N) /
+        Exclusions (X-N) / GSD tasks, plus the gsd-meta trailer values below.
+        The plan-time publisher (S02) fills this form mechanically and idempotently.
+
+  - type: textarea
+    id: goal
+    attributes:
+      label: Goal
+      description: "One-sentence deliverable"
+      placeholder: "Define the canonical issue+PR contracts and ship them as templates + docs."
+    validations:
+      required: true
+
+  - type: textarea
+    id: demo
+    attributes:
+      label: Demo
+      description: "Observable end state — what a human checks"
+      placeholder: "Create a new slice issue and a PR from the templates; both render the identical canonical skeleton."
+    validations:
+      required: true
+
+  - type: textarea
+    id: outcomes
+    attributes:
+      label: Outcomes
+      description: "Verifiable end states, one per line, phrased as `O-N — outcome`. IDs are stable once published: never renumber, only append."
+      placeholder: |
+        O-1 — Contract doc defines both shapes, outcome IDs, and trailer keys
+        O-2 — Issue template emits the canonical issue shape
+        O-3 — PR template carries the abide/JEV compliance table
+    validations:
+      required: true
+
+  - type: textarea
+    id: exclusions
+    attributes:
+      label: Exclusions
+      description: "Explicit non-goals, one per line (X-N — exclusion). Anything inside these fences is out of scope."
+      placeholder: |
+        X-1 — no changes to the room render pipeline
+        X-2 — no new dependencies
+    validations:
+      required: true
+
+  - type: textarea
+    id: gsd-tasks
+    attributes:
+      label: GSD tasks
+      description: "Planned task bullets (T01..Tn), or 'Planned at execution time by the worker lane'"
+      placeholder: |
+        - T01 — Contract spec doc
+        - T02 — Issue template emits canonical shape
+    validations:
+      required: true
+
+  - type: dropdown
+    id: risk
+    attributes:
+      label: Risk
+      description: "Slice risk level (mirrored into the GSD slice seal line)"
+      options:
+        - low
+        - medium
+        - high
+    validations:
+      required: true
+
+  - type: input
+    id: depends
+    attributes:
+      label: Depends
+      description: "Comma-separated slice IDs this depends on (leave empty if none)"
+      placeholder: "S01, S02"
+
+  - type: markdown
+    attributes:
+      value: |
+        ## gsd-meta trailer
+
+        The values below are rendered after the `GSD slice …` seal line as a
+        machine-readable trailer (see `docs/guides/ISSUE-PR-CONTRACT.md` §3).
+        The review lane diffs the PR's `outcomes` set against the issue's set,
+        so keep the outcome IDs in sync.
+
+  - type: textarea
+    id: gsd-meta
+    attributes:
+      label: gsd-meta trailer
+      description: "Machine-readable trailer keys: milestone, slice, parent, stacked-on, outcomes, human-merge"
+      value: |
+        <!-- gsd-meta
+        milestone: M000
+        slice: S00
+        parent: main
+        stacked-on:
+        outcomes: O-1,O-2
+        human-merge: false
+        -->
+    validations:
+      required: true
