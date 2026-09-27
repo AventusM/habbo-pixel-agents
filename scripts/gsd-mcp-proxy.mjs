@@ -5,11 +5,20 @@
 // This proxy injects a replay-stable key derived from tool name + arguments.
 import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const REAL_SERVER =
   '/Users/antonmoroz/.volta/tools/image/packages/@opengsd/gsd-pi/lib/node_modules/@opengsd/gsd-pi/packages/mcp-server/bin/gsd-mcp-server.js';
 
 const IDEMPOTENCY_KEY = 'io.opengsd/idempotency-key';
+
+// The GSD MCP server anchors planning mutations to its process cwd, not to the
+// projectDir argument. Harnesses start this proxy with the agent's cwd — a
+// worktree when the agent runs isolated — so planning writes would land in the
+// worktree's local .gsd/gsd.db instead of the project's. Pin the child's cwd to
+// the checkout that owns this proxy; that checkout is the project root.
+const PROJECT_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 function stableKey(params) {
   const { _meta, ...rest } = params ?? {};
@@ -20,7 +29,9 @@ function stableKey(params) {
 const child = spawn(process.execPath, [REAL_SERVER], {
   stdio: ['pipe', 'pipe', 'inherit'],
   env: process.env,
+  cwd: PROJECT_ROOT,
 });
+process.stderr.write(`[gsd-mcp-proxy] project root pinned to ${PROJECT_ROOT}\n`);
 
 let childBuf = '';
 child.stdout.on('data', (chunk) => {
