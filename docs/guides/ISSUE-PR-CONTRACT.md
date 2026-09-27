@@ -154,3 +154,14 @@ dedupe key so re-runs never double-post.
 - Fixture: `tests/issue-pr-contract.test.ts` asserts both templates render
   this canonical skeleton (sections, outcome-ID placeholders, trailer keys,
   JEV table columns).
+
+## Mechanization (M010/S03)
+
+- `node scripts/gsd-pr-contract.mjs --pr <n> --issue <m> [--report <path>] [--dry-run]`
+  enforces sections 2–5 + 7 (trailer parse, outcome parity, JEV-section rows /
+  bands / verdict, fresh-approval vocabulary); exit 0 clear, 1 refuse with a
+  kebab-case reason, 2 usage. `--json` emits the machine-readable verdict for
+  the review lane. Approval + seal-comment helpers live in
+  `scripts/gsd-github-reactions.mjs` (`isApprovalBody`, `findFreshApproval`,
+  `approvalLifts`, `buildReactionComment`); evidence in
+  `tests/gsd-pr-contract.test.ts`.

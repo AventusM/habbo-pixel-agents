@@ -16,7 +16,10 @@ exists (tracked by M010/S03).
 ## Rules
 
 - Every lane change lands in BOTH the Paseo schedule and its repo copy; update the
-  "Last synced" note below in the same change.
+  "Last synced" note below in the same change. Verify the mirror by diffing the
+  schedule prompt against the repo copy (prompt text identical modulo the lane
+  header); the contract gate (`node scripts/gsd-pr-contract.mjs`) checks artifact
+  shape, not prompt text — prompt parity stays a human check at sync time.
 - These are repo-specific lane prompts, NOT the upstream gsd-loop playbooks. The
   gsd-loop skills only treat `loop/*.md` as canonical when the repository
   identifies as the gsd-loop source (`README.md` starts with `# gsd-loop`), which
@@ -29,6 +32,12 @@ exists (tracked by M010/S03).
 sync, and the HUMAN APPROVAL ("ok") rule (a fresh approval comment — postdating
 the head commit, never a `gsd-loop`/`GSD:` comment — lifts `gsd:escalated` /
 "Human merge only" / stacked-delivery gates; it never clears `gsd:blocked`).
+2026-09-28 — continue/review/build v4 (M010/S03): lane copies cite the contract
+gate (`node scripts/gsd-pr-contract.mjs --dry-run`) for parity + JEV-section
+pre-checks, the mechanized approval vocabulary (`isApprovalBody` /
+`findFreshApproval` / `approvalLifts`), and the exp-draft scope note; sync rule
+now states prompt parity stays a human check (the gate covers artifacts only).
+Paseo schedule prompts to be updated to match by the owner (runtime source).
 2026-09-27 — continue v2: `2b` PLAN SYNC (D035 — publish planned slices as
 `M00X/S0Y` issues, idempotent, cap 8/pass). New planner lane `663556fb`
 (trigger-only): interviews the owner, plans milestones with the GSD tools,
