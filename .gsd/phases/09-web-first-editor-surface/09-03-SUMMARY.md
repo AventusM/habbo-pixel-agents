@@ -43,10 +43,11 @@ D018/D034 constraint). No new code in this pass — gates re-run fresh below.
 - The seal-time `gsd-event-hook.mjs --github` reconcile was **not re-run**:
   issue #139 already carries the delivered+merged reconcile comment and is
   closed; a re-run risks duplicate noise.
-- Q15 `scripts/hooks/jeve-report.mjs` postdates the S03 code merge (it landed
-  via PR #141 after the code), so no Q15 handoff artifact exists for these
-  commits; no JEV gateway calls were made this pass (nothing to judge — zero
-  uncommitted changes under `src scripts tests`).
+- Q15 `scripts/hooks/jeve-report.mjs` postdates the S03 code merge (it was
+  authored later on `gsd/q15-jeve-handoff`, outside this pass's PR lineage —
+  PR #141 was an unrelated planner-lane merge), so no Q15 handoff artifact
+  exists for these commits; no JEV gateway calls were made this pass (nothing
+  to judge — zero uncommitted changes under `src scripts tests`).
 
 ## Pending
 

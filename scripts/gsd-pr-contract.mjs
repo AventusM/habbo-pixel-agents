@@ -52,25 +52,17 @@ export const REFUSALS = [
   'jev-report-band-mismatch',
 ];
 
-/** Fix hint for JEV refusals: names the handoff-report command when it exists,
-// otherwise the inspectable-artifact fallback (Q15 tooling not merged yet). */
+/**
+ * Fix hint for JEV refusals: the merged Q15 handoff-report command and the
+ * artifact path it writes. The committed pair must expose the fields
+ * checkJevReport (below) cross-checks — head.sha, changedFiles, and per-rule
+ * findings (rule + band) — or freshness/coverage/band verification cannot run.
+ */
 export function jevFixHint(headSha) {
-  const tool = 'scripts/hooks/jeve-report.mjs';
-  let exists = false;
-  try {
-    exists = fs.existsSync(path.resolve(path.dirname(new URL(import.meta.url).pathname), 'hooks/jeve-report.mjs'));
-  } catch {
-    exists = false;
-  }
-  if (exists) {
-    return (
-      `run node ${tool} --base origin/main --head ${headSha || '<headSha>'} --out .abide/reports ` +
-      `and commit .abide/reports/*-<sha8>.{json,md}`
-    );
-  }
+  const sha = headSha || '<headSha>';
   return (
-    'Q15 handoff tooling not merged — attach an inspectable abide check/audit ' +
-    `artifact for head ${headSha || '<headSha>'} covering the changed files`
+    `run node scripts/hooks/jeve-report.mjs --base origin/main --head ${sha} --out .abide/reports ` +
+    'and commit .abide/reports/*-<headSha8>.{json,md}'
   );
 }
 
