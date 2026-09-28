@@ -165,3 +165,5 @@ dedupe key so re-runs never double-post.
   `scripts/gsd-github-reactions.mjs` (`isApprovalBody`, `findFreshApproval`,
   `approvalLifts`, `buildReactionComment`); evidence in
   `tests/gsd-pr-contract.test.ts`.
+
+<!-- S04 walkthrough probe: scratch/m010-s04-walkthrough (never merge) -->
