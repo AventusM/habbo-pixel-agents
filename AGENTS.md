@@ -64,6 +64,11 @@ with in-turn repair). Every rule below is written as a concrete, diff-observable
   wiring, or spawn/camera orchestration — directly inside a component body when it belongs in a
   custom hook, container, or store; local presentational state (a UI toggle, a hover index) is
   exempt.
+- A change must not define a React component inside another component or render body — declare
+  components at module scope and pass data through props.
+- A change must not pass a freshly created object, array, or function as a hook dependency —
+  stabilize it with `useMemo`/`useCallback`, move the value inside the effect, or depend on
+  primitives.
 
 ### Guidance tier (carried by skills, not enforced)
 

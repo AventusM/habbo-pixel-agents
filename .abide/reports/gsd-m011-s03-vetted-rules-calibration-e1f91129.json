@@ -1,0 +1,105 @@
+{
+  "version": 1,
+  "generator": "jeve-report/1.0.0",
+  "generatedAt": "2026-09-28T22:56:38.282Z",
+  "repo": {
+    "root": "/Users/antonmoroz/dev/habbo-pixel-agents",
+    "name": "AventusM/habbo-pixel-agents"
+  },
+  "branch": "gsd/m011-s03-vetted-rules-calibration",
+  "base": {
+    "ref": "origin/main",
+    "sha": "a20081014cb51f7c46d31e21ad1f9fdeebd8aaad"
+  },
+  "head": {
+    "sha": "e1f91129bda1de97acb8a4bf09757d277623ebb7",
+    "shortSha": "e1f91129",
+    "subject": "chore(M011/S03): seal slice with SUMMARY (delivered, review pending)"
+  },
+  "changedFiles": [
+    ".abide/reports/m011-s03-calibrate.json",
+    ".abide/reports/m011-s03-probe-verdicts.json",
+    ".abide/reports/m011-s03-rule-candidates.md",
+    ".abide/rubric.json",
+    ".gsd/phases/11-jev-enforcement-that-actually-runs-vette/11-03-PLAN.md",
+    ".gsd/phases/11-jev-enforcement-that-actually-runs-vette/11-03-SUMMARY.md",
+    "AGENTS.md"
+  ],
+  "deletedFiles": [],
+  "rules": [],
+  "files": [
+    {
+      "path": ".abide/reports/m011-s03-calibrate.json",
+      "status": "no-rules",
+      "lastEventAt": null,
+      "governedRules": []
+    },
+    {
+      "path": ".abide/reports/m011-s03-probe-verdicts.json",
+      "status": "no-rules",
+      "lastEventAt": null,
+      "governedRules": []
+    },
+    {
+      "path": ".abide/reports/m011-s03-rule-candidates.md",
+      "status": "no-rules",
+      "lastEventAt": null,
+      "governedRules": []
+    },
+    {
+      "path": ".abide/rubric.json",
+      "status": "no-rules",
+      "lastEventAt": null,
+      "governedRules": []
+    },
+    {
+      "path": ".gsd/phases/11-jev-enforcement-that-actually-runs-vette/11-03-PLAN.md",
+      "status": "no-rules",
+      "lastEventAt": null,
+      "governedRules": []
+    },
+    {
+      "path": ".gsd/phases/11-jev-enforcement-that-actually-runs-vette/11-03-SUMMARY.md",
+      "status": "no-rules",
+      "lastEventAt": "2026-09-28T22:56:25.539Z",
+      "governedRules": []
+    },
+    {
+      "path": "AGENTS.md",
+      "status": "no-rules",
+      "lastEventAt": "2026-09-28T22:53:16.291Z",
+      "governedRules": []
+    }
+  ],
+  "lintRules": [
+    "hooks-top-level",
+    "exhaustive-deps",
+    "typescript-eslint-recommended"
+  ],
+  "excludedRules": {
+    "deferred": 0,
+    "unenforceable": 3
+  },
+  "live": {
+    "ran": false,
+    "reason": "live check not requested",
+    "spendUsd": 0
+  },
+  "totals": {
+    "checks": 0,
+    "clear": 0,
+    "act": 0,
+    "blocked": 0,
+    "unverified": 0,
+    "skips": 10,
+    "files": 7,
+    "governedFiles": 0,
+    "costUsd": 0
+  },
+  "verdict": "empty",
+  "notes": [
+    "events bounded to base commit time (2026-09-29T01:43:50+03:00)",
+    "10 skip event(s) in window (carry no files): turn diff incomplete: git could not snapshot the working tree in time",
+    "3 lint rule(s) enforced by eslint (not scored here): hooks-top-level, exhaustive-deps, typescript-eslint-recommended"
+  ]
+}
