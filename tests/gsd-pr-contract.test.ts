@@ -5,6 +5,8 @@
 // (helpers live in scripts/gsd-github-reactions.mjs, re-exported by the gate).
 
 import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import {
   parseTrailer,
   parseIssueOutcomes,
@@ -13,6 +15,7 @@ import {
   checkJevSection,
   checkJevReport,
   scopeMatches,
+  governedRulesForFiles,
   isApprovalBody,
   findFreshApproval,
   approvalLifts,
@@ -121,6 +124,51 @@ describe('scopeMatches', () => {
     expect(scopeMatches('src/iso*Renderer*.ts', 'src/isoTileRenderer.ts')).toBe(true);
     expect(scopeMatches('src/iso*Renderer*.ts', 'src/roomCanvas.ts')).toBe(false);
     expect(scopeMatches('src/RoomCanvas.tsx', 'src/RoomCanvas.tsx')).toBe(true);
+  });
+
+  it('matches the script extension globs the widened rules carry', () => {
+    expect(scopeMatches('**/*.mjs', 'scripts/gsd-pr-contract.mjs')).toBe(true);
+    expect(scopeMatches('**/*.mjs', 'esbuild.config.mjs')).toBe(true);
+    expect(scopeMatches('**/*.mjs', 'bin/habbo-dashboard.mjs')).toBe(true);
+    expect(scopeMatches('**/*.mts', 'scripts/jeve-report.d.mts')).toBe(true);
+    expect(scopeMatches('**/*.cjs', 'packages/agent-dashboard/dist/x.cjs')).toBe(true);
+    expect(scopeMatches('**/*.mjs', 'src/RoomCanvas.tsx')).toBe(false);
+  });
+});
+
+// Whole-codebase governance: the committed rubric must scope script modules so a
+// scripts/*.mjs diff is judged instead of falling through .ts/.tsx-only scopes.
+const REAL_RUBRIC = JSON.parse(
+  readFileSync(fileURLToPath(new URL('../.abide/rubric.json', import.meta.url)), 'utf8'),
+);
+
+describe('rubric script scopes', () => {
+  it('governs root and scripts JS modules with lint rules and the model rules', () => {
+    for (const file of ['scripts/gsd-pr-contract.mjs', 'scripts/web-server.mjs', 'esbuild.config.mjs']) {
+      const ids = governedRulesForFiles(REAL_RUBRIC, [file]).map((r) => r.id);
+      for (const id of [
+        'hooks-top-level',
+        'exhaustive-deps',
+        'typescript-eslint-recommended',
+        'no-new-object-in-memo-props',
+        'no-derived-state-effect',
+        'no-listener-without-cleanup',
+        'no-fetch-in-components',
+        'lazy-loading-fallback',
+        'no-children-clone-for-state',
+        'no-app-logic-in-components',
+      ]) {
+        expect(ids).toContain(id);
+      }
+    }
+  });
+
+  it('keeps only the JSX-only and path-specific rules narrow', () => {
+    const ids = governedRulesForFiles(REAL_RUBRIC, ['scripts/web-server.mjs']).map((r) => r.id);
+    // Context.Provider value needs JSX, so only .tsx files qualify.
+    expect(ids).not.toContain('no-new-object-in-context-value');
+    // Per-frame render path is pinned to the canvas/renderer sources.
+    expect(ids).not.toContain('no-frame-allocations');
   });
 });
 
