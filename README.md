@@ -390,6 +390,69 @@ node scripts/pack-pixellab-furniture.mjs assets/pixellab/furniture/my-desk.png m
 
 Then register the item in `src/furnitureRegistry.ts` and rebuild.
 
+### Abide/JEV fire drill
+
+The abide rules in `AGENTS.md` (compiled to `.abide/rubric.json`) govern every
+applicable file type — `ts/tsx/mjs/mts/cjs/js` — not just components. To see
+the judge catch a violation live, break a rule, run `abide check`, then revert:
+
+```bash
+# 1. Break no-fetch-in-components (raw fetch inside a custom hook, .ts counts)
+#    append to src/kanbanFilter.ts:
+#    export function useDemoRemoteCards(url: string): unknown {
+#      const [cards, setCards] = useState<unknown>(null);
+#      useEffect(() => { fetch(url).then((r) => r.json()).then(setCards); }, [url]);
+#      return cards;
+#    }
+
+# 2. Break no-listener-without-cleanup (leaked timer, .mjs counts)
+#    append to scripts/web-server.mjs:
+#    export function useDemoPoller(fn) {
+#      setInterval(fn, 1000);
+#    }
+
+# 3. Watch both fire (each check is one cheap model call)
+abide check src/kanbanFilter.ts scripts/web-server.mjs
+# ▎ src/kanbanFilter.ts  ██████████ 0.98  no-fetch-in-components
+# ▎ scripts/web-server.mjs  █████████░ 0.86  no-listener-without-cleanup
+# ✗ 2 to repair
+
+# 4. Revert — the drill leaves no trace
+git checkout -- src/kanbanFilter.ts scripts/web-server.mjs
+abide check src/kanbanFilter.ts scripts/web-server.mjs
+# ✓ nothing to repair
+```
+
+Notes: the hook also flags violations at edit time (before you even run
+`check`). The judge evaluates code shape, not extensions — a bare top-level
+`setInterval` in a server entrypoint clears, while the same leak inside a
+hook-shaped function fires. Every PR gets the same treatment automatically via
+`.github/workflows/abide-pr-gate.yml`, with per-rule bands recorded by
+`node scripts/hooks/jeve-report.mjs` into `.abide/reports/`.
+
+### Whole-codebase audit snapshot
+
+`abide audit --all` judges every file in scope (224 files, ~95s, ~$0.04).
+Reference result on `main` @ `1bce4ff` (2026-09-28) — 215 files fully clear:
+
+| File | Rule | Band | Prob |
+|---|---|---|---|
+| `src/RoomCanvas.tsx` | no-frame-allocations / no-app-logic-in-components | act / act | 0.91 / 0.96 |
+| `src/isoAvatarRenderer.ts` | no-frame-allocations | act | 0.90 |
+| `src/isoFurnitureRenderer.ts` | no-frame-allocations | act | 0.90 |
+| `src/isoKanbanRenderer.ts` | no-frame-allocations | act | 0.88 |
+| `src/isoWallRenderer.ts` | no-frame-allocations | act | 0.83 |
+| `src/isoBubbleRenderer.ts` | no-frame-allocations | flag | 0.63 |
+| `src/isoTileRenderer.ts` | no-frame-allocations | flag | 0.66 |
+| `src/hooks/useRoomAgents.ts` | no-listener-without-cleanup | flag | 0.55 |
+| `src/RoomCanvas.tsx` | no-listener-without-cleanup | flag | 0.54 |
+| `src/web/main.tsx` | no-listener-without-cleanup / no-app-logic-in-components | flag / flag | 0.72 / 0.59 |
+
+All findings are pre-existing render-path debt (nothing from recent work):
+`RoomCanvas.tsx` is the documented extraction target for the
+presentational-container refactor, so its rows are the natural backlog for
+that milestone. Re-run any time with `abide audit --all --json`.
+
 ## Tech Stack
 
 - **TypeScript** — strict mode, ESM-first
