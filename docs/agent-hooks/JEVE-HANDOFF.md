@@ -123,6 +123,32 @@ worktrees alike (fresh worktrees are faster, not slower); no
   `m011-s01-t02-root-cause.md` (toggle matrix), `m011-s01-t03-workaround.md`
   (fresh-worktree `kind: check` verdict, 7/7 rules `clear`).
 
+## Plugin + credentials everywhere (M011/S02)
+
+The hook must intercept in the main checkout AND in fresh worktrees, with
+quota/auth failures as clear errors — never fabricated verdicts (D033).
+
+- **Credential sources** (exactly as `abide help` reports them): `abide login`,
+  or `TYPESAFE_AI_API_KEY` (or `AI_GATEWAY_API_KEY`) in the environment or a
+  `.env.local` or `.env` at the repo root. The pasted key goes to
+  `~/.abide/.env` (every repo on the machine, mode 600) or `.env.local`
+  (this repo, owner-only); a repo-root `.env` works too. Worktrees carry no
+  `.env`, so they resolve via the machine-global `~/.abide/.env`.
+- **Per-checkout setup**: `.opencode/plugins/abide.js` is tracked, so fresh
+  checkouts/worktrees inherit the hook. It re-exports an absolute
+  `file://…~/.local/share/abide/…` path; on a machine without that checkout,
+  run `abide init opencode` in the repo — verified to regenerate the committed
+  file byte-identically (hook self-test passes, rubric present).
+- **Failure contract**: with no key reachable the hook appends
+  `{"kind":"error","code":"NO_API_KEY",…}` to `.abide/events.jsonl` — a clear
+  error, never a `check` verdict. CLI `abide check` judges correctly in
+  worktrees but writes no events rows (verdicts surface on stdout only);
+  `.abide/events.jsonl` rows come from the agent hook path.
+- Evidence: `.abide/reports/m011-s02-t01-baseline.md` (plugin resolution,
+  credential presence, main + worktree probe quotes),
+  `m011-s02-t02-verdicts.md` (re-run verdicts, init-identical proof),
+  `m011-s02-t03-quota.md` (NO_API_KEY error quote, source list).
+
 ## Verification
 
 ```

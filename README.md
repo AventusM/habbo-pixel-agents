@@ -424,7 +424,13 @@ abide check src/kanbanFilter.ts scripts/web-server.mjs
 ```
 
 Notes: the hook also flags violations at edit time (before you even run
-`check`). The judge evaluates code shape, not extensions — a bare top-level
+`check`). The judge needs credentials: `abide login` (machine-global
+`~/.abide/.env`), or `TYPESAFE_AI_API_KEY` / `AI_GATEWAY_API_KEY` in the
+environment or repo-root `.env.local` / `.env` — worktrees resolve via the
+global file. Fresh checkouts inherit the tracked `.opencode/plugins/abide.js`;
+if the hook is missing on a new machine, run `abide init opencode` in the
+repo. Without a key the hook records a clear `NO_API_KEY` error, never a
+fabricated verdict. The judge evaluates code shape, not extensions — a bare top-level
 `setInterval` in a server entrypoint clears, while the same leak inside a
 hook-shaped function fires. Every PR gets the same treatment automatically via
 `.github/workflows/abide-pr-gate.yml`, with per-rule bands recorded by
