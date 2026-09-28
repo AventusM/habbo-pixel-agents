@@ -99,6 +99,30 @@ session is never blocked or broken.
 - The plugin's `.gsd/runtime/jeve-handoff/latest.*` copy is runtime-only
   (gitignored); the committed ground truth is `.abide/reports/`.
 
+## Worktree snapshots and the skip signature (M011/S01)
+
+A `skip` row with `reason: "turn diff incomplete: git could not snapshot the
+working tree in time"` usually does NOT mean slow git. Every hook in a turn
+snapshots through one shared scratch index
+(`snapshotTree(root, <turnDir>/index)`), so concurrent hooks of the same turn
+(parallel tool batches) collide on its `index.lock` and all but one fail in
+~30 ms with `fatal: Unable to create '.../index.lock': File exists`. The
+message covers that fast failure too, and the skips arrive in same-second
+pairs — that signature means "lock race", not "slow repo". Measured isolated
+costs are 50–260 ms against the 5 s / 8 s budgets, in main checkouts and fresh
+worktrees alike (fresh worktrees are faster, not slower); no
+`fsmonitor`/`untrackedCache`/`.gitignore` tuning is indicated.
+
+- Upstream (published CLI, not repo-owned):
+  https://github.com/coldteadotai/abide/issues/14
+- Workaround: ride through (the next sequential hook snapshots fine), or
+  reproduce the verdicts deterministically with `abide check <files>` — it
+  uses the `workingTreeDiff` path, and `GIT_INDEX_FILE` is set only in
+  `snapshotTree`, so `check` is immune to the race by construction.
+- Evidence: `.abide/reports/m011-s01-t01-baseline.md` (skip + timing table),
+  `m011-s01-t02-root-cause.md` (toggle matrix), `m011-s01-t03-workaround.md`
+  (fresh-worktree `kind: check` verdict, 7/7 rules `clear`).
+
 ## Verification
 
 ```
