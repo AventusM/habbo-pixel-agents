@@ -5,7 +5,7 @@
   "sources": [
     {
       "path": "AGENTS.md",
-      "sha": "58a4999d94dbffac132a9dfdbe71645d600e0dde238102c0667a6103cf01139e",
+      "sha": "4fc7bfff95d017a8534a4943e45cbb158d6a89ee6457fd3e53e01e3fd511c035",
       "scope": "**/*"
     },
     {
@@ -172,7 +172,7 @@
         "type": "model",
         "question": {
           "type": "boolean",
-          "instructions": "Does this change add a `useEffect` whose only action is to call a state setter with a value computed purely from props or other state — work that could be replaced by a `useMemo` or a plain derived variable in the render body?",
+          "instructions": "Does this change add a `useEffect` whose only action is to call a state setter with a value computed purely from props or other state — work that could be replaced by a `useMemo` or a plain derived variable in the render body? Deriving means the setter argument is a pure function of props, state, or hook values already in scope; an effect that also touches network, DOM, or subscriptions is not derivation-only.",
           "criteria": {
             "true": "useEffect(() => { setFullName(first + ' ' + last); }, [first, last]);",
             "false": "useEffect(() => { document.title = name; }, [name]);"
@@ -210,7 +210,7 @@
         "type": "model",
         "question": {
           "type": "boolean",
-          "instructions": "Does this change add an `addEventListener`, `setTimeout`, `setInterval`, `requestAnimationFrame` loop, or subscription call (`.subscribe(`, `.on(`) inside a hook or component without a matching cleanup (`removeEventListener`, `clearTimeout`, `clearInterval`, `cancelAnimationFrame`, `.unsubscribe(`, `.off(`) returned from the same `useEffect` or executed in the same teardown?",
+          "instructions": "Does this change add an `addEventListener`, `setTimeout`, `setInterval`, `requestAnimationFrame` loop, or subscription call (`.subscribe(`, `.on(`) inside a hook or component without a matching cleanup (`removeEventListener`, `clearTimeout`, `clearInterval`, `cancelAnimationFrame`, `.unsubscribe(`, `.off(`) returned from the same `useEffect` or executed in the same teardown? A cleanup counts only when the same effect callback returns a teardown (or calls AbortController.abort / clearTimeout / clearInterval / cancelAnimationFrame / unsubscribe) undoing every subscription that effect created; cleanup in a different effect or component does not count.",
           "criteria": {
             "true": "useEffect(() => { window.addEventListener('resize', handler); }, []);",
             "false": "useEffect(() => { window.addEventListener('resize', handler); return () => window.removeEventListener('resize', handler); }, []);"
@@ -358,7 +358,7 @@
         "type": "model",
         "question": {
           "type": "boolean",
-          "instructions": "Does this change add a `React.lazy(...)` import or a dynamic `import(...)` used as a component, without a `<Suspense fallback={...}>` wrapper whose fallback is a meaningful element (not `null`, `undefined`, or an empty fragment)?",
+          "instructions": "Does this change add a `React.lazy(...)` import or a dynamic `import(...)` used as a component, without a `<Suspense fallback={...}>` wrapper whose fallback is a meaningful element (not `null`, `undefined`, or an empty fragment)? Meaningful means a visible loading indicator element (spinner, skeleton, loading text); null, undefined, empty fragments, and boolean false do not count.",
           "criteria": {
             "true": "const Chart = React.lazy(() => import('./Chart')); // used with <Suspense fallback={null}>",
             "false": "const Chart = React.lazy(() => import('./Chart')); <Suspense fallback={<Spinner />}><Chart /></Suspense>"
@@ -396,7 +396,7 @@
         "type": "model",
         "question": {
           "type": "boolean",
-          "instructions": "Does this change add a `React.Children.map(...)` call that uses `React.cloneElement(child, ...)` to inject shared state or shared handlers into children?",
+          "instructions": "Does this change add a `React.Children.map(...)` call that uses `React.cloneElement(child, ...)` to inject shared state or shared handlers into children? Passing data through normal JSX props to explicitly named child components does not count; only React.Children.map plus cloneElement injection counts.",
           "criteria": {
             "true": "React.Children.map(children, child => React.cloneElement(child, { isSelected, onSelect }))",
             "false": "<SelectionContext.Provider value={{ isSelected, onSelect }}>{children}</SelectionContext.Provider>"
@@ -438,6 +438,64 @@
           "criteria": {
             "true": "useEffect(() => agentStore.subscribe(...), []) added inside RoomCanvas.tsx",
             "false": "const agents = useAgentStore(); the component renders; subscription and orchestration live in the hook/container"
+          }
+        }
+      },
+      "status": "active"
+    },
+    {
+      "id": "static-components",
+      "text": "A change must not define a React component inside another component or render body — declare components at module scope and pass data through props.",
+      "source": {
+        "path": "AGENTS.md",
+        "line": 67
+      },
+      "scope": [
+        "**/*.ts",
+        "**/*.tsx",
+        "**/*.mjs",
+        "**/*.mts",
+        "**/*.cjs",
+        "**/*.js"
+      ],
+      "when": "edit",
+      "check": {
+        "type": "model",
+        "question": {
+          "type": "boolean",
+          "instructions": "Does this change define a component (a function returning JSX, capitalized) inside another component body or render path, so the definition is recreated on every render?",
+          "criteria": {
+            "true": "function Parent() { const Child = () => <div />; return <Child />; }",
+            "false": "function Parent() { return <Child />; } function Child() { return <div />; }"
+          }
+        }
+      },
+      "status": "active"
+    },
+    {
+      "id": "no-unstable-dep-identity",
+      "text": "A change must not pass a freshly created object, array, or function as a hook dependency — stabilize it with `useMemo`/`useCallback`, move the value inside the effect, or depend on primitives.",
+      "source": {
+        "path": "AGENTS.md",
+        "line": 69
+      },
+      "scope": [
+        "**/*.ts",
+        "**/*.tsx",
+        "**/*.mjs",
+        "**/*.mts",
+        "**/*.cjs",
+        "**/*.js"
+      ],
+      "when": "edit",
+      "check": {
+        "type": "model",
+        "question": {
+          "type": "boolean",
+          "instructions": "Does this change list a freshly created object, array, or function — built in the render body without useMemo/useCallback — in a hook dependency array?",
+          "criteria": {
+            "true": "const chartConfig = { width: 800 }; useEffect(() => { initChart(chartConfig); }, [chartConfig]);",
+            "false": "const chartConfig = useMemo(() => ({ width: 800 }), []); useEffect(() => { initChart(chartConfig); }, [chartConfig]);"
           }
         }
       },
