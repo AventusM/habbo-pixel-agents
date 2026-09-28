@@ -163,5 +163,19 @@ dedupe key so re-runs never double-post.
   kebab-case reason, 2 usage. `--json` emits the machine-readable verdict for
   the review lane. Approval + seal-comment helpers live in
   `scripts/gsd-github-reactions.mjs` (`isApprovalBody`, `findFreshApproval`,
-  `approvalLifts`, `buildReactionComment`); evidence in
+  `approvalLifts`); evidence in
   `tests/gsd-pr-contract.test.ts`.
+
+## Validation notes (M010/S04 walkthrough)
+
+- Publisher re-runs race the GitHub search index: a re-run seconds after
+  create can miss the exact-title match and duplicate the issue (walkthrough:
+  #160 duplicated #159 after 3s; a re-run after the index settled logged
+  `updated #159`). Space publish re-runs past the index lag; the upsert itself
+  is exact-title idempotent. Scratch publishes use
+  `gsd-github-publish.mjs --scratch "<exact title>"` (sync labels omitted).
+- `gsd-event-hook.mjs --github --dry-run` is NOT side-effect-free:
+  `reactToGsd` guards writes with `if (!githubLive)` only, so adding
+  `--github` writes (label + comment) even with `--dry-run`. Walkthrough legs
+  use `--dry-run` without `--github` (read-only); fixing the guard is
+  sync write-path behavior change reserved for its own slice.
