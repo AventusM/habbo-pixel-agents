@@ -1,0 +1,289 @@
+{
+  "version": 1,
+  "generator": "jeve-report/1.0.0",
+  "generatedAt": "2026-09-28T18:47:49.635Z",
+  "repo": {
+    "root": "/Users/antonmoroz/dev/habbo-pixel-agents",
+    "name": "AventusM/habbo-pixel-agents"
+  },
+  "branch": "gsd/m010-s04-end-to-end-verification",
+  "base": {
+    "ref": "origin/main",
+    "sha": "9be8b256ae36d355254db2bce9c37bf27799d536"
+  },
+  "head": {
+    "sha": "ec21df7eeecb3a8679855e30aea5388f32b7f0b9",
+    "shortSha": "ec21df7e",
+    "subject": "fix(M010/S04): wire handoff report into abide PR gate + full history"
+  },
+  "changedFiles": [
+    ".github/workflows/abide-pr-gate.yml",
+    ".gsd/phases/10-structured-output-one-github-contract-fo/10-04-SUMMARY.md",
+    ".gsd/phases/10-structured-output-one-github-contract-fo/10-04-T02-EVIDENCE.md",
+    ".gsd/phases/10-structured-output-one-github-contract-fo/10-04-T03-EVIDENCE.md",
+    ".gsd/phases/10-structured-output-one-github-contract-fo/10-04-UAT.md",
+    "docs/guides/ISSUE-PR-CONTRACT.md",
+    "scripts/gsd-github-publish.d.mts",
+    "scripts/gsd-github-publish.mjs",
+    "scripts/jeve-report.mjs",
+    "tests/gsd-github-publish.test.ts",
+    "tests/jeve-report.test.ts"
+  ],
+  "deletedFiles": [
+    ".abide/reports/gsd-m010-s04-end-to-end-verification-30e4ed21.json",
+    ".abide/reports/gsd-m010-s04-end-to-end-verification-30e4ed21.md"
+  ],
+  "rules": [
+    {
+      "id": "no-new-object-in-memo-props",
+      "band": "clear",
+      "probability": 0.05,
+      "checks": 30,
+      "lastAt": "2026-09-28T18:42:15.289Z",
+      "evidence": "event",
+      "scope": [
+        "**/*.ts",
+        "**/*.tsx",
+        "**/*.mjs",
+        "**/*.mts",
+        "**/*.cjs",
+        "**/*.js"
+      ]
+    },
+    {
+      "id": "no-derived-state-effect",
+      "band": "clear",
+      "probability": 0.03,
+      "checks": 30,
+      "lastAt": "2026-09-28T18:42:15.289Z",
+      "evidence": "event",
+      "scope": [
+        "**/*.ts",
+        "**/*.tsx",
+        "**/*.mjs",
+        "**/*.mts",
+        "**/*.cjs",
+        "**/*.js"
+      ]
+    },
+    {
+      "id": "no-listener-without-cleanup",
+      "band": "clear",
+      "probability": 0.02,
+      "checks": 30,
+      "lastAt": "2026-09-28T18:42:15.289Z",
+      "evidence": "event",
+      "scope": [
+        "**/*.ts",
+        "**/*.tsx",
+        "**/*.mjs",
+        "**/*.mts",
+        "**/*.cjs",
+        "**/*.js"
+      ]
+    },
+    {
+      "id": "no-fetch-in-components",
+      "band": "clear",
+      "probability": 0.03,
+      "checks": 30,
+      "lastAt": "2026-09-28T18:42:15.289Z",
+      "evidence": "event",
+      "scope": [
+        "**/*.ts",
+        "**/*.tsx",
+        "**/*.mjs",
+        "**/*.mts",
+        "**/*.cjs",
+        "**/*.js"
+      ]
+    },
+    {
+      "id": "lazy-loading-fallback",
+      "band": "clear",
+      "probability": 0.03,
+      "checks": 30,
+      "lastAt": "2026-09-28T18:42:15.289Z",
+      "evidence": "event",
+      "scope": [
+        "**/*.ts",
+        "**/*.tsx",
+        "**/*.mjs",
+        "**/*.mts",
+        "**/*.cjs",
+        "**/*.js"
+      ]
+    },
+    {
+      "id": "no-children-clone-for-state",
+      "band": "clear",
+      "probability": 0.02,
+      "checks": 30,
+      "lastAt": "2026-09-28T18:42:15.289Z",
+      "evidence": "event",
+      "scope": [
+        "**/*.ts",
+        "**/*.tsx",
+        "**/*.mjs",
+        "**/*.mts",
+        "**/*.cjs",
+        "**/*.js"
+      ]
+    },
+    {
+      "id": "no-app-logic-in-components",
+      "band": "clear",
+      "probability": 0.03,
+      "checks": 30,
+      "lastAt": "2026-09-28T18:42:15.289Z",
+      "evidence": "event",
+      "scope": [
+        "**/*.ts",
+        "**/*.tsx",
+        "**/*.mjs",
+        "**/*.mts",
+        "**/*.cjs",
+        "**/*.js"
+      ]
+    }
+  ],
+  "files": [
+    {
+      "path": ".github/workflows/abide-pr-gate.yml",
+      "status": "no-rules",
+      "lastEventAt": "2026-09-28T18:47:38.134Z",
+      "governedRules": []
+    },
+    {
+      "path": ".gsd/phases/10-structured-output-one-github-contract-fo/10-04-SUMMARY.md",
+      "status": "no-rules",
+      "lastEventAt": "2026-09-28T18:42:45.740Z",
+      "governedRules": []
+    },
+    {
+      "path": ".gsd/phases/10-structured-output-one-github-contract-fo/10-04-T02-EVIDENCE.md",
+      "status": "no-rules",
+      "lastEventAt": "2026-09-28T18:35:46.816Z",
+      "governedRules": []
+    },
+    {
+      "path": ".gsd/phases/10-structured-output-one-github-contract-fo/10-04-T03-EVIDENCE.md",
+      "status": "no-rules",
+      "lastEventAt": "2026-09-28T18:37:11.222Z",
+      "governedRules": []
+    },
+    {
+      "path": ".gsd/phases/10-structured-output-one-github-contract-fo/10-04-UAT.md",
+      "status": "no-rules",
+      "lastEventAt": "2026-09-28T18:37:55.604Z",
+      "governedRules": []
+    },
+    {
+      "path": "docs/guides/ISSUE-PR-CONTRACT.md",
+      "status": "no-rules",
+      "lastEventAt": "2026-09-28T18:38:01.436Z",
+      "governedRules": []
+    },
+    {
+      "path": "scripts/gsd-github-publish.d.mts",
+      "status": "checked",
+      "lastEventAt": "2026-09-28T18:28:48.732Z",
+      "governedRules": [
+        "no-new-object-in-memo-props",
+        "no-derived-state-effect",
+        "no-listener-without-cleanup",
+        "no-fetch-in-components",
+        "lazy-loading-fallback",
+        "no-children-clone-for-state",
+        "no-app-logic-in-components"
+      ]
+    },
+    {
+      "path": "scripts/gsd-github-publish.mjs",
+      "status": "checked",
+      "lastEventAt": "2026-09-28T18:28:41.868Z",
+      "governedRules": [
+        "no-new-object-in-memo-props",
+        "no-derived-state-effect",
+        "no-listener-without-cleanup",
+        "no-fetch-in-components",
+        "lazy-loading-fallback",
+        "no-children-clone-for-state",
+        "no-app-logic-in-components"
+      ]
+    },
+    {
+      "path": "scripts/jeve-report.mjs",
+      "status": "checked",
+      "lastEventAt": "2026-09-28T18:42:15.289Z",
+      "governedRules": [
+        "no-new-object-in-memo-props",
+        "no-derived-state-effect",
+        "no-listener-without-cleanup",
+        "no-fetch-in-components",
+        "lazy-loading-fallback",
+        "no-children-clone-for-state",
+        "no-app-logic-in-components"
+      ]
+    },
+    {
+      "path": "tests/gsd-github-publish.test.ts",
+      "status": "checked",
+      "lastEventAt": "2026-09-28T18:29:22.104Z",
+      "governedRules": [
+        "no-new-object-in-memo-props",
+        "no-derived-state-effect",
+        "no-listener-without-cleanup",
+        "no-fetch-in-components",
+        "lazy-loading-fallback",
+        "no-children-clone-for-state",
+        "no-app-logic-in-components"
+      ]
+    },
+    {
+      "path": "tests/jeve-report.test.ts",
+      "status": "checked",
+      "lastEventAt": "2026-09-28T18:41:32.979Z",
+      "governedRules": [
+        "no-new-object-in-memo-props",
+        "no-derived-state-effect",
+        "no-listener-without-cleanup",
+        "no-fetch-in-components",
+        "lazy-loading-fallback",
+        "no-children-clone-for-state",
+        "no-app-logic-in-components"
+      ]
+    }
+  ],
+  "lintRules": [
+    "hooks-top-level",
+    "exhaustive-deps",
+    "typescript-eslint-recommended"
+  ],
+  "excludedRules": {
+    "deferred": 0,
+    "unenforceable": 3
+  },
+  "live": {
+    "ran": false,
+    "reason": "live check not requested",
+    "spendUsd": 0
+  },
+  "totals": {
+    "checks": 210,
+    "clear": 7,
+    "act": 0,
+    "blocked": 0,
+    "unverified": 0,
+    "skips": 22,
+    "files": 11,
+    "governedFiles": 5,
+    "costUsd": 0.0020732
+  },
+  "verdict": "clear",
+  "notes": [
+    "events bounded to base commit time (2026-09-28T20:25:29+03:00)",
+    "22 skip event(s) in window (carry no files): turn diff incomplete: git could not snapshot the working tree in time",
+    "3 lint rule(s) enforced by eslint (not scored here): hooks-top-level, exhaustive-deps, typescript-eslint-recommended"
+  ]
+}

@@ -294,6 +294,26 @@ describe('skips and window', () => {
     expect(report.verdict).toBe('unverified');
   });
 
+  it('compares mixed-offset timestamps by instant, not lexically (M010/S04)', () => {
+    // Regression: git emits baseTime with the local offset (+03:00) while the
+    // hook records event times in UTC (Z). A lexical compare wrongly drops a
+    // 18:28Z event against a 20:25+03:00 (= 17:25Z) base.
+    const eventsText = [
+      checkLine({
+        at: '2026-09-28T18:28:41.868Z',
+        files: ['src/a.ts'],
+        verdicts: [verdict('r1', 'clear')],
+      }),
+    ].join('\n');
+    const report = fixtureReport({
+      rubric: rubricOf([modelRule('r1', ['**/*.ts'])]),
+      eventsText,
+      baseTime: '2026-09-28T20:25:29+03:00',
+    });
+    expect(report.rules[0].band).toBe('clear');
+    expect(report.rules[0].checks).toBe(1);
+  });
+
   it('bounds events to the base time when one is set', () => {
     const eventsText = [
       checkLine({

@@ -8,7 +8,13 @@
 // Usage:
 //   node scripts/gsd-github-publish.mjs --milestone M010 --slice S02 [--dry-run]
 //   node scripts/gsd-github-publish.mjs --milestone M010 [--dry-run]
+//   node scripts/gsd-github-publish.mjs --milestone M010 --slice S04 --scratch "SCRATCH: M010/S04 walkthrough" [--dry-run]
 //   --dry-run prints the canonical body without writing (read-only).
+//   --scratch publishes under an exact SCRATCH title with sync labels omitted
+//   (M010/S04 walkthrough leg: the two-way sync keys on the M00X/S0Y prefix and
+//   the gsd:synced label, so a SCRATCH-titled, unsynced issue is ignored by it
+//   and safe to close at walkthrough end). Idempotent by exact title like the
+//   synced path: create when absent, edit body when present, never duplicate.
 //   Never touches issues carrying gsd:blocked. Cap: callers publish at most
 //   8 slices per pass (enforced by the lane, not here).
 
@@ -17,6 +23,8 @@ import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 
 export const SYNC_LABELS_BASE = ['enhancement', 'gsd', 'gsd:synced'];
+/** Labels for --scratch walkthrough issues: marked, never synced. */
+export const SCRATCH_LABELS = ['enhancement'];
 export const BOT_MARKER = '<!-- gsd-sync -->';
 export const PUBLISH_CAP = 8;
 
@@ -43,6 +51,8 @@ export function buildTrailer({ milestone, slice, parent = 'main', stackedOn = ''
 /**
  * Canonical slice-issue body (contract section 1 + footer + trailer).
  * Outcomes/exclusions are [{id, text}] with stable O-N / X-N ids.
+ * scratch=true swaps the sync footer for a walkthrough footer (the two-way
+ * sync must never claim a SCRATCH issue); sections and trailer stay canonical.
  */
 export function buildIssueBody({
   milestone,
@@ -56,6 +66,7 @@ export function buildIssueBody({
   depends = [],
   parent = 'main',
   humanMerge = false,
+  scratch = false,
 }) {
   const outcomeLines =
     outcomes.length > 0
@@ -71,6 +82,9 @@ export function buildIssueBody({
       : '- Planned at execution time by the worker lane';
   const outcomeIds = outcomes.length > 0 ? outcomes.map((o) => o.id) : ['O-1'];
   const dependsText = Array.isArray(depends) ? depends.join(',') || 'none' : depends || 'none';
+  const footer = scratch
+    ? `GSD scratch walkthrough for ${milestone}/${slice} (risk: ${risk}, depends: ${dependsText}) — not synced (no gsd:synced label, SCRATCH title); closed at walkthrough end.`
+    : `GSD slice ${milestone}/${slice} (risk: ${risk}, depends: ${dependsText}) — planned in \`.gsd/\`; the two-way sync will label/comment/close this issue when the slice reaches a terminal state.`;
   return [
     '## Goal',
     '',
@@ -93,7 +107,7 @@ export function buildIssueBody({
     taskLines,
     '',
     '---',
-    `GSD slice ${milestone}/${slice} (risk: ${risk}, depends: ${dependsText}) — planned in \`.gsd/\`; the two-way sync will label/comment/close this issue when the slice reaches a terminal state.`,
+    footer,
     '',
     buildTrailer({ milestone, slice, parent, outcomes: outcomeIds, humanMerge }),
   ].join('\n');
@@ -139,10 +153,12 @@ export function listCandidateIssues(execFn, milestoneId, sliceId) {
 /**
  * Idempotent upsert by exact title: create when absent, edit body when present
  * (never duplicate). Skips gsd:blocked issues. Returns {action, number?}.
+ * Pass labels to override the synced label set (scratch issues omit sync
+ * labels so the two-way sync ignores them).
  */
 export function upsertSliceIssue(
   execFn,
-  { milestoneId, sliceId, title, body, dryRun = false },
+  { milestoneId, sliceId, title, body, dryRun = false, labels = null },
 ) {
   const expectedTitle = title;
   let candidates = [];
@@ -150,7 +166,7 @@ export function upsertSliceIssue(
     candidates = listCandidateIssues(execFn, milestoneId, sliceId);
   }
   const existing = candidates.find((i) => isExactTitleMatch(i?.title, expectedTitle)) ?? null;
-  const labels = [...SYNC_LABELS_BASE, milestoneId].join(',');
+  const labelSet = Array.isArray(labels) && labels.length > 0 ? labels : [...SYNC_LABELS_BASE, milestoneId];
   if (dryRun) {
     return { action: 'dry-run', title: expectedTitle, body };
   }
@@ -162,7 +178,7 @@ export function upsertSliceIssue(
     return { action: 'updated', number: existing.number };
   }
   const out = execFn('gh', [
-    'issue', 'create', '--title', expectedTitle, '--label', labels, '--body', body,
+    'issue', 'create', '--title', expectedTitle, '--label', labelSet.join(','), '--body', body,
   ]);
   const m = /\/issues\/(\d+)/.exec(String(out));
   return { action: 'created', number: m ? Number(m[1]) : undefined, raw: String(out).trim() };
@@ -286,7 +302,9 @@ function flagValue(argv, name, fallback = null) {
 }
 
 function printUsage() {
-  console.log('Usage: node scripts/gsd-github-publish.mjs --milestone <M00X> [--slice <S0Y>] [--dry-run]');
+  console.log(
+    'Usage: node scripts/gsd-github-publish.mjs --milestone <M00X> [--slice <S0Y>] [--dry-run] [--scratch "<exact SCRATCH title>"]',
+  );
 }
 
 const isMain = process.argv[1] && path.resolve(process.argv[1]) === path.resolve(new URL(import.meta.url).pathname);
@@ -295,9 +313,51 @@ if (isMain) {
   const milestoneId = flagValue(argv, '--milestone', null);
   const sliceId = flagValue(argv, '--slice', null);
   const dryRun = argv.includes('--dry-run');
+  const scratchTitle = flagValue(argv, '--scratch', null);
   if (!milestoneId) {
     printUsage();
     process.exit(2);
+  }
+  if (scratchTitle) {
+    if (!sliceId) {
+      console.error('[gsd-github-publish] --scratch requires --slice <S0Y>');
+      process.exit(2);
+    }
+    const state = getSliceState(milestoneId, sliceId);
+    if (!state) {
+      console.error(`[gsd-github-publish] no local slice state for ${milestoneId}/${sliceId}`);
+      process.exit(1);
+    }
+    const body = buildIssueBody({
+      milestone: milestoneId,
+      slice: sliceId,
+      goal: state.goal,
+      demo: state.demo,
+      outcomes: state.outcomes,
+      exclusions: state.exclusions,
+      tasks: state.tasks,
+      risk: state.risk,
+      depends: state.depends,
+      scratch: true,
+    });
+    if (dryRun) {
+      console.log(`[gsd-github-publish] dry-run scratch: would upsert "${scratchTitle}"`);
+      console.log('--- body begin ---');
+      console.log(body);
+      console.log('--- body end ---');
+      process.exit(0);
+    }
+    const result = upsertSliceIssue(defaultExec, {
+      milestoneId,
+      sliceId,
+      title: scratchTitle,
+      body,
+      labels: SCRATCH_LABELS,
+    });
+    console.log(
+      `[gsd-github-publish] scratch ${milestoneId}/${sliceId} ${result.action}${result.number ? ` #${result.number}` : ''} — update, not create, on re-run (exact title match)`,
+    );
+    process.exit(0);
   }
   const slices = sliceId ? [sliceId] : getMilestoneSlices(milestoneId);
   if (slices.length === 0) {

@@ -23,6 +23,11 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Full history: the gate's report-freshness check is
+          # `git merge-base --is-ancestor <report-sha> <pr-head>` — a shallow
+          # clone cannot prove ancestry and would falsely report stale.
+          fetch-depth: 0
 
       - uses: actions/setup-node@v4
         with:
@@ -63,13 +68,39 @@ jobs:
           echo "Linked slice issue: #$issue"
 
       # Exit 0 gate clear; exit 1 refusal (parity mismatch, missing trailer,
-      # missing/act/band JEV section, etc.); exit 2 usage — all non-zero fail.
+      # missing/act/band JEV section, missing/stale report, etc.); exit 2
+      # usage — all non-zero fail. The committed Q15 handoff report feeds the
+      # JEV cross-check when resolvable; without one the gate fails closed
+      # (jev-report-missing). Reports are named for their content commit
+      # (`*-<headSha8>.json`) while report-only commits land on top (Q15), so
+      # resolve by ancestry: newest report whose head.sha is an ancestor of
+      # the PR head. Superseded pairs stay valid audit trail, never selected.
       - name: Run abide/JEV contract gate
         env:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
-          node scripts/gsd-pr-contract.mjs \
-            --pr "$PR_NUMBER" \
-            --issue "${{ steps.issue.outputs.linked }}" \
-            --dry-run
+          head_sha="$(gh pr view "$PR_NUMBER" --json headRefOid --jq .headRefOid)"
+          report=""
+          report_date=0
+          for cand in .abide/reports/*.json; do
+            case "$cand" in */latest.json) continue;; esac
+            [ -e "$cand" ] || continue
+            rsha="$(node -p "require('./$cand').head?.sha || ''" 2>/dev/null)"
+            [ -n "$rsha" ] || continue
+            if git merge-base --is-ancestor "$rsha" "$head_sha" 2>/dev/null; then
+              rdate="$(git show -s --format=%ct "$rsha" 2>/dev/null || echo 0)"
+              if [ "$rdate" -gt "$report_date" ]; then
+                report="$cand"
+                report_date="$rdate"
+              fi
+            fi
+          done
+          args=(--pr "$PR_NUMBER" --issue "${{ steps.issue.outputs.linked }}" --dry-run)
+          if [ -n "$report" ]; then
+            echo "Handoff report: $report"
+            args+=(--report "$report")
+          else
+            echo "::warning::No ancestor handoff report for head ${head_sha:0:8} — JEV cross-check will fail closed."
+          fi
+          node scripts/gsd-pr-contract.mjs "${args[@]}"

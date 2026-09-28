@@ -12,6 +12,7 @@ import {
   isExactTitleMatch,
   upsertSliceIssue,
   ensureMilestoneLabel,
+  SCRATCH_LABELS,
 } from '../scripts/gsd-github-publish.mjs';
 import { buildReactionComment, isIssueTerminal } from '../scripts/gsd-github-reactions.mjs';
 
@@ -136,6 +137,68 @@ describe('idempotent upsert by exact title', () => {
     expect(hasBlockedLabel({ labels: [{ name: 'gsd:blocked' }] })).toBe(true);
     expect(hasBlockedLabel({ labels: [] })).toBe(false);
     expect(ensureMilestoneLabel(() => '', 'M010', { dryRun: true }).action).toBe('dry-run');
+  });
+});
+
+describe('scratch walkthrough issues (M010/S04)', () => {
+  function scratchBody() {
+    return buildIssueBody({
+      milestone: 'M010',
+      slice: 'S04',
+      goal: 'Prove the full structured-output loop end to end.',
+      demo: 'A recorded walkthrough on a scratch slice.',
+      outcomes: [{ id: 'O-1', text: 'Walkthrough recorded' }],
+      exclusions: [{ id: 'X-1', text: 'No merges' }],
+      tasks: ['T01: setup + publish'],
+      scratch: true,
+    });
+  }
+
+  it('keeps canonical sections and trailer, swaps the sync footer', () => {
+    const body = scratchBody();
+    for (const section of ['## Goal', '## Demo', '## Outcomes', '## Exclusions', '## GSD tasks']) {
+      expect(body).toContain(section);
+    }
+    expect(body).toContain('gsd-meta');
+    expect(body).toContain('not synced (no gsd:synced label, SCRATCH title)');
+    expect(body).not.toContain('the two-way sync will label/comment/close');
+  });
+
+  it('creates without sync labels and updates on re-run, never duplicates', () => {
+    const calls: string[][] = [];
+    const listOnce = [{ number: 901, title: 'SCRATCH: M010/S04 walkthrough', state: 'OPEN', labels: [] }];
+    let listCalls = 0;
+    const fn = (cmd: string, args: string[]) => {
+      calls.push([cmd, ...args]);
+      if (args[0] === 'issue' && args[1] === 'list') {
+        listCalls += 1;
+        return JSON.stringify(listCalls === 1 ? [] : listOnce);
+      }
+      if (args[0] === 'issue' && args[1] === 'create') return 'https://github.com/o/r/issues/901';
+      return '';
+    };
+    const first = upsertSliceIssue(fn as never, {
+      milestoneId: 'M010',
+      sliceId: 'S04',
+      title: 'SCRATCH: M010/S04 walkthrough',
+      body: scratchBody(),
+      labels: SCRATCH_LABELS,
+    });
+    expect(first.action).toBe('created');
+    const createCall = calls.find((c) => c.includes('create'));
+    const labelValue = createCall?.[createCall.indexOf('--label') + 1] ?? '';
+    expect(labelValue).toContain('enhancement');
+    expect(labelValue).not.toContain('gsd:synced');
+    expect(labelValue).not.toContain('gsd');
+    const second = upsertSliceIssue(fn as never, {
+      milestoneId: 'M010',
+      sliceId: 'S04',
+      title: 'SCRATCH: M010/S04 walkthrough',
+      body: scratchBody(),
+      labels: SCRATCH_LABELS,
+    });
+    expect(second).toMatchObject({ action: 'updated', number: 901 });
+    expect(calls.filter((c) => c.includes('create')).length).toBe(1);
   });
 });
 
