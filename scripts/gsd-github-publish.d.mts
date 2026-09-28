@@ -18,6 +18,7 @@ export interface IssueBodyInput {
   depends?: string[];
   parent?: string;
   humanMerge?: boolean;
+  scratch?: boolean;
 }
 
 export interface TrailerInput {
@@ -30,6 +31,7 @@ export interface TrailerInput {
 }
 
 export declare const SYNC_LABELS_BASE: string[];
+export declare const SCRATCH_LABELS: string[];
 export declare const BOT_MARKER: string;
 export declare const PUBLISH_CAP: number;
 
@@ -50,7 +52,14 @@ export function listCandidateIssues(
 ): Array<{ number: number; title: string; state: string; labels: unknown[] }>;
 export function upsertSliceIssue(
   execFn: (cmd: string, args: string[]) => string,
-  input: { milestoneId: string; sliceId: string; title: string; body: string; dryRun?: boolean },
+  input: {
+    milestoneId: string;
+    sliceId: string;
+    title: string;
+    body: string;
+    dryRun?: boolean;
+    labels?: string[] | null;
+  },
 ): { action: string; number?: number; title?: string; body?: string; raw?: string };
 export function getSliceState(
   milestoneId: string,
