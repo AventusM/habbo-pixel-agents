@@ -30,3 +30,13 @@ executes directly, no running attempt per D018/D034/D037/D038/D039); 4 task
 rows cascaded to skipped. GitHub reconcile is seal-skipped (comment only,
 issue #145 stays OPEN for the review lane's 7b close-at-merge — D039: never
 close pre-merge). No merges by this lane; scratch artifacts all closed.
+
+Closeout addendum (4c): the first handoff report came back `unverified`
+despite clear-banded edit-time events existing — root cause is a real bug in
+`scripts/jeve-report.mjs` `inWindow`: ISO timestamps compared lexically, so a
+UTC `Z` event sorts before a later-instant `+03:00` base (git `%cI` carries
+the local offset) and fresh evidence is dropped. Fixed with instant
+(`Date.parse`) comparison + regression test (lexical fallback only for
+unparseable input); regenerated report verdict `clear` (7/7 rules,
+evidence `event`). The bug bites any same-day slice work in a non-UTC
+checkout, so the fix rides this slice rather than waiting.

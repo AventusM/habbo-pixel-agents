@@ -130,7 +130,11 @@ function eventAt(event) {
 function inWindow(event, baseTime) {
   if (!baseTime) return true;
   const at = eventAt(event);
-  return at !== null && at >= baseTime;
+  if (at === null) return false;
+  const atMs = Date.parse(at);
+  const baseMs = Date.parse(baseTime);
+  if (Number.isNaN(atMs) || Number.isNaN(baseMs)) return at >= baseTime;
+  return atMs >= baseMs;
 }
 
 function eventFiles(event) {
