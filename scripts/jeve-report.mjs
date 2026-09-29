@@ -246,6 +246,18 @@ export function buildReport(input) {
     };
   });
 
+  // Per-rule application rows (Q15/M011-S04): rule -> changed files it governed
+  // -> band -> evidence pointer. This is the shape the PR contract gate reads
+  // (`checkJevReport` matches `report.findings[].{rule,band}`) and the shape
+  // the PR abide/JEV section is generated from. Additive: older reports
+  // without `findings` still parse (treated as zero rows).
+  const findings = governed.map((rule, index) => ({
+    rule: rule.id,
+    files: changedFiles.filter((filePath) => ruleGovernsFile(rule, filePath)),
+    band: rules[index].band,
+    evidence: rules[index].evidence,
+  }));
+
   const files = changedFiles.map((filePath) => {
     const fileRules = governed
       .filter((rule) => ruleGovernsFile(rule, filePath))
@@ -322,6 +334,7 @@ export function buildReport(input) {
     changedFiles,
     deletedFiles,
     rules,
+    findings,
     files,
     lintRules,
     excludedRules,
@@ -355,9 +368,21 @@ function verdictReason(report) {
   return `all ${rules.length} governed rule(s) have clear evidence`;
 }
 
+/** Evidence cell for the embeddable PR table: token plus check detail. */
+function findingEvidenceCell(finding, ruleRow) {
+  const token = finding && typeof finding.evidence === 'string' ? finding.evidence : 'none';
+  if (token === 'none') return 'none';
+  const bits = [token];
+  if (ruleRow && ruleRow.checks > 0) bits.push(`${ruleRow.checks} checks`);
+  if (ruleRow && ruleRow.lastAt) bits.push(`last ${ruleRow.lastAt}`);
+  if (ruleRow && ruleRow.probability !== null) bits.push(`p=${ruleRow.probability}`);
+  return bits.join(' · ');
+}
+
 /** Stable, greppable markdown; reviewers read this file, not the JSON. */
 export function renderMarkdown(report) {
   const rules = asArray(report && report.rules);
+  const findings = asArray(report && report.findings);
   const files = asArray(report && report.files);
   const changed = asArray(report && report.changedFiles);
   const governedFiles = files.filter((file) => asArray(file && file.governedRules).length > 0).length;
@@ -385,5 +410,18 @@ export function renderMarkdown(report) {
     lines.push(`| ${file.path} | ${file.status} | ${last} |`);
   }
   lines.push('', '## Verdict', `${report.verdict} — ${verdictReason(report)}`, '');
+  // Embeddable PR section (M011-S04): the `## abide/JEV compliance` table plus
+  // the `Verdict:` line parse via `parseJevSection` in scripts/gsd-pr-contract.mjs,
+  // so the PR section is generated from `findings` rows, not hand-written.
+  lines.push('## abide/JEV compliance', '| rule | where | band | evidence |', '|---|---|---|---|');
+  if (findings.length === 0) lines.push('| _(none)_ | | | |');
+  for (const finding of findings) {
+    const row = rules.find((entry) => entry && entry.id === finding.rule);
+    const where = finding.files.length > 0 ? finding.files.join(', ') : '—';
+    lines.push(
+      `| ${finding.rule} | ${where} | ${finding.band} | ${findingEvidenceCell(finding, row)} |`,
+    );
+  }
+  lines.push('', `Verdict: ${report.verdict} ${verdictReason(report)}`, '');
   return lines.join('\n');
 }
