@@ -29,8 +29,11 @@ Report (`version 1`, `generator jeve-report/1.0.0`), written as
   "head": { "sha": "0e92326…", "shortSha": "0e92326a", "subject": "feat(M008): …" },
   "changedFiles": ["src/x.ts"],
   "rules": [{ "id": "no-derived-state-effect", "band": "unverified",
-              "probability": null, "checks": 0, "evidence": "none",
-              "scope": ["**/*.ts"] }],
+               "probability": null, "checks": 0, "evidence": "none",
+               "scope": ["**/*.ts"] }],
+  "findings": [{ "rule": "no-derived-state-effect",
+                 "files": ["src/x.ts"], "band": "unverified",
+                 "evidence": "none" }],
   "files": [{ "path": "src/x.ts", "status": "unseen", "governedRules": ["…"] }],
   "live": { "ran": false, "reason": "live check not requested", "spendUsd": 0 },
   "totals": { "checks": 0, "unverified": 1, "files": 1, "governedFiles": 1 },
@@ -49,6 +52,14 @@ Report (`version 1`, `generator jeve-report/1.0.0`), written as
   `deferred`/`unenforceable` are counted in `excludedRules`.
 - Markdown is stable and greppable: verdict heading, `head: <sha>`,
   `## Rules` / `## Files` tables, `## Verdict` reason.
+- `findings[]` (M011/S04) is the per-rule application shape the PR contract
+  reads: `{rule, files, band, evidence}` — rule -> changed files it governed
+  -> band -> evidence pointer (`event`/`live`/`event+live`/`none`, detail in
+  the matching `rules[]` row). Additive: older reports without `findings`
+  still parse. The markdown carries an embeddable `## abide/JEV compliance`
+  table (`| rule | where | band | evidence |`) plus a
+  `Verdict: <clear|empty|unverified> <reason>` line, both parsed by
+  `parseJevSection` in `scripts/gsd-pr-contract.mjs`.
 
 ## CLI usage
 
@@ -70,6 +81,30 @@ usage and exits 0); 1 when `--require-clear` and verdict is not `clear`/`empty`;
 | `-h`, `--help` | — | print usage and exit 0 |
 
 stdout in `md` mode: `<verdict> <json path> <md path>` (one line).
+
+## PR section generation (M011/S04)
+
+The PR `## abide/JEV compliance` section is generated from the committed
+report, not hand-written: one row per `report.findings` entry
+(`| <rule> | <files csv> | <band> | <evidence + checks/last/p> |`), plus one
+`clear` row per `report.lintRules` entry attested by a green
+`npx eslint` run (evidence: `eslint clean (report lintRules; npx eslint
+exit 0)`), plus `Verdict: <verdict> <reason>`. Lint rows stay author-attested
+because the report never scores lint rules — mechanically safe, since
+`checkJevReport` only compares bands for rules present in `findings`.
+
+Prove it before opening the PR:
+
+```
+node scripts/gsd-pr-contract.mjs --pr-file <generated-body> \
+  --issue-file <issue-body> --report .abide/reports/<...>-<sha8>.json \
+  --changed-files <csv> --head-sha <sha> --milestone <M00X> --slice <S0Y> \
+  --dry-run   # parity PASS + jev PASS, exit 0
+```
+
+Evidence: `.abide/reports/m011-s04-t01-assessment.md` (consumer requirements
+R1–R4, gaps G1–G4), `m011-s04-t02-findings.md` (row excerpts, shape stability),
+`m011-s04-t03-proof.md` (probe report + generated section + dry-run quote).
 
 ## Plugin behavior
 
