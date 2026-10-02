@@ -72,6 +72,7 @@ function audit(bin, cwd, files) {
   // `abide audit` exits non-zero when it finds broken bands but still prints
   // the full JSON report on stdout — parse stdout rather than treating the
   // exit code as failure.
+  let result;
   try {
     const out = execFileSync(bin, ['audit', ...files, '--json'], {
       cwd,
@@ -80,13 +81,24 @@ function audit(bin, cwd, files) {
       timeout: 10 * 60 * 1000,
       maxBuffer: 64 * 1024 * 1024,
     });
-    return JSON.parse(out);
+    result = JSON.parse(out);
   } catch (err) {
     const out = err && err.stdout ? String(err.stdout) : '';
-    if (out.trim()) return JSON.parse(out);
-    const stderr = err && err.stderr ? String(err.stderr).trim().split('\n').slice(-4).join(' | ') : '';
-    throw new Error(`${bin} audit failed: ${stderr || err.message}`);
+    if (out.trim()) result = JSON.parse(out);
+    else {
+      const stderr = err && err.stderr ? String(err.stderr).trim().split('\n').slice(-4).join(' | ') : '';
+      throw new Error(`${bin} audit failed: ${stderr || err.message}`);
+    }
   }
+  // A chunk the judge could not score (bad key, unavailable model, gateway
+  // error) yields no bands and would otherwise read as "no findings" — a
+  // silent pass. Fail closed instead.
+  const failed = (result.byFile || []).filter((f) => (f.chunksFailed || 0) > 0 || f.error);
+  if (failed.length > 0) {
+    const detail = failed[0].error || `${failed[0].chunksFailed} chunk(s) not judged`;
+    throw new Error(`abide audit could not judge ${failed.length} file(s): ${detail}`);
+  }
+  return result;
 }
 
 /** Map `${rule}\u0000${file}` -> severity (2 broken, 1 flagged, absent = 0). */
