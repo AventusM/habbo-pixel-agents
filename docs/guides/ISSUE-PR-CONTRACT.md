@@ -3,9 +3,10 @@
 One canonical shape for every GSD-published GitHub artifact. Slice issues
 carry Goal / Demo / Outcomes (O1..On) / Exclusions / GSD tasks plus a
 machine-readable `gsd-meta` trailer; slice PRs cite the same outcome IDs with
-per-outcome evidence, the same trailer (plus `stacked-on` / `human-merge`
-keys), and a dedicated abide/JEV compliance section fed by the committed
-Q15 handoff report. The wording below mirrors the published M010/M011 slice
+per-outcome evidence and the same trailer (plus `stacked-on` / `human-merge`
+keys). abide/JEV judging is not part of the PR body: `.github/workflows/
+abide-judge.yml` runs the judge on the changed files and posts the result as a
+sticky PR comment. The wording below mirrors the published M010/M011 slice
 issues (#142–#149) and the review lane's JEV expectations (`loop/review.md`).
 
 ## 1. Canonical slice-issue shape
@@ -64,11 +65,7 @@ Closes #<n> (M<NN>/S<NN>: <title>)
 
 ## abide/JEV compliance
 
-| Rule | Where applied | Band | Evidence |
-| ---- | ------------- | ---- | -------- |
-| <rule id from .abide/rubric.json> | <files / outcomes> | clear | <handoff report path or `abide check` ref> |
-
-Verdict: <clear|empty (reason)|unverified (why, quoted)> — `.abide/reports/*-<headSha8>.{json,md}`
+No section: the abide judge runs in CI and posts a sticky comment on the PR.
 ```
 
 Followed by the `gsd-meta` trailer (section 3). Every outcome ID in the
@@ -131,40 +128,36 @@ sealed `skipped`, no merge) use the same head with `sealed skipped` and the
 delivery reasons, and do not close. Every sync comment carries a stable
 dedupe key so re-runs never double-post.
 
-## 7. abide/JEV compliance section rules
+## 7. abide/JEV compliance (CI judge)
 
-- One row per governed rule from `.abide/rubric.json` that scopes the
-  changed files: rule id, where applied (files/outcomes), band
-  (`clear` / `flag` / `act`; thresholds 0.5 / 0.8), evidence ref.
-- Bands come from the committed Q15 handoff report
-  (`.abide/reports/*-<headSha8>.{json,md}`, produced by
-  `node scripts/hooks/jeve-report.mjs --base origin/main --head <sha>
-  --out .abide/reports`); never self-reported.
-- `flag` is advisory and logged; `act` blocks. Whole-file findings
-  identical on `origin/main` (pre-existing, not introduced by the diff) are
-  advisory — only diff-level bands block.
-- Report verdicts: `clear` (or `empty` with a stated reason) merges;
-  `unverified` must quote the report's notes as the reason and never
-  fabricates evidence.
+- `.github/workflows/abide-judge.yml` runs `abide audit` on the PR's changed
+  files at head and at the base tree, then posts the per-rule result as one
+  sticky PR comment (found by its `<!-- abide-judge -->` marker and updated in
+  place). The judge output is the source of truth; no committed report.
+- The gate is a ratchet: a rule blocks only when its band is *worse* in head
+  than base (newly `act`/broken). Pre-existing findings in a touched file are
+  advisory. New files count every finding.
+- `flag` is advisory and logged; `act` (broken) blocks. The job fails closed if
+  the judge cannot run. Fork PRs receive no secrets and are skipped (green).
+- Band semantics (`clear` / `flag` / `act`; thresholds 0.5 / 0.8) match the
+  rubric in `.abide/rubric.json`.
 
 ## Templates
 
 - Issue skeleton: `.github/ISSUE_TEMPLATE/gsd-slice.yml`
 - PR skeleton: `.github/pull_request_template.md`
 - Fixture: `tests/issue-pr-contract.test.ts` asserts both templates render
-  this canonical skeleton (sections, outcome-ID placeholders, trailer keys,
-  JEV table columns).
+  this canonical skeleton (sections, outcome-ID placeholders, trailer keys).
 
 ## Mechanization (M010/S03)
 
-- `node scripts/gsd-pr-contract.mjs --pr <n> --issue <m> [--report <path>] [--dry-run]`
-  enforces sections 2–5 + 7 (trailer parse, outcome parity, JEV-section rows /
-  bands / verdict, fresh-approval vocabulary); exit 0 clear, 1 refuse with a
-  kebab-case reason, 2 usage. `--json` emits the machine-readable verdict for
-  the review lane. Approval + seal-comment helpers live in
+- `node scripts/gsd-pr-contract.mjs --pr <n> --issue <m> [--dry-run]`
+  enforces sections 2–4 (trailer parse, outcome parity, fresh-approval
+  vocabulary); exit 0 clear, 1 refuse with a kebab-case reason, 2 usage.
+  `--json` emits the machine-readable verdict for the review lane. abide/JEV
+  judging is separate (section 7). Approval + seal-comment helpers live in
   `scripts/gsd-github-reactions.mjs` (`isApprovalBody`, `findFreshApproval`,
-  `approvalLifts`); evidence in
-  `tests/gsd-pr-contract.test.ts`.
+  `approvalLifts`); evidence in `tests/gsd-pr-contract.test.ts`.
 
 ## Validation notes (M010/S04 walkthrough)
 
