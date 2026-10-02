@@ -1,0 +1,355 @@
+{
+  "version": 1,
+  "generator": "jeve-report/1.0.0",
+  "generatedAt": "2026-10-01T00:49:02.402Z",
+  "repo": {
+    "root": "/Users/antonmoroz/dev/habbo-pixel-agents",
+    "name": "AventusM/habbo-pixel-agents"
+  },
+  "branch": "gsd/m011-s04-handoff-evidence-pipeline",
+  "base": {
+    "ref": "origin/main",
+    "sha": "00e299535a53bce92518afed0fa74828b0c3f086"
+  },
+  "head": {
+    "sha": "ce19284a9a8b92f85d2c91a438bfa322f2487a58",
+    "shortSha": "ce19284a",
+    "subject": "chore(M011/S04): seal slice with SUMMARY (delivered, review pending)"
+  },
+  "changedFiles": [
+    ".abide/reports/gsd-m011-s04-handoff-evidence-pipeline-63188d55.json",
+    ".abide/reports/gsd-m011-s04-handoff-evidence-pipeline-63188d55.md",
+    ".abide/reports/m011-s04-t01-assessment.md",
+    ".abide/reports/m011-s04-t02-findings.md",
+    ".abide/reports/m011-s04-t03-proof.md",
+    ".abide/reports/m011-s04-t04-docs-verify.md",
+    ".gsd/phases/11-jev-enforcement-that-actually-runs-vette/11-04-PLAN.md",
+    ".gsd/phases/11-jev-enforcement-that-actually-runs-vette/11-04-SUMMARY.md",
+    "docs/agent-hooks/JEVE-HANDOFF.md",
+    "scripts/jeve-report.mjs"
+  ],
+  "deletedFiles": [],
+  "rules": [
+    {
+      "id": "no-new-object-in-memo-props",
+      "band": "clear",
+      "probability": 0.04,
+      "checks": 8,
+      "lastAt": "2026-09-29T06:28:16.405Z",
+      "evidence": "event",
+      "scope": [
+        "**/*.ts",
+        "**/*.tsx",
+        "**/*.mjs",
+        "**/*.mts",
+        "**/*.cjs",
+        "**/*.js"
+      ]
+    },
+    {
+      "id": "no-derived-state-effect",
+      "band": "clear",
+      "probability": 0.04,
+      "checks": 8,
+      "lastAt": "2026-09-29T06:28:16.405Z",
+      "evidence": "event",
+      "scope": [
+        "**/*.ts",
+        "**/*.tsx",
+        "**/*.mjs",
+        "**/*.mts",
+        "**/*.cjs",
+        "**/*.js"
+      ]
+    },
+    {
+      "id": "no-listener-without-cleanup",
+      "band": "clear",
+      "probability": 0.02,
+      "checks": 8,
+      "lastAt": "2026-09-29T06:28:16.405Z",
+      "evidence": "event",
+      "scope": [
+        "**/*.ts",
+        "**/*.tsx",
+        "**/*.mjs",
+        "**/*.mts",
+        "**/*.cjs",
+        "**/*.js"
+      ]
+    },
+    {
+      "id": "no-fetch-in-components",
+      "band": "clear",
+      "probability": 0.03,
+      "checks": 8,
+      "lastAt": "2026-09-29T06:28:16.405Z",
+      "evidence": "event",
+      "scope": [
+        "**/*.ts",
+        "**/*.tsx",
+        "**/*.mjs",
+        "**/*.mts",
+        "**/*.cjs",
+        "**/*.js"
+      ]
+    },
+    {
+      "id": "lazy-loading-fallback",
+      "band": "clear",
+      "probability": 0.02,
+      "checks": 8,
+      "lastAt": "2026-09-29T06:28:16.405Z",
+      "evidence": "event",
+      "scope": [
+        "**/*.ts",
+        "**/*.tsx",
+        "**/*.mjs",
+        "**/*.mts",
+        "**/*.cjs",
+        "**/*.js"
+      ]
+    },
+    {
+      "id": "no-children-clone-for-state",
+      "band": "clear",
+      "probability": 0.02,
+      "checks": 8,
+      "lastAt": "2026-09-29T06:28:16.405Z",
+      "evidence": "event",
+      "scope": [
+        "**/*.ts",
+        "**/*.tsx",
+        "**/*.mjs",
+        "**/*.mts",
+        "**/*.cjs",
+        "**/*.js"
+      ]
+    },
+    {
+      "id": "no-app-logic-in-components",
+      "band": "clear",
+      "probability": 0.03,
+      "checks": 8,
+      "lastAt": "2026-09-29T06:28:16.405Z",
+      "evidence": "event",
+      "scope": [
+        "**/*.ts",
+        "**/*.tsx",
+        "**/*.mjs",
+        "**/*.mts",
+        "**/*.cjs",
+        "**/*.js"
+      ]
+    },
+    {
+      "id": "static-components",
+      "band": "clear",
+      "probability": 0.03,
+      "checks": 8,
+      "lastAt": "2026-09-29T06:28:16.405Z",
+      "evidence": "event",
+      "scope": [
+        "**/*.ts",
+        "**/*.tsx",
+        "**/*.mjs",
+        "**/*.mts",
+        "**/*.cjs",
+        "**/*.js"
+      ]
+    },
+    {
+      "id": "no-unstable-dep-identity",
+      "band": "clear",
+      "probability": 0.06,
+      "checks": 8,
+      "lastAt": "2026-09-29T06:28:16.405Z",
+      "evidence": "event",
+      "scope": [
+        "**/*.ts",
+        "**/*.tsx",
+        "**/*.mjs",
+        "**/*.mts",
+        "**/*.cjs",
+        "**/*.js"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "rule": "no-new-object-in-memo-props",
+      "files": [
+        "scripts/jeve-report.mjs"
+      ],
+      "band": "clear",
+      "evidence": "event"
+    },
+    {
+      "rule": "no-derived-state-effect",
+      "files": [
+        "scripts/jeve-report.mjs"
+      ],
+      "band": "clear",
+      "evidence": "event"
+    },
+    {
+      "rule": "no-listener-without-cleanup",
+      "files": [
+        "scripts/jeve-report.mjs"
+      ],
+      "band": "clear",
+      "evidence": "event"
+    },
+    {
+      "rule": "no-fetch-in-components",
+      "files": [
+        "scripts/jeve-report.mjs"
+      ],
+      "band": "clear",
+      "evidence": "event"
+    },
+    {
+      "rule": "lazy-loading-fallback",
+      "files": [
+        "scripts/jeve-report.mjs"
+      ],
+      "band": "clear",
+      "evidence": "event"
+    },
+    {
+      "rule": "no-children-clone-for-state",
+      "files": [
+        "scripts/jeve-report.mjs"
+      ],
+      "band": "clear",
+      "evidence": "event"
+    },
+    {
+      "rule": "no-app-logic-in-components",
+      "files": [
+        "scripts/jeve-report.mjs"
+      ],
+      "band": "clear",
+      "evidence": "event"
+    },
+    {
+      "rule": "static-components",
+      "files": [
+        "scripts/jeve-report.mjs"
+      ],
+      "band": "clear",
+      "evidence": "event"
+    },
+    {
+      "rule": "no-unstable-dep-identity",
+      "files": [
+        "scripts/jeve-report.mjs"
+      ],
+      "band": "clear",
+      "evidence": "event"
+    }
+  ],
+  "files": [
+    {
+      "path": ".abide/reports/gsd-m011-s04-handoff-evidence-pipeline-63188d55.json",
+      "status": "no-rules",
+      "lastEventAt": null,
+      "governedRules": []
+    },
+    {
+      "path": ".abide/reports/gsd-m011-s04-handoff-evidence-pipeline-63188d55.md",
+      "status": "no-rules",
+      "lastEventAt": null,
+      "governedRules": []
+    },
+    {
+      "path": ".abide/reports/m011-s04-t01-assessment.md",
+      "status": "no-rules",
+      "lastEventAt": null,
+      "governedRules": []
+    },
+    {
+      "path": ".abide/reports/m011-s04-t02-findings.md",
+      "status": "no-rules",
+      "lastEventAt": null,
+      "governedRules": []
+    },
+    {
+      "path": ".abide/reports/m011-s04-t03-proof.md",
+      "status": "no-rules",
+      "lastEventAt": null,
+      "governedRules": []
+    },
+    {
+      "path": ".abide/reports/m011-s04-t04-docs-verify.md",
+      "status": "no-rules",
+      "lastEventAt": null,
+      "governedRules": []
+    },
+    {
+      "path": ".gsd/phases/11-jev-enforcement-that-actually-runs-vette/11-04-PLAN.md",
+      "status": "no-rules",
+      "lastEventAt": null,
+      "governedRules": []
+    },
+    {
+      "path": ".gsd/phases/11-jev-enforcement-that-actually-runs-vette/11-04-SUMMARY.md",
+      "status": "no-rules",
+      "lastEventAt": "2026-10-01T00:33:36.252Z",
+      "governedRules": []
+    },
+    {
+      "path": "docs/agent-hooks/JEVE-HANDOFF.md",
+      "status": "no-rules",
+      "lastEventAt": "2026-09-30T06:56:00.673Z",
+      "governedRules": []
+    },
+    {
+      "path": "scripts/jeve-report.mjs",
+      "status": "checked",
+      "lastEventAt": "2026-09-29T06:28:16.405Z",
+      "governedRules": [
+        "no-new-object-in-memo-props",
+        "no-derived-state-effect",
+        "no-listener-without-cleanup",
+        "no-fetch-in-components",
+        "lazy-loading-fallback",
+        "no-children-clone-for-state",
+        "no-app-logic-in-components",
+        "static-components",
+        "no-unstable-dep-identity"
+      ]
+    }
+  ],
+  "lintRules": [
+    "hooks-top-level",
+    "exhaustive-deps",
+    "typescript-eslint-recommended"
+  ],
+  "excludedRules": {
+    "deferred": 0,
+    "unenforceable": 3
+  },
+  "live": {
+    "ran": false,
+    "reason": "live check not requested",
+    "spendUsd": 0
+  },
+  "totals": {
+    "checks": 72,
+    "clear": 9,
+    "act": 0,
+    "blocked": 0,
+    "unverified": 0,
+    "skips": 40,
+    "files": 10,
+    "governedFiles": 1,
+    "costUsd": 0.00066402
+  },
+  "verdict": "clear",
+  "notes": [
+    "events bounded to base commit time (2026-09-29T02:07:00+03:00)",
+    "40 skip event(s) in window (carry no files): turn diff incomplete: git could not snapshot the working tree in time",
+    "3 lint rule(s) enforced by eslint (not scored here): hooks-top-level, exhaustive-deps, typescript-eslint-recommended"
+  ]
+}
