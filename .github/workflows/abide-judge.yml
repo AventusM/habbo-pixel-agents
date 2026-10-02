@@ -65,11 +65,9 @@ jobs:
         continue-on-error: true
         env:
           # Step-scoped: the key is never visible to install or checkout steps.
-          # OpenCode Zen gateway — matches the local ~/.abide/.env setup. All
-          # three are required: CI has no ~/.abide/.env to fall back on.
+          # A TypeSafe AI key used directly — no gateway base URL. abide pins
+          # its own model internally, so only the key is needed here.
           TYPESAFE_AI_API_KEY: ${{ secrets.TYPESAFE_AI_API_KEY }}
-          TYPESAFE_AI_BASE_URL: https://opencode.ai/zen/v1
-          TYPESAFE_AI_MODEL_ID: jev-1.13
         run: |
           node scripts/abide-pr-judge.mjs \
             --base-sha "${{ github.event.pull_request.base.sha }}" \
