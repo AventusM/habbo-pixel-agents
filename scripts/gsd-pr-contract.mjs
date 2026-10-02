@@ -1,19 +1,19 @@
 #!/usr/bin/env node
 // scripts/gsd-pr-contract.mjs
 // Contract gate (M010/S03): mechanizes docs/guides/ISSUE-PR-CONTRACT.md for the
-// review+merge lane. Parses the gsd-meta trailer from a slice PR body, checks
-// outcome parity against the linked slice issue, and verifies the PR's
-// abide/JEV section against the committed handoff report. Refuses with a
-// non-zero exit plus a machine-readable reason; --dry-run prints the verdict
-// without writing (the gate never writes — it only reads).
+// review+merge lane. Parses the gsd-meta trailer from a slice PR body and checks
+// outcome parity against the linked slice issue. abide/JEV judging moved to CI
+// (.github/workflows/abide-judge.yml) and is no longer verified here. Refuses
+// with a non-zero exit plus a machine-readable reason; --dry-run prints the
+// verdict without writing (the gate never writes — it only reads).
 //
 // Usage:
-//   node scripts/gsd-pr-contract.mjs --pr 123 --issue 144 [--report <path>] [--dry-run]
+//   node scripts/gsd-pr-contract.mjs --pr 123 --issue 144 [--dry-run]
 //   node scripts/gsd-pr-contract.mjs --pr-file <path> --issue-file <path> [--dry-run]
 //   node scripts/gsd-pr-contract.mjs --pr-body "<...>" --issue-body "<...>" [--dry-run]
-//   --milestone/--slice pin the expected trailer keys; --changed-files a,b,c and
-//   --head-sha feed the JEV checks; --comments-file <gh comments json> plus
-//   --head-date <iso> feed the fresh-approval check; --json emits one JSON object.
+//   --milestone/--slice pin the expected trailer keys; --comments-file <gh
+//   comments json> plus --head-date <iso> feed the fresh-approval check;
+//   --json emits one JSON object.
 //
 // Exit codes: 0 pass (gate clear), 1 refuse (a listed reason blocks),
 // 2 usage error. Reasons are kebab-case strings (see REFUSALS below).
@@ -41,30 +41,7 @@ export const REFUSALS = [
   'issue-outcomes-missing',
   'parity-missing-outcomes',
   'parity-extra-outcomes',
-  'jev-section-missing',
-  'jev-row-missing',
-  'jev-band-act',
-  'jev-verdict-unverified',
-  'jev-verdict-reason-missing',
-  'jev-report-missing',
-  'jev-report-stale',
-  'jev-report-uncovered-files',
-  'jev-report-band-mismatch',
 ];
-
-/**
- * Fix hint for JEV refusals: the merged Q15 handoff-report command and the
- * artifact path it writes. The committed pair must expose the fields
- * checkJevReport (below) cross-checks — head.sha, changedFiles, and per-rule
- * findings (rule + band) — or freshness/coverage/band verification cannot run.
- */
-export function jevFixHint(headSha) {
-  const sha = headSha || '<headSha>';
-  return (
-    `run node scripts/hooks/jeve-report.mjs --base origin/main --head ${sha} --out .abide/reports ` +
-    'and commit .abide/reports/*-<headSha8>.{json,md}'
-  );
-}
 
 // --- trailer + outcome parsing (contract sections 2, 3, 4) ---
 
@@ -160,167 +137,6 @@ export function checkParity({ prBody, issueBody, milestone = '', slice = '' }) {
   return { pass: reasons.length === 0, missing, extra, reasons };
 }
 
-// --- abide/JEV section verification (contract section 7) ---
-
-const BANDS = new Set(['clear', 'flag', 'act']);
-
-/** Rows of the PR `## abide/JEV compliance` table + the Verdict line. */
-export function parseJevSection(body) {
-  const section = sectionText(String(body ?? ''), 'abide/JEV compliance');
-  if (!section) return { present: false, rows: [], verdict: null };
-  const rows = [];
-  for (const line of section.split('\n')) {
-    const cells = line.split('|').map((c) => c.trim());
-    if (cells.length < 6) continue; // leading/trailing empties + 4 columns
-    const [, rule, where, band, evidence] = cells;
-    if (/^rule$/i.test(rule) || /^-+$/.test(rule)) continue;
-    if (!rule) continue;
-    rows.push({ rule, where, band: band.toLowerCase(), evidence });
-  }
-  const verdictLine = section.split('\n').find((l) => /^verdict:/i.test(l.trim()));
-  let verdict = null;
-  if (verdictLine) {
-    const m = /^verdict:\s*(clear|empty|unverified)\b([\s\S]*)$/i.exec(verdictLine.trim());
-    if (m) verdict = { kind: m[1].toLowerCase(), reason: m[2].trim() };
-  }
-  return { present: true, rows, verdict };
-}
-
-/** Minimal glob match for rubric scopes (`**`, `*`, `?`, exact segments). */
-export function scopeMatches(scope, file) {
-  const target = String(file).replace(/^\.\//, '');
-  const segs = String(scope).split('/');
-  let rx = '^';
-  segs.forEach((seg, i) => {
-    if (seg === '**') {
-      rx += i === segs.length - 1 ? '.*' : '(.*/)?';
-      return;
-    }
-    if (i > 0 && segs[i - 1] !== '**') rx += '/';
-    rx += [...seg]
-      .map((ch) => {
-        if (ch === '*') return '[^/]*';
-        if (ch === '?') return '[^/]';
-        return /[.+^${}()|[\]\\]/.test(ch) ? `\\${ch}` : ch;
-      })
-      .join('');
-  });
-  return new RegExp(`${rx}$`).test(target);
-}
-
-/** Governed rules scoping any changed file (unenforceable process rules out). */
-export function governedRulesForFiles(rubric, changedFiles) {
-  const rules = Array.isArray(rubric?.rules) ? rubric.rules : [];
-  const files = (changedFiles || []).map((f) => String(f).replace(/^\.\//, ''));
-  return rules.filter((r) => {
-    if (r?.status !== 'active') return false;
-    if (r?.check?.type === 'unenforceable') return false;
-    const scopes = Array.isArray(r?.scope) ? r.scope : typeof r?.scope === 'string' ? [r.scope] : [];
-    if (scopes.length === 0) return false;
-    return files.some((f) => scopes.some((s) => scopeMatches(s, f)));
-  });
-}
-
-/**
- * Verify the PR JEV section against the governed rules (pure part — no git).
- * Refuses on missing section/rows, act bands, or unverified verdicts; flag
- * bands are advisory warnings. When model-judged rules scope the diff, a
- * committed report object is required for the cross-check (see checkJevReport).
- */
-export function checkJevSection({ prBody, changedFiles, rubric, report = null, headSha = '', isAncestor = null }) {
-  const reasons = [];
-  const warnings = [];
-  const inScope = governedRulesForFiles(rubric, changedFiles);
-  const { present, rows, verdict } = parseJevSection(prBody);
-  if (!present) {
-    return { pass: false, reasons: ['jev-section-missing'], warnings, inScope: inScope.map((r) => r.id) };
-  }
-  if (inScope.length === 0) {
-    if (!verdict || verdict.kind !== 'empty' || !verdict.reason) {
-      reasons.push('jev-verdict-reason-missing');
-    }
-    return { pass: reasons.length === 0, reasons, warnings, inScope: [] };
-  }
-  const byRule = new Map(rows.map((r) => [r.rule, r]));
-  for (const rule of inScope) {
-    const row = byRule.get(rule.id);
-    if (!row) {
-      reasons.push(`jev-row-missing:${rule.id}`);
-      continue;
-    }
-    if (!BANDS.has(row.band)) {
-      reasons.push(`jev-row-missing:${rule.id}`);
-      continue;
-    }
-    if (row.band === 'act') {
-      reasons.push(`jev-band-act:${rule.id}`);
-    } else if (row.band === 'flag') {
-      warnings.push(`jev-band-flag:${rule.id}`);
-    }
-  }
-  if (!verdict || verdict.kind === 'unverified') {
-    reasons.push('jev-verdict-unverified');
-  } else if (!['clear', 'empty'].includes(verdict.kind) || (verdict.kind === 'empty' && !verdict.reason)) {
-    reasons.push('jev-verdict-reason-missing');
-  }
-  const needsReport = inScope.some((r) => r?.check?.type === 'model');
-  if (needsReport && !report) {
-    reasons.push('jev-report-missing');
-  } else if (needsReport && report) {
-    const cross = checkJevReport({ report, prHeadSha: headSha, changedFiles, rows, isAncestor });
-    reasons.push(...cross.reasons);
-    warnings.push(...cross.warnings);
-  }
-  return { pass: reasons.length === 0, reasons, warnings, inScope: inScope.map((r) => r.id) };
-}
-
-/**
- * Cross-check the committed handoff report: head.sha fresh vs the PR head,
- * changed-file coverage, and row-band consistency. `isAncestor` is an
- * injectable (sha, head) => boolean so tests run without git; the CLI wires
- * git merge-base.
- */
-export function checkJevReport({ report, prHeadSha, changedFiles, rows = [], isAncestor = null }) {
-  const reasons = [];
-  const warnings = [];
-  const reportSha = report?.head?.sha || report?.headSha || '';
-  if (!reportSha) {
-    return { pass: false, reasons: ['jev-report-stale'], warnings };
-  }
-  let fresh = reportSha === prHeadSha;
-  if (!fresh && prHeadSha && typeof isAncestor === 'function') {
-    try {
-      fresh = isAncestor(reportSha, prHeadSha) === true;
-    } catch {
-      fresh = false;
-    }
-  }
-  if (!fresh) {
-    reasons.push('jev-report-stale');
-    return { pass: false, reasons, warnings };
-  }
-  const reportedFiles = new Set(
-    (report?.changedFiles || []).map((f) => String(f).replace(/^\.\//, '')),
-  );
-  const uncovered = (changedFiles || [])
-    .map((f) => String(f).replace(/^\.\//, ''))
-    .filter((f) => f && !reportedFiles.has(f) && !f.startsWith('.abide/reports/'));
-  if (uncovered.length > 0) {
-    reasons.push('jev-report-uncovered-files');
-  }
-  const reportBands = new Map((report?.findings || []).map((f) => [f.rule, String(f.band || '').toLowerCase()]));
-  for (const row of rows) {
-    const expected = reportBands.get(row.rule);
-    if (expected && expected !== row.band) {
-      reasons.push(`jev-report-band-mismatch:${row.rule}`);
-    }
-    if (expected === 'act' && row.band !== 'act') {
-      reasons.push(`jev-band-act:${row.rule}`);
-    }
-  }
-  return { pass: reasons.length === 0, reasons, warnings };
-}
-
 // --- CLI: inputs, gh fetching, verdict output ---
 
 function flagValue(argv, name, fallback = null) {
@@ -343,19 +159,10 @@ function ghJson(args) {
 function printUsage() {
   console.log(
     'Usage: node scripts/gsd-pr-contract.mjs (--pr <n> | --pr-file <p> | --pr-body <text>) ' +
-      '(--issue <n> | --issue-file <p> | --issue-body <text>) [--report <path>] ' +
-      '[--milestone <M00X> --slice <S0Y>] [--changed-files a,b] [--head-sha <sha>] ' +
-      '[--comments-file <p> --head-date <iso> --owner <login>] [--rubric <path>] [--json] [--dry-run]',
+      '(--issue <n> | --issue-file <p> | --issue-body <text>) ' +
+      '[--milestone <M00X> --slice <S0Y>] ' +
+      '[--comments-file <p> --head-date <iso> --owner <login>] [--json] [--dry-run]',
   );
-}
-
-function gitIsAncestor(sha, head) {
-  try {
-    execFileSync('git', ['merge-base', '--is-ancestor', sha, head], { stdio: 'ignore' });
-    return true;
-  } catch {
-    return false;
-  }
 }
 
 const isMain =
@@ -366,7 +173,6 @@ if (isMain) {
   const asJson = argv.includes('--json');
   const milestone = flagValue(argv, '--milestone', '');
   const slice = flagValue(argv, '--slice', '');
-  const rubricPath = flagValue(argv, '--rubric', '.abide/rubric.json');
 
   let prBody = flagValue(argv, '--pr-body', null);
   let issueBody = flagValue(argv, '--issue-body', null);
@@ -376,8 +182,6 @@ if (isMain) {
   const issueFile = flagValue(argv, '--issue-file', null);
   if (prFile) prBody = `@${prFile}`;
   if (issueFile) issueBody = `@${issueFile}`;
-  let prHeadSha = flagValue(argv, '--head-sha', '');
-  let changedFiles = (flagValue(argv, '--changed-files', '') || '').split(',').map((s) => s.trim()).filter(Boolean);
   let comments = [];
   const commentsFile = flagValue(argv, '--comments-file', null);
   if (commentsFile) {
@@ -395,8 +199,6 @@ if (isMain) {
     if (prNum) {
       const pr = ghJson(['pr', 'view', prNum, '--json', 'body,headRefOid,files,comments,commits']);
       prBody = pr.body || '';
-      if (!prHeadSha) prHeadSha = pr.headRefOid || '';
-      if (changedFiles.length === 0) changedFiles = (pr.files || []).map((f) => f.path).filter(Boolean);
       if (comments.length === 0) comments = pr.comments || [];
     }
     if (issueNum) {
@@ -415,33 +217,7 @@ if (isMain) {
   prBody = readMaybeFile(prBody);
   issueBody = readMaybeFile(issueBody);
 
-  let rubric = { rules: [] };
-  try {
-    rubric = JSON.parse(fs.readFileSync(path.resolve(rubricPath), 'utf8'));
-  } catch {
-    console.error(`[gsd-pr-contract] cannot read rubric at ${rubricPath} — JEV scope falls back to section-only`);
-  }
-
-  let report = null;
-  const reportPath = flagValue(argv, '--report', null);
-  if (reportPath) {
-    try {
-      report = JSON.parse(fs.readFileSync(path.resolve(reportPath), 'utf8'));
-    } catch {
-      console.error(`[gsd-pr-contract] cannot parse --report ${reportPath}`);
-      process.exit(EXIT_USAGE);
-    }
-  }
-
   const parity = checkParity({ prBody, issueBody, milestone, slice });
-  const jev = checkJevSection({
-    prBody,
-    changedFiles,
-    rubric,
-    report,
-    headSha: prHeadSha,
-    isAncestor: gitIsAncestor,
-  });
 
   let approval = { fresh: false, approval: null };
   if (comments.length > 0 && headDate) {
@@ -459,9 +235,8 @@ if (isMain) {
   });
 
   const verdict = {
-    pass: parity.pass && jev.pass,
+    pass: parity.pass,
     parity,
-    jev,
     approval: { fresh: approval.fresh, by: approval.approval?.author || null, at: approval.approval?.createdAt || null },
     gates,
   };
@@ -475,9 +250,6 @@ if (isMain) {
       if (parity.missing.length > 0) console.log(`[gsd-pr-contract] missing outcomes: ${parity.missing.join(',')}`);
       if (parity.extra.length > 0) console.log(`[gsd-pr-contract] extra outcomes: ${parity.extra.join(',')}`);
     }
-    console.log(`[gsd-pr-contract] ${mode}: jev ${jev.pass ? 'PASS' : 'REFUSE'} (${jev.reasons.join(',') || 'ok'})`);
-    for (const w of jev.warnings) console.log(`[gsd-pr-contract] advisory: ${w}`);
-    if (!jev.pass && prHeadSha) console.log(`[gsd-pr-contract] fix: ${jevFixHint(prHeadSha)}`);
     console.log(`[gsd-pr-contract] approval: ${approval.fresh ? `fresh (${approval.approval.author})` : 'none/stale'}`);
     console.log(`[gsd-pr-contract] verdict: ${verdict.pass ? 'GATE CLEAR' : 'GATE REFUSES'}`);
   }

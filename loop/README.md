@@ -28,6 +28,11 @@ exists (tracked by M010/S03).
 
 ## Last synced
 
+2026-10-03 — continue/review v5: abide/JEV judging moved to CI
+(`.github/workflows/abide-judge.yml` runs `abide audit` on the changed files and
+posts a sticky per-rule comment; ratchet vs base, so pre-existing findings do
+not block). The committed Q15 handoff report + `.abide/reports/` tooling was
+removed; the contract gate is parity-only.
 2026-09-27 — review+merge v3: `0b` issue-reconcile sweep, `7b` post-merge issue
 sync, and the HUMAN APPROVAL ("ok") rule (a fresh approval comment — postdating
 the head commit, never a `gsd-loop`/`GSD:` comment — lifts `gsd:escalated` /

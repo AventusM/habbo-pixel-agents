@@ -1,8 +1,8 @@
 // tests/issue-pr-contract.test.ts
 // Fixture for M010/S01: asserts the canonical issue + PR templates render the
 // identical skeleton defined in docs/guides/ISSUE-PR-CONTRACT.md
-// (required sections, O-N outcome-ID placeholders, gsd-meta trailer keys,
-// abide/JEV compliance table columns).
+// (required sections, O-N outcome-ID placeholders, gsd-meta trailer keys, and
+// the abide/JEV pointer to the CI judge).
 
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
@@ -51,11 +51,10 @@ describe('slice PR template', () => {
     }
   });
 
-  it('carries the abide/JEV compliance table columns', () => {
+  it('points abide/JEV at the CI judge instead of a hand-written table', () => {
     expect(prTemplate).toContain('abide/JEV compliance');
-    for (const column of ['Rule', 'Where applied', 'Band', 'Evidence']) {
-      expect(prTemplate).toContain(column);
-    }
+    expect(prTemplate).toContain('abide-judge.yml');
+    expect(prTemplate).not.toContain('Where applied');
   });
 });
 

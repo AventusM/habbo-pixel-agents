@@ -20,17 +20,10 @@ mismatch refuses the merge (parity rule).
 
 ## abide/JEV compliance
 
-One row per governed rule from `.abide/rubric.json` that scopes the changed
-files. Bands come from the committed Q15 handoff report
-(`.abide/reports/*-<headSha8>.{json,md}`) — never self-reported. `flag` is
-advisory; `act` blocks. Whole-file findings identical on `origin/main` are
-advisory; only diff-level bands block.
-
-| Rule | Where applied | Band | Evidence |
-| ---- | ------------- | ---- | -------- |
-| <rule id> | <files / outcomes> | clear | <handoff report path or `abide check` ref> |
-
-Verdict: <clear | empty (reason) | unverified (why, quoted)>
+No hand-written section: `.github/workflows/abide-judge.yml` runs `abide audit`
+on the changed files (head vs base) and posts the per-rule result as a sticky
+comment on this PR. It is a ratchet — only rules that get worse than base block.
+Wait for that comment before requesting review.
 
 <!-- gsd-meta
 milestone: M000

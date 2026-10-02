@@ -423,6 +423,26 @@ abide check src/kanbanFilter.ts scripts/web-server.mjs
 # ✓ nothing to repair
 ```
 
+**Live example (2026-10-03):** A deliberate `no-fetch-in-components` violation was
+added to `src/kanbanFilter.ts` and confirmed caught by `abide audit --all`:
+
+```
+src/kanbanFilter.ts  ██████████ 0.97  no-fetch-in-components
+```
+
+The violation (since reverted):
+
+```typescript
+// DEMO VIOLATION — triggers no-fetch-in-components JEV rule
+import { useState, useEffect } from 'react';
+
+export function useDemoRemoteCards(url: string): unknown {
+  const [cards, setCards] = useState<unknown>(null);
+  useEffect(() => { fetch(url).then((r) => r.json()).then(setCards); }, [url]);
+  return cards;
+}
+```
+
 Notes: the hook also flags violations at edit time (before you even run
 `check`). The judge needs credentials: `abide login` (machine-global
 `~/.abide/.env`), or `TYPESAFE_AI_API_KEY` / `AI_GATEWAY_API_KEY` in the
@@ -432,29 +452,42 @@ if the hook is missing on a new machine, run `abide init opencode` in the
 repo. Without a key the hook records a clear `NO_API_KEY` error, never a
 fabricated verdict. The judge evaluates code shape, not extensions — a bare top-level
 `setInterval` in a server entrypoint clears, while the same leak inside a
-hook-shaped function fires. Every PR gets the same treatment automatically via
-`.github/workflows/abide-pr-gate.yml`, with per-rule bands recorded by
-`node scripts/hooks/jeve-report.mjs` into `.abide/reports/`.
+hook-shaped function fires.
+
+Every PR is judged automatically by `.github/workflows/abide-judge.yml`: it runs
+`abide audit` on the changed files at the PR head **and** at the base tree, then
+posts the result as a sticky comment on the PR — the judge output is the source
+of truth, not a committed report. The gate is a **ratchet**: only rules that get
+*worse* than base block, so pre-existing findings in a touched file (for example
+`RoomCanvas.tsx`, the extraction target) stay advisory instead of failing the PR
+that fixes them. Fork PRs receive no secrets and are skipped (the check stays
+green); the judge fails closed if it cannot run. GSD slice PRs also get the
+read-only `.github/workflows/gsd-pr-contract.yml`, which enforces outcome parity
+between the PR and its linked issue — non-slice PRs (no `gsd-meta` trailer) pass.
 
 ### Whole-codebase audit snapshot
 
-`abide audit --all` judges every file in scope (224 files, ~95s, ~$0.04).
-Reference result on `main` @ `1bce4ff` (2026-09-28) — 215 files fully clear:
+`abide audit --all` judges every file in scope (224 files, ~79s, ~$0.05).
+Latest result on `gsd/m011-s04-handoff-evidence-pipeline` (2026-10-03):
 
-| File | Rule | Band | Prob |
+| File | Rule | Band | Status |
 |---|---|---|---|
-| `src/RoomCanvas.tsx` | no-frame-allocations / no-app-logic-in-components | act / act | 0.91 / 0.96 |
-| `src/isoAvatarRenderer.ts` | no-frame-allocations | act | 0.90 |
-| `src/isoFurnitureRenderer.ts` | no-frame-allocations | act | 0.90 |
-| `src/isoKanbanRenderer.ts` | no-frame-allocations | act | 0.88 |
-| `src/isoWallRenderer.ts` | no-frame-allocations | act | 0.83 |
-| `src/isoBubbleRenderer.ts` | no-frame-allocations | flag | 0.63 |
-| `src/isoTileRenderer.ts` | no-frame-allocations | flag | 0.66 |
-| `src/hooks/useRoomAgents.ts` | no-listener-without-cleanup | flag | 0.55 |
-| `src/RoomCanvas.tsx` | no-listener-without-cleanup | flag | 0.54 |
-| `src/web/main.tsx` | no-listener-without-cleanup / no-app-logic-in-components | flag / flag | 0.72 / 0.59 |
+| `src/kanbanFilter.ts` | no-fetch-in-components | **broken** | deliberate violation (reverted) |
+| `src/RoomCanvas.tsx` | no-frame-allocations / no-app-logic-in-components | broken / broken | pre-existing |
+| `src/isoAvatarRenderer.ts` | no-frame-allocations | broken | pre-existing |
+| `src/isoFurnitureRenderer.ts` | no-frame-allocations | broken | pre-existing |
+| `src/isoKanbanRenderer.ts` | no-frame-allocations | broken | pre-existing |
+| `src/isoWallRenderer.ts` | no-frame-allocations | broken | pre-existing |
+| `src/isoBubbleRenderer.ts` | no-frame-allocations | flagged | pre-existing |
+| `src/isoTileRenderer.ts` | no-frame-allocations | flagged | pre-existing |
+| `src/hooks/useRoomAgents.ts` | no-listener-without-cleanup | flagged | pre-existing |
+| `src/hooks/useRoomMessages.ts` | no-listener-without-cleanup | flagged | pre-existing |
+| `src/RoomCanvas.tsx` | no-listener-without-cleanup | flagged | pre-existing |
+| `src/web/main.tsx` | no-listener-without-cleanup / no-app-logic-in-components | flagged / flagged | pre-existing |
 
-All findings are pre-existing render-path debt (nothing from recent work):
+The `src/kanbanFilter.ts` row is the deliberate fire-drill violation (since
+reverted) — it confirms the judge catches `no-fetch-in-components` at 0.97+
+probability. All other findings are pre-existing render-path debt:
 `RoomCanvas.tsx` is the documented extraction target for the
 presentational-container refactor, so its rows are the natural backlog for
 that milestone. Re-run any time with `abide audit --all --json`.

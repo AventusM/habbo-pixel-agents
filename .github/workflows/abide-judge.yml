@@ -1,0 +1,95 @@
+name: abide judge
+
+# Runs the abide/JEV judge directly on the PR's changed files and posts the
+# result as a sticky PR comment — the judge output is the source of truth, not
+# a committed report. The gate is a ratchet: only rules that get worse than the
+# base tree block, so pre-existing findings in a touched file never fail a PR.
+#
+# Fork PRs receive no secrets, so they cannot be judged: the job still runs and
+# ends green (the judge/comment steps are skipped) so the required check is
+# satisfied. Never switch this to pull_request_target — it would run secrets
+# against untrusted PR code.
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: abide-judge-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  abide-judge:
+    name: abide judge
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Full history so the judge can audit the base tree too.
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # Trusted = same-repo branch (forks get no secrets and a read-only token)
+      # AND the actor is the repo owner. The judge runs the PR's own workflow +
+      # scripts with the AI key in env, so only run it for the owner's own
+      # actions; widen the actor check here if a trusted bot must be judged too.
+      - name: Detect trusted source
+        id: ctx
+        run: |
+          if [ "${{ github.event.pull_request.head.repo.full_name }}" = "${{ github.repository }}" ] \
+            && [ "${{ github.actor }}" = "${{ github.repository_owner }}" ]; then
+            echo "trusted=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "trusted=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Pinned, trusted install. No `npm ci` here: PR-controlled postinstall
+      # scripts must never run in a job that holds the AI key or a write token.
+      - name: Install abide (pinned)
+        if: steps.ctx.outputs.trusted == 'true'
+        run: npm install --global @coldtea/abide@0.0.7
+
+      - name: Judge changed files (ratchet)
+        id: judge
+        if: steps.ctx.outputs.trusted == 'true'
+        continue-on-error: true
+        env:
+          # Step-scoped: the key is never visible to install or checkout steps.
+          # A TypeSafe AI key used directly — no gateway base URL. abide pins
+          # its own model internally, so only the key is needed here.
+          TYPESAFE_AI_API_KEY: ${{ secrets.TYPESAFE_AI_API_KEY }}
+        run: |
+          node scripts/abide-pr-judge.mjs \
+            --base-sha "${{ github.event.pull_request.base.sha }}" \
+            --head-sha "${{ github.event.pull_request.head.sha }}" \
+            --out .abide/judge.json
+
+      - name: Post or refresh sticky comment
+        if: always() && steps.ctx.outputs.trusted == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          if [ -f .abide/judge.json ]; then
+            node scripts/abide-pr-comment.mjs --in .abide/judge.json
+          else
+            echo "::warning::abide judge produced no report; skipping comment"
+          fi
+
+      # Fail closed: a regression or a judge that could not run both fail the
+      # required check. The sticky comment carries the detail.
+      - name: Enforce gate
+        if: steps.ctx.outputs.trusted == 'true' && steps.judge.outcome == 'failure'
+        run: |
+          echo "::error::abide judge found new violations or could not run — see the PR comment"
+          exit 1
