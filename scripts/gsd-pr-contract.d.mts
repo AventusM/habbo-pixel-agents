@@ -1,14 +1,13 @@
 // scripts/gsd-pr-contract.d.mts
 // Type declarations for the contract gate (M010/S03): trailer parse, outcome
-// parity, abide/JEV section verification, and the approval re-exports.
+// parity, and the approval re-exports. abide/JEV judging moved to CI
+// (.github/workflows/abide-judge.yml).
 
 export const EXIT_PASS: number;
 export const EXIT_REFUSE: number;
 export const EXIT_USAGE: number;
 
 export const REFUSALS: string[];
-
-export function jevFixHint(headSha?: string): string;
 
 export interface GsdMetaTrailer {
   milestone: string;
@@ -40,61 +39,6 @@ export function checkParity(args: {
   milestone?: string;
   slice?: string;
 }): ParityVerdict;
-
-export interface JevRow {
-  rule: string;
-  where: string;
-  band: string;
-  evidence: string;
-}
-
-export interface JevVerdictLine {
-  kind: string;
-  reason: string;
-}
-
-export function parseJevSection(
-  body: unknown,
-): { present: boolean; rows: JevRow[]; verdict: JevVerdictLine | null };
-
-export function scopeMatches(scope: unknown, file: unknown): boolean;
-
-export function governedRulesForFiles(
-  rubric: { rules?: Array<{ id?: string; status?: string; scope?: unknown; check?: { type?: string } }> } | null | undefined,
-  changedFiles: unknown,
-): Array<{ id?: string; status?: string; scope?: unknown; check?: { type?: string } }>;
-
-export interface JevSectionVerdict {
-  pass: boolean;
-  reasons: string[];
-  warnings: string[];
-  inScope: Array<string | undefined>;
-}
-
-export interface JevReport {
-  head?: { sha?: string };
-  headSha?: string;
-  verdict?: string;
-  changedFiles?: unknown;
-  findings?: Array<{ rule?: string; band?: unknown; files?: unknown }>;
-}
-
-export function checkJevSection(args: {
-  prBody: unknown;
-  changedFiles: unknown;
-  rubric: { rules?: Array<{ id?: string; status?: string; scope?: unknown; check?: { type?: string } }> } | null | undefined;
-  report?: JevReport | null;
-  headSha?: string;
-  isAncestor?: ((sha: string, head: string) => boolean) | null;
-}): JevSectionVerdict;
-
-export function checkJevReport(args: {
-  report: JevReport;
-  prHeadSha?: string;
-  changedFiles?: unknown;
-  rows?: JevRow[];
-  isAncestor?: ((sha: string, head: string) => boolean) | null;
-}): { pass: boolean; reasons: string[]; warnings: string[] };
 
 export interface ApprovalComment {
   body?: unknown;

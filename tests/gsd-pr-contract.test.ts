@@ -1,21 +1,16 @@
 // tests/gsd-pr-contract.test.ts
 // Evidence for M010/S03: the contract gate (scripts/gsd-pr-contract.mjs)
 // mechanizes docs/guides/ISSUE-PR-CONTRACT.md — trailer parse, outcome parity
-// refuse/accept, JEV-section match/mismatch, and fresh/stale approval branches
-// (helpers live in scripts/gsd-github-reactions.mjs, re-exported by the gate).
+// refuse/accept, and fresh/stale approval branches (helpers live in
+// scripts/gsd-github-reactions.mjs, re-exported by the gate). abide/JEV judging
+// moved to CI (.github/workflows/abide-judge.yml).
 
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
 import {
   parseTrailer,
   parseIssueOutcomes,
   parseEvidenceOutcomes,
   checkParity,
-  checkJevSection,
-  checkJevReport,
-  scopeMatches,
-  governedRulesForFiles,
   isApprovalBody,
   findFreshApproval,
   approvalLifts,
@@ -46,7 +41,7 @@ Scratch PR passes the gate.
 ## Outcomes
 
 - O-1 — Trailer parse + outcome-parity gate refuses on mismatch
-- O-2 — JEV section verified against the committed handoff report
+- O-2 — Evidence table outcomes match the issue
 
 ## Exclusions
 
@@ -60,7 +55,7 @@ Scratch PR passes the gate.
 GSD slice M010/S03 (risk: medium, depends: S01,S02) — planned in \`.gsd/\`.
 ${TRAILER}`;
 
-const prBodyWith = (jevSection: string, trailer: string = TRAILER) => `## Linked slice issue
+const prBodyWith = (trailer: string = TRAILER) => `## Linked slice issue
 
 Closes #144 (M010/S03: Lane enforcement)
 
@@ -69,108 +64,13 @@ Closes #144 (M010/S03: Lane enforcement)
 | Outcome | Evidence |
 | ------- | -------- |
 | O-1 | abc1234 gate script |
-| O-2 | def5678 jev cross-check |
+| O-2 | def5678 parity cross-check |
 
 ## Verification
 
 - \`npx vitest run\` — pass
 
-${jevSection}
-
 ${trailer}`;
-
-const JEV_CLEAR = `## abide/JEV compliance
-
-| Rule | Where applied | Band | Evidence |
-| ---- | ------------- | ---- | -------- |
-| no-frame-allocations | src/RoomCanvas.tsx (O-2) | clear | .abide/reports/gate-abc1234.json |
-| typescript-eslint-recommended | src/RoomCanvas.tsx | clear | npm run lint |
-
-Verdict: clear — .abide/reports/gate-abc1234.json`;
-
-const RUBRIC = {
-  rules: [
-    {
-      id: 'no-frame-allocations',
-      status: 'active',
-      scope: ['src/RoomCanvas.tsx', 'src/iso*Renderer*.ts'],
-      check: { type: 'model' },
-    },
-    {
-      id: 'typescript-eslint-recommended',
-      status: 'active',
-      scope: ['**/*.ts', '**/*.tsx'],
-      check: { type: 'lint' },
-    },
-    {
-      id: 'gsd-workflow',
-      status: 'active',
-      check: { type: 'unenforceable', reason: 'process, not code' },
-    },
-  ],
-};
-
-const REPORT = {
-  head: { sha: 'abc1234' },
-  verdict: 'clear',
-  changedFiles: ['src/RoomCanvas.tsx'],
-  findings: [{ rule: 'no-frame-allocations', band: 'clear', files: ['src/RoomCanvas.tsx'] }],
-};
-
-describe('scopeMatches', () => {
-  it('matches rubric scope shapes', () => {
-    expect(scopeMatches('**/*.ts', 'tests/a.ts')).toBe(true);
-    expect(scopeMatches('**/*.ts', 'a.mjs')).toBe(false);
-    expect(scopeMatches('src/iso*Renderer*.ts', 'src/isoTileRenderer.ts')).toBe(true);
-    expect(scopeMatches('src/iso*Renderer*.ts', 'src/roomCanvas.ts')).toBe(false);
-    expect(scopeMatches('src/RoomCanvas.tsx', 'src/RoomCanvas.tsx')).toBe(true);
-  });
-
-  it('matches the script extension globs the widened rules carry', () => {
-    expect(scopeMatches('**/*.mjs', 'scripts/gsd-pr-contract.mjs')).toBe(true);
-    expect(scopeMatches('**/*.mjs', 'esbuild.config.mjs')).toBe(true);
-    expect(scopeMatches('**/*.mjs', 'bin/habbo-dashboard.mjs')).toBe(true);
-    expect(scopeMatches('**/*.mts', 'scripts/jeve-report.d.mts')).toBe(true);
-    expect(scopeMatches('**/*.cjs', 'packages/agent-dashboard/dist/x.cjs')).toBe(true);
-    expect(scopeMatches('**/*.mjs', 'src/RoomCanvas.tsx')).toBe(false);
-  });
-});
-
-// Whole-codebase governance: the committed rubric must scope script modules so a
-// scripts/*.mjs diff is judged instead of falling through .ts/.tsx-only scopes.
-const REAL_RUBRIC = JSON.parse(
-  readFileSync(fileURLToPath(new URL('../.abide/rubric.json', import.meta.url)), 'utf8'),
-);
-
-describe('rubric script scopes', () => {
-  it('governs root and scripts JS modules with lint rules and the model rules', () => {
-    for (const file of ['scripts/gsd-pr-contract.mjs', 'scripts/web-server.mjs', 'esbuild.config.mjs']) {
-      const ids = governedRulesForFiles(REAL_RUBRIC, [file]).map((r) => r.id);
-      for (const id of [
-        'hooks-top-level',
-        'exhaustive-deps',
-        'typescript-eslint-recommended',
-        'no-new-object-in-memo-props',
-        'no-derived-state-effect',
-        'no-listener-without-cleanup',
-        'no-fetch-in-components',
-        'lazy-loading-fallback',
-        'no-children-clone-for-state',
-        'no-app-logic-in-components',
-      ]) {
-        expect(ids).toContain(id);
-      }
-    }
-  });
-
-  it('keeps only the JSX-only and path-specific rules narrow', () => {
-    const ids = governedRulesForFiles(REAL_RUBRIC, ['scripts/web-server.mjs']).map((r) => r.id);
-    // Context.Provider value needs JSX, so only .tsx files qualify.
-    expect(ids).not.toContain('no-new-object-in-context-value');
-    // Per-frame render path is pinned to the canvas/renderer sources.
-    expect(ids).not.toContain('no-frame-allocations');
-  });
-});
 
 describe('parseTrailer', () => {
   it('parses every registered key', () => {
@@ -208,9 +108,9 @@ describe('parseTrailer', () => {
 describe('checkParity', () => {
   it('accepts exact outcome agreement', () => {
     expect(parseIssueOutcomes(ISSUE_BODY)).toEqual(['O-1', 'O-2']);
-    expect(parseEvidenceOutcomes(prBodyWith(JEV_CLEAR))).toEqual(['O-1', 'O-2']);
+    expect(parseEvidenceOutcomes(prBodyWith())).toEqual(['O-1', 'O-2']);
     const verdict = checkParity({
-      prBody: prBodyWith(JEV_CLEAR),
+      prBody: prBodyWith(),
       issueBody: ISSUE_BODY,
       milestone: 'M010',
       slice: 'S03',
@@ -220,7 +120,7 @@ describe('checkParity', () => {
 
   it('refuses missing and extra outcome ids', () => {
     const missing = checkParity({
-      prBody: prBodyWith(JEV_CLEAR).replace('| O-2 | def5678 jev cross-check |', '| O-9 | unknown |'),
+      prBody: prBodyWith().replace('| O-2 | def5678 parity cross-check |', '| O-9 | unknown |'),
       issueBody: ISSUE_BODY,
       milestone: 'M010',
       slice: 'S03',
@@ -228,8 +128,8 @@ describe('checkParity', () => {
     expect(missing.pass).toBe(false);
     expect(missing.reasons).toContain('parity-extra-outcomes');
     const short = checkParity({
-      prBody: prBodyWith(JEV_CLEAR, TRAILER.replace('outcomes: O-1,O-2', 'outcomes: O-1')).replace(
-        '| O-2 | def5678 jev cross-check |\n',
+      prBody: prBodyWith(TRAILER.replace('outcomes: O-1,O-2', 'outcomes: O-1')).replace(
+        '| O-2 | def5678 parity cross-check |\n',
         '',
       ),
       issueBody: ISSUE_BODY,
@@ -244,137 +144,19 @@ describe('checkParity', () => {
   it('refuses absent trailers, wrong keys, and issues without Outcomes', () => {
     expect(checkParity({ prBody: 'nothing', issueBody: ISSUE_BODY }).reasons).toContain('missing-trailer');
     const wrongKeys = checkParity({
-      prBody: prBodyWith(JEV_CLEAR),
+      prBody: prBodyWith(),
       issueBody: ISSUE_BODY,
       milestone: 'M010',
       slice: 'S04',
     });
     expect(wrongKeys.reasons).toContain('trailer-keys-mismatch');
     const noOutcomes = checkParity({
-      prBody: prBodyWith(JEV_CLEAR),
+      prBody: prBodyWith(),
       issueBody: '## Goal\ntext, no outcomes section',
       milestone: 'M010',
       slice: 'S03',
     });
     expect(noOutcomes.reasons).toContain('issue-outcomes-missing');
-  });
-});
-
-describe('checkJevSection', () => {
-  const files = ['src/RoomCanvas.tsx'];
-
-  it('passes a matching section against the committed report', () => {
-    const verdict = checkJevSection({
-      prBody: prBodyWith(JEV_CLEAR),
-      changedFiles: files,
-      rubric: RUBRIC,
-      report: REPORT,
-      headSha: 'abc1234',
-      isAncestor: () => true,
-    });
-    expect(verdict.inScope).toEqual(['no-frame-allocations', 'typescript-eslint-recommended']);
-    expect(verdict).toMatchObject({ pass: true, reasons: [] });
-  });
-
-  it('accepts empty-with-reason when no governed rule scopes the diff', () => {
-    const verdict = checkJevSection({
-      prBody: prBodyWith(
-        '## abide/JEV compliance\n\nNo governed rule scopes `scripts/*.mjs` — nothing judged.\n\nVerdict: empty (scripts-only change; no rubric scope covers .mjs)',
-      ),
-      changedFiles: ['scripts/gsd-pr-contract.mjs'],
-      rubric: RUBRIC,
-    });
-    expect(verdict).toMatchObject({ pass: true, inScope: [] });
-  });
-
-  it('refuses missing sections, missing rows, act bands, and unverified verdicts', () => {
-    expect(
-      checkJevSection({ prBody: 'no jev here', changedFiles: files, rubric: RUBRIC }).reasons,
-    ).toContain('jev-section-missing');
-    const noRow = checkJevSection({
-      prBody: prBodyWith(
-        '## abide/JEV compliance\n\n| Rule | Where applied | Band | Evidence |\n| ---- | ------------- | ---- | -------- |\n\nVerdict: clear — report',
-      ),
-      changedFiles: files,
-      rubric: RUBRIC,
-      report: REPORT,
-      headSha: 'abc1234',
-    });
-    expect(noRow.reasons).toContain('jev-row-missing:no-frame-allocations');
-    const act = checkJevSection({
-      prBody: prBodyWith(JEV_CLEAR.replace('| clear |', '| act |')),
-      changedFiles: files,
-      rubric: RUBRIC,
-      report: { ...REPORT, findings: [{ rule: 'no-frame-allocations', band: 'act' }] },
-      headSha: 'abc1234',
-    });
-    expect(act.reasons).toContain('jev-band-act:no-frame-allocations');
-    const unverified = checkJevSection({
-      prBody: prBodyWith(JEV_CLEAR.replace('Verdict: clear — .abide/reports/gate-abc1234.json', 'Verdict: unverified (tooling absent)')),
-      changedFiles: files,
-      rubric: RUBRIC,
-      report: REPORT,
-      headSha: 'abc1234',
-    });
-    expect(unverified.reasons).toContain('jev-verdict-unverified');
-  });
-
-  it('warns (not refuses) on flag bands', () => {
-    const verdict = checkJevSection({
-      prBody: prBodyWith(JEV_CLEAR.replace('| clear |', '| flag |')),
-      changedFiles: files,
-      rubric: RUBRIC,
-      report: { ...REPORT, findings: [{ rule: 'no-frame-allocations', band: 'flag' }] },
-      headSha: 'abc1234',
-    });
-    expect(verdict.pass).toBe(true);
-    expect(verdict.warnings).toContain('jev-band-flag:no-frame-allocations');
-  });
-
-  it('requires the committed report when model-judged rules scope the diff', () => {
-    const verdict = checkJevSection({
-      prBody: prBodyWith(JEV_CLEAR),
-      changedFiles: files,
-      rubric: RUBRIC,
-      report: null,
-      headSha: 'abc1234',
-    });
-    expect(verdict.reasons).toContain('jev-report-missing');
-  });
-});
-
-describe('checkJevReport', () => {
-  it('refuses stale shas, uncovered files, and band drift', () => {
-    expect(
-      checkJevReport({ report: REPORT, prHeadSha: 'zzz9999', changedFiles: ['src/RoomCanvas.tsx'], isAncestor: () => false })
-        .reasons,
-    ).toContain('jev-report-stale');
-    expect(
-      checkJevReport({
-        report: REPORT,
-        prHeadSha: 'abc1234',
-        changedFiles: ['src/RoomCanvas.tsx', 'src/isoTileRenderer.ts'],
-      }).reasons,
-    ).toContain('jev-report-uncovered-files');
-    expect(
-      checkJevReport({
-        report: { ...REPORT, findings: [{ rule: 'no-frame-allocations', band: 'flag' }] },
-        prHeadSha: 'abc1234',
-        changedFiles: ['src/RoomCanvas.tsx'],
-        rows: [{ rule: 'no-frame-allocations', where: 'x', band: 'clear', evidence: 'y' }],
-      }).reasons,
-    ).toContain('jev-report-band-mismatch:no-frame-allocations');
-  });
-
-  it('accepts an ancestor head sha and ignores report-only paths', () => {
-    const verdict = checkJevReport({
-      report: REPORT,
-      prHeadSha: 'def5678',
-      changedFiles: ['src/RoomCanvas.tsx', '.abide/reports/gate-def5678.json'],
-      rows: [{ rule: 'no-frame-allocations', where: 'x', band: 'clear', evidence: 'y' }],
-      isAncestor: (sha: string, head: string) => sha === 'abc1234' && head === 'def5678',
-    });
-    expect(verdict).toMatchObject({ pass: true, reasons: [] });
   });
 });
 
