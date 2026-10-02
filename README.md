@@ -461,8 +461,9 @@ of truth, not a committed report. The gate is a **ratchet**: only rules that get
 *worse* than base block, so pre-existing findings in a touched file (for example
 `RoomCanvas.tsx`, the extraction target) stay advisory instead of failing the PR
 that fixes them. Fork PRs receive no secrets and are skipped (the check stays
-green); the judge fails closed if it cannot run. Outcome parity is still enforced
-by the read-only `.github/workflows/abide-pr-gate.yml`.
+green); the judge fails closed if it cannot run. GSD slice PRs also get the
+read-only `.github/workflows/gsd-pr-contract.yml`, which enforces outcome parity
+between the PR and its linked issue — non-slice PRs (no `gsd-meta` trailer) pass.
 
 ### Whole-codebase audit snapshot
 

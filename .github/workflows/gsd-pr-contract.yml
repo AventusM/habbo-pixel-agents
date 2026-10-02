@@ -1,0 +1,72 @@
+name: gsd PR contract
+
+# Read-only gate for GSD slice PRs: the PR body's gsd-meta trailer outcomes must
+# exactly match the linked slice issue's Outcomes (outcome parity). Non-slice
+# PRs — no gsd-meta trailer — are not applicable and pass with a note.
+# abide/JEV judging is a separate workflow (.github/workflows/abide-judge.yml).
+# This gate never posts comments, labels, or merges; a refusal exits non-zero.
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: read
+  issues: read
+
+concurrency:
+  group: gsd-pr-contract-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  outcome-parity:
+    name: gsd outcome parity
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # A GSD slice PR carries a `gsd-meta` trailer and cites its issue with
+      # `Closes #<n>`. A PR with neither is not a slice: parity does not apply,
+      # so the gate passes (is_slice=false skips the parity step below).
+      - name: Detect slice PR and resolve linked issue
+        id: slice
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          body="$(gh pr view "$PR_NUMBER" --json body --jq .body)"
+          if ! printf '%s\n' "$body" | grep -q 'gsd-meta'; then
+            echo "is_slice=false" >> "$GITHUB_OUTPUT"
+            echo "Non-slice PR (no gsd-meta trailer) — outcome parity not applicable."
+            exit 0
+          fi
+          issue="$(printf '%s\n' "$body" \
+            | grep -oiE '(close[sd]?|fix(e[sd])?|resolve[sd]?) *#[0-9]+' \
+            | grep -oE '[0-9]+' \
+            | head -n1 || true)"
+          if [ -z "$issue" ]; then
+            echo "::error::Slice PR carries a gsd-meta trailer but no linked issue (expected 'Closes #<n>')."
+            exit 1
+          fi
+          echo "is_slice=true" >> "$GITHUB_OUTPUT"
+          echo "linked=$issue" >> "$GITHUB_OUTPUT"
+          echo "Linked slice issue: #$issue"
+
+      # Exit 0 clear; exit 1 refusal (missing/extra outcomes, wrong trailer
+      # keys, issue without Outcomes); exit 2 usage — all non-zero fail.
+      - name: Run outcome-parity gate
+        if: steps.slice.outputs.is_slice == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          node scripts/gsd-pr-contract.mjs \
+            --pr "$PR_NUMBER" \
+            --issue "${{ steps.slice.outputs.linked }}" \
+            --dry-run
