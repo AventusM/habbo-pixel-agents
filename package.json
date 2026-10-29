@@ -145,7 +145,7 @@
     "esbuild": "^0.27.3",
     "eslint": "^10.11.0",
     "eslint-plugin-react-hooks": "^7.1.1",
-    "happy-dom": "^20.7.0",
+    "happy-dom": "^21.0.4",
     "madge": "^8.0.0",
     "pngjs": "^7.0.0",
     "typescript": "^5.7.0",
